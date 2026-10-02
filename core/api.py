@@ -4,6 +4,7 @@ HTTP 接口与静态文件。只监听 127.0.0.1。
 接口：
     GET  /api/dashboard   今日概览（统计卡片、职级、每日一题、提醒）
     GET  /api/health      心跳与状态
+    /api/shenlun/*        申论科目接口，见 subjects/shenlun/routes.py
 其余路径按 web/ 目录提供静态文件。每个请求加锁读写存档。
 谁调用：server.py。
 """
@@ -17,7 +18,7 @@ from urllib.parse import urlparse
 from . import ai, themes
 from .paths import APP_DIR, Paths, find_vault
 from .store import LOCK, Store
-from subjects.shenlun import samples
+from subjects.shenlun import routes as shenlun
 
 WEB = APP_DIR / "web"
 _PATHS = None
@@ -48,11 +49,11 @@ def dashboard(today=None, store=None):
     state = store.load(today)
     th = themes.get(state.get("theme"))
     recs = state["records"]
-    rated = [r for r in recs if r.get("rate") is not None]
+    rated = [r for r in recs if r.get("rate") is not None and r.get("scored", True)]
     score = round(sum(r["rate"] for r in rated[-10:]) / len(rated[-10:]) * 100, 1) if rated else None
     rank, nxt, nxt_at = themes.rank_of(state.get("theme"), score)
     daily = state["daily"].get(today.isoformat())
-    q = samples.SAMPLES[today.toordinal() % len(samples.SAMPLES)]
+    q = shenlun.daily_question(store.paths, today)
     wrong_due = [k for k, v in state["wrong"].items() if v.get("due", "9999") <= today.isoformat()]
     return {
         "date": today.isoformat(),
@@ -87,8 +88,30 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            return json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+        except ValueError:
+            return None
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        body = self._read_body()
+        if body is None:
+            return self._json({"error": "请求不是合法的 JSON"}, 400)
+        try:
+            return self._json(shenlun.handle("POST", u.path, u.query, body, paths()))
+        except shenlun.ApiError as e:
+            return self._json({"error": e.msg}, e.code)
+
     def do_GET(self):
         u = urlparse(self.path)
+        if u.path.startswith("/api/shenlun/"):
+            try:
+                return self._json(shenlun.handle("GET", u.path, u.query, {}, paths()))
+            except shenlun.ApiError as e:
+                return self._json({"error": e.msg}, e.code)
         if u.path == "/api/dashboard":
             with LOCK:
                 return self._json(dashboard())

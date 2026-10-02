@@ -214,7 +214,8 @@ def draft(block, chat_json, qid, source="用户提供"):
     for i, p in enumerate(bonus):
         p["score"], p["id"] = 1, "加%d" % (i + 1)
     r = {"qid": qid, "status": rubric.STATUS_DRAFT, "total": block["score"], "words": block["words"],
-         "type": block["type"], "source": source, "points": points, "bonus": bonus, "rules": []}
+         "type": block["type"], "source": source, "points": points, "bonus": bonus, "rules": [],
+         "stem": block["stem"]}
     return r, warns
 
 

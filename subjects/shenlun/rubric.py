@@ -71,9 +71,9 @@ def parse(text):
         "qid": meta.get("题目", ""), "status": meta.get("状态", STATUS_DRAFT), "total": total,
         "words": int(meta["字数"]) if meta.get("字数", "").isdigit() else None,
         "type": meta.get("题型", ""), "source": meta.get("来源", ""),
-        "points": [], "bonus": [], "rules": [],
+        "points": [], "bonus": [], "rules": [], "stem": "",
     }
-    sec = None
+    sec, stem_lines = None, []
     for ln in text[m.end():].splitlines():
         h = re.match(r"^##\s+(.+?)\s*$", ln)
         if h:
@@ -102,10 +102,13 @@ def parse(text):
             else:
                 item["id"] = "加%d" % (len(r["bonus"]) + 1)
                 r["bonus"].append(item)
+        elif sec == "题干":
+            stem_lines.append(ln)
         elif sec == "扣分规则":
             em = re.match(r"^\s*-\s+(.+?)\s*$", ln)
             if em:
                 r["rules"].append(em.group(1))
+    r["stem"] = "\n".join(stem_lines).strip()
     return r
 
 
@@ -168,6 +171,8 @@ def dumps(r):
             if p.get("source"):
                 ln += " | 依据: %s" % p["source"]
             out.append(ln)
+    if r.get("stem"):
+        out += ["## 题干"] + r["stem"].splitlines()
     if r["rules"]:
         out += ["## 扣分规则"] + ["- %s" % x for x in r["rules"]]
     return "\n".join(out) + "\n"

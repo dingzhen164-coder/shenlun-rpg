@@ -38,6 +38,7 @@ const NAV = [
   { id: "notes", label: "知识积累", icon: "book", ms: "M4" },
   { group: "实战练习" },
   { id: "practice", label: "AI 对练", icon: "target" },
+  { id: "questions", label: "题库选题", icon: "search" },
   { id: "hot", label: "高频考点", icon: "flame", ms: "M4" },
   { id: "essay", label: "大作文训练", icon: "pen", ms: "M4" },
   { id: "redo", label: "整改重做", icon: "redo", ms: "M2" },
@@ -99,10 +100,10 @@ const PAGES = {
           </div>
           <div class="daily-body">
             <div>
-              <div class="meta-row"><span class="pill solid">${esc(q.type)}</span><span class="pill soft">${esc(q.topic)}</span><span>${esc(q.source)} · ${q.score} 分 · ${q.words} 字</span></div>
+              <div class="meta-row"><span class="pill solid">${esc(q.type)}</span>${q.real ? "" : `<span class="pill soft">${esc(q.topic)}</span>`}<span>${esc(q.source)} · ${q.score} 分 · ${q.words} 字</span></div>
               <p class="stem">${esc(q.stem)}</p>
             </div>
-            <button class="btn primary" data-go="practice">${ico("play")}<span>${esc(t.start)}</span></button>
+            <button class="btn primary" data-go="${q.real ? "answer?qid=" + encodeURIComponent(q.id) : "questions"}">${ico("play")}<span>${esc(t.start)}</span></button>
           </div>
         </section>
 
@@ -134,7 +135,7 @@ const PAGES = {
         ["search", "", "手动选题", "按省份、年份翻历年真题，自己挑一道想练的题", "国考行政执法 · 贵州联考"],
         ["bulb", "t-violet", "要点提取", "只练圈采分点：读材料 → 列要点 → AI 只评命中率", "随机抽题 · 专项突破"],
       ].map(([i, tone, h, p, f]) => `
-        <article class="card hover entry rise"><div class="chip-ico ${tone}" style="width:46px;height:46px">${ico(i)}</div><h3>${h}</h3><p>${p}</p><div class="foot">${f}</div></article>`).join("");
+        <article class="card hover entry rise" ${h === "手动选题" ? 'data-go="questions"' : ""}><div class="chip-ico ${tone}" style="width:46px;height:46px">${ico(i)}</div><h3>${h}</h3><p>${p}</p><div class="foot">${f}</div></article>`).join("");
       const seg = (arr, on) => arr.map((x) => `<button class="pill${x === on ? " on" : ""}">${x}</button>`).join("");
       return `
       <div class="stack">
@@ -151,6 +152,85 @@ const PAGES = {
           <div class="card card-pad rise"><div class="eyebrow" style="margin-bottom:12px">练习概况</div><div class="empty" style="padding:var(--s-6) 0">还没有练习记录，加油吧</div></div>
         </section>
       </div>`;
+    },
+  },
+
+
+  questions: {
+    title: () => "题库选题",
+    sub: () => "国考行政执法 · 贵州联考 · 已导入的题目",
+    actions: () => "",
+    render() { return `<div id="qlist" class="stack"><div class="skeleton" style="height:96px"></div><div class="skeleton" style="height:96px"></div></div>`; },
+    async mount() {
+      const box = $("#qlist");
+      try {
+        const qs = (await (await fetch("/api/shenlun/questions")).json()).questions || [];
+        box.innerHTML = qs.length ? qs.map((q) => `
+          <article class="card hover qrow rise" data-go="answer?qid=${encodeURIComponent(q.qid)}">
+            <div><div class="meta-row"><span class="pill solid">${esc(q.type || "未分类")}</span><span class="pill ${q.status === "已定稿" ? "soft" : "gold"}">${esc(q.status)}</span><span>${esc(q.qid)} · ${q.total} 分${q.words ? " · " + q.words + " 字" : ""} · ${q.points} 个采分点</span></div>
+            <p class="stem">${esc((q.stem || "（未录入题干）").split("\n")[0])}</p></div>
+            <span class="btn sm">${ico("pen")}<span>去作答</span></span>
+          </article>`).join("") : emptyBox("题库是空的", "用 python -m subjects.shenlun.analysis 从解析文档起草采分点，放进 训练/采分点/");
+      } catch (e) { box.innerHTML = emptyBox("读取失败", "请确认本地服务仍在运行"); }
+    },
+  },
+
+  answer: {
+    title: () => "作答与批改",
+    sub: () => "写完点“交卷批改”，AI 逐个采分点判断，分数由程序计算",
+    actions: () => "",
+    render() {
+      return `<div class="answer-grid">
+        <div class="stack" id="qside"><div class="skeleton" style="height:180px"></div></div>
+        <div class="stack" id="rside">${emptyBox("等你交卷", "批改结果会出现在这里")}</div></div>`;
+    },
+    async mount(params) {
+      const qid = params.get("qid");
+      let q;
+      try {
+        const r = await fetch("/api/shenlun/question?qid=" + encodeURIComponent(qid));
+        q = await r.json();
+        if (!r.ok) throw new Error(q.error);
+      } catch (e) { $("#qside").innerHTML = emptyBox("找不到这道题", String(e.message || e)); return; }
+      const draft = q.status !== "已定稿";
+      $("#qside").innerHTML = `
+        <section class="card rise">
+          <div class="card-head"><h3>${esc(q.qid)}</h3><span class="sub">${esc(q.type || "未分类")} · ${q.total} 分${q.words ? " · 不超过 " + q.words + " 字" : ""}</span>
+            <span class="right pill ${draft ? "gold" : "soft"}">${esc(q.status)}</span></div>
+          <div class="card-pad"><p class="stem">${esc(q.stem || "（未录入题干）").replace(/\n/g, "<br>")}</p></div>
+        </section>
+        ${draft ? `<div class="notice rise"><span>采分点还是草稿：可以试批，但不计入预估分。</span><button class="btn sm" id="finalizeBtn">审定并定稿</button></div>` : ""}
+        <section class="card card-pad rise">
+          <textarea id="ans" class="ans" placeholder="在这里作答……" spellcheck="false"></textarea>
+          <div class="ans-foot"><span class="count" id="cnt">0 字</span><button class="btn primary" id="submitBtn">${ico("check")}<span>交卷批改</span></button></div>
+        </section>`;
+      const ans = $("#ans"), cnt = $("#cnt");
+      ans.addEventListener("input", () => {
+        const n = ans.value.replace(/\s/g, "").length;
+        cnt.textContent = n + " 字" + (q.words ? " / " + q.words : "");
+        cnt.classList.toggle("over", !!q.words && n > q.words * 1.1);
+      });
+      const fin = $("#finalizeBtn");
+      if (fin) fin.onclick = async () => {
+        const r = await fetch("/api/shenlun/finalize", { method: "POST", body: JSON.stringify({ qid }) });
+        const j = await r.json();
+        if (!r.ok) return toast(j.error); toast("已定稿"); route();
+      };
+      $("#submitBtn").onclick = async (ev) => {
+        const btn = ev.currentTarget;
+        if (!ans.value.trim()) return toast("先写点什么再交卷");
+        btn.disabled = true; btn.querySelector("span:last-child").textContent = "阅卷中…";
+        $("#rside").innerHTML = `<div class="skeleton" style="height:140px"></div><div class="skeleton" style="height:260px"></div>`;
+        try {
+          const r = await fetch("/api/shenlun/grade", { method: "POST", body: JSON.stringify({ qid, answer: ans.value }) });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error);
+          $("#rside").innerHTML = resultView(j, q);
+        } catch (e) {
+          $("#rside").innerHTML = emptyBox("批改没成功", String(e.message || e));
+        }
+        btn.disabled = false; btn.querySelector("span:last-child").textContent = "交卷批改";
+      };
     },
   },
 
@@ -183,6 +263,30 @@ function stat(tone, icon, label, num, unit, cap) {
     <div class="stat-num">${esc(num)}${unit ? `<small>${esc(unit)}</small>` : ""}</div><div class="stat-cap">${esc(cap)}</div></article>`;
 }
 
+
+function resultView(j, q) {
+  const pct = Math.round(j.rate * 100);
+  const hitLabel = { full: ["落实", "ok"], half: ["部分落实", "half"], none: ["未落实", "none"] };
+  const rows = j.points.map((p) => {
+    const [lab, cls] = hitLabel[p.hit];
+    return `<li class="pt ${cls}"><div class="pt-top"><b>${p.bonus ? "加分 · " : ""}${esc(p.name)}</b><span class="badge ${cls}">${lab}</span><span class="pt-sc">${p.earned} / ${p.score}</span></div>
+      ${p.reason ? `<div class="pt-reason">${esc(p.reason)}</div>` : ""}
+      ${p.evidence ? `<blockquote>${esc(p.evidence)}</blockquote>` : ""}${p.flag ? `<div class="pt-flag">${esc(p.flag)}</div>` : ""}</li>`;
+  }).join("");
+  const ded = j.deductions.map((d) => `<li class="pt none"><div class="pt-top"><b>${esc(d.reason)}</b><span class="pt-sc">-${d.points}</span></div></li>`).join("");
+  const lost = j.lost.length ? `<div class="filters" style="margin-top:12px">${j.lost.map((x) => `<span class="pill red" title="${esc(x.note)}">${esc(x.code)} ${esc(x.name)}</span>`).join("")}</div>` : "";
+  return `
+    <section class="card score-card rise ${j.draft ? "trial" : ""}">
+      <div class="ring" style="--p:${pct}"><div><b>${j.total}</b><small>/ ${j.full}</small></div></div>
+      <div><div class="eyebrow">${j.draft ? "试批 · 不计入预估分" : "本次得分"}</div>
+        <div class="score-line">得分率 ${pct}% · ${j.words} 字</div>
+        ${lost}</div>
+    </section>
+    ${j.summary ? `<section class="card pishi rise"><div class="avatar" aria-hidden="true">${esc(D.theme.tutor.name.slice(0, 1))}</div><div><div class="pishi-name">${esc(D.theme.tutor.name)}<small>批示</small></div><div class="quote">${esc(j.summary)}</div></div></section>` : ""}
+    <section class="card rise"><div class="card-head"><h3>采分点</h3><span class="sub">${j.points.filter((p) => !p.bonus).length} 个</span></div><ul class="pts">${rows}${ded}</ul></section>
+    <div class="sub" style="color:var(--ink-3);font-size:12px">复盘已保存到 ${esc(j.review_file)}</div>`;
+}
+
 /* ---------- 路由 ---------- */
 function placeholder(item) {
   return {
@@ -194,15 +298,17 @@ function placeholder(item) {
 }
 
 function route() {
-  const id = (location.hash || "#overview").slice(1);
-  const item = NAV.find((n) => n.id === id) || NAV[1];
+  const [id, qs] = (location.hash || "#overview").slice(1).split("?");
+  const params = new URLSearchParams(qs || "");
+  const item = NAV.find((n) => n.id === id) || (id === "answer" ? { id: "answer", label: "作答" } : NAV[1]);
   const page = PAGES[item.id] || placeholder(item);
   document.title = `${page.title()} · ${D ? D.theme.app : "申论官途"}`;
   $("#pageTitle").textContent = page.title();
   $("#pageSub").textContent = page.sub();
   $("#pageActions").innerHTML = page.actions();
-  $("#content").innerHTML = D ? page.render() : `<div class="grid c4"><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div></div>`;
-  document.querySelectorAll(".nav-item[data-id]").forEach((el) => el.classList.toggle("active", el.dataset.id === item.id));
+  $("#content").innerHTML = D ? page.render(params) : `<div class="grid c4"><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div><div class="skeleton" style="height:130px"></div></div>`;
+  document.querySelectorAll(".nav-item[data-id]").forEach((el) => el.classList.toggle("active", el.dataset.id === (item.id === "answer" ? "questions" : item.id)));
+  if (D && page.mount) page.mount(params);
   $("#app").classList.remove("nav-open");
   window.scrollTo(0, 0);
 }

@@ -28,7 +28,7 @@ def settings():
     s = load_settings()
     return {
         "api_key": s.get("api_key") or os.environ.get("DEEPSEEK_API_KEY", ""),
-        "base_url": (s.get("base_url") or DEFAULT_BASE).rstrip("/"),
+        "base_url": (s.get("base_url") or os.environ.get("SHENLUN_AI_BASE_URL") or DEFAULT_BASE).rstrip("/"),
         "model": s.get("model") or DEFAULT_MODEL,
     }
 
