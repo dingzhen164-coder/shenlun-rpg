@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>申论官途</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='6' fill='%23b8342b'/%3E%3Ctext x='16' y='23' font-size='19' font-family='serif' font-weight='700' text-anchor='middle' fill='%23fff7ea'%3E申%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="主导航">
+    <div class="brand">
+      <div class="seal" aria-hidden="true">申</div>
+      <div class="brand-text">
+        <div class="brand-name" id="brandName">申论官途</div>
+        <div class="brand-ver" id="brandVer">v0.1.0</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <button class="nav-item" id="themeToggle" type="button"><span class="ico" data-ico="moon"></span><span>外观</span></button>
+      <div class="foot-note" id="footNote">AI 批示 · 采分点精读</div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <main class="main">
+    <header class="page-head">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="打开导航"><span class="ico" data-ico="menu"></span></button>
+      <div class="page-titles">
+        <h1 id="pageTitle">今日概览</h1>
+        <p id="pageSub"></p>
+      </div>
+      <div class="page-actions" id="pageActions"></div>
+    </header>
+    <div class="content" id="content" aria-live="polite"></div>
+  </main>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>
