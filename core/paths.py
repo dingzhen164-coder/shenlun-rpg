@@ -5,8 +5,7 @@
     <库>/训练/                      本程序的数据（规则、题库、采分点、存档……），随库同步
     ~/.shenlun-rpg/settings.json    本机设置（API key、库路径），不同步、不进仓库
 
-库的查找顺序：环境变量 SHENLUN_VAULT → 设置里的 vault → 程序放在 <库>/训练/程序/ 时往上两级
-→ 都没有则用程序目录下的 data/（开发和试用；已在 .gitignore）。
+库的查找顺序：环境变量 SHENLUN_VAULT → 设置里的 vault → 程序放在 <库>/训练/程序/ 时自动取上上级 → 都没有则用程序目录下的 data/（开发和试用；已在 .gitignore）。
 谁调用：server.py、core/store.py、core/ai.py。
 """
 import json
@@ -41,9 +40,8 @@ def find_vault():
     v = load_settings().get("vault")
     if v and Path(v).is_dir():
         return Path(v)
-    up = APP_DIR.parent.parent
-    if APP_DIR.parent.name == "程序" and up.is_dir():
-        return up
+    if APP_DIR.name == "程序" and APP_DIR.parent.name == TRAIN_REL.name:  # <库>/训练/程序/
+        return APP_DIR.parent.parent
     dev = APP_DIR / "data"
     dev.mkdir(exist_ok=True)
     return dev

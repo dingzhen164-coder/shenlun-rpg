@@ -89,6 +89,21 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(settings.get()["has_key"])
         self.assertEqual(settings.get()["model"], "x")
 
+    def test_vault_auto_detected_from_program_folder(self):
+        lib = Path(self.tmp.name) / "申论库"
+        app = lib / "训练" / "程序"
+        app.mkdir(parents=True)
+        old = core_paths.APP_DIR
+        core_paths.APP_DIR = app
+        try:
+            self.assertEqual(core_paths.find_vault(), lib)           # 程序在 库/训练/程序 → 自动找到库
+            other = Path(self.tmp.name) / "别处"
+            other.mkdir()
+            settings.put({"vault": str(other)})
+            self.assertEqual(core_paths.find_vault(), other)         # 设置里明确指定的优先
+        finally:
+            core_paths.APP_DIR = old
+
     def test_vault_validation(self):
         with self.assertRaises(ValueError):
             settings.put({"vault": str(Path(self.tmp.name) / "不存在")})
