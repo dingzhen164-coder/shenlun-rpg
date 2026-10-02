@@ -4,6 +4,7 @@ HTTP 接口与静态文件。只监听 127.0.0.1。
 接口：
     GET  /api/dashboard   今日概览（统计卡片、职级、每日一题、提醒）
     GET  /api/health      心跳与状态
+    GET/POST /api/settings、POST /api/settings/test   本机设置（库路径、API key）
     /api/shenlun/*        申论科目接口，见 subjects/shenlun/routes.py
 其余路径按 web/ 目录提供静态文件。每个请求加锁读写存档。
 谁调用：server.py。
@@ -15,13 +16,26 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
-from . import ai, themes
+from . import ai, settings, themes
 from .paths import APP_DIR, Paths, find_vault
 from .store import LOCK, Store
 from subjects.shenlun import routes as shenlun
 
 WEB = APP_DIR / "web"
 _PATHS = None
+
+
+def _version():
+    try:
+        return (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "dev"
+
+
+def reset_paths():
+    """库路径改了以后，下一次请求重新定位"""
+    global _PATHS
+    _PATHS = None
 
 
 def paths():
@@ -69,7 +83,7 @@ def dashboard(today=None, store=None):
         },
         "daily": {"question": q, "done": bool(daily and daily.get("done"))},
         "ai": ai.available(),
-        "version": "0.1.0",
+        "version": _version(),
     }
 
 
@@ -100,18 +114,31 @@ class Handler(BaseHTTPRequestHandler):
         body = self._read_body()
         if body is None:
             return self._json({"error": "请求不是合法的 JSON"}, 400)
+        if u.path == "/api/settings":
+            try:
+                res = settings.put(body)
+            except ValueError as e:
+                return self._json({"error": str(e)}, 400)
+            if res["vault_changed"]:
+                reset_paths()
+            return self._json(settings.get())
+        if u.path == "/api/settings/test":
+            ok, msg = settings.test()
+            return self._json({"ok": ok, "message": msg})
         try:
             return self._json(shenlun.handle("POST", u.path, u.query, body, paths()))
         except shenlun.ApiError as e:
-            return self._json({"error": e.msg}, e.code)
+            return self._json(dict(e.extra, error=e.msg), e.code)
 
     def do_GET(self):
         u = urlparse(self.path)
+        if u.path == "/api/settings":
+            return self._json(settings.get())
         if u.path.startswith("/api/shenlun/"):
             try:
                 return self._json(shenlun.handle("GET", u.path, u.query, {}, paths()))
             except shenlun.ApiError as e:
-                return self._json({"error": e.msg}, e.code)
+                return self._json(dict(e.extra, error=e.msg), e.code)
         if u.path == "/api/dashboard":
             with LOCK:
                 return self._json(dashboard())

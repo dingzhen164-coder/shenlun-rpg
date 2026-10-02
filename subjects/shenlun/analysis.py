@@ -36,11 +36,15 @@ def read_source(path):
         return p.read_text(encoding="utf-8", errors="replace")
     if p.suffix.lower() == ".pdf":
         try:
-            import fitz  # pymupdf，可选
-            with fitz.open(str(p)) as doc:
-                return "\n".join(pg.get_text() for pg in doc)
+            import pymupdf  # 可选组件；网页“装 PDF 读取组件”会 pip install pymupdf
         except ImportError:
-            pass
+            try:
+                import fitz as pymupdf  # 老版本的名字
+            except ImportError:
+                pymupdf = None
+        if pymupdf is not None:
+            with pymupdf.open(str(p)) as doc:
+                return "\n".join(_page_text(pg) for pg in doc)
         exe = shutil.which("pdftotext")
         if exe:
             out = subprocess.run([exe, "-layout", str(p), "-"], stdout=subprocess.PIPE, check=True)
@@ -58,6 +62,32 @@ def _is_watermark(ln):
     if len(core) <= 2:
         return True
     return len(core) <= 4 and not re.fullmatch(r"[\u4e00-\u9fff]+", core)
+
+
+def _page_text(page):
+    """pymupdf 页面 → 文字。关键：丢掉倾斜的行（水印都是斜着的），再按视觉位置排序，同一行的单元格用空格隔开。
+    直接 get_text() 会按 PDF 内部绘制顺序输出，题干可能跑到标题前面；sort=True 又会把水印拼进正文行。"""
+    rows = []
+    for blk in page.get_text("dict")["blocks"]:
+        for ln in blk.get("lines", []):
+            if abs(ln["dir"][1]) > 0.1:  # 非水平 = 水印
+                continue
+            txt = "".join(sp["text"] for sp in ln["spans"]).strip()
+            if txt:
+                x0, y0, x1, y1 = ln["bbox"]
+                rows.append(((y0 + y1) / 2.0, x0, txt))
+    rows.sort()
+    out, cur, cy = [], [], None
+    for y, x, txt in rows:
+        if cy is not None and abs(y - cy) > 3:
+            out.append("    ".join(t for _, t in sorted(cur)))
+            cur = []
+        if not cur:
+            cy = y
+        cur.append((x, txt))
+    if cur:
+        out.append("    ".join(t for _, t in sorted(cur)))
+    return "\n".join(out)
 
 
 def clean(text):

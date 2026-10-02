@@ -36,6 +36,7 @@ const NAV = [
   { group: "学习内容" },
   { id: "articles", label: "每日文章", icon: "news", ms: "M5" },
   { id: "notes", label: "知识积累", icon: "book", ms: "M4" },
+  { id: "import", label: "导入解析文档", icon: "file" },
   { group: "实战练习" },
   { id: "practice", label: "AI 对练", icon: "target" },
   { id: "questions", label: "题库选题", icon: "search" },
@@ -46,7 +47,7 @@ const NAV = [
   { id: "records", label: "练习记录", icon: "chart" },
   { id: "plan", label: "学习计划", icon: "cal", ms: "M2" },
   { group: "" },
-  { id: "settings", label: "设置", icon: "gear", ms: "M1" },
+  { id: "settings", label: "设置", icon: "gear" },
 ];
 
 let D = null; // dashboard 数据
@@ -155,6 +156,112 @@ const PAGES = {
     },
   },
 
+
+
+  settings: {
+    title: () => "设置",
+    sub: () => "只保存在这台电脑上，不会上传",
+    actions: () => "",
+    render() {
+      return `<div class="stack" style="max-width:720px">
+        <section class="card card-pad rise">
+          <div class="eyebrow" style="margin-bottom:12px">AI 接口（DeepSeek）</div>
+          <label class="field"><span>API Key</span><input id="s_key" type="password" autocomplete="off" placeholder="sk-…"><em id="s_keyhint"></em></label>
+          <label class="field"><span>接口地址</span><input id="s_base" placeholder="https://api.deepseek.com"></label>
+          <label class="field"><span>模型</span><input id="s_model" placeholder="deepseek-chat"></label>
+          <div class="ans-foot"><span class="count" id="s_testmsg"></span><span style="display:flex;gap:8px"><button class="btn" id="s_test">测试连接</button></span></div>
+        </section>
+        <section class="card card-pad rise">
+          <div class="eyebrow" style="margin-bottom:12px">数据位置</div>
+          <label class="field"><span>申论库文件夹</span><input id="s_vault" placeholder="例如 C:\\Users\\你\\Desktop\\申论obsidian\\申论（留空则用程序旁的 data 文件夹）"><em id="s_vaulthint"></em></label>
+          <p class="hint">题库、采分点、作答复盘、存档都会放在这个文件夹的「训练」子文件夹里，Obsidian 里能直接看到。</p>
+        </section>
+        <div><button class="btn primary" id="s_save">${ico("check")}<span>保存</span></button></div>
+      </div>`;
+    },
+    async mount() {
+      const load = async () => {
+        const c = await (await fetch("/api/settings")).json();
+        $("#s_base").value = c.base_url; $("#s_model").value = c.model; $("#s_vault").value = c.vault;
+        $("#s_keyhint").textContent = c.has_key ? "已填写（" + c.key_mask + "），留空表示不修改" : "还没有填写";
+        $("#s_vaulthint").textContent = "当前使用：" + c.vault_in_use;
+        return c;
+      };
+      await load();
+      $("#s_save").onclick = async () => {
+        const r = await fetch("/api/settings", { method: "POST", body: JSON.stringify({ api_key: $("#s_key").value, base_url: $("#s_base").value, model: $("#s_model").value, vault: $("#s_vault").value }) });
+        const j = await r.json();
+        if (!r.ok) return toast(j.error);
+        $("#s_key").value = ""; await load(); toast("已保存");
+        const d = await (await fetch("/api/dashboard")).json(); D = d; $("#footNote").textContent = D.ai ? "AI 批示已就绪" : "AI 未连接 · 在设置里填 key";
+      };
+      $("#s_test").onclick = async () => {
+        const m = $("#s_testmsg"); m.textContent = "连接中…"; m.className = "count";
+        if ($("#s_key").value) await $("#s_save").onclick();
+        const j = await (await fetch("/api/settings/test", { method: "POST", body: "{}" })).json();
+        m.textContent = j.message; m.className = "count" + (j.ok ? "" : " over");
+      };
+    },
+  },
+
+  import: {
+    title: () => "导入解析文档",
+    sub: () => "把机构出的真题解析（PDF 或文本）变成采分点草稿",
+    actions: () => `<button class="btn" data-go="questions">${ico("search")}<span class="lbl">去题库选题</span></button>`,
+    render() {
+      return `<div class="stack" style="max-width:860px">
+        <section class="card card-pad rise">
+          <div class="eyebrow" style="margin-bottom:8px">第 1 步 · 选文件</div>
+          <p class="hint" style="margin-top:0">支持 .pdf（需带文字，不是扫描图）、.txt、.md。文件会复制一份到「训练/资料」。</p>
+          <label class="field"><span>题目编号前缀</span><input id="i_prefix" placeholder="例如 国考2026-副省 → 生成 国考2026-副省-01、-02…"></label>
+          <input id="i_file" type="file" accept=".pdf,.txt,.md" class="filebox">
+          <div id="i_msg" class="count" style="margin-top:8px"></div>
+        </section>
+        <section id="i_step2"></section>
+      </div>`;
+    },
+    mount() {
+      const msg = $("#i_msg"), fileEl = $("#i_file");
+      const b64 = (f) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = no; r.readAsDataURL(f); });
+      const post = async (url, body) => { const r = await fetch(url, { method: "POST", body: JSON.stringify(body) }); const j = await r.json(); if (!r.ok) { const e = new Error(j.error || "失败"); e.data = j; throw e; } return j; };
+      let current = null;
+      const showQuestions = (j) => {
+        current = j.file;
+        $("#i_step2").innerHTML = `<section class="card rise"><div class="card-head"><h3>第 2 步 · 识别结果</h3><span class="sub">${esc(j.file)}</span></div>
+          <ul class="pts">${j.questions.map((q) => `<li class="pt ${q.table_lines ? "ok" : "none"}" id="q${q.no}"><div class="pt-top"><b>第 ${q.no} 题</b><span class="pill solid">${esc(q.type || "题型未识别")}</span><span class="pt-sc">${q.score || "?"} 分 · ${q.words || "?"} 字</span></div>
+            <div class="pt-reason">${esc(q.stem)}</div><div class="pt-reason" style="color:var(--ink-3)">要点表 ${q.table_lines} 行 · 参考答案 ${q.answers} 份</div><div class="pt-flag" id="r${q.no}" style="color:var(--ink-2)"></div></li>`).join("")}</ul>
+          <div class="card-pad"><button class="btn primary" id="i_go">${ico("spark")}<span>让 AI 起草采分点</span></button><span class="hint" style="margin-left:12px">已存在的采分点不会被覆盖</span></div></section>`;
+        $("#i_go").onclick = async (ev) => {
+          const btn = ev.currentTarget; btn.disabled = true;
+          let ok = 0;
+          for (const q of j.questions) {
+            const out = $("#r" + q.no); out.textContent = "AI 起草中…";
+            try {
+              const d = await post("/api/shenlun/draft", { file: current, prefix: $("#i_prefix").value.trim(), no: q.no });
+              out.textContent = d.skipped ? "已存在，跳过" : "✓ 已生成 " + d.points + " 个采分点" + (d.warnings && d.warnings.length ? "；需处理：" + d.warnings.join("；") : "");
+              if (!d.skipped) ok++;
+            } catch (e) { out.style.color = "var(--cinnabar)"; out.textContent = "失败：" + e.message; }
+          }
+          btn.disabled = false; toast("完成：新生成 " + ok + " 题，请到题库选题里审定");
+        };
+      };
+      fileEl.onchange = async () => {
+        const f = fileEl.files[0]; if (!f) return;
+        if (!$("#i_prefix").value.trim()) $("#i_prefix").value = f.name.replace(/\.[^.]+$/, "").slice(0, 24);
+        msg.className = "count"; msg.textContent = "上传并识别中…";
+        try { const j = await post("/api/shenlun/import", { name: f.name, data: await b64(f) }); msg.textContent = "识别到 " + j.questions.length + " 道题"; showQuestions(j); }
+        catch (e) {
+          msg.className = "count over"; msg.textContent = e.message;
+          if (e.data && e.data.need_pdf_tool) {
+            msg.insertAdjacentHTML("afterend", `<div style="margin-top:8px"><button class="btn sm" id="i_inst">安装 PDF 读取组件（只需一次，需要联网）</button></div>`);
+            $("#i_inst").onclick = async (ev) => { ev.currentTarget.disabled = true; ev.currentTarget.textContent = "安装中，请稍候…";
+              try { await post("/api/shenlun/install-pdf", {}); toast("安装完成，请重新选择文件"); ev.currentTarget.remove(); fileEl.value = ""; msg.textContent = "安装完成，请重新选择文件"; msg.className = "count"; }
+              catch (e2) { ev.currentTarget.textContent = "安装失败：" + e2.message; } };
+          }
+        }
+      };
+    },
+  },
 
   questions: {
     title: () => "题库选题",

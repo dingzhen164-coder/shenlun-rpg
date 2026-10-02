@@ -308,6 +308,15 @@ h1, h2, h3, p { margin: 0; }
 .pt blockquote { margin: var(--s-2) 0 0; padding: 4px var(--s-3); border-left: 2px solid var(--gold); background: var(--gold-soft); border-radius: 0 var(--r-1) var(--r-1) 0; font-family: var(--font-serif); font-size: var(--fs-13); color: var(--ink-2); }
 .pt-flag { color: var(--cinnabar); font-size: var(--fs-12); margin-top: 4px; }
 
+/* 表单 */
+.field { display: grid; gap: 6px; margin-bottom: var(--s-4); }
+.field > span { font-size: var(--fs-13); font-weight: 600; color: var(--ink-2); }
+.field > em { font-style: normal; font-size: var(--fs-12); color: var(--ink-3); }
+.field input { width: 100%; padding: 10px var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-2); background: var(--surface-2); color: var(--ink); font: inherit; }
+.field input:focus { outline: 2px solid var(--primary-2); outline-offset: 1px; background: var(--surface); }
+.hint { color: var(--ink-3); font-size: var(--fs-13); margin-top: var(--s-2); }
+.filebox { width: 100%; padding: var(--s-5); border: 2px dashed var(--line-strong); border-radius: var(--r-3); background: var(--surface-2); color: var(--ink-2); }
+
 /* 骨架屏与进场动效 */
 .skeleton { background: linear-gradient(90deg, var(--surface-3), var(--surface-2), var(--surface-3)); background-size: 200% 100%; animation: sk 1.4s linear infinite; border-radius: var(--r-3); }
 @keyframes sk { to { background-position: -200% 0; } }
