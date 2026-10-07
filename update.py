@@ -22,7 +22,7 @@ from pathlib import Path
 DEFAULT_URL = "https://github.com/dingzhen164-coder/shenlun-rpg/archive/refs/heads/claude/dazzling-fermat-0n9kbc.zip"
 APP = Path(__file__).resolve().parent
 DIRS = ["core", "subjects", "web", "tests", "defaults"]
-FILES = ["server.py", "update.py", "VERSION", "README.md", "DESIGN.md", "AGENTS.md", ".gitignore", ".gitattributes"]
+FILES = ["server.py", "update.py", "VERSION", "README.md", "DESIGN.md", "AGENTS.md", "CLAUDE.md", "changelog.md", ".gitignore", ".gitattributes"]
 GLOBS = ["*.bat", "*.command"]
 
 for _s in (sys.stdout, sys.stderr):

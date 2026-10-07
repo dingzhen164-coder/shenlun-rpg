@@ -3,7 +3,7 @@
 本项目是“申论官途（申论 RPG）”：本地运行的申论训练网页（Python 标准库后端 + 原生 JS 前端），配合用户的 Obsidian 申论库使用。
 姊妹项目 [xingce-rpg](https://github.com/dingzhen164-coder/xingce-rpg) 是行测版，日后会合并。
 
-**开始改代码前先读 [DESIGN.md](DESIGN.md)**（决策、分层、数据格式、判分规则都在里面）。当前进度见 DESIGN.md 第 10 节（M0 完成，M1 进行中：采分点、批改、作答页已可用）。
+**先读 [CLAUDE.md](CLAUDE.md)（长期规矩：流程、口令、版本号、汇报格式），再读 [DESIGN.md](DESIGN.md)**（决策、分层、数据格式、判分规则都在里面）。当前进度见 DESIGN.md 第 10 节（M0 完成，M1 进行中：采分点、批改、作答页已可用）。
 
 ## 必须遵守
 
@@ -15,6 +15,8 @@
 6. 不要提交真题原文、参考答案、粉笔库数据；不要复制 GPL 项目（shenlun-review-pro）的代码或文本。
 7. 中文注释，风格与 xingce-rpg 一致；新增模块在文件顶部写清“做什么、数据格式、谁调用它”。
 8. 改完运行 `python -m unittest discover -s tests -v`；改了规则或数据结构，同步更新 DESIGN.md。
+9. 每次升版本改 `VERSION`，并在 `changelog.md` 顶部写一节（有测试检查两者一致）。
+10. 批量替换脚本先断言“只匹配一次”；新增 CSS 类名先搜有没有冲突；涉及界面要截图自查（见 CLAUDE.md 第 3 节）。
 
 ## 快速定位
 
