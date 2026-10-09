@@ -558,7 +558,8 @@ const views = {
       <button class="${cur === "玄幻" ? "primary" : ""}" data-style="玄幻">⚔ 西方玄幻（艾琳学姐）</button></div>
       <p class="small muted">两种风格共用同一份进度，只换名字、导师、配色和台词。两台电脑同步。</p></div>`}
       <div class="card"><h3>本机设置 <small>保存在本机 ~/.shenlun-rpg/settings.json，不会同步、不会上传</small></h3>
-      ${(DASH.subjects || []).map((x) => `<label class="small muted">${esc(x.name)}库路径（含 copilot/skills 的文件夹；程序放在库里时会自动找到）</label>
+      ${(DASH.subjects || []).map((x) => `<label class="small muted">${esc(x.name)}库路径（含 copilot/skills 的文件夹；程序放在库里时会自动找到）
+        ${(s.saves || {})[x.name]?.has ? `<span class="tag ok">存档：有（最后保存 ${esc(s.saves[x.name].date)}）</span>` : `<span class="tag lock">存档：没有（这个库里还没有进度）</span>`}</label>
       <input class="sVault" data-vsub="${esc(x.name)}" data-orig="${esc((s.vaults || {})[x.name] || "")}" value="${esc((s.vaults || {})[x.name] || "")}" placeholder="例如 C:\\Users\\你\\Desktop\\${esc(x.name)}obsidian\\${esc(x.name)}">`).join("")}
       <div class="small faint">当前科目使用：${esc(s.vault || "未找到")}</div><br>
       <div class="ai-switch"><b>🤖 当前 AI</b>

@@ -201,6 +201,18 @@ class SubjectTest(unittest.TestCase):
         with self.assertRaises(api.ApiError):
             api.settings_set({"vault": str(self.tmp / "不是库")})
 
+    def test_settings_shows_whether_each_vault_has_a_save(self):
+        paths.save_settings({"vaults": {"行测": str(self.xc), "申论": str(self.sl)}})
+        saves = api.settings_get({})["saves"]
+        self.assertEqual((saves["行测"]["has"], saves["申论"]["has"]), (False, False))
+        os.environ["SHENLUN_SUBJECT"] = "行测"
+        with api.open_game() as g:
+            g.state["xp"] = 1
+        saves = api.settings_get({})["saves"]
+        self.assertTrue(saves["行测"]["has"])
+        self.assertEqual(saves["行测"]["date"], dt.date.today().isoformat())
+        self.assertFalse(saves["申论"]["has"])
+
     # ---------------------------------------------------------- 措辞改写
     def test_wording_only_in_shenlun_web_files(self):
         raw = "每日修炼 · 斩心魔 · 玉简 · 行测板块".encode("utf-8")

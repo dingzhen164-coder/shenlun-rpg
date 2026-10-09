@@ -729,6 +729,15 @@ def bank_add(body):
             raise ApiError(str(e))
 
 
+def _save_info(subject):
+    """某科目的库里有没有存档：{"has": 是否有存档, "date": 存档最后修改日期}，设置页用它提示“读到的是不是老数据”"""
+    v = find_vault(subject)
+    f = v / "训练" / "存档" / "存档.json" if v else None
+    if not f or not f.is_file():
+        return {"has": False, "date": ""}
+    return {"has": True, "date": dt.date.fromtimestamp(f.stat().st_mtime).isoformat()}
+
+
 def settings_get(body):
     s = load_settings()
     a = ai.settings()
@@ -736,6 +745,7 @@ def settings_get(body):
     return {"vault": str(find_vault() or ""), "vault_setting": s.get("vaults", {}).get(subjects.active(), ""),
             "subject": subjects.active(),
             "vaults": {n: str(find_vault(n) or "") for n in subjects.NAMES},
+            "saves": {n: _save_info(n) for n in subjects.NAMES},
             "base_url": a["base_url"], "model": a["model"],
             "has_key": bool(key), "key_tail": key[-4:] if key else "",
             "vision_model": s.get("vision_model", ""), "vision_base_url": s.get("vision_base_url", ""),
