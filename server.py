@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+申论官途 · 行测修仙传 · 启动入口。
+
+    python server.py              # 启动并自动打开浏览器（Mac 用 python3）
+    python server.py --port 9000  # 换端口
+    python server.py --no-browser # 不自动打开浏览器
+
+只用 Python 标准库，不需要 pip install 任何东西。关掉这个终端窗口 = 关掉程序。
+"""
+import argparse
+import mimetypes
+import socket
+import sys
+import threading
+import webbrowser
+
+sys.dont_write_bytecode = True  # 不生成 __pycache__（程序可能放在坚果云同步的库里）
+
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")  # Windows 终端中文不乱码
+    except Exception:
+        pass
+
+# Windows 注册表可能把 .js 标成 text/plain，浏览器会拒绝执行，这里强制指定
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("image/svg+xml", ".svg")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+
+from http.server import ThreadingHTTPServer  # noqa: E402
+
+from rpg.api import Handler  # noqa: E402
+from rpg.paths import Paths, find_vault  # noqa: E402
+
+
+def free_port(start):
+    for p in range(start, start + 20):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", p)) != 0:
+                return p
+    return start
+
+
+def prepare():
+    """找库、升级配置、一次性修复；返回库路径（可能是 None）"""
+    from rpg import subjects
+    sub = subjects.active()
+    vault = find_vault()
+    print(f"当前科目：{subjects.SUBJECTS[sub]['brand']}（在网页“设置 → 科目”里切换）")
+    if vault:
+        up = Paths(vault).ensure_train_dir()
+        print(f"{sub}库：{vault}")
+        for name in up:
+            print(f"配置文件已升级到新版本：训练/{name}（旧文件备份为 训练/{name[:-3]}.旧版.md）")
+        print(f"训练数据：{vault / '训练'}")
+        try:   # （行测）一次性：修掉旧版转换时串进逻辑填空等题干的材料（只动对得上指纹的题干）
+            if sub != "行测":
+                raise StopIteration
+            from rpg import api, zhenti
+            r = zhenti.fix_material_leak(Paths(vault))
+            if not r.get("done_before"):
+                with api.open_game() as g:
+                    n = zhenti.fix_material_state(g.state)
+                if r["fixed"] or n:
+                    print(f"已修复题干里串进的材料：题库 {r['fixed']} 题，作答记录 {n} 条")
+        except StopIteration:
+            pass
+        except Exception as e:      # 修不了不影响启动
+            print(f"（修复材料串题时出错，已跳过：{e}）")
+    else:
+        print(f"还没找到{sub}库：打开网页后在“设置”里填写库的路径（含 copilot/skills 的那个文件夹）")
+    return vault
+
+
+def start_server(port=8765, lan_mode=None):
+    """起服务。lan_mode 为 None 时按本机设置（设置 → 手机 / 平板）决定是否让局域网里的设备连进来。返回 (服务, 本机网址)"""
+    from rpg import api, lan
+    if lan_mode is None:
+        lan_mode = lan.settings()["enabled"]
+    port = free_port(port)
+    srv = ThreadingHTTPServer(("0.0.0.0" if lan_mode else "127.0.0.1", port), Handler)
+    api.RUNTIME.update(port=port, lan=bool(lan_mode))
+    if lan_mode:            # 平板 App 更新：另开一个只给安装包的端口（旧版 App 点它会交给系统浏览器下载，见 rpg/appapk.py）
+        from rpg import appapk
+        api.RUNTIME["apk_port"] = appapk.serve_apk_port("0.0.0.0", port + 1)
+    url = f"http://127.0.0.1:{port}/"
+    if lan_mode:
+        st = lan.status(port, True)
+        print("局域网模式已开：手机 / 平板连同一个 Wi-Fi，浏览器打开 " + "、".join(st["urls"] or ["（没找到局域网地址）"]) + f"，访问口令 {st['code']}")
+    return srv, url
+
+
+def main():
+    ap = argparse.ArgumentParser(description="申论官途 · 行测修仙传 训练网页")
+    ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--no-browser", action="store_true")
+    ap.add_argument("--lan", action="store_true", help="让同一 Wi-Fi 下的手机、平板也能打开（要输访问口令）")
+    a = ap.parse_args()
+    prepare()
+    srv, url = start_server(a.port, True if a.lan else None)
+    print(f"\n申论官途 · 行测修仙传 已启动：{url}\n关掉这个窗口就会退出。")
+    if not a.no_browser:
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
