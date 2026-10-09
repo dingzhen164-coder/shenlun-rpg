@@ -12,11 +12,11 @@ from pathlib import Path
 
 BOARDS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
           "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
-BOARDS_SHENLUN = ["归纳概括", "综合分析", "提出对策", "贯彻执行", "大作文", "政治理论"]
+BOARDS_SHENLUN = ["归纳概括", "综合分析", "提出对策", "贯彻执行", "大作文"]
 
 
 def default_boards():
-    """默认的脉络图题型（板块）：行测 12 个；申论 5 个题型 + 政治理论"""
+    """默认的脉络图题型（板块）：行测 12 个；申论 5 个题型"""
     from . import subjects
     return BOARDS_SHENLUN if subjects.active() == "申论" else BOARDS
 EXPORT_EXT = {"xmind", "png", "md", "json", "svg", "pdf"}

@@ -15,6 +15,13 @@
 BANDS = [(50, 51, "mortal"), (51, 60, "layers"), (60, 65, "stages"), (65, 70, "stages"),
          (70, 75, "stages"), (75, 80, "stages"), (80, 85, "stages"), (85, 999, "single")]
 CN_NUM = "一二三四五六七八九"
+# 官场（申论）的分段：50 起每 5 分一段（乡镇、县委办、检察院、公安厅、部委、正部、副国、正国），每段三个岗位占 2、2、1 分
+BANDS_GUANCHANG = [(50, 55, "stages"), (55, 60, "stages"), (60, 65, "stages"), (65, 70, "stages"),
+                   (70, 75, "stages"), (75, 80, "stages"), (80, 85, "stages"), (85, 999, "single")]
+
+
+def bands_of(theme):
+    return BANDS_GUANCHANG if theme == "官场" else BANDS
 
 # 八个灵根品阶（index 0～7），四个大阶（index // 2）
 BOARD_PILLS = {
@@ -180,16 +187,17 @@ def get(name):
     return THEMES.get(name) or THEMES[DEFAULT_THEME]
 
 
-def band_of(score_int):
-    for i, (lo, hi, kind) in enumerate(BANDS):
+def band_of(score_int, theme=None):
+    bands = bands_of(theme)
+    for i, (lo, hi, kind) in enumerate(bands):
         if lo <= score_int < hi:
             return i, lo, hi, kind
-    return (0,) + BANDS[0] if score_int < 50 else (len(BANDS) - 1,) + BANDS[-1]
+    return (0,) + bands[0] if score_int < 50 else (len(bands) - 1,) + bands[-1]
 
 
-def sub_stage(score_int):
+def sub_stage(score_int, theme=None):
     """返回 (大境界序号, 小境界名(不含大境界名), 小境界起始分, 小境界结束分(不含))，风格无关的部分"""
-    i, lo, hi, kind = band_of(score_int)
+    i, lo, hi, kind = band_of(score_int, theme)
     if kind == "mortal":
         return i, None, lo, hi
     if kind == "layers":
@@ -204,9 +212,13 @@ def sub_stage(score_int):
 
 
 def realm_name(theme, score_int):
-    """如 “炼气期三层” → 显示为 “炼气三层”；“筑基期中期” → “筑基中期”；凡人 → “凡人 · 未入道”"""
+    """如 “炼气期三层” → 显示为 “炼气三层”；“筑基期中期” → “筑基中期”；凡人 → “凡人 · 未入道”。
+    官场：岗位（职级），用默认的职务履历；用户改过 训练/职务履历.md 的，由 engine.realm_label 读"""
+    if theme == "官场":
+        from .career import Career
+        return Career().label(score_int)
     t = get(theme)
-    i, sub, _, _ = sub_stage(score_int)
+    i, sub, _, _ = sub_stage(score_int, theme)
     big = t["realms"][i]
     short = big[:-1] if big.endswith("期") else big
     if sub is None:
@@ -217,5 +229,5 @@ def realm_name(theme, score_int):
 
 
 def realm_of_gate(theme, gate):
-    return get(theme)["realms"][band_of(gate)[0]]
+    return get(theme)["realms"][band_of(gate, theme)[0]]
 

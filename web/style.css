@@ -1903,3 +1903,7 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .guantu .st-seal, .guantu .st-spark, .guantu .st-parts, .guantu .st-up { display: none; }
 .guantu .st-stage { justify-content: center; }
 .guantu .st-body, .guantu .st-panel { margin-left: auto; margin-right: auto; }
+.guantu .hero-unit { color: var(--muted); margin: 2px 0; }
+.guantu .hero-leader { margin: 2px 0 4px; color: var(--text); }
+.guantu .career-story { margin: 4px 0; }
+.guantu .career-story summary { padding: 2px 8px; font-size: 12px; }

@@ -438,7 +438,7 @@
         const r = await api("/api/tianji/cards", { kind: CUR.kind, id: CUR.id });
         const g = await api("/api/tianji/get", { kind: CUR.kind, id: CUR.id });
         CUR.progress = g.progress; CUR.stat = g.stat;
-        toast(`🀄 刻好 ${r.added} 枚${esc(W("yj"))}，在修炼殿「政治理论 › 天机简报」简匣里`);
+        toast(`🀄 刻好 ${r.added} 枚${esc(W("yj"))}，在修炼殿「${esc(r.deck || "政治理论 › 天机简报")}」简匣里`);
         keepScroll(renderIssue);
       } catch (e) { showError(e); }
     };

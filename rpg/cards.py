@@ -31,11 +31,11 @@ DAY_ROLL_HOUR = 4                      # 和 Anki 一样，凌晨 4 点才算新
 TYPES = ("问答", "问答+反向", "填空")
 DEFAULT_DECKS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
                  "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
-DEFAULT_DECKS_SHENLUN = ["归纳概括", "综合分析", "提出对策", "贯彻执行", "大作文", "政治理论"]
+DEFAULT_DECKS_SHENLUN = ["归纳概括", "综合分析", "提出对策", "贯彻执行", "大作文"]
 
 
 def default_decks(g=None):
-    """新存档里默认建的便笺夹：行测 12 个板块；申论 5 个题型 + 政治理论（时政简报的便笺放这里）"""
+    """新存档里默认建的便笺夹：行测 12 个板块；申论 5 个题型（时政简报的便笺放进“综合分析”）"""
     from . import subjects
     sub = getattr(g, "subject", None) or subjects.active()
     return DEFAULT_DECKS_SHENLUN if sub == "申论" else DEFAULT_DECKS
@@ -259,12 +259,12 @@ def data(g):
         for b in default_decks(g):
             c["decks"].setdefault(b, {})
         c["init"] = True
-    if g.subject == "申论" and not c.get("sl_clean"):
+    if g.subject == "申论" and c.get("sl_clean") != 2:
         # 1.0.0 的申论存档误建了行测的 12 个便笺夹：没设置过的空夹子去掉（有便笺的夹子，名字出现在便笺里，不受影响）
         for b in DEFAULT_DECKS:
             if b not in DEFAULT_DECKS_SHENLUN and c["decks"].get(b) == {}:
                 del c["decks"][b]
-        c["sl_clean"] = True
+        c["sl_clean"] = 2          # 2：2.2.0 起申论也不要“政治理论”夹子（空的清掉）
     today = logical_today().isoformat()
     if (c.get("today") or {}).get("d") != today:
         c["today"] = {"d": today, "new": {}, "rev": {}, "secs": 0, "n": 0}

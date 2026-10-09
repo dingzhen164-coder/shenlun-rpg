@@ -28,7 +28,7 @@ import math
 import random
 import time
 
-from . import skeleton, themes, vault
+from . import career as career_mod, skeleton, themes, vault
 
 DAILY_WRONG = "wrong:daily"   # 今日功课/心魔录共用的斩心魔任务
 TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "grade")   # grade = 申论作答批改
@@ -47,6 +47,10 @@ class Game:
         self.subject = getattr(paths, "subject", "行测")     # 行测 / 申论（rpg/subjects.py）：决定题库、批改等功能是否启用
         self._skel = {}
         self._acc = {}
+        self.career = None
+        if self.subject == "申论":        # 申论：仕途（单位、岗位、职级、直属领导）见 rpg/career.py；导师随阶段换成对应的领导
+            self.career = career_mod.load(paths)
+            self._apply_career()
 
     # ================================================================ 风格
     @property
@@ -59,6 +63,34 @@ class Game:
 
     def T(self, key):
         return self.th["terms"][key]
+
+    # ================================================================ 申论：仕途（职务 / 职级 / 直属领导）
+    def news_board(self):
+        """时政简报的练习和便笺记在哪个模块：行测 = 政治理论；申论没有这个模块，记在综合分析"""
+        return "政治理论" if self.subject == "行测" else "综合分析"
+
+    def realm_label(self, score_int):
+        """某个小境界叫什么：申论 = “岗位（职级）”，行测 = 境界名"""
+        return self.career.label(score_int) if self.career else themes.realm_name(self.theme, score_int)
+
+    def band_name(self, i):
+        return self.career.band_name(i) if self.career else self.th["realms"][i]
+
+    def gate_label(self, gate):
+        return self.band_name(themes.band_of(gate, self.theme)[0])
+
+    def career_info(self, score_int=None):
+        """申论：当前阶段的单位、岗位、职级、背景、直属领导；行测返回 None"""
+        if not self.career:
+            return None
+        if score_int is None:
+            score_int = min(self.claimed(), int(math.floor(self.raw_score() + 1e-9)))
+        return self.career.describe(score_int)
+
+    def _apply_career(self):
+        patch = career_mod.persona_patch(self.career_info())
+        if patch:
+            self.persona.d.update(patch)
 
     def level_names(self):
         return self.T("levels").split(",")
@@ -213,7 +245,7 @@ class Game:
                 if g not in self.state["gates"] and old >= g:
                     old = g - 0.01
                     break
-            c = themes.sub_stage(int(math.floor(old + 1e-9)))[2]
+            c = themes.sub_stage(int(math.floor(old + 1e-9)), self.theme)[2]
             self.state["claimed"] = c
         return c
 
@@ -235,9 +267,9 @@ class Game:
         eff = min(raw, gate - 0.01) if gate else raw
         avail = int(math.floor(eff + 1e-9))               # 修为够到的小境界
         s_int = min(self.claimed(), avail)                # 真正踏入的（自己点过突破的）
-        big, sub, a, b = themes.sub_stage(s_int)
+        big, sub, a, b = themes.sub_stage(s_int, self.theme)
         b = min(b, self.rules.num("最高分数"))
-        name = themes.realm_name(self.theme, s_int)
+        name = self.realm_label(s_int)
         ready = b > s_int and avail >= b                  # 修为圆满：可以点突破进下一个小境界
         if ready:
             into = need = int(self.xp_at(b) - self.xp_at(a))
@@ -249,12 +281,12 @@ class Game:
             frac = max(0.0, min(1.0, into / need)) if need else 1.0
         else:
             into, need, frac = 0, 0, 1.0
-        nxt = themes.realm_name(self.theme, b) if b > s_int and (ready or not gate) else ""
+        nxt = self.realm_label(b) if b > s_int and (ready or not gate) else ""
         return {"score": round(eff, 1), "raw": round(raw, 2), "big": big, "sub": sub,
-                "name": name, "big_name": self.th["realms"][big],
+                "name": name, "big_name": self.band_name(big),
                 "ready": ready, "ready_to": b if ready else None, "ready_count": sum(1 for _ in self._stages_between(b, avail)) if ready else 0,
                 "bottleneck": bool(gate) and not ready, "gate": gate,
-                "gate_realm": themes.realm_of_gate(self.theme, gate) if gate else "",
+                "gate_realm": self.gate_label(gate) if gate else "",
                 "overflow": int(xp - self.xp_at(gate)) if gate else 0,
                 "into": into, "need": need, "frac": frac, "next": nxt,
                 "target": self.rules.num("目标分数"), "max_score": self.rules.num("最高分数")}
@@ -264,7 +296,7 @@ class Game:
         s = start
         while s <= avail:
             yield s
-            nb = themes.sub_stage(s)[3]
+            nb = themes.sub_stage(s, self.theme)[3]
             if nb <= s:
                 break
             s = nb
@@ -283,12 +315,14 @@ class Game:
         if not before["ready"]:
             raise ValueError("修为还没圆满，不能突破" if not before["bottleneck"] else f"大境界要先{self.T('tribulation')}")
         self.state["claimed"] = before["ready_to"]
+        if self.career:
+            self._apply_career()          # 阶段变了：导师换成这一段的直属领导
         after = self.realm_info()
         self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t, "type": "breakthrough",
                                      "board": "", "item": "", "ok": True, "xp": 0, "note": f"突破：{before['name']} → {after['name']}"})
         return [{"kind": "realm", "name": after["name"], "major": after["big"] != before["big"], "score": after["score"],
                  "big_name": after["big_name"], "next": after["next"], "target": after["target"], "xp": self.state["xp"],
-                 "from": before["name"], "more": after["ready"]},
+                 "from": before["name"], "more": after["ready"], "career": self.career_info()},
                 self._npc("小境界提升")]
 
     def _backfill_study_xp(self):
@@ -738,7 +772,7 @@ class Game:
         idx = self.gates().index(g)
         counts = self.rules.nums("天劫雷数")
         n = int(counts[min(idx, len(counts) - 1)])
-        return {"gate": g, "realm": themes.realm_of_gate(self.theme, g), "thunders": n,
+        return {"gate": g, "realm": self.gate_label(g), "thunders": n,
                 "ready": all(c["ok"] for c in conds), "conds": conds,
                 "pill": self.th["gate_items"].get(g, "突破丹"),
                 "pills": self.state["bag"].get(self.th["gate_items"].get(g, ""), 0)}
@@ -824,18 +858,21 @@ class Game:
 
     def on_tribulation(self, gate, ok, failed_step=None):
         tr = self.state["trib"]
-        realm = themes.realm_of_gate(self.theme, gate)
+        realm = self.gate_label(gate)
         if ok:
             before = self.realm_info()
             if gate not in self.state["gates"]:
                 self.state["gates"].append(gate)
             self.state["claimed"] = max(self.claimed(), gate)          # 渡劫本身就是突破大境界的仪式
+            if self.career:
+                self._apply_career()
             tr.update(cooldown=None, heal=[])
             ev = self._award(self.rules.xp("渡劫成功"), "tribulation", note=f"{self.T('tribulation')}成功，踏入{realm}", bonus=False)
             after = self.realm_info()
             if after["score"] > before["score"]:
                 ev.append({"kind": "realm", "name": after["name"], "major": True, "score": after["score"], "tribulation": True,
-                           "big_name": after["big_name"], "next": after["next"], "target": after["target"], "xp": self.state["xp"]})
+                           "big_name": after["big_name"], "next": after["next"], "target": after["target"], "xp": self.state["xp"],
+                           "career": self.career_info()})
             ev.append(self._npc("渡劫成功"))
             return ev
         tr["cooldown"] = (self.today + dt.timedelta(days=int(self.rules.num("渡劫冷却天数")))).isoformat()
@@ -912,6 +949,8 @@ class Game:
         mult = 1.0
         if bonus:
             mult += self.streak()[1] + self.root_bonus(board) + self._retreat_bonus(board)
+            if self.subject == "申论" and before["score"] < self.rules.num("选调生加成分数线"):
+                mult += self.rules.num("选调生加成")          # 选调生前期晋升快：综合评价还低的时候政绩额外加成
         gain = int(round(base * mult))
         self.state["xp"] += gain
         self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t,
@@ -1691,6 +1730,7 @@ class Game:
         retreat = self.state.get("retreat")
         return {
             "tower": question_bank.tower(self) if self.subject == "行测" else None,
+            "career": self.career_info(),
             "subject": self.subject,
             "today": self.t, "theme": {"name": self.theme, "terms": self.th["terms"],
                                        "levels": self.level_names(), "face": self.th["tutor_face"]},

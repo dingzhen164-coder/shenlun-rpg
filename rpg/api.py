@@ -496,7 +496,7 @@ def heartbeat(body):
         elif answer and sec:   # 在作答页写答案（2 分钟内敲过键盘），算做题
             ev = tutor.enrich(g, g.add_seconds(sec, "practice", body.get("answering") if body.get("answering") in g.boards else ""))
         elif tj and sec:      # 精卷算做题，研读 / 消化算复习，都记在政治理论
-            ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", "政治理论" if "政治理论" in g.boards else ""))
+            ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", g.news_board() if g.news_board() in g.boards else ""))
         else:
             ev = []
         studying = studying or noting or carding or answer or bool(tj)
