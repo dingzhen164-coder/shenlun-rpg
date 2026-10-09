@@ -112,8 +112,10 @@ def _describe(sid):
             raise GenError("PDF 打不开，请确认文件没有损坏")
         toc = [{"title": t, "level": lv, "page": p} for lv, t, p in doc.get_toc() if lv <= 3 and p >= 1]
         sample = "".join(doc[i].get_text("text") for i in range(min(doc.page_count, 5)))
-        return {"src": sid, "name": name, "kind": "pdf", "pages": doc.page_count, "toc": toc,
-                "scanned": len(sample.strip()) < 50 * min(doc.page_count, 5)}
+        pages = doc.page_count
+        doc.close()                # 不关的话 Windows 上这个 PDF 会一直被占着，删不掉
+        return {"src": sid, "name": name, "kind": "pdf", "pages": pages, "toc": toc,
+                "scanned": len(sample.strip()) < 50 * min(pages, 5)}
     text = f.read_text(encoding="utf-8", errors="replace")
     secs = _md_sections(text)
     return {"src": sid, "name": name, "kind": "text", "pages": 0, "chars": len(text),
@@ -147,34 +149,37 @@ def chunks(paths, body):
     out = []
     if info["kind"] == "pdf":
         doc = _fitz().open(str(f))
-        pages = set()
-        toc = info["toc"]
-        for i in body.get("sections") or []:
-            if 0 <= int(i) < len(toc):
-                start = toc[int(i)]["page"]
-                lv = toc[int(i)]["level"]
-                nxt = next((t["page"] for t in toc[int(i) + 1:] if t["level"] <= lv), doc.page_count + 1)
-                pages |= set(range(start, max(start + 1, nxt)))
-        if body.get("pages"):
-            a, b = [int(x) for x in body["pages"]][:2]
-            a, b = max(1, min(a, b)), min(doc.page_count, max(a, b))
-            pages |= set(range(a, b + 1))
-        if not pages:
-            raise GenError("先选章节，或者填页码范围")
-        pages = sorted(pages)
-        if len(pages) > MAX_PAGES:
-            raise GenError("一次选了 %d 页，太多了：一次最多 %d 页，分几次做" % (len(pages), MAX_PAGES))
-        cur, size = [], 0
-        for p in pages:
-            n = len(doc[p - 1].get_text("text").strip())
-            if cur and (size + n > CHUNK_CHARS or p != cur[-1] + 1):
+        try:
+            pages = set()
+            toc = info["toc"]
+            for i in body.get("sections") or []:
+                if 0 <= int(i) < len(toc):
+                    start = toc[int(i)]["page"]
+                    lv = toc[int(i)]["level"]
+                    nxt = next((t["page"] for t in toc[int(i) + 1:] if t["level"] <= lv), doc.page_count + 1)
+                    pages |= set(range(start, max(start + 1, nxt)))
+            if body.get("pages"):
+                a, b = [int(x) for x in body["pages"]][:2]
+                a, b = max(1, min(a, b)), min(doc.page_count, max(a, b))
+                pages |= set(range(a, b + 1))
+            if not pages:
+                raise GenError("先选章节，或者填页码范围")
+            pages = sorted(pages)
+            if len(pages) > MAX_PAGES:
+                raise GenError("一次选了 %d 页，太多了：一次最多 %d 页，分几次做" % (len(pages), MAX_PAGES))
+            cur, size = [], 0
+            for p in pages:
+                n = len(doc[p - 1].get_text("text").strip())
+                if cur and (size + n > CHUNK_CHARS or p != cur[-1] + 1):
+                    out.append(cur)
+                    cur, size = [], 0
+                cur.append(p)
+                size += n
+            if cur:
                 out.append(cur)
-                cur, size = [], 0
-            cur.append(p)
-            size += n
-        if cur:
-            out.append(cur)
-        return {"name": name, "chunks": [{"label": "第 %d 页" % c[0] if len(c) == 1 else "第 %d–%d 页" % (c[0], c[-1]), "pages": c} for c in out]}
+            return {"name": name, "chunks": [{"label": "第 %d 页" % c[0] if len(c) == 1 else "第 %d–%d 页" % (c[0], c[-1]), "pages": c} for c in out]}
+        finally:
+            doc.close()          # 不关的话 Windows 上这个 PDF 会一直被占着，删不掉
     text = f.read_text(encoding="utf-8", errors="replace")
     text = re.sub(r"^---\n.*?\n---\n", "", text, flags=re.S)          # frontmatter 不要
     lines = text.splitlines()
@@ -289,6 +294,7 @@ def gen(paths, body):
                 images.append((p, base64.b64encode(pix.tobytes("png")).decode("ascii")))
             else:
                 skipped.append(p)
+        doc.close()                # 页都读完了，先放手（Windows 上不关会占着这个 PDF）
         cards = []
         if text:
             cards += _parse_cards(_chat([{"role": "system", "content": RULES},
