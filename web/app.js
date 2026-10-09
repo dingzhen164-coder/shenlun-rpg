@@ -156,6 +156,7 @@ function applyTheme() {
   // 三套风格各一个配色类（官场 = 申论科目）：先全摘掉再加上当前的
   document.body.classList.remove("xiuxian", "xuanhuan", "guantu");
   document.body.classList.add({ 修仙: "xiuxian", 玄幻: "xuanhuan", 官场: "guantu" }[DASH.theme.name] || "xiuxian");
+  document.documentElement.classList.toggle("theme-gc", DASH.theme.name === "官场");   // 官场风格的页面底色（style.css 末尾）
   $(".brand").textContent = W("brand");
   document.title = W("brand").replace(/^\S+\s/, "");
   document.querySelectorAll("#nav a").forEach((a) => (a.textContent = W("nav." + a.dataset.view)));
@@ -164,6 +165,8 @@ function applyTheme() {
 async function refresh() {
   try {
     DASH = await api("/api/dashboard");
+    // 页面是按哪个科目载入的（服务器在 index.html 里写了 window.SUBJECT0）；科目在别处（另一个窗口 / 标签页）被切走了，就重新载入，免得新数据配旧页面
+    if (window.SUBJECT0 && DASH.subject && DASH.subject !== window.SUBJECT0) { location.reload(); return; }
     applyTheme();
     handleEvents(DASH.events);
     updatePill();

@@ -213,6 +213,30 @@ class SubjectTest(unittest.TestCase):
         self.assertEqual(saves["行测"]["date"], dt.date.today().isoformat())
         self.assertFalse(saves["申论"]["has"])
 
+    def test_index_tells_page_its_subject_and_theme_class(self):
+        import threading
+        import urllib.request
+        from http.server import ThreadingHTTPServer
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), api.Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            def get(name):
+                return urllib.request.urlopen("http://127.0.0.1:%d/%s" % (srv.server_address[1], name)).read().decode("utf-8")
+            paths.save_settings({"subject": "申论"})
+            html = get("index.html")
+            self.assertIn('window.SUBJECT0="申论"', html)
+            self.assertIn("theme-gc", html)
+            self.assertIn('<body class="guantu">', html)
+            self.assertNotIn("三才时辰", get("app.js"))
+            paths.save_settings({"subject": "行测"})
+            html = get("index.html")
+            self.assertIn('window.SUBJECT0="行测"', html)
+            self.assertNotIn("theme-gc", html)
+            self.assertIn("三才时辰", get("app.js"))          # 行测的页面一个字不改
+        finally:
+            srv.shutdown()
+            srv.server_close()
+
     # ---------------------------------------------------------- 措辞改写
     def test_wording_only_in_shenlun_web_files(self):
         raw = "每日修炼 · 斩心魔 · 玉简 · 行测板块".encode("utf-8")

@@ -1502,7 +1502,10 @@ class Handler(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(f.name)[0] or "text/plain"
         if ctype.startswith("text/") or ctype in ("application/javascript",):
             ctype += "; charset=utf-8"
-        raw = wording.web(rel, f.read_bytes(), subjects.active())        # 申论科目：网页里写死的修仙说法换成官场说法（rpg/wording.py）
+        sub = subjects.active()
+        raw = wording.web(rel, f.read_bytes(), sub)        # 申论科目：网页里写死的修仙说法换成官场说法（rpg/wording.py）
+        if rel == "index.html":          # 告诉页面它是按哪个科目载入的（科目被别的窗口切走时页面自己重新载入）
+            raw = raw.replace(b"</head>", ("<script>window.SUBJECT0=%s;</script>\n</head>" % json.dumps(sub, ensure_ascii=False)).encode("utf-8"), 1)
         self._send(200, raw, ctype, cache=rel.startswith("vendor/"))   # 第三方库（6MB 的思维导图编辑器）让平板缓存，不每次重下
 
     def do_GET(self):
