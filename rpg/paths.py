@@ -106,6 +106,9 @@ class Paths:
         self.seasons = vault / SEASONS_REL if vault else None
         self.train = vault / TRAIN_REL if vault else None
         self.skeletons = self.train / "骨架" if vault else None
+        self.rubrics = self.train / "采分点" if vault else None      # 申论：每题一个采分点文件
+        self.materials = self.train / "资料" if vault else None      # 申论：导入的真题解析文档
+        self.reviews = self.train / "作答" if vault else None        # 申论：每次批改的复盘
         self.save_dir = self.train / "存档" if vault else None
         self.save_file = self.save_dir / "存档.json" if vault else None
         self.rules = self.train / "规则.md" if vault else None
@@ -135,7 +138,7 @@ class Paths:
         from .mdconf import parse, to_num
         if not self.vault:
             return []
-        for d in (self.train, self.skeletons, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐"):
+        for d in (self.train, self.skeletons, self.rubrics, self.materials, self.reviews, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐"):
             d.mkdir(parents=True, exist_ok=True)
         quotes = self.train / "语录.md"   # 背景上的语录，用户自己改；只在缺失时复制
         if not quotes.exists() and (DEFAULTS_DIR / "语录.md").exists():

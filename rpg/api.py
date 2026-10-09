@@ -19,6 +19,7 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/session/action       {"session", "action"}    点按钮
     GET  /api/skeletons            各题型骨架与每个大项的掌握度
     GET  /api/wrong                错题池统计
+    GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
     POST /api/heartbeat            {"seconds", "session", "notes"}  网页每 30 秒上报；只有正在办理的会话、或 1 分钟内动过笔的公务手账才计时
     POST /api/leave                用请假卡
     POST /api/boss                 {"name", "score", "kind": "考核"|"上岸", "result"?}  年度考核（模考）/ 录用大考（国考）
@@ -69,7 +70,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import appapk, appearance, cardgen, cards, mindmap, notes, poster, tianji, lan, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import appapk, appearance, cardgen, cards, mindmap, notes, poster, shenlun, tianji, lan, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -287,18 +288,21 @@ def heartbeat(body):
     studying = trainer.is_studying(body.get("session"))
     noting = not studying and bool(body.get("notes")) and notes.writing(body.get("notes"))   # 在公务手账里写（1 分钟内动过笔）
     carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 在过便笺（2 分半内答过一张）
-    tj = body.get("tianji") if not (studying or noting or carding) and tianji.studying() else None  # 在时政简报里学（5 分钟内翻过、填过、答过）
+    answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 在作答页写答案
+    tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在时政简报里学（5 分钟内翻过、填过、答过）
     with open_game() as g:
         sid = body.get("session")
         if studying and sec:
             ev = tutor.enrich(g, g.add_seconds(sec, trainer.study_kind(sid), trainer.study_board(g, sid)))
         elif (noting or carding) and sec:
             ev = tutor.enrich(g, g.add_seconds(sec, "review", body.get("cards_board") if carding and body.get("cards_board") in g.boards else ""))
+        elif answer and sec:   # 在作答页写答案（2 分钟内敲过键盘），算做题
+            ev = tutor.enrich(g, g.add_seconds(sec, "practice", body.get("answering") if body.get("answering") in g.boards else ""))
         elif tj and sec:      # 精卷算做题，研读 / 消化算复习，都记在政治理论
             ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", "政治理论" if "政治理论" in g.boards else ""))
         else:
             ev = []
-        studying = studying or noting or carding or bool(tj)
+        studying = studying or noting or carding or answer or bool(tj)
         return {"events": ev, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
                 "rest": g.resting(), "retreat_on": bool(g.state.get("retreat"))}
 
@@ -439,6 +443,62 @@ def practice_delete(body):
 
 
 
+# ---------------------------------------------------------------- 申论：题库与批改（逻辑在 rpg/shenlun.py）
+def _sl(fn, *a, **kw):
+    try:
+        return fn(*a, **kw)
+    except shenlun.ShenlunError as e:
+        raise ApiError(str(e))
+
+
+def shenlun_questions(body):
+    with open_game(save=False) as g:
+        return {"questions": shenlun.list_questions(g.paths), "recent": list(reversed(g.state.get("grades", [])[-10:]))}
+
+
+def shenlun_question(body):
+    with open_game(save=False) as g:
+        return _sl(shenlun.question, g.paths, str(body.get("qid") or ""))
+
+
+def shenlun_finalize(body):
+    with open_game(save=False) as g:
+        return _sl(shenlun.finalize, g.paths, str(body.get("qid") or ""))
+
+
+def shenlun_import(body):
+    with open_game(save=False) as g:
+        return _sl(shenlun.import_doc, g.paths, body.get("name"), body.get("data"))
+
+
+def shenlun_draft(body):
+    with open_game(save=False) as g:
+        paths = g.paths
+    return _sl(shenlun.draft, paths, body.get("file"), body.get("prefix"), body.get("no"), ai.chat_json, bool(body.get("overwrite")))
+
+
+def shenlun_install_pdf(body):
+    return _sl(shenlun.install_pdf)
+
+
+def shenlun_active(body):
+    """作答页敲键盘时调（节流后）：只有最近 2 分钟内敲过键盘，作答才计时"""
+    shenlun.touch()
+    return {"ok": True}
+
+
+def shenlun_grade(body):
+    qid, answer = str(body.get("qid") or ""), str(body.get("answer") or "")
+    with open_game(save=False) as g:
+        paths = g.paths
+    r, res = _sl(shenlun.judge, paths, qid, answer, ai.chat_json)          # AI 判断：不占存档锁
+    with open_game() as g:
+        res = shenlun.record(g, r, res, answer)
+        res["events"] = tutor.enrich(g, res["events"])
+        return res
+
+
+
 def settings_get(body):
     s = load_settings()
     a = ai.settings()
@@ -538,6 +598,14 @@ ROUTES = {
     ("POST", "/api/practice/delete"): practice_delete,
     ("POST", "/api/selfstudy"): selfstudy_add,
     ("POST", "/api/selfstudy/delete"): selfstudy_delete,
+    ("GET", "/api/shenlun/questions"): shenlun_questions,
+    ("POST", "/api/shenlun/question"): shenlun_question,
+    ("POST", "/api/shenlun/finalize"): shenlun_finalize,
+    ("POST", "/api/shenlun/import"): shenlun_import,
+    ("POST", "/api/shenlun/draft"): shenlun_draft,
+    ("POST", "/api/shenlun/install_pdf"): shenlun_install_pdf,
+    ("POST", "/api/shenlun/active"): shenlun_active,
+    ("POST", "/api/shenlun/grade"): shenlun_grade,
     ("GET", "/api/settings"): settings_get,
     ("POST", "/api/settings"): settings_set,
     ("POST", "/api/settings/test"): settings_test,

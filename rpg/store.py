@@ -37,7 +37,8 @@ def new_state(today):
         "gates": [],             # 已渡过的劫（晋升分数线，如 60、65）
         "boss": [],              # 模考 / 国考真实分 {d, name, score}
         "lectures": [],          # 听课（其他平台看网课）记录 {id, d, minutes, note, xp}；计入每日时长
-        "practice": [],          # 自练记录 {d, board, total, correct, minutes}
+        "practice": [],          # 自练记录 {d, board, total, correct, minutes}；source=="批改" 的是作答批改（专长得分率用）
+        "grades": [],            # 作答批改记录 {id, d, qid, board, score, full, rate, words, lost, summary, draft}
         "progress_hist": {},     # 每天的周目进度快照 {日期: 0~1}，算“近7天速度”用
         "last_seen": None,       # 上次打开网页的日期（判断“回归”）
         "tutor_greet": None,     # AI 导师今天的开场问候缓存 {d, text}

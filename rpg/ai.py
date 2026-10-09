@@ -3,7 +3,7 @@
 
 本机设置（~/.shenlun-rpg/settings.json，网页“设置”页填写）：
     api_key   必填；也可以用环境变量 DEEPSEEK_API_KEY
-    base_url  默认 https://api.deepseek.com
+    base_url  默认 https://api.deepseek.com（测试时可用环境变量 SHENLUN_AI_BASE_URL 指到假 AI 服务）
     model     默认 deepseek-chat
 
 只用 urllib，不依赖第三方库。所有调用失败都抛 AIError，由 api 层转成网页上的提示。
@@ -27,7 +27,7 @@ class AIError(Exception):
 def settings():
     s = load_settings()
     key = s.get("api_key") or os.environ.get("DEEPSEEK_API_KEY", "")
-    base = (s.get("base_url") or DEFAULT_BASE).rstrip("/")
+    base = (s.get("base_url") or os.environ.get("SHENLUN_AI_BASE_URL") or DEFAULT_BASE).rstrip("/")
     return {
         "api_key": key,
         "base_url": base,

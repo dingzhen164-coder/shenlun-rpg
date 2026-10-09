@@ -31,7 +31,7 @@ import time
 from . import skeleton, themes, vault
 
 DAILY_WRONG = "wrong:daily"   # 今日功课/整改录共用的整改销号任务
-TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong")
+TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "grade")
 
 
 def D(s):
@@ -137,8 +137,44 @@ class Game:
         last = last or int(self.rules.num("专长取最近几次"))
         key = (board, last)
         if key not in self._acc:
-            self._acc[key] = vault.accuracy(self.paths, self.sources(board), last=last)
+            self._acc[key] = self._grade_accuracy(board, last)
         return self._acc[key]
+
+    def _grade_accuracy(self, board, last):
+        """题型最近 last 次批改（不含试批）的得分率：{"rate", "trend", "per": [(第几次, 得分, 满分)], "count"}；没有批改返回 None。
+        一次批改 = 一“季”，专长的激活和品阶都按它算。"""
+        per = [(i + 1, float(x["correct"]), float(x["total"])) for i, x in enumerate(
+            [x for x in self.state.get("practice", []) if x.get("source") == "批改" and x.get("board") == board and x.get("total")])]
+        if not per:
+            return None
+        recent = per[-last:]
+        rate = sum(o for _, o, _ in recent) / sum(t for _, _, t in recent)
+        trend = "→"
+        if len(per) >= 2:
+            last_r = per[-1][1] / per[-1][2]
+            prev = per[-3:-1] if len(per) >= 3 else per[-2:-1]
+            prev_r = sum(o for _, o, _ in prev) / sum(t for _, _, t in prev)
+            trend = "↑" if last_r - prev_r > 0.05 else ("↓" if prev_r - last_r > 0.05 else "→")
+        return {"rate": rate, "trend": trend, "per": recent, "count": len(per)}
+
+    # ================================================================ 申论：作答批改的成绩
+    def on_grade(self, qid, board, score, full, words=0, lost=(), summary="", draft=False):
+        """一次作答批改的成绩。记进批改记录；正式的（不是试批）再计入专长得分率和政绩。
+        返回 {"id", "events"}。分数由 shenlun_rubric 算好传进来，这里不再判断。"""
+        rate = score / full if full else 0.0
+        rid = "%s-%d" % (self.t, int(time.time() * 1000) % 10 ** 9)
+        rec = {"id": rid, "d": self.t, "qid": qid, "board": board, "score": score, "full": full, "rate": round(rate, 3),
+               "words": words, "lost": list(lost), "summary": summary, "draft": bool(draft)}
+        self.state.setdefault("grades", []).append(rec)
+        if draft:
+            return {"id": rid, "events": [{"kind": "info", "msg": "试批：采分点还是草稿，这次不计入政绩和专长"}]}
+        self.state["practice"].append({"id": rid, "d": self.t, "board": board, "total": full, "correct": score,
+                                       "minutes": 0, "source": "批改", "note": qid})
+        self._acc.clear()
+        xp = int(round(self.rules.xp("批改满分") * rate))
+        ev = self._award(xp, "grade", board, qid, rate >= 0.6,
+                         f"{qid} 批改 {score:g}/{full:g}（得分率 {rate:.0%}）")
+        return {"id": rid, "events": ev}
 
     # ================================================================ 政绩 → 综合评价 → 职级
     def ideal_total(self):
@@ -598,10 +634,12 @@ class Game:
         return g
 
     def root_can_activate(self, board):
+        """专长养成有两条路，满足任一条即可：业务手册全部圆满；或者最近两次作答批改得分率都达到最低品阶线"""
         if self.available(board):
-            # 全部圆满即养成；不看 lap_check（新一轮考核周期开始时圆满的业务手册会被标记“待重温”，但专长早已养成）
+            # 业务手册全部圆满（不看 lap_check：新一轮考核周期开始时圆满的手册会被标记“待复核”，但专长早已养成）
             items = self.final_items(board)
-            return bool(items) and all(self.item(i["id"])["level"] >= 3 for i in items)
+            if items and all(self.item(i["id"])["level"] >= 3 for i in items):
+                return True
         acc = self.accuracy(board, last=2)
         thr = self.rules.root_thresholds(board)[0]
         return bool(acc and len(acc["per"]) >= 2 and all(o / t + 1e-9 >= thr for _, o, t in acc["per"]))
@@ -617,7 +655,7 @@ class Game:
             out.append({"board": b, "name": self.root_name(b), "on": on, "since": st.get("on"),
                         "grade": g, "grade_name": self.th["grades"][g] if on else "未养成",
                         "tier": g // 2, "acc": acc["rate"] if acc else None,
-                        "route": "业务手册" if self.available(b) else "正确率",
+                        "route": "业务手册" if self.final_items(b) else "批改得分率",
                         "bonus": round(g * self.rules.num("专长每阶加成"), 3) if on else 0})
         return out
 
@@ -871,7 +909,7 @@ class Game:
         ev = [{"kind": "xp", "v": gain, "msg": note}] if gain else []
         if typ in TRAIN_TYPES:
             ev += self._qi_check(ok)
-            if ok and typ in ("wrong", "feynman", "apply") and self.rng.random() < self.rules.num("点拨概率"):
+            if ok and typ in ("wrong", "feynman", "apply", "grade") and self.rng.random() < self.rules.num("点拨概率"):
                 extra = int(round(gain * self.rules.num("点拨倍数")))
                 if extra:
                     self.state["xp"] += extra

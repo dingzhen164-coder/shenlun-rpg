@@ -41,8 +41,12 @@ def stats(g, span="day"):
     q_total = q_ok = 0
     for x in g.state.get("practice") or []:
         if x["d"] in keep and x.get("total"):
-            q_total += int(x["total"])
-            q_ok += int(x.get("correct") or 0)
+            if x.get("source") == "批改":        # 申论作答批改：一次算一道题，“对题数”按得分率折算
+                q_total += 1
+                q_ok += float(x.get("correct") or 0) / float(x["total"])
+            else:
+                q_total += int(x["total"])
+                q_ok += int(x.get("correct") or 0)
 
     # 过便笺：便笺的复习记录。按日历日期算（和学时、做题一样），不用便笺自己“凌晨 4 点换日”的算法，免得半夜温的简对不上今天
     c_total = c_ok = 0
@@ -64,7 +68,7 @@ def stats(g, span="day"):
         "span": span, "label": SPANS[span], "days": days, "per_day": per_day,
         "minutes": sum(per_day), "goal": goal, "hit": sum(m >= goal for m in per_day),
         "split": {k: split[k] for k in ("lecture", "practice", "review")},
-        "questions": {"total": q_total, "correct": q_ok, "acc": round(q_ok / q_total, 3) if q_total else None},
+        "questions": {"total": q_total, "correct": round(q_ok, 1), "acc": round(q_ok / q_total, 3) if q_total else None},
         "cards": {"total": c_total, "ok": c_ok, "rate": round(c_ok / c_total, 3) if c_total else None},
         "xp": int(round(xp)), "top": [{"board": b["board"], "minutes": b["total"]} for b in top],
         "realm": info["name"], "score": info["score"], "target": info["target"],
