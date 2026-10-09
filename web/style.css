@@ -34,20 +34,6 @@ html[data-theme="light"] body.xiuxian {
   --accent: #2f8f78; --accent2: #2f6fa8; --gold: #a8791c; --green: #2f8a57;
   --red: #b8412d; --orange: #c0661d; --purple: #2f8f78;
 }
-/* 官场：暗色 = 深墨青夜 + 铜金 + 朱砂；亮色 = 宣纸 + 墨 + 朱砂印泥 */
-body.guantu {
-  --bg: #11161a; --panel: #182026; --panel2: #202a31; --line: #33434d;
-  --text: #e8ecee; --muted: #9fb0b8; --faint: #66777f;
-  --accent: #c8553d; --accent2: #5b8fb0; --gold: #d4a94e; --green: #5fb88a;
-  --red: #e0674f; --orange: #e79a52; --purple: #8fb4c8;
-  --display: "STKaiti", "KaiTi", "Kaiti SC", "楷体", "Songti SC", "SimSun", serif;
-}
-html[data-theme="light"] body.guantu {
-  --bg: #f4f0e6; --panel: #fcfaf4; --panel2: #ece6d6; --line: #d5ccb6;
-  --text: #1c2226; --muted: #4a555b; --faint: #7a8286;
-  --accent: #b23a2a; --accent2: #2f5d7c; --gold: #9a7420; --green: #2f7d56;
-  --red: #b8412d; --orange: #c0661d; --purple: #2f5d7c;
-}
 * { box-sizing: border-box; }
 html, body { margin: 0; color: var(--text);
   background: radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
@@ -1783,3 +1769,137 @@ details.card-fold > summary small { font-family: system-ui, sans-serif; font-wei
 .sl-rec-list { list-style: none; padding: 0; margin: 8px 0; }
 .sl-rec-list li { padding: 8px 0; border-bottom: 1px dashed var(--line); }
 @media (max-width: 900px) { .sl-ans-grid { grid-template-columns: 1fr; } }
+
+/* ===================================================================================
+   官场（申论科目）· 机关公文风格：红头 + 藏青 + 白底，方正、平整、少装饰。
+   全部写在 .guantu（<body> 的类）下面，不影响行测的修仙 / 玄幻。字体用仿宋 / 宋体做标题，正文照旧无衬线。
+   =================================================================================== */
+html.theme-gc, html.theme-gc body { background: var(--bg); }
+.guantu * { text-shadow: none !important; }
+body.guantu {
+  --radius: 4px; --shadow: 0 1px 3px rgba(20, 30, 50, .08);
+  --display: "FangSong", "STFangsong", "仿宋", "FZFangSong-Z02", "Songti SC", "STSong", "SimSun", serif;
+  --bg: #f2f3f5; --panel: #ffffff; --panel2: #f1f3f6; --line: #d7dce3;
+  --text: #1f2933; --muted: #52606d; --faint: #8a96a3;
+  --accent: #b3201f; --accent2: #1f3d70; --gold: #a7791f; --green: #2a7a4d;
+  --red: #c0262b; --orange: #c47a00; --purple: #1f3d70;
+  --c-lecture: #1f3d70; --c-practice: #b3201f; --c-review: #a7791f;
+}
+html[data-theme="dark"] body.guantu {
+  --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  --bg: #0e1520; --panel: #152030; --panel2: #1c2a3d; --line: #2c3c52;
+  --text: #e6ebf2; --muted: #9fb0c3; --faint: #6c7f95;
+  --accent: #e0524f; --accent2: #7ea3d8; --gold: #d4a64a; --green: #5fb88a;
+  --red: #ef6b66; --orange: #e0a050; --purple: #7ea3d8;
+  --c-lecture: #7ea3d8; --c-practice: #e0524f; --c-review: #d4a64a;
+}
+.guantu .topbar { background: var(--panel); backdrop-filter: none; border-bottom: 3px solid var(--accent); }
+.guantu .brand { color: var(--accent); text-shadow: none; letter-spacing: 3px; }
+.guantu nav a { border-radius: 2px; border-bottom: 2px solid transparent; }
+.guantu nav a.active, .guantu nav a:hover { background: transparent; color: var(--accent); border-bottom-color: var(--accent); }
+.guantu .today-pill { border-radius: 3px; background: var(--panel2); }
+.guantu #banner .warn { border-radius: 3px; }
+.guantu button, .guantu input, .guantu textarea, .guantu select { border-radius: 3px; }
+.guantu button.primary { background: var(--accent); }
+.guantu button.primary:hover { filter: brightness(1.08); }
+.guantu .card { box-shadow: var(--shadow); }
+.guantu .card h3 { border-left: 4px solid var(--accent); padding-left: 10px; letter-spacing: 1px; }
+.guantu .card h3 small { letter-spacing: 0; }
+.guantu .hero { background: var(--panel); border-top: 3px solid var(--accent); }
+.guantu .avatar img, .guantu .avatar .def { border: 2px solid var(--accent); box-shadow: none; }
+.guantu .avatar .def { background: var(--accent2); }
+.guantu .lv-badge { background: var(--accent); color: #fff; border-radius: 3px; box-shadow: none; }
+.guantu .npc .face { border-radius: 4px; }
+.guantu .npc .say { border-radius: 3px; }
+.guantu .npc .who { color: var(--accent2); }
+/* 办理 / 实操 两扇门 → 两块平整的入口牌 */
+.guantu .hall-gates { gap: 14px; }
+.guantu .gate { border-radius: 4px; min-height: 104px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--line); box-shadow: var(--shadow); }
+.guantu .gate:hover { transform: none; border-color: var(--accent); }
+.guantu .gate.on { border-color: var(--accent); border-top-color: var(--accent); box-shadow: var(--shadow); }
+.guantu .gate-cloud { display: none; }
+.guantu .gate-icon { opacity: .1; }
+.guantu .gate-name { color: var(--accent); letter-spacing: .3em; font-size: 26px; }
+.guantu .gate.on::after { content: "当前"; color: #fff; background: var(--accent); border-radius: 2px; padding: 0 6px; }
+.guantu .seal { border-radius: 2px; letter-spacing: .05em; }
+.guantu .seal.on { background: var(--accent); border-color: var(--accent); box-shadow: none; color: #fff; }
+.guantu .seal:hover { border-color: var(--accent); }
+.guantu .tag { border-radius: 2px; }
+/* 学时统计：三块方方正正的数据牌，代替圆形法印 */
+.guantu .sancai { --seal-font: var(--display); background: var(--panel); }
+.guantu .sancai-tabs a { border-radius: 2px; }
+.guantu .sancai-tabs a.on { color: var(--accent); border-color: var(--accent); box-shadow: none; }
+.guantu .orbs { gap: 12px; }
+.guantu .orb-ring { width: 100%; max-width: none; aspect-ratio: auto; border-radius: 3px; padding: 0; background: var(--panel2); box-shadow: none;
+  border: 1px solid var(--line); border-top: 3px solid var(--c); }
+.guantu .orb-ring::before, .guantu .orb-ring::after, .guantu .orb-seal { display: none; }
+.guantu .orb-core { border-radius: 0; border: 0; background: transparent; box-shadow: none; padding: 14px 8px 12px; }
+.guantu .orb-name { letter-spacing: .3em; }
+.guantu .orb-name small { letter-spacing: .1em; }
+.guantu .orb.mini .orb-ring { border-top-width: 3px; }
+.guantu .ratio-bar { border-radius: 2px; border-color: var(--line); }
+.guantu .ratio-bar .seg-lecture { background: var(--c-lecture); }
+.guantu .ratio-bar .seg-practice { background: var(--c-practice); }
+.guantu .ratio-bar .seg-review { background: var(--c-review); }
+.guantu .ratio-line b { color: var(--accent); }
+/* 便笺：像一张张归档的卷宗标签，不再是玉简 / 古籍 */
+.guantu .tome-grid { gap: 14px; }
+.guantu .slip, .guantu .tome { animation: none; width: 150px; height: 92px; border-radius: 3px; box-shadow: var(--shadow);
+  background: var(--panel); border: 1px solid var(--line); border-left: 6px solid var(--accent); flex-direction: row; justify-content: flex-start; padding: 0 12px; gap: 10px; }
+.guantu .tome { border-left-color: var(--accent2); }
+.guantu .slip::before, .guantu .slip::after, .guantu .tome::before, .guantu .tome::after { display: none; }
+.guantu .slip:hover, .guantu .tome:hover { filter: none; border-color: var(--accent); box-shadow: var(--shadow); }
+.guantu .slip-label, .guantu .tome-label { writing-mode: horizontal-tb; font-family: var(--display); font-size: 17px; letter-spacing: .05em; color: var(--text);
+  text-shadow: none; background: transparent; border: 0; box-shadow: none; padding: 0; max-height: none; white-space: normal; }
+.guantu .slip-count { color: #fff; background: var(--accent); border-radius: 2px; margin-left: auto; }
+.guantu .tome-cover { position: static; inset: auto; flex-direction: row; align-items: center; gap: 10px; width: 100%; }
+.guantu .tome-seal { margin-top: 0; margin-left: auto; transform: none; color: var(--accent2); border-color: var(--accent2); }
+.guantu .toc-chip { border-radius: 2px; }
+.guantu .toc-chip.on, .guantu .toc-chip:hover { border-color: var(--accent); color: var(--accent); }
+/* 实操 · 批改结果 */
+.guantu .sl-q { border-top-color: var(--accent); }
+.guantu .sl-ring::before { inset: 10px; }
+/* 升职 / 结算弹窗：去掉山水、灵鱼、月亮、法阵、道袍人物，只留一块红头通知 */
+.guantu .cer-moon, .guantu .cer-mount, .guantu .cer-fish, .guantu .cer-mist, .guantu .cer-ridge, .guantu .cer-ring, .guantu .cer-stage > b, .guantu .cer-stage > i { display: none; }
+.guantu .cer-sky { background: linear-gradient(#1b2b46, #0e1827); }
+.guantu .cer-title { font-family: var(--display); color: #f4dca0; text-shadow: none; letter-spacing: .3em; }
+.guantu .cer-band { border-radius: 3px; background: var(--accent); border-color: #7f1413; color: #fff; box-shadow: none; }
+.guantu .cer-ok { border-radius: 3px; background: var(--accent); box-shadow: none; }
+.guantu .st-fig, .guantu .st-halo, .guantu .st-aura, .guantu .st-ringwrap, .guantu .st-pillar, .guantu .st-spark, .guantu .st-scene > svg { display: none; }
+.guantu .st-veil { background: rgba(12, 22, 38, .9); }
+.guantu .st-word { color: #f4dca0; }
+.guantu .st-panel { border-radius: 4px; }
+.guantu .st-btn { border-radius: 3px; background: var(--accent); box-shadow: none; }
+.guantu .rb-orb, .guantu .rb-ring { display: none; }
+.guantu .stat { border-radius: 3px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent2); }
+.guantu .lecture-card { background: var(--panel); }
+.guantu .lecture-card .primary { background: var(--tone); }
+.guantu .tri-bar, .guantu .bar, .guantu .bar > i, .guantu .bar > span { border-radius: 2px; }
+.guantu .tri-bar .seg-lecture { background: var(--c-lecture); }
+.guantu .tri-bar .seg-practice { background: var(--c-practice); }
+.guantu .tri-bar .seg-review { background: var(--c-review); }
+.guantu .bar > i, .guantu .bar > span { background: var(--accent); }
+.guantu .fold > summary, .guantu details > summary { border-radius: 3px; }
+html[data-theme].theme-gc { --bg: #f2f3f5; }
+html[data-theme="dark"].theme-gc { --bg: #0e1520; }
+.guantu .slip-label br, .guantu .tome-label br { display: none; }
+/* 脉络图：圆盘 → 平整的卷宗格子（小图示保留，不再旋转、发光） */
+.guantu .ln-hall { border-top-color: var(--accent2); }
+.guantu .ln-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.guantu .ln-slot { flex-direction: row; gap: 10px; padding: 10px; border: 1px solid var(--line); border-left: 4px solid var(--accent2); border-radius: 3px; background: var(--panel); }
+.guantu .ln-slot:hover { border-color: var(--accent); }
+.guantu .ln-disk { width: 44px; height: 44px; flex: none; border-radius: 3px; animation: none; box-shadow: none; background: var(--panel2); border: 1px solid var(--line); }
+.guantu .ln-svg { animation: none; }
+.guantu .ln-name { margin-top: 0; font-size: 15px; }
+.guantu .ln-slot > div:not(.ln-disk) { text-align: left; }
+.guantu .ln-canvas { background: #fff; }
+.guantu { --jade: var(--accent2); }
+.guantu .yj-hall { border-top-color: var(--accent2); }
+.guantu .yj-hall h3, .guantu .yj-hall .yj-hall-head h3 { color: var(--accent2); }
+.guantu .ln-slot { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
+.guantu .ln-disk { grid-row: 1 / 3; }
+.guantu .ln-name, .guantu .ln-cap { grid-column: 2; }
+.guantu .ceremony b[style*="--rot"], .guantu .ceremony .cer-spark, .guantu .ceremony i[style*="left"] { display: none; }
+.guantu .st-seal, .guantu .st-spark, .guantu .st-parts, .guantu .st-up { display: none; }
+.guantu .st-stage { justify-content: center; }
+.guantu .st-body, .guantu .st-panel { margin-left: auto; margin-right: auto; }
