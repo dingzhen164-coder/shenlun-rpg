@@ -94,7 +94,7 @@ class DeviceTest(unittest.TestCase):
         r, data = self.req("GET", "/lan/ping", remote=True)                 # 平板 App 找电脑：不用口令
         self.assertEqual(r.status, 200)
         d = json.loads(data)
-        self.assertEqual(d["app"], "shenlun-rpg")
+        self.assertEqual(d["app"], "xingce-rpg")
         self.assertNotIn("code", d)
 
     def test_app_apk_from_computer(self):

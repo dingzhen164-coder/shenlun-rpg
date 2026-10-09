@@ -1,4 +1,4 @@
-package com.shenlun.guantu;
+package com.xingce.xiuxian;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -42,9 +42,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 申论官途 · 平板 App。
- * 电脑上的申论官途开了局域网模式后，这个 App 在同一个 Wi-Fi 里找到它（或手动输地址），全屏打开——没有浏览器的地址栏、工具栏。
- * 记住上次的地址，下次直接进；连不上就回到「寻找办公室」页。数据仍然只在电脑上。
+ * 申论官途 · 行测修仙传 · 平板 App。
+ * 电脑上的本程序开了局域网模式后，这个 App 在同一个 Wi-Fi 里找到它（或手动输地址），全屏打开——没有浏览器的地址栏、工具栏。
+ * 记住上次的地址，下次直接进；连不上就回到「寻找洞府」页。数据仍然只在电脑上。
  */
 public class MainActivity extends Activity {
     static final int[] PORTS = {8765, 8766, 8767, 8768};
@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        prefs = getSharedPreferences("guantu", MODE_PRIVATE);
+        prefs = getSharedPreferences("xiuxian", MODE_PRIVATE);
         Window w = getWindow();
         w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);       // 做题时不息屏
         w.setStatusBarColor(Color.parseColor("#0e1412"));
@@ -81,10 +81,10 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setTextZoom(100);                                  // 不跟系统字体缩放走样
-        s.setUserAgentString(s.getUserAgentString() + " ShenlunApp/" + BuildInfo.VERSION);
+        s.setUserAgentString(s.getUserAgentString() + " XingceApp/" + BuildInfo.VERSION);
         CookieManager.getInstance().setAcceptCookie(true);
         web.addJavascriptInterface(new Bridge(), "XC");
-        // 网页里的下载（公务手账导出的 PDF 等）：交给系统浏览器去下（链接里带着口令，不用 cookie）
+        // 网页里的下载（手札导出的 PDF 等）：交给系统浏览器去下（链接里带着口令，不用 cookie）
         web.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String ua, String disposition, String mime, long length) {
@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 if (r.isForMainFrame() && !r.getUrl().toString().startsWith("file:")) {
-                    showConnect("连不上 " + r.getUrl().getHost() + "：电脑开着吗？申论官途在运行吗？");
+                    showConnect("连不上 " + r.getUrl().getHost() + "：电脑开着吗？本程序在运行吗？");
                 }
             }
 
@@ -185,13 +185,13 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyDown(int code, KeyEvent e) {
         if (code != KeyEvent.KEYCODE_BACK) return super.onKeyDown(code, e);
-        // 返回键：先让网页处理（关弹窗、回办公室）；网页说没得退了，再按一次退出
+        // 返回键：先让网页处理（关弹窗、回洞府）；网页说没得退了，再按一次退出
         web.evaluateJavascript("(function(){try{return !!(window.xcBack&&xcBack())}catch(e){return false}})()", r -> {
             if ("true".equals(r)) return;
             if (web.getUrl() != null && web.getUrl().startsWith("file:") && web.canGoBack()) { web.goBack(); return; }
             long now = System.currentTimeMillis();
             if (now - lastBack < 2000) finish();
-            else { lastBack = now; Toast.makeText(this, "再按一次退出申论官途", Toast.LENGTH_SHORT).show(); }
+            else { lastBack = now; Toast.makeText(this, "再按一次退出", Toast.LENGTH_SHORT).show(); }
         });
         return true;
     }
@@ -226,7 +226,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> showConnect(""));
         }
 
-        /** 在这个 Wi-Fi 里找开着局域网模式的申论官途：找到一个就调网页的 xcFound(url, 名字)，找完调 xcScanDone() */
+        /** 在这个 Wi-Fi 里找开着局域网模式的本程序：找到一个就调网页的 xcFound(url, 名字)，找完调 xcScanDone() */
         @JavascriptInterface
         public void scan() {
             if (scanning) return;
@@ -281,7 +281,7 @@ public class MainActivity extends Activity {
 
     void installDownloaded() {
         if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            // 第一次：系统要先允许“申论官途安装应用”。打开那个开关所在的设置页，打开后回来再点一次「更新 App」
+            // 第一次：系统要先允许“本程序安装应用”。打开那个开关所在的设置页，打开后回来再点一次「更新 App」
             apkStatus("perm", "请在接下来的设置里打开「允许安装应用」，然后返回再点一次「更新 App」");
             try {
                 startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
@@ -293,7 +293,7 @@ public class MainActivity extends Activity {
         i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(i);
-            apkStatus("done", "已经打开安装界面：点「安装」或「更新」，装好后重新打开申论官途");
+            apkStatus("done", "已经打开安装界面：点「安装」或「更新」，装好后重新打开本程序");
         } catch (Exception e) {
             apkStatus("error", "打不开安装界面：" + e.getMessage());
         }
@@ -352,11 +352,11 @@ public class MainActivity extends Activity {
             int n;
             while ((n = in.read(b)) > 0 && buf.size() < 8192) buf.write(b, 0, n);
             JSONObject j = new JSONObject(buf.toString("UTF-8"));
-            if (!"shenlun-rpg".equals(j.optString("app"))) return;
+            if (!"xingce-rpg".equals(j.optString("app"))) return;
             String js = "window.xcFound&&xcFound(" + JSONObject.quote(base) + "," + JSONObject.quote(j.optString("name")) + ")";
             runOnUiThread(() -> web.evaluateJavascript(js, null));
         } catch (Exception e) {
-            // 这个地址没有申论官途
+            // 这个地址没有本程序
         } finally {
             if (c != null) c.disconnect();
         }

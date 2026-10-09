@@ -1,4 +1,4 @@
-package com.shenlun.guantu;
+package com.xingce.xiuxian;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
@@ -11,7 +11,7 @@ import java.io.FileNotFoundException;
 
 /** 把下好的更新包（缓存目录里的 update.apk）交给系统安装器读。只读、只这一个文件。 */
 public class ApkProvider extends ContentProvider {
-    static final String AUTHORITY = "com.shenlun.guantu.apk";
+    static final String AUTHORITY = "com.xingce.xiuxian.apk";
     static final Uri URI = Uri.parse("content://" + AUTHORITY + "/update.apk");
 
     static File file(android.content.Context c) { return new File(c.getCacheDir(), "update.apk"); }

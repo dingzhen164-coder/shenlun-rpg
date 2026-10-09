@@ -8,6 +8,7 @@
 
 # 网页源码里的个别整句 / 单字（印章字、大标题），先于 MAP 替换（长词在前）
 WEB_EXTRA = [
+    ('<body class="xiuxian">', '<body class="guantu">'),   # 申论科目一打开就是官场配色
     ('["lecture", "闻", "听课", "闻法"', '["lecture", "听", "听课", "听课"'),
     ('["practice", "历", "做题", "历练"', '["practice", "办", "做题", "办理"'),
     ('["review", "温", "复习", "温养"', '["review", "复", "复习", "复核"'),
@@ -35,12 +36,6 @@ MAP = [
     ('行测修仙传', '申论官途'),
     ('行测魔法学院', '申论官途'),
     ('XINGCE_VAULT', 'SHENLUN_VAULT'),
-    ('.xingce-rpg', '.shenlun-rpg'),
-    ('xingce-rpg', 'shenlun-rpg'),
-    ('xingce-xiuxian', 'shenlun-guantu'),
-    ('xiuxian', 'guantu'),
-    ('xingce', 'shenlun'),
-    ('Xingce', 'Shenlun'),
     ('xrpg', 'srpg'),
     ('修仙传', '申论官途'),
     ('行测', '申论'),

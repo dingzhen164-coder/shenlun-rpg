@@ -34,7 +34,7 @@ def update(enabled=None, new_code=False):
 
 
 def token(code):
-    return hashlib.sha256(("shenlun-rpg:" + str(code)).encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(("xingce-rpg:" + str(code)).encode("utf-8")).hexdigest()[:32]
 
 
 def is_local(addr):
@@ -55,7 +55,8 @@ def authorized(addr, cookie_header):
 
 def ping():
     from .version import VERSION
-    return {"app": "shenlun-rpg", "name": socket.gethostname()[:40], "version": VERSION}
+    # 已装在平板上的 App 认“xingce-rpg”这个名字，别改
+    return {"app": "xingce-rpg", "name": socket.gethostname()[:40], "version": VERSION}
 
 
 def local_ips():

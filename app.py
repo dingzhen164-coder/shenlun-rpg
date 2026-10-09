@@ -70,7 +70,7 @@ def main():
     try:
         data = Path.home() / ".shenlun-rpg" / "webview"     # 窗口里的本机设置（对话框大小、音乐……）存这里，重开还在
         data.mkdir(parents=True, exist_ok=True)
-        webview.create_window("申论官途", url, width=1440, height=920, min_size=(900, 600), text_select=True)
+        webview.create_window("申论官途 · 行测修仙传", url, width=1440, height=920, min_size=(900, 600), text_select=True)
         webview.start(private_mode=False, storage_path=str(data))
     except Exception:
         traceback.print_exc()

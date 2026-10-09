@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 平板 / 手机 App：全屏打开电脑上的申论官途（局域网模式）。版本号由 android/build.sh 按 rpg/version.py 填 -->
+<!-- 平板 / 手机 App：全屏打开电脑上的修仙传（局域网模式）。版本号由 android/build.sh 按 rpg/version.py 填 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.shenlun.guantu">
+    package="com.xingce.xiuxian">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- 设置里「更新 App」：从电脑下新安装包，交给系统安装（第一次要在系统设置里允许申论官途安装应用） -->
+    <!-- 设置里「更新 App」：从电脑下新安装包，交给系统安装（第一次要在系统设置里允许修仙传安装应用） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
-        android:label="申论官途"
+        android:label="申论官途 · 行测修仙传"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:allowBackup="true"
@@ -29,7 +29,7 @@
         </activity>
         <provider
             android:name=".ApkProvider"
-            android:authorities="com.shenlun.guantu.apk"
+            android:authorities="com.xingce.xiuxian.apk"
             android:exported="false"
             android:grantUriPermissions="true" />
     </application>
