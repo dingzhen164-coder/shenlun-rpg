@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# 打包平板 App：bash android/build.sh → android/build/shenlun-guantu.apk
+# 不用 Gradle，直接用 Android SDK 的 aapt2 / d8 / apksigner（GitHub 的 ubuntu 机器上自带 SDK）。
+# 版本号跟 rpg/version.py 走；签名用 android/guantu.keystore（同一把钥匙签，平板上才能直接覆盖升级）。
+set -euo pipefail
+cd "$(dirname "$0")"
+SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?需要 Android SDK}}"
+# 只用正式版（不要 rc / beta 之类）
+BT=$(ls -d "$SDK"/build-tools/* | grep -E '/[0-9]+(\.[0-9]+)*$' | sort -V | tail -1)
+PLAT=$(ls -d "$SDK"/platforms/android-* | grep -E '/android-[0-9]+$' | sort -V | tail -1)
+JAR="$PLAT/android.jar"
+API=${PLAT##*android-}
+VER=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' ../rpg/version.py)
+IFS=. read -r A B C <<<"$VER"
+CODE=$((A * 10000 + B * 100 + C))
+echo "build-tools $BT, platform $PLAT, version $VER ($CODE)"
+
+rm -rf build && mkdir -p build/gen/com/shenlun/guantu build/classes build/dex
+cat > build/gen/com/shenlun/guantu/BuildInfo.java <<JAVA
+package com.shenlun.guantu;
+final class BuildInfo { static final String VERSION = "$VER"; }
+JAVA
+
+"$BT/aapt2" compile --dir res -o build/res.zip
+"$BT/aapt2" link -I "$JAR" --manifest AndroidManifest.xml -A assets -o build/base.apk \
+  --version-code "$CODE" --version-name "$VER" --min-sdk-version 24 --target-sdk-version "$API" \
+  --java build/gen build/res.zip
+javac --release 8 -classpath "$JAR" -encoding UTF-8 -nowarn -d build/classes \
+  $(find src build/gen -name '*.java')
+"$BT/d8" --release --min-api 24 --lib "$JAR" --output build/dex $(find build/classes -name '*.class')
+cp build/base.apk build/unsigned.apk
+(cd build/dex && zip -q -j ../unsigned.apk classes.dex)
+"$BT/zipalign" -f -p 4 build/unsigned.apk build/aligned.apk
+"$BT/apksigner" sign --ks guantu.keystore --ks-pass pass:guantu2026 --ks-key-alias guantu \
+  --out build/shenlun-guantu.apk build/aligned.apk
+"$BT/apksigner" verify build/shenlun-guantu.apk
+ls -l build/shenlun-guantu.apk
