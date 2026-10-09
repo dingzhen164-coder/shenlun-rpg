@@ -28,7 +28,7 @@
 5. 测试：新功能加测试，修 bug 加回归测试，`python -m unittest discover -s tests -v` 全部通过。
 6. **涉及界面时浏览器实测**：Playwright 真的点一遍，电脑（1280×860）和平板（800×1280）、浅色和深色截图，自己看图检查排版。
 7. 升版本号（`rpg/version.py`）并在 `rpg/data/changelog.md` 顶部写用户看得懂的更新说明（有测试检查两者一致；根目录 `changelog.md` 只是指路）。
-8. 提交并推送到**指定开发分支**（见系统给的分支名；用户没明确要求就不开 PR、不推别的分支）。
+8. 提交并推送到**指定开发分支**；推送后 GitHub 会在开发分支上自动跑测试和打包验证（只验证、不发布）。**验证三项（Windows exe、Mac App、平板 APK）全部通过后，开 PR 并合并到 main，触发正式发布**（用户 2.0.3 起定的：以后每次更新都这样，用户用程序里「设置 → 版本与更新 → 检查更新 → 更新并重启」更新，不再手动运行 PowerShell 命令）。验证失败就读日志修好再推，**不带着失败的版本合并**。合并后核对 Releases 里 exe、apk、mac zip 都在，再汇报。PR 合并后开发分支从 main 重新拉（`git checkout -B <分支名> origin/main`）。
 9. 汇报（见第 8 节格式）。
 
 **做完 = 测试通过 + 涉及界面的已截图看过 + 已推送且更新命令能用。** 只改了代码不算做完。
@@ -92,5 +92,7 @@ vX.Y.Z 已推送
 
 ## 10. 与行测项目的关系
 - 1.0.0 起，代码直接以行测 3.3.0 为底座（`rpg/` + `web/`），申论批改作为“实操”接入；世界观只留“官场”，不再有修仙/玄幻。
-- 发布：目前推送开发分支 + PowerShell 更新命令（`scripts/update-local.ps1`）；exe / Mac 打包的 CI 已就位（`.github/workflows/build-exe.yml`，推 main 才触发），APK 暂不做。
-- 合并进 main 由用户决定；到第一个正式 exe/Mac 版本（计划 1.3.0）时再走 PR。
+- 发布：2.0.3 起恢复行测时的方式——合并到 main 后 GitHub Actions 自动打包 Windows exe、Mac App（Apple 芯片）、平板 APK，发到 Releases（tag v<版本>）；程序里「检查更新」读它。只有改了 `rpg/version.py` 才会触发打包。
+- 平板 App 沿用行测的包名 `com.xingce.xiuxian` 和签名钥匙 `android/xiuxian.keystore`，别改（改了已装的平板就不能覆盖升级）；局域网探测名 `xingce-rpg`（`rpg/lan.py` 的 ping）也别改。
+- `scripts/update-local.ps1`（PowerShell 更新命令）保留作为源码版 / 备用更新方式。
+- 注意 `.gitignore` 只忽略根目录的 `/data/`，`rpg/data/` 里的文件（更新记录等）必须提交。
