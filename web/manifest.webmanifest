@@ -1,7 +1,7 @@
 {
-  "name": "申论官途",
-  "short_name": "申论官途",
-  "description": "申论备考官场 RPG",
+  "name": "行测修仙传",
+  "short_name": "修仙传",
+  "description": "行测备考修仙 RPG",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

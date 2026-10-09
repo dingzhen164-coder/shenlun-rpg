@@ -1,8 +1,8 @@
-/* 🌿 脉络图：每个题型的思维导图（办理殿便笺下面）。编辑器是 simple-mind-map（github.com/wanglin2/mind-map，MIT，web/vendor/mindmap/），
-   用到时才加载（6MB）。数据存在库里 训练/脉络图/<题型>/<名字>.json（rpg/mindmap.py），改了自动保存。
-   - 办理殿：每个题型一枚会动的“灵脉阵盘”，点开进编辑器（一个题型可以有好几幅）
+/* 🌿 灵脉图：每个板块的思维导图（修炼殿玉简下面）。编辑器是 simple-mind-map（github.com/wanglin2/mind-map，MIT，web/vendor/mindmap/），
+   用到时才加载（6MB）。数据存在库里 训练/灵脉图/<板块>/<名字>.json（rpg/mindmap.py），改了自动保存。
+   - 修炼殿：每个板块一枚会动的“灵脉阵盘”，点开进编辑器（一个板块可以有好几幅）
    - 编辑：点节点选中；Tab 加子节点、Enter 加同级、Del 删除、双击改字、拖动节点换位置；Ctrl+Z / Ctrl+Y 撤销重做
-   - 导入 .xmind / Markdown（# 标题层级或 - 列表）/ .json；导出 XMind / 图片 / Markdown / JSON 到 训练/脉络图/导出/ */
+   - 导入 .xmind / Markdown（# 标题层级或 - 列表）/ .json；导出 XMind / 图片 / Markdown / JSON 到 训练/灵脉图/导出/ */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const VER = "0.14.0-fix.3";
@@ -45,7 +45,7 @@
     return node;
   }
 
-  // ---------------------------------------------------------------- 办理殿：灵脉阵盘
+  // ---------------------------------------------------------------- 修炼殿：灵脉阵盘
   function disk(i) {
     // 中间一颗主节点，五条灵脉向外生长，末端的小节点一闪一闪
     const rays = [0, 72, 144, 216, 288].map((a, k) => {
@@ -59,8 +59,8 @@
   }
   async function hubHtml() {
     try { LIST = await api("/api/mindmap"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
-    return `<div class="card ln-hall"><div class="row"><h3 style="margin:0">🌿 脉络图</h3>
-        <span class="small muted">每个题型的知识脉络（思维导图）：自己画、或导入 XMind / Markdown，点阵盘打开</span></div>
+    return `<div class="card ln-hall"><div class="row"><h3 style="margin:0">🌿 灵脉图</h3>
+        <span class="small muted">每个板块的知识脉络（思维导图）：自己画、或导入 XMind / Markdown，点阵盘打开</span></div>
       <div class="ln-grid">${LIST.boards.map((b, i) => {
         const n = b.maps.reduce((a, m) => a + m.nodes, 0);
         return `<div class="ln-slot" data-ln="${esc(b.board)}"><div class="ln-disk ${b.maps.length ? "lit" : ""}" style="--h:${HUES[i % HUES.length]};--d:${(i % 6) * 0.7}s">${disk(i)}</div>
@@ -78,7 +78,7 @@
   }
   function pickMap(board, maps) {
     const m = $("#modal");
-    m.innerHTML = `<div class="modal-box"><h3>🌿 ${esc(board)} · 脉络图</h3>
+    m.innerHTML = `<div class="modal-box"><h3>🌿 ${esc(board)} · 灵脉图</h3>
       <div class="ln-pick">${maps.map((x) => `<button data-pk="${esc(x.name)}"><b>${esc(x.name)}</b><small>${x.nodes} 节 · ${esc(x.updated)}</small></button>`).join("")}</div>
       <div class="row"><button class="ghost" id="lnPNew">＋ 新画一幅</button><span class="spacer"></span><button class="ghost" id="lnPX">关</button></div></div>`;
     m.classList.remove("hidden");
@@ -87,7 +87,7 @@
     $("#lnPNew").onclick = async () => { m.classList.add("hidden"); newMap(board); };
   }
   async function newMap(board, data, name) {
-    name = name || prompt(`新画一幅「${board}」的脉络图，名字：`, board);
+    name = name || prompt(`新画一幅「${board}」的灵脉图，名字：`, board);
     if (!name) return;
     try { const r = await api("/api/mindmap/create", { board, name, data }); open(board, r.name); } catch (e) { showError(e); }
   }
@@ -101,13 +101,13 @@
   }
   async function open(board, name) {
     const s = stage();
-    s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回办理殿</button><b class="yj-top-title">🌿 脉络图 · ${esc(board)}</b></div><div class="yj-wait">展开灵脉…</div>`;
+    s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回修炼殿</button><b class="yj-top-title">🌿 灵脉图 · ${esc(board)}</b></div><div class="yj-wait">展开灵脉…</div>`;
     document.getElementById("lnBack").onclick = close;
     let d;
     try { [d] = await Promise.all([api("/api/mindmap/get", { board, name }), loadLib()]); } catch (e) { showError(e); return close(); }
     CUR = { board, name: d.name };
     const data = d.data || {};
-    s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回办理殿</button>
+    s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回修炼殿</button>
         <b class="yj-top-title">🌿 ${esc(board)} · <a id="lnName" title="改名">${esc(d.name)}</a></b><span class="spacer"></span><span class="small faint" id="lnSaved"></span></div>
       <div class="ln-tools">
         <button data-c="child" title="给选中的节点加子节点（Tab）">＋ 子节点</button><button data-c="sib" title="加同级节点（Enter）">＋ 同级</button>
@@ -116,7 +116,7 @@
         <select id="lnLayout" title="布局">${LAYOUTS.map(([k, v]) => `<option value="${k}" ${k === (data.layout || "logicalStructure") ? "selected" : ""}>${v}</option>`).join("")}</select>
         <button data-c="fit" title="整幅放进屏幕">⤢ 适应</button><button data-c="in" title="放大">＋</button><button data-c="out" title="缩小">－</button><span class="ln-sep"></span>
         <button data-c="import" title="导入 .xmind / Markdown / .json，导成新的一幅">📥 导入</button>
-        <select id="lnExport" title="导出到 训练/脉络图/导出/"><option value="">📤 导出…</option><option value="xmind">XMind（.xmind）</option><option value="png">图片（.png）</option>
+        <select id="lnExport" title="导出到 训练/灵脉图/导出/"><option value="">📤 导出…</option><option value="xmind">XMind（.xmind）</option><option value="png">图片（.png）</option>
           <option value="md">Markdown（.md）</option><option value="json">JSON</option></select>
         <span class="spacer"></span><button class="ghost" data-c="new">＋ 新一幅</button><button class="ghost danger" data-c="trash" title="删掉这一幅">🗑</button>
         <input type="file" id="lnFile" accept=".xmind,.md,.markdown,.txt,.json,.smm" hidden></div>
@@ -150,7 +150,7 @@
       import: () => document.getElementById("lnFile").click(),
       new: () => newMap(board),
       trash: async () => {
-        if (!confirm(`删掉「${CUR.name}」这一幅脉络图？（删了不能恢复）`)) return;
+        if (!confirm(`删掉「${CUR.name}」这一幅灵脉图？（删了不能恢复）`)) return;
         try { await api("/api/mindmap/delete", CUR); dirty = false; close(); } catch (e) { showError(e); }
       },
     };

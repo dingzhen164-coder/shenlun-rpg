@@ -1,5 +1,5 @@
 /*
-  申论 RPG 样式。颜色全部用 :root 里的变量；亮色 / 暗色看 <html data-theme>（默认亮色，设置 → 外观里可改，每台设备各自记）。
+  行测 RPG 样式。颜色全部用 :root 里的变量；亮色 / 暗色看 <html data-theme>（默认亮色，设置 → 外观里可改，每台设备各自记）。
   改配色只改变量；组件类名见 app.js 里的模板。
 */
 :root {
@@ -19,6 +19,20 @@
   --accent: #7b4fd0; --accent2: #2f78b8; --gold: #b07d12; --green: #2f8f57;
   --red: #b83a36; --orange: #c0661d; --purple: #7a45c9;
   --shadow: 0 6px 22px rgba(90,60,20,.14);
+}
+/* 东方修仙：暗色 = 墨色夜空 + 青玉 + 鎏金；亮色 = 宣纸 + 墨 + 朱砂 */
+body.xiuxian {
+  --bg: #0e1412; --panel: #151e1b; --panel2: #1d2925; --line: #2c3d37;
+  --text: #e6ece8; --muted: #9db0a8; --faint: #637770;
+  --accent: #3fbf9f; --accent2: #6aa6d8; --gold: #dcb45a; --green: #58cf8e;
+  --red: #e0674f; --orange: #e79a52; --purple: #9ad7c4;
+  --display: "STKaiti", "KaiTi", "Kaiti SC", "楷体", "Songti SC", "SimSun", serif;
+}
+html[data-theme="light"] body.xiuxian {
+  --bg: #f3efe4; --panel: #fbf8f0; --panel2: #ede6d5; --line: #d6ccb4;
+  --text: #1a1f1c; --muted: #47504a; --faint: #747a70;
+  --accent: #2f8f78; --accent2: #2f6fa8; --gold: #a8791c; --green: #2f8a57;
+  --red: #b8412d; --orange: #c0661d; --purple: #2f8f78;
 }
 /* 官场：暗色 = 深墨青夜 + 铜金 + 朱砂；亮色 = 宣纸 + 墨 + 朱砂印泥 */
 body.guantu {
@@ -182,7 +196,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .levelup .rune { letter-spacing: 4px; }
 .levelup .promo { margin-top: 8px; font-size: 18px; font-weight: 800; color: var(--purple); font-family: var(--display); }
 
-/* ---------- 第三版新增：职级、晋升考核、专长、整改榜、周例会、下乡调研、上岸 ---------- */
+/* ---------- 第三版新增：境界、渡劫、灵根、心魔榜、周常、闭关、飞升 ---------- */
 .g3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .g5 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .realm-name { font-family: var(--display); font-size: 30px; font-weight: 800; color: var(--gold); line-height: 1.25;
@@ -210,13 +224,13 @@ button.big { padding: 10px 22px; font-size: 16px; }
 select { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .hero .avatar .def { font-family: var(--display); }
 
-/* 顶栏计时：办理中亮起并闪烁一个小点 */
+/* 顶栏计时：修炼中亮起并闪烁一个小点 */
 .today-pill.on { color: var(--gold); border-color: var(--gold); }
 .today-pill.on::before { content: "● "; animation: blink 1.6s infinite; }
 @keyframes blink { 50% { opacity: .2; } }
 
 
-/* 真题试炼沿用现有主题色：便笺阵法与试炼之塔共用进度面板。 */
+/* 真题试炼沿用现有主题色：玉简阵法与试炼之塔共用进度面板。 */
 .bank-banner { border-color: var(--gold); background: linear-gradient(135deg, var(--panel, #161b25), transparent); }
 .bank-banner .rune { color: var(--gold); letter-spacing: 3px; }
 .bank-banner h2 { margin: 12px 0 20px; font-size: 22px; }
@@ -281,7 +295,7 @@ body.has-bg .topbar { background: color-mix(in srgb, var(--bg) 70%, transparent)
 hr.soft { border: none; border-top: 1px dashed var(--line); margin: 12px 0; }
 input[type=range] { accent-color: var(--accent); padding: 0; background: none; border: none; }
 
-/* 听课（首页） */
+/* 听道（首页） */
 .dual-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--panel2); margin: 4px 0 6px; }
 .dual-bar .s { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 .dual-bar .l { background: linear-gradient(90deg, var(--gold), var(--orange)); }
@@ -301,7 +315,7 @@ input[type=range] { accent-color: var(--accent); padding: 0; background: none; b
 .result-table tr.good td:nth-child(7) { color: #2e8b57; font-weight: bold; }
 .result-table tr.sum td { font-weight: bold; background: var(--panel2); }
 
-/* ===== 档案室：业务手册古籍 + 便笺 ===== */
+/* ===== 藏经阁：功法古籍 + 玉简 ===== */
 .tag.bad { color: var(--red); }
 .lib-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 4px 0 6px; }
 .lib-head h2 { margin: 0; font-family: var(--display); letter-spacing: .2em; }
@@ -331,7 +345,7 @@ input[type=range] { accent-color: var(--accent); padding: 0; background: none; b
 .tome-seal { margin-top: auto; font-size: 11px; color: #f3dfa8; border: 1px solid rgba(243,223,168,.6); border-radius: 3px; padding: 0 5px; transform: rotate(-6deg); }
 .tome-open { animation: lib-unfold .35s ease-out; }
 @keyframes lib-unfold { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
-/* 便笺：半透明青玉，竖排刻字，顶上一缕穗子 */
+/* 玉简：半透明青玉，竖排刻字，顶上一缕穗子 */
 .slip { position: relative; width: 92px; height: 186px; cursor: pointer; border-radius: 10px; animation: tome-float 7s ease-in-out infinite; animation-delay: calc(var(--d) * -1);
   background: linear-gradient(160deg, rgba(196,240,220,.92), rgba(98,180,150,.85) 45%, rgba(40,120,98,.9));
   box-shadow: inset 0 0 18px rgba(255,255,255,.45), inset 0 -8px 16px rgba(0,60,40,.35), 0 0 22px rgba(90,200,160,.35), 0 14px 24px rgba(0,0,0,.3);
@@ -364,7 +378,7 @@ input[type=range] { accent-color: var(--accent); padding: 0; background: none; b
 .tome-label { width: 34px; padding: 6px 4px; }
 .tome-grid { padding-top: 44px; }
 
-/* ===== 办理殿：两扇门 ===== */
+/* ===== 修炼殿：两扇门 ===== */
 .hall-gates { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; }
 .gate { position: relative; overflow: hidden; cursor: pointer; border-radius: 18px; padding: 22px 22px 18px; min-height: 132px;
   border: 1px solid var(--line); background: linear-gradient(135deg, var(--panel), var(--panel2));
@@ -381,7 +395,7 @@ input[type=range] { accent-color: var(--accent); padding: 0; background: none; b
 .gate.on::after { content: "◆ 当前"; position: absolute; top: 12px; right: 16px; font-size: 11px; color: var(--gold); }
 .rec-card summary { cursor: pointer; }
 
-/* 办理：题型印章 + 大项卡 */
+/* 修炼：板块印章 + 大项卡 */
 .board-seals { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 14px; }
 .seal { position: relative; cursor: pointer; padding: 8px 16px; border-radius: 6px; font-family: var(--display); letter-spacing: .12em;
   border: 1px solid var(--line); background: var(--panel); box-shadow: 0 2px 8px rgba(0,0,0,.08); transition: all .2s; }
@@ -476,7 +490,7 @@ html.in-chat .msgs { min-height: 0; overflow-y: auto; padding-right: 4px; }
 html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-radius: 0; }
 @media (max-width: 820px) { html.in-chat .train { width: 100vw; } html.in-chat .train > .card:first-child { display: none; } }
 
-/* 政绩录 · 红尘历练：占一整行，左边自练日志，右边好题收进题库 */
+/* 修仙录 · 红尘历练：占一整行，左边自练日志，右边好题收进题库 */
 .hongchen .hc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; }
 .hongchen h4 { margin: 4px 0 8px; }
 .hongchen textarea { box-sizing: border-box; resize: vertical; }
@@ -543,7 +557,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 .hongchen .hc-grid > .pr-list { margin-top: 0; }
 @media (max-width: 640px) { .sancai-head .spacer { display: none; } .ratio-line .spacer { flex-basis: 100%; } }
 
-/* 听课 · 闻法记 与 红尘历练 · 自练日志：同一个模板，颜色对应三才时辰（听课青、做题朱、复习金） */
+/* 听道 · 闻法记 与 红尘历练 · 自练日志：同一个模板，颜色对应三才时辰（听课青、做题朱、复习金） */
 .tone-lecture { --tone: var(--c-lecture); }
 .tone-practice { --tone: var(--c-practice); }
 .tone-review { --tone: var(--c-review); }
@@ -675,7 +689,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 }
 .lec-board { padding: 2px 6px; font-size: 12px; width: auto; }
 
-/* ------------------------------------------------------------ 年度考核（web/contest.js） */
+/* ------------------------------------------------------------ 宗门大比（web/contest.js） */
 /* 折线颜色：数据可视化参考色板 1–6 位（亮 / 暗各一套，已过色盲与相邻区分校验） */
 :root { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; }
 :root[data-theme="light"] { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; }
@@ -741,7 +755,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mods { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .mods { grid-template-columns: 1fr; } }
 
-/* ------------------------------------------------------------ 档案室 · 成语实词录（web/idioms.js） */
+/* ------------------------------------------------------------ 藏经阁 · 成语实词录（web/idioms.js） */
 .id-bar input#idQ { flex: 1; }
 .id-letters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .id-letters a { cursor: pointer; min-width: 34px; text-align: center; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line);
@@ -776,7 +790,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 .id-card.editing label { display: block; margin-top: 6px; }
 .id-card.editing textarea, .id-card.editing input { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; resize: vertical; }
 
-/* 年度考核 · 考情分析、答题卡截图 */
+/* 宗门大比 · 考情分析、答题卡截图 */
 .an-card { border-top: 3px solid var(--gold); }
 .an-card .row { gap: 10px; flex-wrap: wrap; }
 .an-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
@@ -799,7 +813,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 .rp-auto textarea { width: 100%; box-sizing: border-box; margin-top: 4px; }
 .rp-auto #rpResult { margin-top: 6px; line-height: 1.7; }
 
-/* ------------------------------------------------------------ 大典画面（web/ceremony.js）：突破、晋升考核、年度考核 */
+/* ------------------------------------------------------------ 大典画面（web/ceremony.js）：突破、渡劫、宗门大比 */
 .ceremony { position: fixed; inset: 0; z-index: 9500; display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: radial-gradient(ellipse at 50% 38%, #10201d 0%, #050a09 55%, #020403 100%); color: #e6dcc3; overflow: hidden;
   opacity: 0; transition: opacity .6s ease; --glow: #ffd98a; --jade: #6fd3c0;
@@ -925,7 +939,7 @@ html.touch .bgm-btn { width: 40px; height: 40px; flex: none; font-size: 18px; }
 html.in-app .topbar { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
 html.in-app main { padding-bottom: max(60px, env(safe-area-inset-bottom)); }
 
-/* 年度考核 · 考核复盘（contest.js reviewCard） */
+/* 宗门大比 · 大比复盘（contest.js reviewCard） */
 .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 .rv-board { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; text-align: left; border-radius: 12px;
   background: color-mix(in srgb, var(--panel2) 70%, transparent); }
@@ -939,7 +953,7 @@ html.in-app main { padding-bottom: max(60px, env(safe-area-inset-bottom)); }
 .rv-bar { width: 100%; height: 4px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .rv-bar i { display: block; height: 100%; background: var(--gold); }
 
-/* 考核复盘：一行标题 + 进度（app.js reviewHead），底边一道细进度线 */
+/* 大比复盘：一行标题 + 进度（app.js reviewHead），底边一道细进度线 */
 .review-head { position: relative; display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; padding: 2px 0 9px; margin-bottom: 10px;
   border-bottom: 1px solid var(--line); }
 .review-head > b { font-family: var(--display); font-size: 15px; letter-spacing: .04em; }
@@ -1062,7 +1076,7 @@ html.no-cmix .st-btn { background: var(--st) !important; }
 .id-quote { font-family: var(--display); }
 .id-onote { flex-basis: 100%; }
 
-/* ------------------------------------------------------------ 🪶 公务手账（web/notes.js）：左边本子 / 调阅，右边纸页和阅读 */
+/* ------------------------------------------------------------ 🪶 灵台手札（web/notes.js）：左边本子 / 调阅，右边纸页和阅读 */
 html.in-notes main { max-width: 1600px; padding-bottom: 12px; }
 .notes { display: flex; gap: 14px; height: calc(100vh - 92px); min-height: 420px; }
 .nt-side { flex: 0 0 230px; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -1143,7 +1157,7 @@ html.in-notes main { max-width: 1600px; padding-bottom: 12px; }
 .nt-rbar .faint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nt-rbar button { flex: 0 0 auto; }
 
-/* 公务手账 2.0.1：左栏收起、调阅按题型展开、全屏写 */
+/* 手札 2.0.1：左栏收起、调阅按板块展开、全屏写 */
 .nt-tabs .nt-fold { flex: 0 0 38px; color: var(--faint); font-size: 18px; }
 .nt-side.min { flex: 0 0 48px; align-items: center; padding: 8px 0; gap: 6px; }
 .nt-sidebtn { width: 38px; height: 38px; padding: 0; border-radius: 10px; font-size: 17px; }
@@ -1173,7 +1187,7 @@ html.nt-full .nt-pages { padding: 12px; }
 .nt-del { position: absolute; top: 6px; right: 6px; font-size: 14px; opacity: .45; padding: 2px 4px; border-radius: 6px; }
 .nt-del:hover { opacity: 1; background: var(--panel); }
 
-/* ------------------------------------------------------------ 📜 便笺（web/cards.js）：便笺夹树、过便笺、记便笺、藏简阁、灵识图 */
+/* ------------------------------------------------------------ 📜 玉简（web/cards.js）：简匣树、温简、刻简、藏简阁、灵识图 */
 :root { --jade: #5fd0ae; --jade-soft: rgba(95, 208, 174, .12); --jade-line: rgba(95, 208, 174, .4); --yj-new: #6aa6d8; --yj-learn: #e79a52; --yj-due: #58cf8e; }
 :root[data-theme="light"] { --jade: #2f9a7e; --jade-soft: rgba(47, 154, 126, .12); --jade-line: rgba(47, 154, 126, .45); --yj-new: #2f78b8; --yj-learn: #c0661d; --yj-due: #2f8a57; }
 .yj-hall { border-top: 3px solid var(--jade); }
@@ -1349,7 +1363,7 @@ input.yj-pg { width: 80px; display: inline-block; padding: 4px 8px; }
 input.yj-gtags { width: 180px; padding: 3px 8px; font-size: 12px; }
 #gAll, #gNone { cursor: pointer; }
 
-/* ------------------------------------------------------------ 🌿 脉络图（web/mindmap.js） */
+/* ------------------------------------------------------------ 🌿 灵脉图（web/mindmap.js） */
 .ln-hall { border-top: 3px solid #6aa86a; }
 .ln-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 18px 12px; margin-top: 14px; }
 .ln-slot { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
@@ -1387,7 +1401,7 @@ input.yj-gtags { width: 180px; padding: 3px 8px; font-size: 12px; }
 .yj-pen.has { position: relative; }
 .yj-pen.has::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
 
-/* ------------------------------------------------------------ 🖼 办理战报（web/poster.js） */
+/* ------------------------------------------------------------ 🖼 修炼战报（web/poster.js） */
 .ps-open { white-space: nowrap; }
 .hero-score .ps-open { margin-top: 8px; }
 .modal-box.ps-box { width: min(980px, calc(100vw - 32px)); display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
@@ -1417,7 +1431,7 @@ input.yj-gtags { width: 180px; padding: 3px 8px; font-size: 12px; }
 .focus-btn.on { color: var(--accent); border-color: var(--accent); }
 html.focus .topbar, html.focus #banner, html.focus #quoteLayer { display: none !important; }
 html.focus main { padding-top: 52px; }
-html.focus .yj-stage, html.focus.nt-full .nt-book { top: 46px; }   /* 全屏的过便笺、脉络图 / 全屏公务手账：顶上给小胶囊让位 */
+html.focus .yj-stage, html.focus.nt-full .nt-book { top: 46px; }   /* 全屏的温简、灵脉图 / 全屏手札：顶上给小胶囊让位 */
 html.focus body { background-attachment: fixed; }
 .fc-pill { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 8px;
   padding: 4px 6px 4px 14px; border-radius: 999px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line);
@@ -1442,7 +1456,7 @@ html.focus body { background-attachment: fixed; }
 .modal-box.fc-ask h3 { font-family: var(--display); color: var(--gold); letter-spacing: .15em; }
 html.no-cmix .fc-pill { background: var(--panel); }
 
-/* ------------------------------------------------------------ 🔮 时政简报（web/tianji.js） */
+/* ------------------------------------------------------------ 🔮 天机简报（web/tianji.js） */
 .tj-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .tj-head h2 { margin: 0 0 4px; font-family: var(--display); letter-spacing: .15em; }
 .tj-tabs, .tj-itabs { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
@@ -1608,7 +1622,7 @@ html.no-cmix .tj-b.no, html.no-cmix .tj-forgot span { background: rgba(200, 60, 
 /* 顶栏右边：今日功行 + 按钮一起换行，不拆开 */
 .top-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; min-width: 0; }
 .top-tools .today-pill { margin-left: 0; }
-/* 政绩录：左边功课 / 记考核 / 调休叠成一列，右边办理进度 */
+/* 修仙录：左边功课 / 记大比 / 告假叠成一列，右边修炼进度 */
 .log-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
 .log-col { display: flex; flex-direction: column; gap: 14px; }
 .log-col > .card, .log-cols > .card { margin: 0; }
@@ -1618,7 +1632,7 @@ html.no-cmix .tj-b.no, html.no-cmix .tj-forgot span { background: rgba(200, 60, 
 .nt-pdftag { font-size: 12px; color: var(--muted); padding: 3px 8px; border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
 .nt-file.pdf { color: var(--red); }
 
-/* ------------------------------------------------------------ 档案室 3.1.1：便笺 · 知识点（复用 .slip）、经卷 · 题库（卷轴）、业务手册 · 教材（复用 .tome） */
+/* ------------------------------------------------------------ 藏经阁 3.1.1：玉简 · 知识点（复用 .slip）、经卷 · 题库（卷轴）、功法 · 教材（复用 .tome） */
 .deck-subs { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; max-width: 190px; }
 .deck-subs a { font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--jade-line, var(--line)); color: var(--muted); cursor: pointer; }
 .deck-subs a span { color: var(--faint); }
@@ -1645,7 +1659,7 @@ html.no-cmix .tj-b.no, html.no-cmix .tj-forgot span { background: rgba(200, 60, 
 @media (prefers-reduced-motion: reduce) { .jscroll, .jscroll-paper { animation: none; } }
 .deck-subs { margin-bottom: 14px; }
 .tome-label.long { font-size: 14px; line-height: 1.15; }
-/* 时政简报研读页左栏：目录 / 问师傅 切换 */
+/* 天机简报研读页左栏：目录 / 问师傅 切换 */
 .tj-read.asking { grid-template-columns: 340px minmax(0, 1fr); }
 .tj-ltabs { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 8px; flex: none; }
 .tj-toc .tj-ltabs a { flex: 1; justify-content: center; padding: 6px 4px; border-radius: 0; font-size: 13px; box-shadow: none; }
@@ -1669,7 +1683,7 @@ html.no-cmix .tj-b.no, html.no-cmix .tj-forgot span { background: rgba(200, 60, 
 }
 html.no-cmix .tj-am.me { background: var(--panel2); }
 
-/* 便笺卡面：有小标题 / 列表的长内容靠左排，小标题蓝色（像 Anki 笔记）；<span style="color:…"> 的彩色字照原色显示 */
+/* 玉简卡面：有小标题 / 列表的长内容靠左排，小标题蓝色（像 Anki 笔记）；<span style="color:…"> 的彩色字照原色显示 */
 .yj-rich { text-align: left; max-width: 46em; margin: 0 auto; }
 .yj-rich ul, .yj-rich ol { display: block; padding-left: 1.6em; }
 .yj-face h1, .yj-face h2, .yj-face h3, .yj-face h4, .yj-face h5 { color: #2f6fa8; font-size: 1.05em; margin: .6em 0 .25em; }
@@ -1698,7 +1712,7 @@ details.card-fold > summary small { font-family: system-ui, sans-serif; font-wei
 .yj-tools-lib { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
 .yj-moved { margin-top: 10px; }
 
-/* ⚡ 按住突破（3.3.0）：政绩圆满时办公室里出现，按住约 1.5 秒灵气灌满才突破 */
+/* ⚡ 按住突破（3.3.0）：修为圆满时洞府里出现，按住约 1.5 秒灵气灌满才突破 */
 .bar.full > div { background: linear-gradient(90deg, var(--gold), #fff3c4, var(--gold)); background-size: 200% 100%;
   animation: rbShine 2.4s linear infinite; box-shadow: 0 0 14px color-mix(in srgb, var(--gold) 70%, transparent); }
 @keyframes rbShine { to { background-position: -200% 0; } }

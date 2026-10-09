@@ -1,48 +1,48 @@
 <!doctype html>
 <!--
-  申论官途 / 申论官途 前端页面骨架。所有内容由 app.js 渲染到 #view 里；样式在 style.css。
-  导航文字、标题、配色由 app.js 按当前风格替换。
+  行测修仙传 / 行测魔法学院 前端页面骨架。所有内容由 app.js 渲染到 #view 里；样式在 style.css。
+  导航文字、标题、配色由 app.js 按当前风格（修仙 / 玄幻）替换。
   页面结构：背景层 + 语录层（ambience.js） + 顶栏（标志 / 导航 / 今日时长 / ♪ 背景音乐 / ◎ 专注 / ✏ 草稿） + 主视图 + 右下角提示层 + 升级弹窗。
 -->
 <html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>申论官途</title>
+<title>行测修仙传</title>
 <!-- 手机 / 平板“添加到主屏幕”后像 App 一样全屏打开（安卓看 manifest，苹果看 apple-* 这几行） -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0e1412">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="申论官途">
+<meta name="apple-mobile-web-app-title" content="修仙传">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/favicon-32.png">
 <link rel="stylesheet" href="style.css">
 <!-- 亮色 / 暗色：默认亮色（宣纸），设置 → 外观里可改成暗色或跟随系统；每台设备各记各的。先于页面画出来就定好，免得闪一下 -->
-<script>(function () { var m = "light"; try { m = localStorage.getItem("srpg-theme") || "light"; } catch (e) {}
+<script>(function () { var m = "light"; try { m = localStorage.getItem("xrpg-theme") || "light"; } catch (e) {}
   if (m === "auto") m = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   document.documentElement.dataset.theme = m; document.documentElement.style.colorScheme = m;
   // 老一些的平板浏览器内核不认 color-mix()：打个记号，style.css 末尾给这些地方换成普通颜色（不然圆框、底色整个不画）
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
 </head>
-<body class="guantu">
+<body class="xiuxian">
 <div id="bgLayer"></div>
 <div id="quoteLayer"></div>
 <header class="topbar">
-  <div class="brand">🏛 申论官途</div>
+  <div class="brand">☯ 行测修仙传</div>
   <nav id="nav">
-    <a data-view="home" class="active">办公室</a>
-    <a data-view="train">办理</a>
-    <a data-view="notes">公务手账</a>
-    <a data-view="contest">年度考核</a>
-    <a data-view="tianji">时政简报</a>
-    <a data-view="skeleton">档案室</a>
-    <a data-view="log">政绩录</a>
+    <a data-view="home" class="active">洞府</a>
+    <a data-view="train">修炼</a>
+    <a data-view="notes">手札</a>
+    <a data-view="contest">宗门大比</a>
+    <a data-view="tianji">天机简报</a>
+    <a data-view="skeleton">藏经阁</a>
+    <a data-view="log">修仙录</a>
     <a data-view="settings">设置</a>
   </nav>
   <div class="top-tools">
-  <div class="today-pill" id="todayPill" title="今天的有效办理时间（只有做功课时才计时）">🕯 今日办理</div>
+  <div class="today-pill" id="todayPill" title="今天的有效修炼时间（只有做功课时才计时）">🕯 今日修炼</div>
   <button class="bgm-btn" id="bgmBtn" title="背景音乐：关（点一下打开）">♪</button>
   <button class="bgm-btn" id="fsBtn" style="display:none" title="全屏（藏起浏览器的地址栏）">⛶</button>
   <button class="bgm-btn focus-btn" id="focusBtn" title="专注模式：藏起顶栏和提醒，只留眼前的功课；可配番茄钟">◎</button>
@@ -57,9 +57,11 @@
 <script src="settle.js"></script>
 <script src="ceremony.js"></script>
 <script src="device.js"></script>
+<script src="shenlun.js"></script>
 <script src="app.js"></script>
 <script src="contest.js"></script>
-<script src="shenlun.js"></script>
+<script src="contest_sl.js"></script>
+<script src="idioms.js"></script>
 <script src="draw.js"></script>
 <script src="notes.js"></script>
 <script src="cards.js"></script>

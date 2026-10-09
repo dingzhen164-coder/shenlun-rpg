@@ -3,7 +3,7 @@
 
 本机设置（~/.shenlun-rpg/settings.json，网页“设置”页填写）：
     api_key   必填；也可以用环境变量 DEEPSEEK_API_KEY
-    base_url  默认 https://api.deepseek.com（测试时可用环境变量 SHENLUN_AI_BASE_URL 指到假 AI 服务）
+    base_url  默认 https://api.deepseek.com
     model     默认 deepseek-chat
 
 只用 urllib，不依赖第三方库。所有调用失败都抛 AIError，由 api 层转成网页上的提示。
@@ -27,12 +27,12 @@ class AIError(Exception):
 def settings():
     s = load_settings()
     key = s.get("api_key") or os.environ.get("DEEPSEEK_API_KEY", "")
-    base = (s.get("base_url") or os.environ.get("SHENLUN_AI_BASE_URL") or DEFAULT_BASE).rstrip("/")
+    base = (s.get("base_url") or os.environ.get("SHENLUN_AI_BASE_URL") or DEFAULT_BASE).rstrip("/")   # 环境变量只给测试指到假 AI 服务
     return {
         "api_key": key,
         "base_url": base,
         "model": s.get("model") or DEFAULT_MODEL,
-        # 识图模型（可选）：能看图片的模型，公务手账“主任编纂”认手写用。没单独填接口和 key 就用上面那套
+        # 识图模型（可选）：能看图片的模型，灵台手札“师傅编纂”认手写用。没单独填接口和 key 就用上面那套
         "vision_model": s.get("vision_model") or "",
         "vision_base_url": (s.get("vision_base_url") or base).rstrip("/"),
         "vision_api_key": s.get("vision_api_key") or key,
@@ -57,6 +57,9 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
             raise AIError("还没有填写识图模型（设置 → AI）")
     if not s["api_key"]:
         raise AIError("还没有填写 API key（网页右上角“设置”）")
+    from . import subjects, wording
+    if subjects.active() == "申论":
+        messages = wording.fix_system(messages)     # 行测的提示词里写死的修仙说法，申论科目下换成官场说法
     body = {"model": s["model"], "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
     if json_mode:
         body["response_format"] = {"type": "json_object"}

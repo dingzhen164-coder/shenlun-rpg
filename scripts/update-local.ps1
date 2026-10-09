@@ -42,7 +42,7 @@ try {
     Expand-Archive -LiteralPath $zip -DestinationPath $unpack
     $source = Get-ChildItem -LiteralPath $unpack -Directory | Select-Object -First 1
     if (-not $source) { throw '下载内容无效。' }
-    foreach ($required in @('server.py', 'rpg\api.py', 'rpg\shenlun_grader.py', 'web\app.js')) {
+    foreach ($required in @('server.py', 'rpg\api.py', 'rpg\subjects.py', 'rpg\shenlun_grader.py', 'web\app.js')) {
         if (-not (Test-Path -LiteralPath (Join-Path $source.FullName $required))) { throw "下载内容缺少 $required，没有修改本地程序。" }
     }
     # 备份旧程序（只有代码，很小）；只留最近 5 份

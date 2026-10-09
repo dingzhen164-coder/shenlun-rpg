@@ -1,18 +1,18 @@
-/* 📜 便笺（照 Anki 做的记忆卡片）：办理殿里的便笺夹树、过便笺（复习）、记便笺（加卡片）、便笺库（浏览）、记忆台账（统计）、导入、便笺夹规矩。
-   数据都走 /api/cards/…（见 rpg/cards.py）。过便笺等界面铺在 #yjStage 上（盖住办理殿，左上角“← 回办理殿”）。
+/* 📜 玉简（照 Anki 做的记忆卡片）：修炼殿里的简匣树、温简（复习）、刻简（加卡片）、藏简阁（浏览）、灵识图（统计）、导入、简匣规矩。
+   数据都走 /api/cards/…（见 rpg/cards.py）。温简等界面铺在 #yjStage 上（盖住修炼殿，左上角“← 回修炼殿”）。
    键盘：空格 / 回车 显示答案，显示后空格 = 通透；1~4 评分；Ctrl+Z 撤销；Ctrl+Enter 刻入。 */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const T = (k) => (typeof W === "function" ? W(k) : k);
   const LS = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
-  const CLOSED = new Set(JSON.parse(LS.get("srpg-yj-closed", "[]")));
+  const CLOSED = new Set(JSON.parse(LS.get("xrpg-yj-closed", "[]")));
   let OV = null;                 // /api/cards 的概览
   let MODE = "";                 // review | add | browse | stats | import
-  let R = null;                  // 过便笺状态 {deck, card, intervals, counts, shown, t0, ask:[], asking}
+  let R = null;                  // 温简状态 {deck, card, intervals, counts, shown, t0, ask:[], asking}
   let lastActive = 0;
   const TYPE_NAMES = { "问答": "问答", "问答+反向": "问答 + 反向（正反各一张）", "填空": "填空（{{c1::…}} 挖空）" };
 
-  // ---------------------------------------------------------------- 办理殿里的便笺夹树
+  // ---------------------------------------------------------------- 修炼殿里的简匣树
   async function hubHtml() {
     try { OV = await api("/api/cards"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
     const decks = OV.decks;
@@ -21,7 +21,7 @@
     const num = (n, cls) => `<span class="yj-n ${n ? cls : "zero"}">${n}</span>`;
     const rows = decks.filter((d) => !hidden(d.name)).map((d) => `<div class="yj-row" style="--dep:${d.depth}">
         <span class="yj-fold">${kids(d.name) ? `<a data-yjfold="${esc(d.name)}">${CLOSED.has(d.name) ? "▸" : "▾"}</a>` : ""}</span>
-        <a class="yj-name" data-yjgo="${esc(d.name)}" title="温这个便笺夹（含子匣）">${esc(d.label)}</a>
+        <a class="yj-name" data-yjgo="${esc(d.name)}" title="温这个简匣（含子匣）">${esc(d.label)}</a>
         ${num(d.new, "new")}${num(d.learn, "learn")}${num(d.review, "due")}
         <a class="yj-gear" data-yjgear="${esc(d.name)}" title="${esc(T("yj_rule"))}、新建子匣、改名、删除">⚙</a></div>`).join("");
     const total = decks.filter((d) => !d.depth).reduce((a, d) => [a[0] + d.new, a[1] + d.learn, a[2] + d.review], [0, 0, 0]);
@@ -34,12 +34,12 @@
       <div class="yj-tree"><div class="yj-row yj-th"><span class="yj-fold"></span><span class="yj-name">${esc(T("yj_deck"))}</span>
         <span class="yj-n new">${esc(T("yj_new"))}</span><span class="yj-n learn">${esc(T("yj_learn"))}</span><span class="yj-n due">${esc(T("yj_due"))}</span><span class="yj-gear"></span></div>
         ${rows}</div>
-      ${OV.cards ? "" : `<p class="small muted yj-empty">还没有${esc(T("yj"))}。点「✍ ${esc(T("yj_add"))}」自己刻，或者「📥 导入」Anki 导出的文本；用 shenlun-card skill 从 PDF / 笔记做的也会出现在这里。</p>`}
-      <div class="small faint yj-moved">✍ ${esc(T("yj_add"))}、🧙 领导制卡、🏛 ${esc(T("yj_browse"))}、📊 ${esc(T("yj_stats"))}、📥 导入、＋ 新${esc(T("yj_deck"))} 在「${esc(NAV("skeleton"))} › ${esc(T("yj"))} · 知识点」里</div></div>`;
+      ${OV.cards ? "" : `<p class="small muted yj-empty">还没有${esc(T("yj"))}。点「✍ ${esc(T("yj_add"))}」自己刻，或者「📥 导入」Anki 导出的文本；用 xingce-card skill 从 PDF / 笔记做的也会出现在这里。</p>`}
+      <div class="small faint yj-moved">✍ ${esc(T("yj_add"))}、🧙 师傅制卡、🏛 ${esc(T("yj_browse"))}、📊 ${esc(T("yj_stats"))}、📥 导入、＋ 新${esc(T("yj_deck"))} 在「${esc(NAV("skeleton"))} › ${esc(T("yj"))} · 知识点」里</div></div>`;
   }
-  // 记便笺 / 领导制卡 / 记忆台账 / 导入 / 新便笺夹：放在档案室「便笺 · 知识点」（便笺库就是那里的一枚枚便笺）
+  // 刻简 / 师傅制卡 / 灵识图 / 导入 / 新简匣：放在藏经阁「玉简 · 知识点」（藏简阁就是那里的一枚枚玉简）
   function toolsHtml() {
-    return `<div class="card yj-tools yj-tools-lib"><button data-yjmode="add">✍ ${esc(T("yj_add"))}</button><button data-yjmode="gen" title="把 PDF / Markdown 笔记交给主任，自动出${esc(T("yj"))}草稿，你审过再刻入">🧙 领导制卡</button>
+    return `<div class="card yj-tools yj-tools-lib"><button data-yjmode="add">✍ ${esc(T("yj_add"))}</button><button data-yjmode="gen" title="把 PDF / Markdown 笔记交给师傅，自动出${esc(T("yj"))}草稿，你审过再刻入">🧙 师傅制卡</button>
         <button data-yjmode="stats">📊 ${esc(T("yj_stats"))}</button><button data-yjmode="import">📥 导入</button>
         <button class="ghost" id="yjNewDeck">＋ 新${esc(T("yj_deck"))}</button></div>`;
   }
@@ -56,7 +56,7 @@
   function bindHub(root = document) {
     root.querySelectorAll("[data-yjfold]").forEach((a) => (a.onclick = () => {
       const n = a.dataset.yjfold; CLOSED.has(n) ? CLOSED.delete(n) : CLOSED.add(n);
-      LS.set("srpg-yj-closed", JSON.stringify([...CLOSED])); renderTrain();
+      LS.set("xrpg-yj-closed", JSON.stringify([...CLOSED])); renderTrain();
     }));
     root.querySelectorAll("[data-yjgo]").forEach((a) => (a.onclick = () => review(a.dataset.yjgo)));
     root.querySelectorAll("[data-yjmode]").forEach((b) => (b.onclick = () => open(b.dataset.yjmode)));
@@ -122,7 +122,7 @@
         <label>每天新${esc(T("yj_unit"))}数<input id="oNew" type="number" min="0" value="${v.new_per_day}"></label>
         <label>每天复习上限<input id="oRev" type="number" min="0" value="${v.rev_per_day}"></label>
         <label>学习步长（分钟）<input id="oSteps" value="${esc(v.learn_steps.join(" "))}"></label>
-        <label>重看步长（分钟）<input id="oRe" value="${esc(v.relearn_steps.join(" "))}"></label>
+        <label>重参步长（分钟）<input id="oRe" value="${esc(v.relearn_steps.join(" "))}"></label>
         <label>目标记忆保持率<input id="oRet" type="number" step="0.01" min="0.7" max="0.99" value="${v.retention}"></label>
         <label>忘几次算${esc(T("yj_leech"))}<input id="oLeech" type="number" min="1" value="${v.leech}"></label>
         <label>最长间隔（天）<input id="oMax" type="number" min="1" value="${v.max_ivl}"></label></div>
@@ -139,7 +139,7 @@
     };
   }
 
-  // ---------------------------------------------------------------- 舞台（盖在办理殿上）
+  // ---------------------------------------------------------------- 舞台（盖在修炼殿上）
   function stage() {
     let s = document.getElementById("yjStage");
     if (!s) { s = document.createElement("div"); s.id = "yjStage"; s.className = "yj-stage"; document.body.appendChild(s); }
@@ -153,10 +153,10 @@
     document.documentElement.classList.remove("yj-on");
     MODE = ""; R = null; FL = null;
     if (typeof VIEW !== "undefined" && VIEW === "train") renderTrain();
-    else if (typeof VIEW !== "undefined" && VIEW === "skeleton") window.render();      // 档案室：刻了 / 导入了，数字跟着变
+    else if (typeof VIEW !== "undefined" && VIEW === "skeleton") window.render();      // 藏经阁：刻了 / 导入了，数字跟着变
   }
   function head(title, extra = "") {
-    const back = typeof VIEW !== "undefined" && VIEW === "skeleton" ? `← 回${NAV("skeleton")}` : "← 回办理殿";
+    const back = typeof VIEW !== "undefined" && VIEW === "skeleton" ? `← 回${NAV("skeleton")}` : "← 回修炼殿";
     return `<div class="yj-top"><button class="ghost" id="yjBack">${back}</button><b class="yj-top-title">${title}</b><span class="spacer"></span>${extra}</div>`;
   }
   function bindBack() { const b = document.getElementById("yjBack"); if (b) b.onclick = closeStage; }
@@ -192,7 +192,7 @@
     return { front: render(f, im), back: render(b, im) };
   }
 
-  // ---------------------------------------------------------------- 过便笺
+  // ---------------------------------------------------------------- 温简
   async function review(deck) {
     MODE = "review";
     R = { deck, ask: [] };
@@ -212,8 +212,8 @@
     if (r.done) {
       s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.deck || "全部" + T("yj_deck"))}`, tools) + `<div class="yj-finish">
         <div class="yj-moon"><svg viewBox="0 0 64 64" width="76" height="76"><path d="M40 6a26 26 0 1 0 18 44A22 22 0 1 1 40 6z" fill="currentColor"/></svg></div><h2>${esc(T("yj_done"))}</h2>
-        <p>${r.next_learn ? `还有记忆中的${esc(T("yj"))}，约 ${esc(r.next_learn)} 后再来。` : "明日再来，记忆会在恰好将忘之时被唤醒。"}</p>
-        <div class="row" style="justify-content:center"><button class="primary" id="yjDoneBack">回办理殿</button><button class="ghost" id="yjDoneAdd">✍ ${esc(T("yj_add"))}</button></div></div>`;
+        <p>${r.next_learn ? `还有参悟中的${esc(T("yj"))}，约 ${esc(r.next_learn)} 后再来。` : "明日再来，记忆会在恰好将忘之时被唤醒。"}</p>
+        <div class="row" style="justify-content:center"><button class="primary" id="yjDoneBack">回修炼殿</button><button class="ghost" id="yjDoneAdd">✍ ${esc(T("yj_add"))}</button></div></div>`;
       bindBack(); bindUndo();
       document.getElementById("yjDoneBack").onclick = closeStage;
       document.getElementById("yjDoneAdd").onclick = () => { ADD.deck = R.deck; open("add"); };
@@ -225,10 +225,10 @@
     s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.deck || "全部" + T("yj_deck"))}`, tools) + `
       <div class="yj-desk"><div class="yj-slip ${kind}">
         <div class="yj-slip-meta"><span>${esc(c.deck)}</span>${c.leech ? `<span class="tag bad">${esc(T("yj_leech"))}</span>` : ""}${c.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}<span class="spacer"></span>
-          <a id="yjEdit" title="改这枚${esc(T("yj"))}">✎ 改</a><a id="yjSusp" title="暂停：以后不出，便笺库里可恢复">⏸ 暂停</a><a id="yjInfo" title="温习记录">ℹ</a></div>
+          <a id="yjEdit" title="改这枚${esc(T("yj"))}">✎ 改</a><a id="yjSusp" title="暂停：以后不出，藏简阁里可恢复">⏸ 暂停</a><a id="yjInfo" title="温习记录">ℹ</a></div>
         <div class="yj-face yj-front">${f.front}</div>
         <div class="yj-back" id="yjBackFace" hidden><div class="yj-rule"></div><div class="yj-face">${f.back}</div>
-          <div class="yj-ask"><div id="yjSaved">${savedHtml(c.ai)}</div><button class="ghost small" id="yjAskBtn">🙋 领导讲讲 <small class="faint">帮你记住这张卡</small></button><div id="yjAskBox"></div></div></div>
+          <div class="yj-ask"><div id="yjSaved">${savedHtml(c.ai)}</div><button class="ghost small" id="yjAskBtn">🙋 师傅讲讲 <small class="faint">帮你记住这张卡</small></button><div id="yjAskBox"></div></div></div>
       </div></div>
       <div class="yj-bar" id="yjBar"><button class="primary yj-show" id="yjShow">${esc(T("yj_show"))} <small>空格</small></button></div>`;
     bindBack(); bindUndo();
@@ -240,12 +240,12 @@
     };
     document.getElementById("yjInfo").onclick = () => infoDialog(c.key);
   }
-  // 主任讲过的（存在便笺的“### 领导讲讲”里）：折叠着，点开再看
+  // 师傅讲过的（存在玉简的“### 师傅讲讲”里）：折叠着，点开再看
   function savedHtml(ai) {
     const parts = String(ai || "").split(/^#### /m).map((x) => x.trim()).filter(Boolean);
     if (!parts.length) return "";
     const md = (s) => (window.NOTES ? NOTES.mdRender(s, {}) : esc(s));
-    return `<details class="yj-saved"><summary>🙋 主任讲过 ${parts.length} 次 <span class="faint small">（点开再看）</span></summary>${parts.map((p) => {
+    return `<details class="yj-saved"><summary>🙋 师傅讲过 ${parts.length} 次 <span class="faint small">（点开再看）</span></summary>${parts.map((p) => {
       const [h, ...rest] = p.split("\n");
       return `<div class="yj-saved-one"><div class="small faint">${esc(h)}</div><div class="yj-msg ai">${md(rest.join("\n"))}</div></div>`;
     }).join("")}</details>`;
@@ -256,7 +256,7 @@
     const p = document.getElementById("yjPen");
     if (p) {
       p.onclick = () => { if (!window.DRAW) return; DRAW.state.on ? DRAW.close() : DRAW.open(); p.classList.toggle("on", DRAW.state.on); };
-      try { p.classList.toggle("has", !!localStorage.getItem("srpg-draw:" + drawKey())); } catch (e) { /* 读不了就不显示 */ }
+      try { p.classList.toggle("has", !!localStorage.getItem("xrpg-draw:" + drawKey())); } catch (e) { /* 读不了就不显示 */ }
     }
   }
   function flip() {
@@ -305,7 +305,7 @@
     if (!box) return;
     const md = (s) => (window.NOTES ? NOTES.mdRender(s, {}) : esc(s));
     box.innerHTML = R.ask.map((m) => `<div class="yj-msg ${m.role === "user" ? "me" : "ai"}">${m.role === "user" ? esc(m.content) : md(m.content)}</div>`).join("")
-      + (waiting ? `<div class="yj-msg ai faint">主任思索中…</div>` : "")
+      + (waiting ? `<div class="yj-msg ai faint">师傅思索中…</div>` : "")
       + (R.ask.length && !waiting ? `<div class="row yj-ask-row"><input id="yjAskIn" placeholder="接着问…（回车发送）"><button class="small" id="yjAskGo">问</button></div>` : "");
     const go = () => { const v = document.getElementById("yjAskIn").value.trim(); if (v) ask(v); };
     const b = document.getElementById("yjAskGo");
@@ -323,13 +323,13 @@
   });
   ["pointerdown", "keydown", "wheel"].forEach((ev) => addEventListener(ev, () => { if (MODE === "review") lastActive = Date.now(); }, { passive: true }));
 
-  // ---------------------------------------------------------------- 翻阅（档案室「便笺 · 知识点」）：一匣便笺一枚一枚翻着看，画面和过便笺一样，不打分、不动温习进度
+  // ---------------------------------------------------------------- 翻阅（藏经阁「玉简 · 知识点」）：一匣玉简一枚一枚翻着看，画面和温简一样，不打分、不动温习进度
   let FL = null;                 // {deck, keys, i, shown, card}
   async function flipDeck(deck, startKey) {
     MODE = "flip";
     FL = { deck, keys: [], i: 0, shown: false };
     const title = `📗 ${esc(T("yj"))} · ${esc((deck || "全部").replace(/::/g, " › "))}`;
-    stage().innerHTML = head(title) + `<div class="yj-wait">翻检便笺…</div>`;
+    stage().innerHTML = head(title) + `<div class="yj-wait">翻检玉简…</div>`;
     bindBack();
     try {
       for (let page = 0; page < 40; page++) {
@@ -347,7 +347,7 @@
     const title = `📗 ${esc(T("yj"))} · ${esc((FL.deck || "全部").replace(/::/g, " › "))}`;
     const go = `<button class="ghost small" id="flToc" title="回这一匣的目录">☰ 目录</button><button class="ghost small" id="flRev" title="按记忆曲线温这一匣（会记进度）">🌙 ${esc(T("yj_review"))}这一匣</button>`;
     if (!FL.keys.length) {
-      s.innerHTML = head(title, go) + `<div class="yj-finish"><h2>这一匣还是空的</h2><p>到办理殿「${esc(T("yj_add"))}」或「领导制卡」放进便笺。</p></div>`;
+      s.innerHTML = head(title, go) + `<div class="yj-finish"><h2>这一匣还是空的</h2><p>到修炼殿「${esc(T("yj_add"))}」或「师傅制卡」放进玉简。</p></div>`;
       bindBack(); document.getElementById("flRev").onclick = () => review(FL.deck); document.getElementById("flToc").onclick = () => browseDeck(FL.deck); return;
     }
     FL.i = Math.max(0, Math.min(FL.i, FL.keys.length - 1));
@@ -392,8 +392,8 @@
     else if (e.key === "ArrowLeft" && FL.i > 0) { FL.i--; flipShow(); }
   });
 
-  // ---------------------------------------------------------------- 记便笺
-  const ADD = { deck: LS.get("srpg-yj-deck", ""), type: LS.get("srpg-yj-type", "问答"), tags: "" };
+  // ---------------------------------------------------------------- 刻简
+  const ADD = { deck: LS.get("xrpg-yj-deck", ""), type: LS.get("xrpg-yj-type", "问答"), tags: "" };
   function deckOptions(sel) {
     const names = (OV?.decks || []).map((d) => d.name);
     if (sel && !names.includes(sel)) names.push(sel);
@@ -414,8 +414,8 @@
       <div class="yj-preview-wrap"><div class="small muted">预览</div><div class="yj-preview" id="aPrev"></div></div></div>`;
     bindBack();
     bindEditor(s, () => document.getElementById("aType").value);
-    document.getElementById("aType").onchange = () => { ADD.type = document.getElementById("aType").value; LS.set("srpg-yj-type", ADD.type); syncTypeHint(s); preview(); };
-    document.getElementById("aDeck").onchange = () => { ADD.deck = document.getElementById("aDeck").value; LS.set("srpg-yj-deck", ADD.deck); };
+    document.getElementById("aType").onchange = () => { ADD.type = document.getElementById("aType").value; LS.set("xrpg-yj-type", ADD.type); syncTypeHint(s); preview(); };
+    document.getElementById("aDeck").onchange = () => { ADD.deck = document.getElementById("aDeck").value; LS.set("xrpg-yj-deck", ADD.deck); };
     document.getElementById("aNewDeck").onclick = async () => {
       const n = prompt(`新${T("yj_deck")}名字（子匣用 :: 隔开）：`, ADD.deck ? ADD.deck + "::" : "");
       if (!n) return;
@@ -433,7 +433,7 @@
       const body = { deck: document.getElementById("aDeck").value, type: document.getElementById("aType").value, front: val("eFront"), back: val("eBack"), tags: val("eTags") };
       try {
         const r = await api("/api/cards/add", body);
-        ADD.tags = body.tags; ADD.deck = body.deck; LS.set("srpg-yj-deck", body.deck);
+        ADD.tags = body.tags; ADD.deck = body.deck; LS.set("xrpg-yj-deck", body.deck);
         toast(`✍ 已刻入「${esc(body.deck)}」${r.cards > 1 ? `（${r.cards} 张卡）` : ""}`);
         document.getElementById("eFront").value = ""; document.getElementById("eBack").value = ""; preview();
         document.getElementById("eFront").focus();
@@ -529,7 +529,7 @@
     const x = c.getContext("2d"); x.scale(dpr, dpr); x.lineCap = x.lineJoin = "round"; x.lineWidth = 3; x.strokeStyle = "#222";
     let down = false, any = false, last = null;
     const pt = (e) => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    c.onpointerdown = (e) => { if (e.pointerType === "touch" && LS.get("srpg-nt-finger", "draw") === "scroll") return; down = true; last = pt(e); try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); };
+    c.onpointerdown = (e) => { if (e.pointerType === "touch" && LS.get("xrpg-nt-finger", "draw") === "scroll") return; down = true; last = pt(e); try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); };
     c.onpointermove = (e) => { if (!down) return; const p = pt(e); x.beginPath(); x.moveTo(...last); x.lineTo(...p); x.stroke(); last = p; any = true; };
     c.onpointerup = c.onpointercancel = () => { down = false; };
     m.querySelector('[data-p="clear"]').onclick = () => { x.clearRect(0, 0, w, h); any = false; };
@@ -587,9 +587,9 @@
     document.getElementById("iOk").onclick = () => m.classList.add("hidden");
   }
 
-  // ---------------------------------------------------------------- 便笺库
+  // ---------------------------------------------------------------- 藏简阁
   const BR = { deck: "", q: "", filter: "", page: 0, sel: new Set(), cur: null };
-  // 档案室点一枚便笺：先看这一匣的目录（便笺库），点哪张就从哪张翻起
+  // 藏经阁点一枚玉简：先看这一匣的目录（藏简阁），点哪张就从哪张翻起
   function browseDeck(deck) {
     MODE = "browse";
     Object.assign(BR, { deck: deck || "", q: "", filter: "", page: 0 });
@@ -632,7 +632,7 @@
     if (n) n.onclick = () => { BR.page++; loadRows(); };
     box.querySelectorAll("tr[data-key]").forEach((tr) => (tr.onclick = (e) => {
       if (e.target.matches("input")) return;
-      if (BR.flip) flipDeck(BR.deck, tr.dataset.key);      // 档案室进来的：点哪张从哪张翻
+      if (BR.flip) flipDeck(BR.deck, tr.dataset.key);      // 藏经阁进来的：点哪张从哪张翻
       else editDialog(tr.dataset.id, loadRows);
     }));
     box.querySelectorAll("[data-sel]").forEach((cb) => (cb.onchange = () => { cb.checked ? BR.sel.add(cb.dataset.sel) : BR.sel.delete(cb.dataset.sel); batchBar(); }));
@@ -662,7 +662,7 @@
     }));
   }
 
-  // ---------------------------------------------------------------- 记忆台账
+  // ---------------------------------------------------------------- 灵识图
   async function statsScreen(deck = "") {
     await ensureOV().catch(showError);
     let st;
@@ -677,9 +677,9 @@
     const fc = st.forecast.map((n, i) => `<div class="yj-fbar" title="${i === 0 ? "今天" : i + " 天后"}：${n} 张"><i style="height:${(n / fmax) * 100}%"></i><span>${i % 5 === 0 ? (i ? "+" + i : "今") : ""}</span></div>`).join("");
     const rt = st.ratings, rs = rt[1] + rt[2] + rt[3] + rt[4] || 1;
     s.innerHTML = head(`📊 ${esc(T("yj_stats"))}`, `<select id="sDeck"><option value="">全部${esc(T("yj_deck"))}</option>${deckOptions(deck)}</select>`) + `<div class="yj-stats">
-      <div class="yj-kpis"><div><b>${st.streak}</b><span>连续过便笺天数</span></div><div><b>${st.total_reviews}</b><span>累计温过</span></div>
+      <div class="yj-kpis"><div><b>${st.streak}</b><span>连续温简天数</span></div><div><b>${st.total_reviews}</b><span>累计温过</span></div>
         <div><b>${st.retention == null ? "—" : (st.retention * 100).toFixed(1) + "%"}</b><span>近 30 天记住率</span></div><div><b>${st.mature}</b><span>间隔 ≥21 天（已熟）</span></div></div>
-      <div class="card"><h3>过便笺热力（近半年）</h3><div class="yj-heat">${heat}</div></div>
+      <div class="card"><h3>温简热力（近半年）</h3><div class="yj-heat">${heat}</div></div>
       <div class="card"><h3>未来 30 天到期</h3><div class="yj-fc">${fc}</div></div>
       <div class="card yj-two"><div><h3>${esc(T("yj"))}现状</h3>${Object.entries(st.states).map(([k, v]) => `<div class="row small"><span>${esc(k)}</span><span class="spacer"></span><b>${v}</b></div>`).join("")}</div>
         <div><h3>近 30 天评分</h3>${[1, 2, 3, 4].map((k) => `<div class="yj-rbar r${k}"><span>${esc(T("yj_r" + k))}</span><i style="width:${(rt[k] / rs) * 100}%"></i><b>${rt[k]}</b></div>`).join("")}</div></div></div>`;
@@ -715,14 +715,14 @@
     };
   }
 
-  // ---------------------------------------------------------------- 🧙 领导制卡：PDF / Markdown / 粘贴 → AI 出卡草稿 → 审 → 刻入
+  // ---------------------------------------------------------------- 🧙 师傅制卡：PDF / Markdown / 粘贴 → AI 出卡草稿 → 审 → 刻入
   const GEN = { src: null, tab: "file", sel: new Set(), pages: ["", ""], deck: "", types: "问答和填空都可以", density: "标准", note: "",
                 cards: [], running: false, stop: false, prog: "", files: null, fq: "" };
   async function genScreen() {
     await ensureOV().catch(showError);
     if (!GEN.deck) GEN.deck = ADD.deck || OV?.decks?.[0]?.name || "";
     const s = stage();
-    s.innerHTML = head("🧙 领导制卡", `<span class="small muted">主任按“一张卡只考一个点”出${esc(T("yj"))}草稿，你审过再刻入</span>`) + `<div class="yj-gen">
+    s.innerHTML = head("🧙 师傅制卡", `<span class="small muted">师傅按“一张卡只考一个点”出${esc(T("yj"))}草稿，你审过再刻入</span>`) + `<div class="yj-gen">
       <div class="card"><h3>① 资料</h3>
         <div class="yj-chips">${[["file", "📄 上传 PDF / Markdown"], ["vault", "📚 库里的笔记"], ["paste", "📋 粘贴文字"]].map(([k, v]) => `<a class="${GEN.tab === k ? "on" : ""}" data-gtab="${k}">${v}</a>`).join("")}</div>
         <div id="gSrc" class="yj-gsrc"></div><div id="gInfo"></div></div>
@@ -730,7 +730,7 @@
         <div class="yj-form-row"><label>放进${esc(T("yj_deck"))}<select id="gDeck">${deckOptions(GEN.deck)}</select></label>
           <label>卡片类型<select id="gTypes">${["问答和填空都可以", "问答", "填空"].map((x) => `<option ${x === GEN.types ? "selected" : ""}>${x}</option>`).join("")}</select></label>
           <label>出多少<select id="gDen">${["精简", "标准", "详细"].map((x) => `<option ${x === GEN.density ? "selected" : ""}>${x}</option>`).join("")}</select></label></div>
-        <label class="yj-field">给主任的额外要求（可不填）<input id="gNote" value="${esc(GEN.note)}" placeholder="如：公式卡都配一个例子；只出第二节的速算方法"></label>
+        <label class="yj-field">给师傅的额外要求（可不填）<input id="gNote" value="${esc(GEN.note)}" placeholder="如：公式卡都配一个例子；只出第二节的速算方法"></label>
         <div class="row"><span class="small muted" id="gProg">${esc(GEN.prog)}</span><span class="spacer"></span>
           <button class="ghost" id="gStop" ${GEN.running ? "" : "hidden"}>⏹ 停下</button><button class="primary" id="gGo" ${GEN.running ? "disabled" : ""}>🧙 开始制卡</button></div></div>
       <div class="card" id="gOut" ${GEN.cards.length ? "" : "hidden"}></div></div>`;
@@ -813,7 +813,7 @@
     for (let i = 0; i < plan.chunks.length; i++) {
       if (GEN.stop) break;
       const ch = plan.chunks[i];
-      prog(`🧙 主任正在看 ${ch.label}（${i + 1}/${plan.chunks.length}）… 已出 ${made} 张`);
+      prog(`🧙 师傅正在看 ${ch.label}（${i + 1}/${plan.chunks.length}）… 已出 ${made} 张`);
       try {
         const r = await api("/api/cards/gen/run", { src: src.src, chunk: ch, deck: GEN.deck, types: GEN.types, density: GEN.density, note: GEN.note });
         r.cards.forEach((c) => GEN.cards.push(Object.assign(c, { keep: true, uid: Math.random().toString(36).slice(2) })));
@@ -865,7 +865,7 @@
     };
   }
 
-  // 心跳：开着过便笺页面、页面看得见、10 分钟内有过操作（翻面 / 评分 / 问主任…）→ 计进“办理 · 复习”（服务器核对 10 分钟内在过便笺页面上取过卡）
+  // 心跳：开着温简页面、页面看得见、10 分钟内有过操作（翻面 / 评分 / 问师傅…）→ 计进“修炼 · 复习”（服务器核对 10 分钟内在温简页面上取过卡）
   const active = () => MODE === "review" && !!R && !!R.card && document.visibilityState === "visible" && Date.now() - lastActive < 600000;
   const board = () => (R && R.deck ? R.deck.split("::")[0] : "");
   const drawKey = () => (MODE === "review" && R && R.card ? "yj:" + R.card.key : "");

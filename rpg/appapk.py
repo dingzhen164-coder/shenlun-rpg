@@ -1,10 +1,10 @@
 """平板 App 的更新：电脑替平板去 GitHub 下最新的 APK（电脑能上 GitHub，平板不一定能），再从局域网传给平板。
 
 - GET /api/app/latest      平板 App 问：最新版本是多少、装包准备好没有（电脑去 GitHub 看一眼，顺手把 APK 下到本机）
-- GET /app/shenlun-guantu.apk   平板来拿安装包（不用口令：安装包本来就是公开的）
+- GET /app/xingce-xiuxian.apk   平板来拿安装包（不用口令：安装包本来就是公开的）
 - 另外开一个“只给安装包”的端口（主端口 +1 起找空的）：旧版 App 里点同一台电脑、不同端口的链接会交给系统浏览器下载，
   这样还没有“一键更新”功能的旧 App 也能点一下就下载安装
-安装包存在 ~/.shenlun-rpg/apk/shenlun-guantu-<版本>.apk，只留最新一个。
+安装包存在 ~/.shenlun-rpg/apk/xingce-xiuxian-<版本>.apk，只留最新一个。
 """
 import threading
 import urllib.request
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import paths, update
 
-NAME = "shenlun-guantu.apk"
+NAME = "xingce-xiuxian.apk"
 _LOCK = threading.Lock()
 
 
@@ -27,7 +27,7 @@ def folder():
 
 def cached():
     """本机已经下好的最新安装包 (版本, 路径)；没有返回 (None, None)"""
-    fs = sorted(folder().glob("shenlun-guantu-*.apk"), key=lambda f: update._ver(f.stem.split("-")[-1]))
+    fs = sorted(folder().glob("xingce-xiuxian-*.apk"), key=lambda f: update._ver(f.stem.split("-")[-1]))
     return (fs[-1].stem.split("-")[-1], fs[-1]) if fs else (None, None)
 
 
@@ -53,7 +53,7 @@ def ensure(ver, url, size=0):
     with _LOCK:
         d = folder()
         d.mkdir(parents=True, exist_ok=True)
-        f = d / ("shenlun-guantu-%s.apk" % ver)
+        f = d / ("xingce-xiuxian-%s.apk" % ver)
         if f.is_file() and (not size or f.stat().st_size == size):
             return f
         tmp = f.with_suffix(".part")
@@ -72,7 +72,7 @@ def ensure(ver, url, size=0):
             tmp.unlink(missing_ok=True)
             raise ApkError("安装包下载不完整，再试一次")
         tmp.replace(f)
-        for old in d.glob("shenlun-guantu-*.apk"):
+        for old in d.glob("xingce-xiuxian-*.apk"):
             if old != f:
                 old.unlink(missing_ok=True)
         return f

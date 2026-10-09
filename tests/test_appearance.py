@@ -1,10 +1,19 @@
 """外观与音乐：语录读取、只接受合法选择、音乐文件只能从 训练/外观/音乐/ 读。"""
+import os
 import datetime as dt
 import tempfile
 import unittest
 from pathlib import Path
 
 from rpg import api, appearance, paths
+
+
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
 
 
 class AppearanceTest(unittest.TestCase):
@@ -21,7 +30,7 @@ class AppearanceTest(unittest.TestCase):
     def test_defaults_quotes_and_validation(self):
         self.assertTrue((self.p.train / "外观/背景").is_dir() and (self.p.train / "外观/音乐").is_dir())
         qs = appearance.quotes(self.p)
-        self.assertEqual(qs[0], "材料要吃透，原词别丢")                     # 默认语录复制进库
+        self.assertEqual(qs[0], "山高万仞，只登一步")                     # 默认语录复制进库
         v = appearance.view(self.p, {}, dt.date(2026, 10, 1))
         self.assertIn(v["daily"], qs)
         self.assertEqual(v["current"]["track"], "")                      # 程序不自带音乐

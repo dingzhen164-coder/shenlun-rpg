@@ -1,9 +1,12 @@
 """
 读取 训练/ 下的三个用户配置文件，给出带默认值的配置对象。
 
-    规则.md                    → Rules      （游戏规则：时间线、职级、晋升考核、专长、补课券、分批、政绩值……）
-    角色设定.md                → Persona    （ID、头像；称呼、导师名 / 头像 / 人设）
-    台词库.md                  → Lines      （导师在各场景下随机说的话）
+    规则.md                    → Rules      （游戏规则：时间线、境界、渡劫、灵根、丹药、分批、修为值……）
+    角色设定.md                → Persona    （ID、头像；每种风格的称呼、导师名 / 头像 / 人设）
+    台词库.md / 台词库·玄幻.md → Lines      （导师在各场景下随机说的话，修仙 / 玄幻各一份；申论的官场风格只有 台词库.md）
+
+两个科目共用同一套规则键（行测的叫法是“标准键”）。申论的 规则.md 用官场叫法（晋升分数线、专长得分率…），
+读取时按 ALIASES_SHENLUN 翻回标准键，所以引擎只认一套键。申论默认的分批 / 题型见 DEFAULT_*_SHENLUN。
 
 每次请求都重新读取（文件很小），所以用户改完刷新网页就生效。
 规则文件里缺的键一律用 DEFAULT_RULES 里的默认值，写错的值也回退到默认值，程序不会因此崩溃。
@@ -16,63 +19,71 @@ from . import mdconf
 
 # 默认规则：和 defaults/规则.md 保持一致。新增规则时两边都要加。
 DEFAULT_RULES = {
-    "经验.批改满分": 60,    # 一次批改满分拿到的政绩，实际按得分率折算
-    "经验.简报答对": 5,
-    "经验.简报答错": 1,
+    # 真题实战：每组 10 或 15 题，纳入每日目标时间
+    "试炼塔层数": 100,
+    "试炼塔总题数": 5000,
+    "实战每组题数": 10,
+    "试炼上品正确率": 0.9,
+    "试炼中品正确率": 0.7,
+    "经验.实战通关": 30,
+    "分钟.实战每题": 2,
+    "经验.实战答对": 5,
+    "经验.实战答错": 1,
     "经验.举例通过": 25,
     "经验.举例未过": 5,
     "分钟.举例": 6,
     # 时间线
     "开始日期": "2026-09-29",
     "目标日": "2027-12-01",
-    "每日目标分钟": 300,    # 办理 + 听课（网课）合计
+    "每日目标分钟": 300,    # 修炼 + 听道（网课）合计
     "保底分钟": 15,
     "每月请假卡": 4,
-    # 分数与职级（政绩 → 预估分 → 职级）
+    # 分数与境界（修为 → 预估分 → 境界）
     "起始分数": 50,
     "目标分数": 80,
     "最高分数": 100,
     "每日理想经验": 300,
-    "成长曲线指数": 0.7,     # 综合评价 = 起始 + 跨度 ×（政绩/理想政绩）^指数；<1 前快后慢，1 是直线
-    # 晋升考核
-    "晋升分数线": "60, 65, 70, 75, 80, 85",
-    "晋升关数": "3, 5, 7, 9, 9, 9",
-    "晋升冷却天数": 3,
-    "晋升官声": 60,
-    "晋升专长.60": "激活1",
-    "晋升专长.65": "激活3",
-    "晋升专长.70": "激活5 中级2",
-    "晋升专长.75": "激活7 中级4 高级1",
-    "晋升专长.80": "激活9 中级6 高级3",
-    "晋升专长.85": "激活10 高级5 资深2",
-    # 专长
-    "专长得分率": "55, 60, 65, 70, 75, 80, 85, 90",
-    "专长取最近几次": 3,
-    "专长每阶加成": 0.05,
-    "专长复查间隔加成": 0.1,
-    # 补课券 / 下乡调研 / 领导点拨 / 过劳预警 / 官声
-    "补课题数": 5,
-    "补课加成": "0.1, 0.2, 0.3",
-    "调研加成": 0.2,
-    "点拨概率": 0.08,
-    "点拨倍数": 1.0,
-    "过劳预警分钟": 180,
-    "过劳预警连错": 5,
-    "过劳休息分钟": 10,
-    "官声统计天数": 14,
-    "补卡券连续天数": 30,
-    # 周例会（每周一刷新）
-    "周例会.整改销号": 20,
-    "周例会.汇报要点": 15,
-    "周例会.向领导汇报": 3,
-    "周例会.办理分钟": 1500,
-    "周例会.年度考核": 1,
+    "成长曲线指数": 0.7,     # 道行 = 起始 + 跨度 ×（修为/理想修为）^指数；<1 前快后慢，1 是直线
+    # 渡劫
+    "渡劫分数线": "60, 65, 70, 75, 80, 85",
+    "天劫雷数": "3, 5, 7, 9, 9, 9",
+    "渡劫冷却天数": 3,
+    "渡劫道心": 60,
+    "渡劫灵根.60": "激活1",
+    "渡劫灵根.65": "激活3",
+    "渡劫灵根.70": "激活5 玄阶2",
+    "渡劫灵根.75": "激活7 玄阶4 地阶1",
+    "渡劫灵根.80": "激活9 玄阶6 地阶3",
+    "渡劫灵根.85": "激活10 地阶5 天阶2",
+    # 灵根
+    "灵根正确率": "55, 60, 65, 70, 75, 80, 85, 90",
+    "灵根正确率.常识判断": "45, 50, 55, 60, 65, 70, 75, 80",
+    "灵根取最近几季": 3,
+    "灵根每阶加成": 0.05,
+    "灵根复查间隔加成": 0.1,
+    # 丹药 / 闭关 / 顿悟 / 走火入魔 / 道心
+    "炼丹题数": 5,
+    "丹药加成": "0.1, 0.2, 0.3",
+    "闭关加成": 0.2,
+    "顿悟概率": 0.08,
+    "顿悟倍数": 1.0,
+    "走火入魔分钟": 180,
+    "走火入魔连错": 5,
+    "走火调息分钟": 10,
+    "道心统计天数": 14,
+    "护心丹连续天数": 30,
+    # 宗门周常（每周一刷新）
+    "周常.斩心魔": 20,
+    "周常.背诵口诀": 15,
+    "周常.论道": 3,
+    "周常.修炼分钟": 1500,
+    "周常.宗门大比": 1,
     # 导师
     "导师AI": "开",
     # 分批与日常
     "每批预计天数": 14,
     "每日新学大项": 4,
-    "每日新学题型数": 2,
+    "每日新学板块数": 2,
     "每日复查上限": 6,
     "默写连续通过次数": 2,
     "思路达标比例": 0.8,
@@ -84,7 +95,7 @@ DEFAULT_RULES = {
     "回炉间隔天数": 2,
     "回炉连续判对": 2,
     "错题只取最近几季": 0,
-    # 政绩（经验）
+    # 修为（经验）
     "经验.默写通过": 30,
     "经验.默写未过": 5,
     "经验.首次通过加成": 20,
@@ -100,15 +111,15 @@ DEFAULT_RULES = {
     "经验.大项掌握": 40,
     "经验.批次通关": 500,
     "经验.周目通关": 2000,
-    "经验.晋升成功": 500,
+    "经验.渡劫成功": 500,
     "经验.自练每题": 2,
-    "经验.办理每分钟": 1,     # 有效办理时间（做题、过便笺、时政简报、公务手账、复盘…心跳计时的那些）每分钟的基础政绩
-    "经验.听课每分钟": 0.5,   # 听课（网课）每分钟的政绩；主要靠办理拿政绩，听课只给少量
-    "听课单次上限": 600,
-    "经验.静修每分钟": 0.5,   # 静修（自己复习：背要点、看笔记、整理错题本）每分钟的政绩
+    "经验.修炼每分钟": 1,     # 有效修炼时间（做题、温简、天机简报、手札、复盘…心跳计时的那些）每分钟的基础修为
+    "经验.听道每分钟": 0.5,   # 听道（网课）每分钟的修为；主要靠修炼拿修为，听道只给少量
+    "听道单次上限": 600,
+    "经验.静修每分钟": 0.5,   # 静修（自己复习：背口诀、看笔记、整理错题本）每分钟的修为
     "经验.模考录分": 100,
-    "经验.周例会": 150,
-    "经验.上岸": 3000,
+    "经验.周常": 150,
+    "经验.飞升": 3000,
     "连续打卡每天加成": 0.02,
     "连续打卡加成上限": 0.2,
     "分钟.默写": 5,
@@ -117,33 +128,107 @@ DEFAULT_RULES = {
     "分钟.错题": 4,
     "分钟.复查": 3,
     "分钟.骨架": 15,
-    "分钟.补救": 5,
-    "分钟.晋升考核": 20,
+    "分钟.疗伤": 5,
+    "分钟.渡劫": 20,
+    # 申论：采分点批改
+    "经验.批改满分": 60,      # 一次作答批改满分拿到的修为，实际按得分率折算（采分点还是草稿的试批不算）
 }
+
+# 申论规则文件的官场叫法 → 标准键（和行测共用引擎）。前缀族单独列在 ALIAS_PREFIX_SHENLUN
+ALIASES_SHENLUN = {
+ "晋升分数线": "渡劫分数线",
+ "晋升关数": "天劫雷数",
+ "晋升冷却天数": "渡劫冷却天数",
+ "晋升官声": "渡劫道心",
+ "晋升专长.60": "渡劫灵根.60",
+ "晋升专长.65": "渡劫灵根.65",
+ "晋升专长.70": "渡劫灵根.70",
+ "晋升专长.75": "渡劫灵根.75",
+ "晋升专长.80": "渡劫灵根.80",
+ "晋升专长.85": "渡劫灵根.85",
+ "专长得分率": "灵根正确率",
+ "专长取最近几次": "灵根取最近几季",
+ "专长每阶加成": "灵根每阶加成",
+ "专长复查间隔加成": "灵根复查间隔加成",
+ "补课题数": "炼丹题数",
+ "补课加成": "丹药加成",
+ "调研加成": "闭关加成",
+ "点拨概率": "顿悟概率",
+ "点拨倍数": "顿悟倍数",
+ "过劳预警分钟": "走火入魔分钟",
+ "过劳预警连错": "走火入魔连错",
+ "过劳休息分钟": "走火调息分钟",
+ "官声统计天数": "道心统计天数",
+ "补卡券连续天数": "护心丹连续天数",
+ "周例会.整改销号": "周常.斩心魔",
+ "周例会.汇报要点": "周常.背诵口诀",
+ "周例会.向领导汇报": "周常.论道",
+ "周例会.办理分钟": "周常.修炼分钟",
+ "周例会.年度考核": "周常.宗门大比",
+ "每日新学题型数": "每日新学板块数",
+ "经验.晋升成功": "经验.渡劫成功",
+ "经验.办理每分钟": "经验.修炼每分钟",
+ "经验.听课每分钟": "经验.听道每分钟",
+ "听课单次上限": "听道单次上限",
+ "经验.周例会": "经验.周常",
+ "经验.上岸": "经验.飞升",
+ "分钟.补救": "分钟.疗伤",
+ "分钟.晋升考核": "分钟.渡劫"
+}
+ALIAS_PREFIX_SHENLUN = [("题型.", "板块."), ("专长得分率.", "灵根正确率."), ("晋升专长.", "渡劫灵根."), ("周例会.", "周常."), ("副线.", "副线.")]
+
+def canon_key(key, subject):
+    """规则文件里的键 → 标准键"""
+    if subject != "申论":
+        return key
+    if key in ALIASES_SHENLUN:
+        return ALIASES_SHENLUN[key]
+    for a, b in ALIAS_PREFIX_SHENLUN:
+        if key.startswith(a):
+            return b + key[len(a):]
+    return key
 
 # 用户配置文件的版本号。defaults/ 里的文件改了结构（不只是改数值）时 +1，
 # 程序启动时会把旧版本的用户文件备份成 “xxx.旧版.md” 并换成新默认文件（见 paths.ensure_train_dir）。
-CONFIG_VERSION = 1
+CONFIG_VERSION = 4
 # 每个配置文件各自的版本：只升级真正改了结构的文件，其余文件不动（用户改过的内容保留）
-FILE_VERSIONS = {"规则.md": 1, "角色设定.md": 1, "台词库.md": 1}
-TIER_WORDS = {"初级": 0, "中级": 1, "高级": 2, "资深": 3}
+FILE_VERSIONS = {"行测": {"规则.md": 4, "角色设定.md": 3, "台词库.md": 3, "台词库·玄幻.md": 3},
+                 "申论": {"规则.md": 1, "角色设定.md": 1, "台词库.md": 1}}
+TIER_WORDS = {"黄阶": 0, "玄阶": 1, "地阶": 2, "天阶": 3, "初级": 0, "中级": 1, "高级": 2, "资深": 3}
 
-# 默认分批：先学归纳概括和综合分析，再学对策和公文，最后是大作文
 DEFAULT_BATCHES = [
-    ["归纳概括", "综合分析"],
-    ["提出对策", "贯彻执行"],
-    ["大作文"],
+    ["论证逻辑", "形式逻辑", "一拖五"],
+    ["片段阅读", "逻辑填空", "政治理论"],
+    ["资料分析", "数量关系"],
+    ["定义判断", "类比推理", "图形推理"],
 ]
 
-# 题型名 → (skill 文件夹名, [复盘里的题型名])。skill 文件夹放在 <库>/copilot/skills/，名字对不上就在 规则.md 里改“题型.xxx”
+# 板块名 → (skill 文件夹名, [模考复盘里的板块名])
 DEFAULT_BOARDS = {
+    "论证逻辑": ("xue-rui-argument-logic", ["论证逻辑"]),
+    "形式逻辑": ("xue-rui-formal-logic", ["形式逻辑"]),
+    "一拖五": ("xue-rui-yituowu", ["一拖五"]),
+    "片段阅读": ("center-comprehension-jiangwei", ["中心理解", "语句排序"]),
+    "逻辑填空": ("xingce-luojitiankong", ["逻辑填空"]),
+    "政治理论": ("political-theory-reasoning", ["政治理论"]),
+    "资料分析": ("xingce-ziliao", ["资料分析"]),
+    "数量关系": ("xingce-shuliang", ["数量关系"]),
+    "定义判断": ("xingce-dingyi", ["定义判断"]),
+    "类比推理": ("xingce-leibi", ["类比关系"]),
+    "图形推理": ("xingce-tuxing", ["图形推理"]),
+}
+DEFAULT_SIDE = {"常识判断": 0.6}
+
+# 申论的默认分批 / 题型（板块）
+DEFAULT_BATCHES_SHENLUN = [["归纳概括", "综合分析"], ["提出对策", "贯彻执行"], ["大作文"]]
+DEFAULT_BOARDS_SHENLUN = {
     "归纳概括": ("shenlun-xiaoti", ["归纳概括"]),
     "综合分析": ("shenlun-xiaoti", ["综合分析"]),
     "提出对策": ("shenlun-xiaoti", ["提出对策"]),
     "贯彻执行": ("shenlun-xiaoti", ["贯彻执行"]),
     "大作文": ("shenlun-dawenti", ["大作文"]),
 }
-DEFAULT_SIDE = {}
+DEFAULT_SIDE_SHENLUN = {}
 
 
 def _date(s, default):
@@ -156,8 +241,9 @@ def _date(s, default):
 class Rules:
     """规则。用 r.num("经验.默写通过") / r.date("目标日") / r.nums("复查间隔天数") 取值。"""
 
-    def __init__(self, text=""):
-        self.raw = mdconf.parse(text)
+    def __init__(self, text="", subject="行测"):
+        self.subject = subject
+        self.raw = {canon_key(k, subject): v for k, v in mdconf.parse(text).items()}
 
     def get(self, key):
         return self.raw.get(key, DEFAULT_RULES.get(key))
@@ -190,68 +276,77 @@ class Rules:
 
     @property
     def batches(self):
-        """[[题型, …], …]，按 “第N批” 的 N 排序；规则里一批都没写就用默认分批"""
+        """[[板块, …], …]，按 “第N批” 的 N 排序；规则里一批都没写就用默认分批"""
         found = []
         for k, v in self.raw.items():
             m = re.fullmatch(r"第\s*(\d+)\s*批", k)
             if m and mdconf.split_list(v):
                 found.append((int(m.group(1)), mdconf.split_list(v)))
-        return [b for _, b in sorted(found)] or [list(b) for b in DEFAULT_BATCHES]
+        return [b for _, b in sorted(found)] or [list(b) for b in (DEFAULT_BATCHES_SHENLUN if self.subject == "申论" else DEFAULT_BATCHES)]
 
     @property
     def boards(self):
-        """{题型: {"skill": 文件夹名, "sources": [复盘题型名]}}，保持规则里的顺序"""
+        """{板块: {"skill": 文件夹名, "sources": [复盘板块名]}}，保持规则里的顺序"""
         out = {}
         for k, v in self.raw.items():
-            if k.startswith("题型."):
+            if k.startswith("板块."):
                 name = k[3:].strip()
                 skill, _, src = v.partition("|")
                 out[name] = {"skill": skill.strip(), "sources": mdconf.split_list(src) or [name]}
         if not out:
-            out = {k: {"skill": s, "sources": list(src)} for k, (s, src) in DEFAULT_BOARDS.items()}
-        # 分批里出现、但没有定义的题型：skill 名留空（显示为待接入）
+            out = {k: {"skill": s, "sources": list(src)}
+                   for k, (s, src) in (DEFAULT_BOARDS_SHENLUN if self.subject == "申论" else DEFAULT_BOARDS).items()}
+        # 分批里出现、但没有定义的板块：skill 名留空（显示为待接入）
         for b in [x for batch in self.batches for x in batch]:
             out.setdefault(b, {"skill": "", "sources": [b]})
         return out
 
     def gate_roots(self, gate):
-        """某道晋升考核线的专长要求：{"激活": n, 0: 初级及以上个数, 1: 中级…, 2: 高级…, 3: 资深…}"""
+        """某道渡劫线的灵根要求：{"激活": n, 0: 黄阶及以上个数, 1: 玄阶…, 2: 地阶…, 3: 天阶…}"""
         out = {}
-        for m in re.finditer(r"(激活|初级|中级|高级|资深)\s*(\d+)", str(self.get(f"晋升专长.{gate}") or "")):
+        for m in re.finditer(r"(激活|黄阶|玄阶|地阶|天阶)\s*(\d+)", str(self.get(f"渡劫灵根.{gate}") or "")):
             key = "激活" if m.group(1) == "激活" else TIER_WORDS[m.group(1)]
             out[key] = int(m.group(2))
         return out
 
     def root_thresholds(self, board):
-        """专长八个品阶的正确率门槛（0~1）"""
-        key = f"专长得分率.{board}"
-        raw = self.raw.get(key) or DEFAULT_RULES.get(key) or self.get("专长得分率")
+        """灵根八个品阶的正确率门槛（0~1）"""
+        key = f"灵根正确率.{board}"
+        raw = self.raw.get(key) or DEFAULT_RULES.get(key) or self.get("灵根正确率")
         vals = [mdconf.to_num(x, None) for x in mdconf.split_list(str(raw))]
         vals = [v / 100 if v and v > 1 else v for v in vals if v is not None]
         return (vals + [1.01] * 8)[:8]
 
     @property
     def side(self):
-        """副线 {复盘题型名: 目标正确率}"""
+        """副线 {复盘板块名: 目标正确率}"""
         out = {k[3:].strip(): mdconf.to_num(v, 0.7) for k, v in self.raw.items() if k.startswith("副线.")}
-        return out or dict(DEFAULT_SIDE)
+        return out or dict({} if self.subject == "申论" else DEFAULT_SIDE)
 
 
 class Persona:
-    """角色设定：角色设定.md 里写成 “官场.导师名: …”；不带前缀的键（ID、头像）是你自己的。用 p["导师名"] 取值。
-    结构按“风格”分组，是为了以后和行测合并时能再加别的风格。"""
+    """角色设定。两种风格各有一套导师和称呼：角色设定.md 里写成 “修仙.导师名: …” “玄幻.导师名: …”；
+    不带前缀的键（ID、头像）两种风格共用。用 p["导师名"] 取当前风格的值。"""
     COMMON = {"ID": "", "头像": "头像.png"}
     THEMED = {
+        "修仙": {"称呼": "徒儿", "导师名": "劭神韵", "导师头像": "师尊.png", "吐槽尺度": "中",
+                 "导师人设": ("仙门长老，你的师尊，修为深不可测的傲娇女仙。嘴上嫌弃、句句带刺，总说“为师才不是担心你”，"
+                            "其实一直暗中关注你的修炼；你偷懒时她冷着脸训你“朽木不可雕也”，你表现好时别过脸说“哼，勉强算你有几分悟性”，"
+                            "你真的累了或遇到难处时，她会嘴硬心软地替你护法、认真开解你。")},
         "官场": {"称呼": "小同志", "导师名": "陈主任", "导师头像": "主任.png", "吐槽尺度": "中",
                  "导师人设": ("你的分管领导陈主任，四十来岁，办公室里最严的人，也是最护短的人。说话直、不绕弯，口头禅是“材料要吃透”“原词别丢”“数据说话”；"
                             "你偷懒时他板着脸批评“小同志，这个态度不行”，你写得好时只说“嗯，有进步，继续保持”，其实比谁都高兴；"
                             "你真的累了或遇到难处时，他会放下批评，语重心长地跟你聊两句，让你先休息。")},
+        "玄幻": {"称呼": "小岸", "导师名": "艾琳学姐", "导师头像": "导师.png", "吐槽尺度": "中",
+                 "导师人设": ("王立行测魔法学院的首席大魔导师，你的学姐。表面温柔、总是笑眯眯，实际腹黑毒舌："
+                            "你偷懒时她笑着补刀、阴阳怪气地“关心”你；你超额完成时嘴上说“哼，还算像样”，其实比谁都骄傲；"
+                            "你真的累了、遇到困难时，她会收起毒舌，认真温柔地安慰你。")},
     }
 
-    def __init__(self, text="", theme="官场"):
+    def __init__(self, text="", theme="修仙"):
         from . import themes
         raw = mdconf.parse(text)
-        self.theme = theme if theme in self.THEMED else "官场"
+        self.theme = theme if theme in self.THEMED else "修仙"
         self.d = {k: (raw.get(k) or v) for k, v in self.COMMON.items()}
         for k, v in self.THEMED[self.theme].items():
             self.d[k] = raw.get(f"{self.theme}.{k}") or v
@@ -287,16 +382,17 @@ def read_text(path):
         return ""
 
 
-LINES_FILE = {"官场": "台词库.md"}
+LINES_FILE = {"修仙": "台词库.md", "玄幻": "台词库·玄幻.md", "官场": "台词库.md"}
 
 
-def load_all(paths, theme="官场"):
-    """返回 (Rules, Persona, Lines)；库没找到或文件缺失时用 defaults/ 里的默认文件。"""
-    from .paths import DEFAULTS_DIR
+def load_all(paths, theme="修仙"):
+    """返回 (Rules, Persona, Lines)；库没找到或文件缺失时用本科目 defaults/ 里的默认文件。
+    theme 决定用哪套导师设定和哪个台词库（修仙：台词库.md；玄幻：台词库·玄幻.md；官场：台词库.md）"""
+    ddir = paths.defaults_dir
 
     def txt(p, name):
-        return (read_text(p) if p else "") or read_text(DEFAULTS_DIR / name)
+        return (read_text(p) if p else "") or read_text(ddir / name)
 
     lines_name = LINES_FILE.get(theme, "台词库.md")
-    return (Rules(txt(paths.rules, "规则.md")), Persona(txt(paths.persona, "角色设定.md"), theme),
-            Lines(txt(paths.train / lines_name if paths.train else None, lines_name), read_text(DEFAULTS_DIR / lines_name)))
+    return (Rules(txt(paths.rules, "规则.md"), paths.subject), Persona(txt(paths.persona, "角色设定.md"), theme),
+            Lines(txt(paths.train / lines_name if paths.train else None, lines_name), read_text(ddir / lines_name)))

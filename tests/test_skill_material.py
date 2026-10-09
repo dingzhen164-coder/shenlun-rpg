@@ -1,9 +1,18 @@
 """生成骨架的素材：读 skill 引用的库内资料（文件、文件夹、检索 skill 的资料），不读脚本和其他 skill 的操作说明。"""
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from rpg import paths, prompts, vault
+
+
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
 
 
 class SkillMaterialTest(unittest.TestCase):

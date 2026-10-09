@@ -1,8 +1,8 @@
-"""🌿 脉络图：每个题型的思维导图（编辑器用 simple-mind-map，github.com/wanglin2/mind-map，MIT，放在 web/vendor/mindmap/）。
+"""🌿 灵脉图：每个板块的思维导图（编辑器用 simple-mind-map，github.com/wanglin2/mind-map，MIT，放在 web/vendor/mindmap/）。
 
-- 存在库里 训练/脉络图/<题型>/<名字>.json（simple-mind-map 的完整数据：root 节点树 + layout / theme / view），坚果云同步；
-  一个题型可以有好几幅，第一次打开自动建一幅“<题型>”。
-- 导入：.xmind / Markdown / .json（.smm）在网页上转成节点树再存；导出：xmind / png / Markdown / json 存到 训练/脉络图/导出/。
+- 存在库里 训练/灵脉图/<板块>/<名字>.json（simple-mind-map 的完整数据：root 节点树 + layout / theme / view），坚果云同步；
+  一个板块可以有好几幅，第一次打开自动建一幅“<板块>”。
+- 导入：.xmind / Markdown / .json（.smm）在网页上转成节点树再存；导出：xmind / png / Markdown / json 存到 训练/灵脉图/导出/。
 """
 import base64
 import datetime as dt
@@ -12,6 +12,13 @@ from pathlib import Path
 
 BOARDS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
           "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
+BOARDS_SHENLUN = ["归纳概括", "综合分析", "提出对策", "贯彻执行", "大作文", "政治理论"]
+
+
+def default_boards():
+    """默认的脉络图题型（板块）：行测 12 个；申论 5 个题型 + 政治理论"""
+    from . import subjects
+    return BOARDS_SHENLUN if subjects.active() == "申论" else BOARDS
 EXPORT_EXT = {"xmind", "png", "md", "json", "svg", "pdf"}
 
 
@@ -20,7 +27,7 @@ class MapError(Exception):
 
 
 def folder(paths):
-    return paths.train / "脉络图"
+    return paths.train / "灵脉图"
 
 
 def _safe(name, what="名字"):
@@ -31,7 +38,7 @@ def _safe(name, what="名字"):
 
 
 def _file(paths, board, name):
-    return folder(paths) / _safe(board, "题型") / (_safe(name) + ".json")
+    return folder(paths) / _safe(board, "板块") / (_safe(name) + ".json")
 
 
 def _count(node):
@@ -43,11 +50,11 @@ def blank(title):
 
 
 def listing(paths):
-    """[{board, maps: [{name, nodes, updated}]}]：默认 12 个题型在前，自己建的其它题型（文件夹）在后"""
+    """[{board, maps: [{name, nodes, updated}]}]：默认 12 个板块在前，自己建的其它板块（文件夹）在后"""
     d = folder(paths)
-    boards = list(BOARDS)
+    boards = list(default_boards())
     if d.is_dir():
-        boards += sorted(p.name for p in d.iterdir() if p.is_dir() and p.name not in BOARDS and p.name != "导出")
+        boards += sorted(p.name for p in d.iterdir() if p.is_dir() and p.name not in boards and p.name != "导出")
     out = []
     for b in boards:
         maps = []
@@ -65,13 +72,13 @@ def listing(paths):
 def get(paths, board, name):
     f = _file(paths, board, name)
     if not f.is_file():
-        if name == board:                 # 第一次打开这个题型：建一幅空的
+        if name == board:                 # 第一次打开这个板块：建一幅空的
             return save(paths, board, name, blank(board))
-        raise MapError("这幅脉络图不见了（可能在另一台电脑上删了）")
+        raise MapError("这幅灵脉图不见了（可能在另一台电脑上删了）")
     try:
         data = json.loads(f.read_text(encoding="utf-8"))
     except ValueError:
-        raise MapError("这幅脉络图的文件坏了：%s" % f.name)
+        raise MapError("这幅灵脉图的文件坏了：%s" % f.name)
     return {"board": board, "name": f.stem, "data": data}
 
 
@@ -98,7 +105,7 @@ def create(paths, board, name, data=None):
 def rename(paths, board, name, new):
     f, g = _file(paths, board, name), _file(paths, board, new)
     if not f.is_file():
-        raise MapError("这幅脉络图不见了")
+        raise MapError("这幅灵脉图不见了")
     if g.exists() and g != f:
         raise MapError("已经有一幅叫「%s」的了" % g.stem)
     f.replace(g)
@@ -113,7 +120,7 @@ def delete(paths, board, name):
 
 
 def export(paths, board, name, ext, data_url):
-    """网页导出的结果（dataURL）存到 训练/脉络图/导出/<名字>.<扩展名>"""
+    """网页导出的结果（dataURL）存到 训练/灵脉图/导出/<名字>.<扩展名>"""
     ext = str(ext or "").lower()
     if ext not in EXPORT_EXT:
         raise MapError("不支持导出成 %s" % ext)

@@ -58,6 +58,14 @@ def fake_ai(messages):
     }
 
 
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "申论"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
+
+
 class AnalysisTest(unittest.TestCase):
     def test_split_and_clean(self):
         bs = analysis.split_questions(DOC)

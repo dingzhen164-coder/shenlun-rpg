@@ -1,8 +1,8 @@
-/* 🖼 办理战报：把今日 / 近七日的办理成果画成一张 1080×1440 的竖版海报（canvas 现画，不用外部库），可以存图、复制、分享。
+/* 🖼 修炼战报：把今日 / 近七日的修炼成果画成一张 1080×1440 的竖版海报（canvas 现画，不用外部库），可以存图、复制、分享。
    数字：POST /api/poster/stats {span: day|week}（rpg/poster.py）；存图：POST /api/poster/save → 训练/战报/<日期>-今日|近七日.png，
    电脑上点「打开」用看图程序打开，平板上「下载到这台设备」。
    五种风格（宣纸、墨夜、青山、朱砂、星夜），选过的风格和范围记在这台设备里。
-   用法：POSTER.open("day" | "week")，办公室「☯ 学时分类」右上角和人物卡上有入口。 */
+   用法：POSTER.open("day" | "week")，洞府「☯ 三才时辰」右上角和人物卡上有入口。 */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const W = 1080, H = 1440;
@@ -82,11 +82,11 @@
     x.restore();
   }
 
-  function seal(x, st, cx, cy) {   // 朱印：「办理有成」四字回文印，略歪
+  function seal(x, st, cx, cy) {   // 朱印：「修炼有成」四字回文印，略歪
     x.save(); x.translate(cx, cy); x.rotate(-0.08);
     x.fillStyle = st.seal; x.globalAlpha = 0.9; rr(x, -62, -62, 124, 124, 10); x.fill();
     x.globalAlpha = 1; x.strokeStyle = st.bg[0]; x.lineWidth = 3; rr(x, -53, -53, 106, 106, 6); x.stroke();
-    const ch = ["修", "有", "炼", "成"];   // 印文从右往左竖读：办理 / 有成
+    const ch = ["修", "有", "炼", "成"];   // 印文从右往左竖读：修炼 / 有成
     [[22, -22], [-22, -22], [22, 24], [-22, 24]].forEach(([px, py], i) => text(x, ch[i], px, py + 15, `bold 42px ${KAI}`, st.bg[0], "center"));
     x.restore();
   }
@@ -112,13 +112,13 @@
     const x = canvas.getContext("2d");
     background(x, st);
     // 抬头
-    x.font = `30px ${KAI}`; x.fillStyle = st.gold; x.textBaseline = "alphabetic"; spaced(x, `${d.brand} · 办理战报`, W / 2, 128, 10);
+    x.font = `30px ${KAI}`; x.fillStyle = st.gold; x.textBaseline = "alphabetic"; spaced(x, `${d.brand} · 修炼战报`, W / 2, 128, 10);
     text(x, dateLabel(d), W / 2, 196, `bold 48px ${KAI}`, st.ink, "center");
     x.save(); x.strokeStyle = st.gold; x.globalAlpha = .6; x.lineWidth = 1.5;
     x.beginPath(); x.moveTo(250, 228); x.lineTo(500, 228); x.moveTo(580, 228); x.lineTo(830, 228); x.stroke();
     x.fillStyle = st.gold; x.translate(540, 228); x.rotate(Math.PI / 4); x.fillRect(-7, -7, 14, 14); x.restore();
 
-    // 人物：头像 + 道号 + 职级
+    // 人物：头像 + 道号 + 境界
     const ax = 190, ay = 340, ar = 74;
     x.save(); x.beginPath(); x.arc(ax, ay, ar, 0, Math.PI * 2); x.closePath();
     if (S.avatar) { x.clip(); const im = S.avatar, s = Math.max(ar * 2 / im.width, ar * 2 / im.height); x.drawImage(im, ax - im.width * s / 2, ay - im.height * s / 2, im.width * s, im.height * s); }
@@ -129,7 +129,7 @@
     text(x, fit(x, d.realm, 420, `bold 44px ${KAI}`), 300, 382, `bold 44px ${KAI}`, st.gold);
     text(x, `${d.score_word} ${d.score} 分 · 目标 ${d.target} 分${d.streak ? ` · 连续打卡 ${d.streak} 天` : ""}`, 300, 428, `28px ${KAI}`, st.sub);
 
-    // 学时：左边一圈（今日：分钟 / 目标；近七日：达标天数），右边三类学时
+    // 功行：左边一圈（今日：分钟 / 目标；近七日：达标天数），右边三才
     x.save(); x.fillStyle = st.panel; rr(x, 80, 480, W - 160, 330, 26); x.fill(); x.restore();
     const cx = 250, cy = 645;
     const frac = d.span === "week" ? d.hit / 7 : d.minutes / Math.max(1, d.goal);
@@ -150,12 +150,12 @@
       x.restore();
     });
 
-    // 四宫格：做题、过便笺、政绩、打卡
+    // 四宫格：做题、温简、修为、打卡
     const q = d.questions, c = d.cards;
     const tiles = [
       ["试炼", q.total ? String(q.total) : "—", "道", q.total ? `正确率 ${Math.round(q.acc * 100)}%` : "未曾出手"],
-      [d.yj_review, c.total ? String(c.total) : "—", "次", c.total ? `记住 ${Math.round(c.rate * 100)}%` : "便笺未温"],
-      [d.xp_word, d.xp > 0 ? "+" + d.xp : "—", "", d.dao ? `官声 · ${d.dao}` : ""],
+      [d.yj_review, c.total ? String(c.total) : "—", "次", c.total ? `记住 ${Math.round(c.rate * 100)}%` : "玉简未温"],
+      [d.xp_word, d.xp > 0 ? "+" + d.xp : "—", "", d.dao ? `道心 · ${d.dao}` : ""],
       ["打卡", String(d.streak || 0), "天", "连续不辍"],
     ];
     tiles.forEach(([name, num, unit, sub], i) => {
@@ -168,10 +168,10 @@
       text(x, fit(x, sub, tw - 20, `24px ${KAI}`), tx + tw / 2, ty + 160, `24px ${KAI}`, st.sub, "center");
     });
 
-    // 下半：近七日柱状 / 今日用功最勤的题型
+    // 下半：近七日柱状 / 今日用功最勤的板块
     const by = 1062;
     if (d.span === "week") {
-      text(x, "七日学时", 96, by + 8, `bold 30px ${KAI}`, st.ink);
+      text(x, "七日功行", 96, by + 8, `bold 30px ${KAI}`, st.ink);
       const max = Math.max(d.goal, ...d.per_day, 1), bx = 120, bw = 840, bh = 80, top = by + 22;
       const gy = top + bh - bh * d.goal / max;
       x.save(); x.setLineDash([8, 8]); x.strokeStyle = st.gold; x.globalAlpha = .7; x.lineWidth = 2;
@@ -185,7 +185,7 @@
       if (d.top.length) text(x, fit(x, "主修：" + d.top.map((b) => b.board).join(" · "), 640, `26px ${KAI}`), 984, by + 8, `26px ${KAI}`, st.sub, "right");
     } else {
       text(x, "用功最勤", 96, by + 8, `bold 30px ${KAI}`, st.ink);
-      if (!d.top.length) text(x, "今日尚未分到题型的功课", 260, by + 8, `26px ${KAI}`, st.sub);
+      if (!d.top.length) text(x, "今日尚未分到板块的功课", 260, by + 8, `26px ${KAI}`, st.sub);
       const mx = Math.max(1, ...d.top.map((b) => b.minutes));
       d.top.forEach((b, i) => {
         const y = by - 22 + i * 58;
@@ -214,8 +214,8 @@
   async function load() {
     const r = await api("/api/poster/stats", { span: S.span });
     const T = (k, dflt) => (typeof DASH !== "undefined" && DASH?.theme?.terms?.[k]) || dflt;
-    r.brand = (T("brand", "申论官途") || "申论官途").replace(/^\S+\s/, "");
-    r.score_word = String(T("score", "综合评价")).replace(/（.*?）|\(.*?\)/g, ""); r.xp_word = T("xp", "政绩"); r.yj_review = T("yj_review", "过便笺");
+    r.brand = (T("brand", "行测修仙传") || "行测修仙传").replace(/^\S+\s/, "");
+    r.score_word = String(T("score", "道行")).replace(/（.*?）|\(.*?\)/g, ""); r.xp_word = T("xp", "修为"); r.yj_review = T("yj_review", "温简");
     r.tutor = r.persona.tutor;
     S.data = r;
     S.avatar = null;
@@ -234,7 +234,7 @@
     m.innerHTML = `<div class="modal-box ps-box">
       <div class="ps-preview"><canvas id="psCanvas" width="${W}" height="${H}"></canvas><div class="ps-wait" id="psWait">正在拓印…</div></div>
       <div class="ps-side">
-        <h3>🖼 办理战报</h3>
+        <h3>🖼 修炼战报</h3>
         <div class="ps-label">范围</div>
         <div class="ps-seg" id="psSpan"><a data-v="day">今日</a><a data-v="week">近七日</a></div>
         <div class="ps-label">风格</div>

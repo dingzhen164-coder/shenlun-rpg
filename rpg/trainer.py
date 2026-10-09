@@ -2,35 +2,38 @@
 训练会话：网页上一次“点功课 → 对话 → 出结果”的流程。界面说法随风格变（g.T("键")，见 themes.py）。
 
 会话类型（session["type"]）：
-    recite    汇报要点（默写）         review / speedrun  复核 / 重温业务手册（也是默写）
-    feynman   向领导汇报（费曼，多轮追问）    apply     实操（AI 出应用小题 → 学员答 → AI 判）
-    wrong     整改销号（错题判断）
-    tribulation  晋升考核：连续闯几道关卡（心法雷=背诵、整改雷=错题、问道雷=应用题、终审关=最弱专长的整改），失败一道就结束
-    alchemy      加班补课：选一个题型加练一炉（背诵 + 整改），按成功率补课完成，额外政绩
-    skeleton  生成 / 定稿业务手册（骨架）   chat      和导师聊天
+    recite    背诵口诀（默写）         review / speedrun  温养道基 / 重温功法（也是默写）
+    feynman   论道（费曼，多轮追问）    apply     试剑（AI 出应用小题 → 学员答 → AI 判）
+    wrong     斩心魔（错题判断）
+    tribulation  渡劫：连续闯几道天雷（心法雷=背诵、心魔雷=错题、问道雷=应用题、紫霄神雷=最弱灵根的心魔），失败一道就结束
+    alchemy      炼丹：选一个板块加练一炉（背诵 + 心魔），按成功率成丹，额外修为
+    skeleton  生成 / 定稿功法（骨架）   chat      和导师聊天
 
 每个函数返回给网页的统一结构（api.py 原样转成 JSON）：
     {"session": id, "type": 类型, "title": 标题,
      "messages": [{"who": "npc"|"sys"|"me", "text": 文字, "blocks": [题目块], "fold": 折叠标题}],
-     "events":   engine 返回的事件（+政绩 / 职级 / 导师台词）,
+     "events":   engine 返回的事件（+修为 / 境界 / 导师台词）,
      "input":    {"mode": "text"|"buttons"|"none", "placeholder": 提示, "buttons": [{"id", "label"}]},
      "finished": 是否结束}
 
-没填 API key 时：背诵 / 复核 / 整改 退化为“自评模式”（学员对照清单与思路判断含义）；向领导汇报 / 实操 / 生成业务手册必须有 AI；
-晋升考核里的问道雷没有 AI 时换成心法雷。会话只存在内存里，结果在出结果那一刻就写进存档。
+没填 API key 时：背诵 / 温养 / 心魔 退化为“自评模式”（学员对照清单与思路判断含义）；论道 / 试剑 / 生成功法必须有 AI；
+渡劫里的问道雷没有 AI 时换成心法雷。会话只存在内存里，结果在出结果那一刻就写进存档。
 """
 import re
 import time
 import uuid
-from . import ai, prompts, skeleton, tutor, vault
+from pathlib import Path
+
+from . import question_bank, ai, idioms, prompts, skeleton, subjects, tutor, vault, wording
 
 SESSIONS = {}
-FINISHED = {}   # 刚结束的会话 {id: (类型, 结束时间)}：结束后看解析的几分钟也算办理时间
-STUDY_TYPES = ("teach", "recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "tribulation", "alchemy")
+FINISHED = {}   # 刚结束的会话 {id: (类型, 结束时间)}：结束后看解析的几分钟也算修炼时间
+STUDY_TYPES = ("teach", "recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "tribulation", "alchemy", "bank", "bank_review",
+               "mock_review")
 REVIEW_GRACE = 180  # 秒
 
 
-PRACTICE_TYPES = ("wrong", "apply", "tribulation", "alchemy")   # 计入“做题”，其余办理计入“复习”
+PRACTICE_TYPES = ("bank", "bank_review", "wrong", "apply", "tribulation", "alchemy")   # 计入“做题”，其余修炼计入“复习”（大比复盘 mock_review 也算复习）
 
 
 def study_kind(sid):
@@ -43,12 +46,18 @@ LAST_BOARD = {}   # 会话 → 最近一次心跳时在练的模块（结束后�
 
 
 def study_board(g, sid):
-    """这个会话在练哪个题型（题型）；不认识的返回空"""
+    """这个会话在练哪个模块（板块）：知识点试炼 点:板块:考点 → 板块；整套试炼按当前这道题的板块；不认识的返回空"""
     s = SESSIONS.get(sid or "")
     if not s:
         return LAST_BOARD.get(sid or "", "")
     b = s.get("board") or (s.get("task") or {}).get("board") or ""
-    b = b if b in g.root_boards() else ""
+    if b.startswith(question_bank.POINT_PREFIX):
+        b = b[len(question_bank.POINT_PREFIX):].split(":", 1)[0]
+    elif b.startswith(question_bank.SET_PREFIX):
+        run = question_bank.state(g)["runs"].get(b) or {}
+        qs = run.get("questions") or []
+        b = qs[min(run.get("pos", 0), len(qs) - 1)]["board"] if qs else ""
+    b = b if b in g.all_boards() else ""
     if len(LAST_BOARD) > 300:
         LAST_BOARD.clear()
     LAST_BOARD[sid] = b
@@ -56,7 +65,7 @@ def study_board(g, sid):
 
 
 def is_studying(sid):
-    """这个会话是否在“办理”：正在进行的功课，或刚结束 3 分钟内（在看解析）。闲聊、编撰业务手册不算。"""
+    """这个会话是否在“修炼”：正在进行的功课，或刚结束 3 分钟内（在看解析）。闲聊、编撰功法不算。"""
     s = SESSIONS.get(sid or "")
     if s:
         return s["type"] in STUDY_TYPES
@@ -72,6 +81,8 @@ class TrainError(Exception):
 
 # ---------------------------------------------------------------- 小工具
 def _msg(who, text, blocks=None, fold=None, pin=False, material=None, qkey=None):
+    if who == "sys" and isinstance(text, str) and subjects.active() == "申论":
+        text = wording.sl(text)             # 程序写的系统提示：申论科目下换成官场措辞
     m = {"who": who, "text": text}
     if pin:                 # 题目：网页上钉在对话框顶上，往下翻解析时不动
         m["pin"] = True
@@ -143,12 +154,12 @@ def tired_response(g, s, text):
     except ai.AIError:
         reply = g.say("累了")
     return _resp(s, [_msg("npc", reply),
-                     _msg("sys", f"缓一缓再继续；想休息也可以去“{g.T('nav.log')[2:]}”用{g.T('leave')}，或者直接关掉——今天办理够保底分钟，"
+                     _msg("sys", f"缓一缓再继续；想休息也可以去“{g.T('nav.log')[2:]}”用{g.T('leave')}，或者直接关掉——今天修炼够保底分钟，"
                                  f"{g.T('streak')}就不会断。")],
                  input=s.get("last_input") or _text_input(""))
 
 
-ALL = {}        # 所有会话（含已结束的，最多留 200 个）：写办理记录用
+ALL = {}        # 所有会话（含已结束的，最多留 200 个）：写修炼记录用
 
 
 def new_session(typ, title, task, **data):
@@ -163,26 +174,26 @@ def new_session(typ, title, task, **data):
 def get(sid):
     s = SESSIONS.get(sid)
     if not s:
-        raise TrainError("这次办理已经结束或程序重启过，请从功课列表重新开始")
+        raise TrainError("这次修炼已经结束或程序重启过，请从功课列表重新开始")
     return s
 
 
 def _recite_prompt(g, board, it, head):
     return (f"{head}：{board}「{it['name']}」。凭记忆写出这一{g.T('item')}的全部内容——"
-            + (f"{g.T('term')}（【原句】）共 {len(it['verses'])} 句，必须一字不差；" if it.get("verses") else "")
+            + (f"{g.T('term')}（【口诀】）共 {len(it['verses'])} 句，必须一字不差；" if it.get("verses") else "")
             + (f"列全分类清单（共 {len(it['terms'])} 个），" if it["terms"] else "")
             + f"再用自己的话讲思路（共 {len(it['thoughts'])} 条）。允许同义表达与不同顺序，含义要对应，不能混淆上位分类和下位方法。")
 
 
 def _wrong_intro(g, q, head):
     return _msg("sys", f"{head}第{q['season']}季 · {q['source']} · 第{q['num']}题（上次你选了 {q['mine'] or '未作答'}）",
-                blocks=vault.render_blocks(g.paths, q, material=False), pin=True, material=vault.render_material(g.paths, q),
+                blocks=vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
                 qkey='mock:' + q['key'])
 
 
 # ---------------------------------------------------------------- 开始
-# ---------------------------------------------------------------- 办理记录：大项的每次对话存进 训练/办理记录/<题型>/<大项>.md
-LOG_DIR = "办理记录"
+# ---------------------------------------------------------------- 修炼记录：大项的每次对话存进 训练/修炼记录/<板块>/<大项>.md
+LOG_DIR = "修炼记录"
 LOG_TYPES = ("teach", "recite", "review", "speedrun", "feynman", "example", "apply")
 _LOG_HEAD = re.compile(r"^## (.+?) <!-- sid:(\w+) -->[ \t]*$", re.M)
 
@@ -194,7 +205,7 @@ def _log_file(g, iid):
 
 
 def _msg_text(m):
-    """记进办理记录的文字：主任和自己说的话全记；系统消息只记标题行（例题只留“例题 1（真题-xxx）”，题干去经卷里查）"""
+    """记进修炼记录的文字：师傅和自己说的话全记；系统消息只记标题行（例题只留“例题 1（真题-xxx）”，题干去经卷里查）"""
     if m.get("who") == "sys":
         return (m.get("text") or "").strip()
     parts = [m.get("text") or ""] + [b["v"] for b in m.get("blocks", []) if b.get("t") == "text"]
@@ -202,7 +213,7 @@ def _msg_text(m):
 
 
 def _log(g, sid, user_text, r):
-    """把这次对话（含刚说的话和这一轮的回复）写进这个大项的办理记录；同一次会话反复覆盖自己那一段"""
+    """把这次对话（含刚说的话和这一轮的回复）写进这个大项的修炼记录；同一次会话反复覆盖自己那一段"""
     s = ALL.get(sid)
     if not s or s["type"] not in LOG_TYPES or not s.get("iid"):
         return
@@ -223,7 +234,7 @@ def _log(g, sid, user_text, r):
     sid = s.get("log_sid", sid)       # 接着上次聊的：写回上次那一段
     head = "## %s · %s <!-- sid:%s -->" % (s.setdefault("started", time.strftime("%Y-%m-%d %H:%M")), g.label(s["type"]), sid)
     try:
-        old = f.read_text(encoding="utf-8") if f.is_file() else "# %s · 办理记录\n\n> 每次传授、汇报要点、向领导汇报、案例推演、实操的对话都记在这里，新的在下面。\n" % s["iid"].replace("::", " · ")
+        old = f.read_text(encoding="utf-8") if f.is_file() else "# %s · 修炼记录\n\n> 每次传授、背诵口诀、论道、化法为境、试剑的对话都记在这里，新的在下面。\n" % s["iid"].replace("::", " · ")
         m = re.search(r"^## .+? <!-- sid:%s -->[ \t]*$" % sid, old, re.M)
         if m:
             nxt = _LOG_HEAD.search(old, m.end())
@@ -237,7 +248,7 @@ def _log(g, sid, user_text, r):
 
 
 def _past_logs(g, iid, sid, n=5):
-    """这个大项以前的办理记录（最近 n 次，不含这一次），做成折叠消息放在对话最上面"""
+    """这个大项以前的修炼记录（最近 n 次，不含这一次），做成折叠消息放在对话最上面"""
     f = _log_file(g, iid)
     if not f or not f.is_file():
         return []
@@ -249,12 +260,12 @@ def _past_logs(g, iid, sid, n=5):
             continue
         body = text[h.end():heads[i + 1].start() if i + 1 < len(heads) else len(text)].strip()
         body = re.sub(r"^> ?", "", body, flags=re.M)
-        out.append({"who": "sys", "text": body, "fold": "📜 往期办理 · " + h.group(1), "history": True})
+        out.append({"who": "sys", "text": body, "fold": "📜 往期修炼 · " + h.group(1), "history": True})
     return out[-n:]
 
 
 def _parse_log(body):
-    """办理记录里的一段 → [(who, text)]；who 是 me / npc / sys（系统消息记成连续的 > 行）"""
+    """修炼记录里的一段 → [(who, text)]；who 是 me / npc / sys（系统消息记成连续的 > 行）"""
     out, prev_blank = [], True
     for ln in body.splitlines():
         h = re.match(r"^\*\*(🧑 我|🌸 [^*]+)\*\*：\s*$", ln)
@@ -286,13 +297,13 @@ def _last_log(g, iid, label):
 
 
 def _resume(g, task, last):
-    """接着上次的对话：把上次的对话原样摆出来，进入可以接着问主任的状态；也可以点“重新开始”"""
+    """接着上次的对话：把上次的对话原样摆出来，进入可以接着问师傅的状态；也可以点“重新开始”"""
     old_sid, when, entries = last
     it = _item(g, task["target"])
     label = g.label(task["type"])
     s = new_session(task["type"], task.get("title") or label, task, iid=it["id"], board=task["board"],
                     resumed=label, log_sid=old_sid, started=when, log=list(entries))
-    content = "\n".join(["【原句】" + v for v in it.get("verses", [])] + ["【术语】" + t for t in it.get("terms", [])]
+    content = "\n".join(["【口诀】" + v for v in it.get("verses", [])] + ["【术语】" + t for t in it.get("terms", [])]
                         + ["【思路】" + t for t in it.get("thoughts", [])])
     history = [{"role": "user" if w == "me" else "assistant", "content": t} for w, t in entries if w in ("me", "npc")][-12:]
     s["discuss"] = {"kind": label, "title": it["name"], "board": task["board"], "history": history,
@@ -310,7 +321,7 @@ def start(g, task):
             last = None
         if last:
             if g.resting():
-                raise TrainError(f"{g.T('qi')}预警：还需休息 {g.resting()} 分钟。去喝口水、走两步，回来再办理。")
+                raise TrainError(f"{g.T('qi')}预警：还需调息 {g.resting()} 分钟。去喝口水、走两步，回来再修炼。")
             return _resume(g, task, last)
     r = _start(g, task)
     s = ALL.get(r.get("session"))
@@ -318,7 +329,7 @@ def start(g, task):
         _log(g, s["id"], "", r)
         past = _past_logs(g, s["iid"], s["id"])
         if past:
-            r["messages"] = past + [_msg("sys", "↑ 以上是这一项以前的办理记录（点开看），下面是这一次。")] + r["messages"]
+            r["messages"] = past + [_msg("sys", "↑ 以上是这一项以前的修炼记录（点开看），下面是这一次。")] + r["messages"]
     return r
 
 
@@ -338,7 +349,11 @@ def _start(g, task):
     """task：今日功课里的一项（dict），或临时构造的 {"type","board","target","title","id"}"""
     typ = task["type"]
     if typ not in ("chat", "skeleton") and g.resting():
-        raise TrainError(f"{g.T('qi')}预警：还需休息 {g.resting()} 分钟。去喝口水、走两步，回来再办理。")
+        raise TrainError(f"{g.T('qi')}预警：还需调息 {g.resting()} 分钟。去喝口水、走两步，回来再修炼。")
+    if typ in ("bank", "bank_review"):
+        return _start_bank(g, task)
+    if typ == "mock_review":
+        return _start_mreview(g, task)
     if typ == "teach":
         return _start_teach(g, task)
     if typ in ("recite", "review", "speedrun"):
@@ -370,11 +385,11 @@ def _start(g, task):
     if typ == "wrong":
         origin = {k: task.get(k) for k in ("id", "type", "board", "target", "title")}
         if task.get("target") in ("", None, "daily"):
-            # 整改销号（今日功课/整改录/办理殿共用）：挑下一只最该斩的（今日排好的 > 到期回炉 > 没交手过 > 其余）
+            # 斩心魔（今日功课/心魔录/修炼殿共用）：挑下一只最该斩的（今日排好的 > 到期回炉 > 没交手过 > 其余）
             nxt = g.next_wrong(task.get("board") or "")
             if not nxt:
                 where = f"「{task['board']}」" if task.get("board") else ""
-                raise TrainError(f"{where}还没有{g.T('wrong')}（模考题型复盘里做错的题）")
+                raise TrainError(f"{where}还没有{g.T('wrong')}（模考板块复盘里做错的题）")
             task = dict(task, board=nxt[0], target=nxt[1])
             daily = g.daily_wrong()
             if daily:
@@ -408,6 +423,8 @@ def _reply(g, sid, text):
     if s.get("discuss"):
         return _discuss_reply(g, s, text)
     typ = s["type"]
+    if typ == "mock_review":
+        return _mreview_chat(g, s, text)
     if typ in ("recite", "review", "speedrun"):
         return _grade_recite(g, s, text)
     if typ in ("tribulation", "alchemy"):
@@ -416,6 +433,8 @@ def _reply(g, sid, text):
         return _feynman(g, s, text)
     if typ == "example":
         return _example(g, s, text)
+    if typ in ("bank", "bank_review"):
+        return _bank_reply(g, s, text)
     if typ == "apply":
         return _apply(g, s, text)
     if typ == "wrong":
@@ -426,8 +445,12 @@ def _reply(g, sid, text):
 
 
 def _action(g, sid, act):
-    """按钮：自评（self_ok / self_no）、业务手册（gen / final）、跳过（skip）"""
+    """按钮：自评（self_ok / self_no）、功法（gen / final）、跳过（skip）"""
     s = get(sid)
+    if s["type"] in ("bank", "bank_review"):
+        return _bank_action(g, s, act)
+    if s["type"] == "mock_review":
+        return _mreview_action(g, s, act)
     if s.get("discuss"):
         return _discuss_action(g, s, act)
     if act == "skip":
@@ -444,20 +467,20 @@ def _action(g, sid, act):
         if s["type"] == "wrong":
             return _wrong_finish(g, s, ok and p.get("answer_ok", True), "", [])
         it = _item(g, s["iid"])
-        vmiss = [m for m in p.get("miss", []) if m.startswith("要点：")]  # 要点已由程序逐字比对，自评改不了
+        vmiss = [m for m in p.get("miss", []) if m.startswith("口诀：")]  # 口诀已由程序逐字比对，自评改不了
         return _recite_finish(g, s, it["terms"] if ok else [], vmiss + ([] if ok else it["terms"]), None, ok,
                               "自评结果（未由AI验证）")
     raise TrainError("未知操作")
 
 
-# ---------------------------------------------------------------- 汇报要点（默写）
+# ---------------------------------------------------------------- 背诵口诀（默写）
 def _judge_recite(g, board, it, text):
     """返回 (hit, miss, coverage 或 None(需要自评), 点评, 错误说法)。
-    【术语】由 AI 按含义判断；【原句】（it["verses"]）由程序逐字比对，漏一句就算没过（要点要背原句）"""
+    【术语】由 AI 按含义判断；【口诀】（it["verses"]）由程序逐字比对，漏一句就算没过（口诀要背原句）"""
     vhit, vmiss = skeleton.check_verses(it, text)
-    vhit, vmiss = ["要点：" + v for v in vhit], ["要点：" + v for v in vmiss]
+    vhit, vmiss = ["口诀：" + v for v in vhit], ["口诀：" + v for v in vmiss]
     if not ai.available():
-        # 字面查找仅作对照建议，不能据此否定同义表达（要点除外：要点本来就要求原句）。
+        # 字面查找仅作对照建议，不能据此否定同义表达（口诀除外：口诀本来就要求原句）。
         return vhit, vmiss, None, "", []
     if not it["terms"] and not it["thoughts"]:
         return vhit, vmiss, 1.0, "", []
@@ -478,13 +501,13 @@ def _judge_recite(g, board, it, text):
 
 def _recite_summary(g, it, hit, miss, cov, wrong_says):
     lines = []
-    vmiss = [m[3:] for m in miss if m.startswith("要点：")]
+    vmiss = [m[3:] for m in miss if m.startswith("口诀：")]
     if it.get("verses"):
         n = len(it["verses"])
         lines.append(f"{g.T('term')}（逐字比对）{n - len(vmiss)}/{n}" + (f"，漏 / 错：{'、'.join(vmiss)}" if vmiss else "，全对 ✓"))
     if cov is None:
         return "\n".join(lines + ["未连接AI：请对照完整清单与思路自行核对含义，不作字面判分。"])
-    tmiss = [m for m in miss if not m.startswith("要点：")]
+    tmiss = [m for m in miss if not m.startswith("口诀：")]
     if it["terms"]:
         lines.append(f"分类含义对应 {len(it['terms']) - len(tmiss)}/{len(it['terms'])}"
                      + (f"，漏 / 错：{'、'.join(tmiss)}" if tmiss else "，全对 ✓"))
@@ -512,7 +535,7 @@ def _grade_recite(g, s, text):
 
 def _recite_finish(g, s, hit, miss, cov, self_ok, comment, wrong_says=()):
     it = _item(g, s["iid"])
-    verse_ok = not any(m.startswith("要点：") for m in miss)
+    verse_ok = not any(m.startswith("口诀：") for m in miss)
     ok = not wrong_says and verse_ok and (bool(self_ok) if cov is None else not miss and cov >= g.rules.num("思路达标比例"))
     ev = _drop_dup_npc(g.on_recite(s["iid"], ok, s["type"]), comment)
     g.mark_done(s["task"], ok)
@@ -524,7 +547,7 @@ def _recite_finish(g, s, hit, miss, cov, self_ok, comment, wrong_says=()):
     return _resp(s, msgs, ev, finished=True)
 
 
-# ---------------------------------------------------------------- 向领导汇报（费曼）
+# ---------------------------------------------------------------- 论道（费曼）
 def _feynman(g, s, text):
     it = _item(g, s["iid"])
     s["history"].append({"role": "user", "content": text})
@@ -562,21 +585,21 @@ def _example(g, s, text):
                         "mine": text, "reference": r.get("修改建议", "")})
 
 
-# ---------------------------------------------------------------- 题后复盘：继续问主任（按题型 skill 回答）
+# ---------------------------------------------------------------- 题后复盘：继续问师傅（按板块 skill 回答）
 def _discuss_input(teach=False, resumed=None):
     if resumed:   # 接着上次的对话：随时可以重新开始这一项
         return {"mode": "text", "placeholder": "接着上次聊，直接说；Ctrl+Enter 发送",
                 "buttons": ([{"id": "ask_more", "label": "🌀 再举一例"}] if teach else [])
                 + [{"id": "fresh", "label": "🆕 重新开始" + resumed}, {"id": "discuss_end", "label": "先到这"}]}
     if teach:
-        return {"mode": "text", "placeholder": "哪里没听懂？直接问主任，Ctrl+Enter 发送",
+        return {"mode": "text", "placeholder": "哪里没听懂？直接问师傅，Ctrl+Enter 发送",
                 "buttons": [{"id": "ask_more", "label": "🌀 再举一例"}, {"id": "discuss_end", "label": "结束传授"}]}
-    return {"mode": "text", "placeholder": "还有哪里不懂？直接问主任（会参照这个题型的 skill），Ctrl+Enter 发送",
-            "buttons": [{"id": "ask_explain", "label": "🧙 领导解惑"}, {"id": "discuss_end", "label": "结束复盘"}]}
+    return {"mode": "text", "placeholder": "还有哪里不懂？直接问师傅（会参照这个板块的 skill），Ctrl+Enter 发送",
+            "buttons": [{"id": "ask_explain", "label": "🧙 师傅解惑"}, {"id": "discuss_end", "label": "结束复盘"}]}
 
 
 def _to_discuss(g, s, messages, events, ctx):
-    """判完分不马上关门：进入复盘，可以点“领导解惑”或继续追问；点“结束复盘”才算这次办理结束"""
+    """判完分不马上关门：进入复盘，可以点“师傅解惑”或继续追问；点“结束复盘”才算这次修炼结束"""
     s["discuss"] = dict(ctx, board=s.get("board", ""), history=[])
     extra = []
     if s["type"] == "wrong":
@@ -584,7 +607,7 @@ def _to_discuss(g, s, messages, events, ctx):
         if daily:
             extra.append(_msg("sys", f"今日{g.T('kill')}进度：{min(len(daily['hits']), daily['quota'])}/{daily['quota']}"
                               + ("（已完成，想多斩几只也行）" if daily["done"] else "")))
-    return _resp(s, messages + extra + [_msg("sys", "可以继续复盘：点「🧙 领导解惑」让主任按业务手册讲透，或者直接打字追问。")],
+    return _resp(s, messages + extra + [_msg("sys", "可以继续复盘：点「🧙 师傅解惑」让师傅按功法讲透，或者直接打字追问。")],
                  events, input=_remember(s, _wrong_input(s)))
 
 
@@ -596,7 +619,7 @@ def _wrong_input(s):
 
 
 def _skill_name(g, board):
-    return g.boards.get(board, {}).get("skill") or ""
+    return g.boards.get(board, {}).get("skill") or SIDE_SKILLS.get(board) or ""
 
 
 def _skill_digest(g, board):
@@ -607,12 +630,12 @@ def _skill_digest(g, board):
 def _discuss_ask(g, s, text):
     d = s["discuss"]
     if not ai.available():
-        return [_msg("npc", (_say(g, "解惑没AI") or "我今日下乡调研（没连上 AI）。") +
-                     "\n（在“设置”里填 AI 的 API key 后，主任就能按业务手册给你讲题、回答追问。）")]
+        return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
+                     "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
         r = ai.chat(prompts.discuss(g.persona, d, _skill_digest(g, d["board"]), text), temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
-        raise TrainError("主任没回话：%s" % e)
+        raise TrainError("师傅没回话：%s" % e)
     d["history"] += [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
     d["history"] = d["history"][-10:]
     return [_msg("npc", r)]
@@ -626,7 +649,7 @@ def _discuss_reply(g, s, text):
 def _discuss_action(g, s, act):
     if act == "ask_explain":
         n = len(s["discuss"]["history"])
-        msgs = [_msg("me", "🧙 主任，这题给我讲透。")] + _discuss_ask(g, s, "请按 skill 的方法把这道题完整讲一遍")
+        msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + _discuss_ask(g, s, "请按 skill 的方法把这道题完整讲一遍")
         if s["type"] == "wrong" and len(s["discuss"]["history"]) > n:   # 讲成了：存进这题的复盘笔记，下次“复盘解析”能看到
             where = vault.save_tutor_note(g.paths, s["key"], s["discuss"]["history"][-1]["content"], g.t)
             if where:
@@ -638,7 +661,7 @@ def _discuss_action(g, s, act):
         r["replace"] = True
         return r
     if act == "ask_more":
-        return _resp(s, [_msg("me", "🌀 主任，再举一个例子。")] + _discuss_ask(
+        return _resp(s, [_msg("me", "🌀 师傅，再举一个例子。")] + _discuss_ask(
             g, s, "再给我出一道考这个大项的典型例题（四个选项），先让我看题，然后按步骤讲怎么用这个方法做出来"),
             input=_remember(s, _discuss_input(True, s.get("resumed"))))
     if act == "fresh":            # 重新开始这一项：开一次全新的
@@ -647,12 +670,31 @@ def _discuss_action(g, s, act):
         r["replace"] = True
         return r
     if act in ("discuss_end", "skip"):
-        scene = "传授结束" if s["type"] == "teach" else "解惑结束"
+        scene = "修炼·传授结束" if s["type"] == "teach" else "试炼·复盘结束"
         return _resp(s, [_msg("npc", _say(g, scene) or "今天就到这，去下一项。")], finished=True)
-    raise TrainError("这一步请打字追问，或点「领导解惑」/「结束复盘」")
+    raise TrainError("这一步请打字追问，或点「师傅解惑」/「结束复盘」")
 
 
-# ---------------------------------------------------------------- 传授：主任先把这一项讲清楚（真题例题等 1.1.0 接申论题库后再配）
+# ---------------------------------------------------------------- 传授：师傅先把这一项讲清楚，再配真题例题
+_GENERIC = re.compile(r"完整|清单|上位|总览|概述|十三[美丑]|选项|题型|方法|技巧|\d+")
+
+
+def _teach_examples(g, board, it, n=2):
+    """从这个板块的题库里挑和大项最贴近的真题：知识点/题干里命中大项名里的关键词越多越靠前"""
+    # 名字里的词和真题考点的说法常不一样（“由果推因削弱” vs “削弱论证-因果倒置”），按两字片段比
+    parts = [w for w in re.split(r"[·・\s/、（）()\-—：:]+", _GENERIC.sub(" ", it["name"])) if len(w) >= 2]
+    parts += [t.split("：")[0].strip("【】 ") for t in it.get("terms", [])[:6] if 2 <= len(t.split("：")[0]) <= 8]
+    grams = {w[i:i + 2] for w in parts for i in range(len(w) - 1)} - {"题目", "选项", "正确", "错误"}
+    if not grams:
+        return []
+    scored = []
+    for q in question_bank.read(g.paths, board)[0]:
+        score = 3 * sum(w in q["topic"] for w in grams) + sum(w in q["stem"][:300] for w in grams)
+        if score:
+            scored.append((-score, len(q["stem"]), q["id"], q))
+    return [x[3] for x in sorted(scored)[:n]]
+
+
 def _plain(text):
     return vault.IMG_RE.sub("［图］", text or "")
 
@@ -661,8 +703,8 @@ def _start_teach(g, task):
     it = _item(g, task["target"])
     board = task["board"]
     s = new_session("teach", task["title"], task, iid=it["id"], board=board)
-    examples = []   # 申论题库作例题：1.1.0 再接
-    content = "\n".join(["【原句】" + v for v in it.get("verses", [])] + ["【术语】" + t for t in it.get("terms", [])]
+    examples = _teach_examples(g, board, it)
+    content = "\n".join(["【口诀】" + v for v in it.get("verses", [])] + ["【术语】" + t for t in it.get("terms", [])]
                         + ["【思路】" + t for t in it.get("thoughts", [])] + ["【举例】" + t for t in it.get("examples", [])])
     if ai.available():
         try:
@@ -670,21 +712,27 @@ def _start_teach(g, task):
                                             [dict(q, stem=_plain(q["stem"]), analysis=_plain(q["analysis"])[:600]) for q in examples]),
                               temperature=0.6, max_tokens=2200)
         except ai.AIError as e:
-            raise TrainError("主任没来上课：%s" % e)
-    else:   # 没连 AI：把骨架里这一项原样摊开讲
-        lecture = ("（没连 AI，我先把业务手册原文摊给你看。）\n\n「%s」这一项要掌握：\n%s"
+            raise TrainError("师傅没来上课：%s" % e)
+    else:   # 没连 AI：把骨架里这一项原样摊开讲，例题照样给
+        lecture = ("（没连 AI，为师先把功法原文摊给你看。）\n\n「%s」这一项要掌握：\n%s"
                    % (it["name"], content or "（骨架里这一项还没有内容）"))
     msgs = [_msg("npc", lecture)]
+    for k, q in enumerate(examples, 1):
+        msgs.append(_msg("sys", "📜 例题 %d（真题 · %s）" % (k, q["id"]),
+                         _bank_blocks(g, board, q["stem"] + "\n\n" + "\n".join("%s. %s" % (o, v) for o, v in q["options"].items()))))
+        msgs.append(_msg("sys", "答案：%s\n%s" % (q["answer"], _plain(q["analysis"]) or "（无解析）"), fold="例题 %d 答案与解析（先自己做再展开）" % k))
+    if not examples:
+        msgs.append(_msg("sys", "题库里没找到贴近这一项的真题，点「🌀 再举一例」让师傅现编一道。"))
     past = _past_logs(g, it["id"], s["id"], n=1)
     s["discuss"] = {"kind": "传授", "title": it["name"], "board": board, "history": [],
                     "previous": past[-1]["text"][-1500:] if past else "",
                     "question": "大项「%s」的内容：\n%s" % (it["name"], content),
-                    "mine": "（同志在听课）", "reference": ""}
-    msgs.append(_msg("sys", "听完可以直接追问，或点「🌀 再举一例」。讲明白了再去汇报要点、向领导汇报。"))
+                    "mine": "（弟子在听课）", "reference": "\n\n".join(_plain(q["stem"])[:300] + " 答案 " + q["answer"] for q in examples)}
+    msgs.append(_msg("sys", "听完可以直接追问，或点「🌀 再举一例」。讲明白了再去背诵口诀、论道。"))
     return _resp(s, msgs, input=_remember(s, _discuss_input(True)))
 
 
-# ---------------------------------------------------------------- 实操（应用）
+# ---------------------------------------------------------------- 试剑（应用）
 def _grade_apply(g, board, it, q, text):
     r = ai.chat_json(prompts.apply_grade(g.persona, board, it, q.get("题目", ""), q.get("参考答案", ""),
                                          q.get("参考思路", ""), text))
@@ -699,11 +747,11 @@ def _apply(g, s, text):
     g.mark_done(s["task"], ok)
     return _to_discuss(g, s, [_msg("sys", f"✨ {g.T('apply')}成功" if ok else f"💥 {g.T('apply')}失败"), _msg("npc", comment),
                               _msg("sys", f"参考答案：{q.get('参考答案', '')}\n参考思路：{q.get('参考思路', '')}", fold="参考答案")], ev,
-                       {"kind": "实操", "title": it["name"], "question": q.get("题目", ""), "answer": q.get("参考答案", ""),
+                       {"kind": "试剑", "title": it["name"], "question": q.get("题目", ""), "answer": q.get("参考答案", ""),
                         "mine": text, "reference": q.get("参考思路", "")})
 
 
-# ---------------------------------------------------------------- 整改销号（错题）
+# ---------------------------------------------------------------- 斩心魔（错题）
 def _answer_letter(text):
     m = re.findall(r"(?<![A-Za-z])([A-Ha-h])(?![A-Za-z])", text)
     return m[-1].upper() if m else ""
@@ -757,7 +805,7 @@ def _wrong_finish(g, s, ok, iid, extra, r=None):
                         "mine": s.get("answer_text", "") or "（自评）", "reference": q.get("analysis", "")})
 
 
-# ---------------------------------------------------------------- 晋升考核 / 加班补课（连续关卡）
+# ---------------------------------------------------------------- 渡劫 / 炼丹（连续关卡）
 def _start_gauntlet(g, task):
     typ = task["type"]
     if typ == "tribulation":
@@ -766,19 +814,19 @@ def _start_gauntlet(g, task):
             raise TrainError(f"现在还不能{g.T('tribulation')}：条件没有全部满足（看首页的{g.T('tribulation')}面板）")
         steps = g.build_gauntlet("tribulation", gate=st["gate"], ai_ok=ai.available())
         if not steps:
-            raise TrainError(f"还没有可用的{g.T('skeleton')}或{g.T('wrong')}，晋升关卡无从降下")
+            raise TrainError(f"还没有可用的{g.T('skeleton')}或{g.T('wrong')}，天劫无从降下")
         s = new_session(typ, task.get("title") or f"{g.T('tribulation')}", task, steps=steps, i=0, n_ok=0, xp=0,
                         gate=st["gate"], board="")
-        head = (f"⚡ {st['realm']}{g.T('tribulation')}！共 {len(steps)} 道关卡，必须一道不落地扛下来。"
-                f"文件袋里的{st['pill']}：{st['pills']} 颗（失败时自动服下，可抵挡一道）。")
+        head = (f"⚡ {st['realm']}{g.T('tribulation')}！共 {len(steps)} 道天雷，必须一道不落地扛下来。"
+                f"储物袋里的{st['pill']}：{st['pills']} 颗（失败时自动服下，可抵挡一道）。")
         return _gauntlet_next(g, s, [_msg("npc", head)])
     board = task["board"]
     steps = g.build_gauntlet("alchemy", board=board)
     if not steps:
-        raise TrainError(f"「{board}」还没有可练的{g.T('skeleton')}和{g.T('wrong')}，补不了这次课")
+        raise TrainError(f"「{board}」还没有可练的{g.T('skeleton')}和{g.T('wrong')}，炼不了这炉丹")
     s = new_session(typ, task.get("title") or f"{g.T('alchemy')} · {board}", task, steps=steps, i=0, n_ok=0, xp=0,
                     board=board)
-    return _gauntlet_next(g, s, [_msg("npc", f"开始补课！这次共 {len(steps)} 项（{board}的要点与整改），成功越多，评级越高。")])
+    return _gauntlet_next(g, s, [_msg("npc", f"开炉！这一炉共 {len(steps)} 味药（{board}的口诀与心魔），成功越多，丹品越高。")])
 
 
 def _step_head(g, s, step):
@@ -853,7 +901,7 @@ def _gauntlet_step_done(g, s, ok, msgs, comment):
     elif trib:
         pill = g.use_gate_pill(s["gate"])
         if pill:
-            msgs.append(_msg("sys", f"🛡 服下{pill}，硬生生抵挡了这道关卡！"))
+            msgs.append(_msg("sys", f"🛡 服下{pill}，硬生生抵挡了这道天雷！"))
         else:
             return _gauntlet_finish(g, s, msgs, ev, ok=False, failed=step)
     s["i"] += 1
@@ -869,11 +917,11 @@ def _gauntlet_finish(g, s, msgs, events, ok, failed=None):
                                 f"（扛住 {s['n_ok']}/{len(s['steps'])} 道）"))
         return _resp(s, msgs, events + ev, finished=True)
     ev = g.on_alchemy(s["board"], s["n_ok"], len(s["steps"]), s["xp"])
-    msgs.append(_msg("sys", f"✅ 补课完成！成功 {s['n_ok']}/{len(s['steps'])}"))
+    msgs.append(_msg("sys", f"🔥 丹成！成功 {s['n_ok']}/{len(s['steps'])}"))
     return _resp(s, msgs, events + ev, finished=True)
 
 
-# ---------------------------------------------------------------- 业务手册（骨架）
+# ---------------------------------------------------------------- 功法（骨架）
 def _start_skeleton(g, task):
     b = task["board"]
     s = new_session("skeleton", task["title"], task, board=b)
@@ -899,7 +947,7 @@ def _skeleton_action(g, s, act):
     S, I = g.T("skeleton"), g.T("item")
     if act == "gen":
         _need_ai(f"生成{S}")
-        # skill 常常只是“去读某文件 / 调某知识库”的规程，真正的知识在它引用的资料里，一起读；规则里可用“骨架素材.题型”补充
+        # skill 常常只是“去读某文件 / 调某知识库”的规程，真正的知识在它引用的资料里，一起读；规则里可用“骨架素材.板块”补充
         extra = [x.strip() for x in re.split(r"[,，;；]", g.rules.get("骨架素材." + b) or "") if x.strip()]
         digest, used = vault.skill_material(g.paths, g.boards[b]["skill"], extra)
         md = ai.chat(prompts.skeleton_gen(b, digest), max_tokens=8000, timeout=240)
@@ -948,5 +996,780 @@ def _chat(g, s, text):
     return _resp(s, [_msg("npc", r)], input=_text_input(""))
 
 
+
+# ---------------------------------------------------------------- 顺序真题实战（答案与解析只在提交后返回）
+def _start_bank(g, task):
+    try:
+        run = question_bank.begin(g, task['board'], 'review' if task['type'] == 'bank_review' else 'new')
+    except question_bank.BankError as e:
+        raise TrainError(str(e))
+    # 新入口也可以恢复同板块未完成的错题组，计时类型与实际模式一致。
+    typ = 'bank_review' if run['mode'] == 'review' else 'bank'
+    s = new_session(typ, '%s · %s' % (g.T(typ), question_bank.label(task['board'])), task, board=task['board'], token=run['token'])
+    # 所有板块默认都是点选项、交卷判分；“写拆题过程逐题审方法”只在功课里明确要求时才用（task.reasoning）
+    if run.get('reasoning') and not task.get('reasoning') and not run['results']:
+        run['reasoning'] = False          # 以前按“写拆题过程”开的组、还没交过题：改成正常答题
+        run['exam'] = True
+    run.setdefault('reasoning', bool(task.get('reasoning')))
+    run.setdefault('exam', not run['reasoning'] and not run['results'])
+    r = _bank_show(g, s, run)
+    r['messages'].insert(0, _msg('npc', g.T('bank_intro')))
+    return r
+
+
+def _bank_show(g, s, run, events=None):
+    if run.get('exam'):
+        return _exam_show(g, s, run, events)
+    q = run['questions'][run['pos']]
+    if run['phase'] == 'analysis':
+        r = run['results'][-1]
+        msg = '你的答案：%s · %s\n正确答案：%s\n知识点：%s\n\n解析：' % (
+            r['answer'], '破关成功（正确）' if r['ok'] else '失手（错误），' + g.T('bank_record'), q['answer'], q['topic'])
+        # 解析里可能有图（图形推理的讲解图），和题干一样转成网页块
+        msgs = [_msg('sys', msg, _bank_blocks(g, q['board'], q['analysis'] or '（解析待补，之后可以用 skill 补写）'))]
+        if r.get('reasoning'):
+            msgs.append(_msg('sys', '你的拆题：\n' + r['reasoning'] + '\n方法审核：' + (
+                '通过' if r.get('method_ok') is True else '未通过' if r.get('method_ok') is False else '未验证（未连接AI）')
+                + '\n' + r.get('feedback', '')))
+        return _bank_resp(g, s, run, msgs + [_msg('npc', g.T('bank_good' if r['ok'] else 'bank_bad'))], events,
+                          _buttons(('bank_next', g.T('bank_result') if run['pos'] + 1 == len(run['questions']) else g.T('bank_next')),
+                                   ('bank_pause', g.T('bank_pause'))))
+    msg = '%s · 第 %s/%s 关 · 编号 %s' % (question_bank.label(run['board']), run['pos'] + 1, len(run['questions']), q['id'])
+    blocks, mat = _bank_q(g, q)
+    if run.get('reasoning'):
+        msg += '\n\n独立拆题：问法方向 → 结论（主体/结果）→ 论据 → 底层结构 → A/B/C/D的作用与排除理由。最后单独写一行【答案】B（填你的选择）。提交后才显示标准答案。'
+        return _bank_resp(g, s, run, [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id'])], events,
+                          _remember(s, _text_input('写出拆题过程，最后一行【答案】A/B/C/D')))
+    # 不在作答前展示知识点标签，避免直接提示题型；复盘时才显示。
+    return _bank_resp(g, s, run, [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id'])], events,
+                      _buttons(*[('bank_answer:%s:%s' % (run['pos'], k), k) for k in 'ABCD'],
+                               ('bank_pause', g.T('bank_pause'))))
+
+
+MAT_BOARDS = ("资料分析", "一拖五")
+
+
+def split_stem(board, stem):
+    """真题试炼的题，材料是复制进题干的（导入模考时还带着 > [!abstract] 折叠块记号）。
+    资料分析、一拖五：最后一段是问题，前面是材料。返回 (材料, 题干)，别的板块材料为空"""
+    text = vault.clean_callout(stem)
+    if board not in MAT_BOARDS:
+        return "", text
+    paras = [x for x in re.split(r"\n\s*\n", text) if x.strip()]
+    if len(paras) < 2:
+        return "", text
+    mat, q = "\n\n".join(paras[:-1]), paras[-1]
+    if len(mat) < 20 and "![[" not in mat:
+        return "", text
+    return mat, q
+
+
+def _fill_opts(g, board, stem, opts):
+    """逻辑填空选项里几个词连在一起的，切开显示（见 idioms.display_options）；出错就原样"""
+    if board != "逻辑填空":
+        return opts
+    try:
+        return idioms.display_options(g, stem, opts)
+    except Exception:
+        return opts
+
+
+OPT_LINE = re.compile(r"^(\s*-\s*\*\*([A-D])[\.．]\*\*\s*)(.*)$")
+
+
+def _fill_body(g, q):
+    """模考复盘里的逻辑填空题（题干 + “- **A.** 选项”行）：选项连在一起的切开显示"""
+    if q.get("source") != "逻辑填空":
+        return q
+    lines = q["body"].split("\n")
+    opts = {m.group(2): m.group(3).strip() for m in (OPT_LINE.match(ln) for ln in lines) if m}
+    fixed = _fill_opts(g, "逻辑填空", q["body"], opts) if len(opts) >= 2 else opts
+    if fixed == opts:
+        return q
+    return dict(q, body="\n".join(OPT_LINE.sub(lambda m: m.group(1) + fixed[m.group(2)], ln) for ln in lines))
+
+
+def _bank_q(g, q):
+    """真题试炼的一道题 → (题干 + 选项的网页块, 材料的网页块)"""
+    mat, stem = split_stem(q["board"], q["stem"])
+    opts = _fill_opts(g, q["board"], stem, q["options"])
+    blocks = _bank_blocks(g, q["board"], stem + "\n\n" + "\n".join("%s. %s" % (k, v) for k, v in opts.items()))
+    return blocks, (_bank_blocks(g, q["board"], mat) if mat else [])
+
+
+def _bank_blocks(g, board, text):
+    """题干 + 选项 → 网页块；![[训练/题库/图片/…png]] 变成图片（库内路径，找不到时按文件名在 题库/图片/<板块>/ 里找）。
+    单独一行的图是图片块；夹在句子里的（数量关系解析里的公式图）留在文字里，网页上按行内小图显示"""
+    def resolve(name):
+        if g.paths.vault:
+            for c in (name, "训练/题库/" + name, "训练/题库/图片/%s/%s" % (board, Path(name).name)):
+                if vault.safe_vault_file(g.paths, c):
+                    return c
+        return None
+
+    blocks, buf, pos = [], "", 0
+
+    def flush():
+        nonlocal buf
+        if buf.strip():
+            blocks.append({"t": "text", "v": buf.strip()})
+        buf = ""
+    for m in vault.IMG_RE.finditer(text):
+        name = (m.group(1) or m.group(2) or "").strip()
+        rel = resolve(name)
+        line_start = text.rfind("\n", 0, m.start()) + 1
+        line_end = text.find("\n", m.end())
+        line = text[line_start:m.start()] + text[m.end():len(text) if line_end < 0 else line_end]
+        buf += text[pos:m.start()]
+        pos = m.end()
+        # 行内小图（公式）。题目图（图表、表格）总是单独成块；同一行只有来源括号“（2026年云南省等3卷）”的也算单独一行
+        if line.strip() and rel and "题目图/" not in name and not re.fullmatch(r"（[^\n]{0,60}）", line.strip()):
+            buf += "![[%s]]" % rel
+            continue
+        flush()
+        blocks.append({"t": "img", "v": rel} if rel else {"t": "text", "v": "（缺图：%s，请把图片放到 训练/题库/图片/%s/）" % (name, board)})
+    buf += text[pos:]
+    flush()
+    return blocks
+
+
+def _bank_action(g, s, act):
+    run = question_bank.state(g)['runs'].get(s['board'])
+    if not run or run['token'] != s['token']:
+        raise TrainError('本组已经结束，请重新进入实战')
+    if act in ('bank_pause', 'skip'):
+        if run.get('exam') and run['phase'] != 'review':
+            _tick(run)      # 暂离不计时
+        return _resp(s, [_msg('sys', '试炼进度已保存，下次进入这个板块续闯。')], finished=True)
+    if run.get('exam'):
+        return _exam_action(g, s, run, act)
+    if act.startswith('bank_answer:'):
+        if run.get('reasoning'):
+            raise TrainError('请写拆题过程及最后的【答案】再提交')
+        parts = act.split(':')
+        if len(parts) != 3 or parts[1] != str(run['pos']):
+            raise TrainError('题目已经切换，请重新进入本组')
+        try:
+            ev = question_bank.record(g, run, parts[2])
+        except question_bank.BankError as e:
+            raise TrainError(str(e))
+        return _bank_show(g, s, run, ev)
+    if act == 'bank_next' and run['phase'] == 'analysis':
+        if run['pos'] + 1 < len(run['questions']):
+            run['pos'] += 1
+            run['phase'] = 'answer'
+            return _bank_show(g, s, run)
+        group, events = _settle(g, s, run)
+        text = '%s · %s完成：%s/%s 正确，正确率 %.1f%%。\n试炼品评：%s\n%s已保存，可到%s继续磨练。' % (
+            question_bank.label(s['board']), g.T('bank_review' if group['mode'] == 'review' else 'bank'),
+            group['correct'], group['total'], 100 * group['correct'] / group['total'],
+            g.T('bank_rank.' + str(group['rank'])), g.T('bank_wrong'), g.T('bank_review'))
+        return _resp(s, [_msg('sys', text), _msg('npc', g.T('bank_close'))], events, finished=True)
+    raise TrainError('这一步请使用当前题目的按钮')
+
+
+def _settle(g, s, run, keep=False):
+    """一组做完：记成绩、发通关奖、勾掉今日功课。返回 (成绩, 事件)"""
+    group = question_bank.finish(g, run, keep)
+    # 错题复练不代替当日的新题实战；完成一组即完成任务，不要求全对。
+    if group['mode'] == 'new':   # 整套试炼也算完成了套里各板块今天的实战功课
+        for b in group['boards'] if question_bank.is_set(s['board']) else [s['board']]:
+            g.mark_done({'id': 'bank:' + b}, True)
+    events = []
+    # 通关奖只对应本组首次作答的题目；旧组缺 first 标记不补发，复练不刷修为。
+    if group['mode'] == 'new' and group['first_count']:
+        base = g.rules.xp('实战通关') * group['first_count'] / group['total']
+        main = max(group['boards'], key=lambda b: sum(q['board'] == b for q in run['questions']))
+        events = g._award(base, 'bank_clear', main if question_bank.is_set(s['board']) else s['board'], ok=True,
+                          note='%s · %s 通关' % (g.T('bank'), question_bank.label(s['board'])))
+    # 逻辑填空：正确选项里的成语 / 实词收进藏经阁·成语实词录
+    try:
+        new = idioms.harvest(g, [q for q, _ in zip(run['questions'], run['results'])])
+    except Exception:     # 收录出错不影响交卷
+        new = []
+    if new:
+        events = list(events) + [{'kind': 'info', 'msg': '📗 成语实词录新收 %d 个：%s%s' % (
+            len(new), '、'.join(new[:8]), ' 等' if len(new) > 8 else '')}]
+    return group, events
+
+
+# ---------------------------------------------------------------- 考试式：全部选完交卷 → 正确率 → 逐题复盘（可请师傅解惑）
+SIDE_SKILLS = {'常识判断': 'xingce-changshi'}   # 副线板块没有骨架设置，按名字找 skill
+
+
+IDLE_CAP = 600   # 一道题一次最多记 10 分钟：中途走开、关了网页没点暂离，不把几个小时算进去
+
+
+def _tick(run):
+    """把当前这道题从显示到现在的时间记到它头上（翻回来改答案的时间也算这道题）"""
+    shown = run.get('shown')
+    if shown:
+        times = run.setdefault('times', {})
+        times[str(shown[0])] = times.get(str(shown[0]), 0) + max(0, min(time.time() - shown[1], IDLE_CAP))
+    run['shown'] = None
+
+
+def _clock(sec):
+    sec = int(round(sec or 0))
+    return '%d:%02d' % (sec // 60, sec % 60) if sec < 3600 else '%d:%02d:%02d' % (sec // 3600, sec // 60 % 60, sec % 60)
+
+
+def _result_table(g, run):
+    """交卷后的成绩表：每道题的答案、对错、用时，最后一行合计；跨板块的再按板块汇总"""
+    qs, res = run['questions'], run['results']
+    rows = [[str(i + 1), q['id'], q['board'], q['topic'][:16], r['answer'], q['answer'], '✓' if r['ok'] else '✗',
+             _clock(r.get('seconds'))] for i, (q, r) in enumerate(zip(qs, res))]
+    total = sum(r.get('seconds', 0) for r in res)
+    ok = sum(r['ok'] for r in res)
+    rows.append(['合计', '', '', '', '', '', '%d/%d' % (ok, len(res)), _clock(total)])
+    blocks = [{'t': 'table', 'head': ['题', '编号', '板块', '知识点', '我选', '答案', '对错', '用时'], 'rows': rows}]
+    boards = list(dict.fromkeys(q['board'] for q in qs))
+    if len(boards) > 1:
+        brows = []
+        for b in boards:
+            idx = [i for i, q in enumerate(qs) if q['board'] == b]
+            sec = sum(res[i].get('seconds', 0) for i in idx)
+            brows.append([b, str(len(idx)), '%d/%d' % (sum(res[i]['ok'] for i in idx), len(idx)), _clock(sec), _clock(sec / len(idx))])
+        blocks.append({'t': 'table', 'head': ['板块', '题数', '对', '用时', '平均每题'], 'rows': brows})
+    return blocks, total
+
+
+def _save_table(g, run, total):
+    """成绩表另存一份到 训练/试炼记录/<日期>.md（追加），在 Obsidian 里也能翻"""
+    if not g.paths.train:
+        return
+    qs, res, group = run['questions'], run['results'], run['settled']
+    lines = ['', '## %s · %s · 正确率 %.1f%%（%d/%d）· 用时 %s' % (
+        time.strftime('%H:%M'), question_bank.label(run['board']), 100 * group['correct'] / group['total'],
+        group['correct'], group['total'], _clock(total)), '',
+        '| 题 | 编号 | 板块 | 知识点 | 我选 | 答案 | 对错 | 用时 |', '|---|---|---|---|---|---|---|---|']
+    for i, (q, r) in enumerate(zip(qs, res)):
+        lines.append('| %d | %s | %s | %s | %s | %s | %s | %s |' % (
+            i + 1, q['id'], q['board'], q['topic'][:16].replace('|', '/'), r['answer'], q['answer'],
+            '✓' if r['ok'] else '✗', _clock(r.get('seconds'))))
+    folder = g.paths.train / '试炼记录'
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        f = folder / ('%s.md' % g.t)
+        head = '' if f.exists() else '# 试炼记录 · %s\n' % g.t
+        with f.open('a', encoding='utf-8', newline='\n') as fh:
+            fh.write(head + '\n'.join(lines) + '\n')
+    except OSError:
+        pass
+
+
 def _say(g, scene, **vals):
     return g.lines.pick(scene, 称呼=g.persona['称呼'], 导师名=g.persona['导师名'], **vals)
+
+
+def _exam_show(g, s, run, events=None, extra=None):
+    qs = run['questions']
+    if run['phase'] == 'review':
+        return _review_show(g, s, run, events, extra)
+    picks = run.setdefault('picks', {})
+    pos = run['pos']
+    q = qs[pos]
+    run['shown'] = [pos, time.time()]
+    left = [str(i + 1) for i in range(len(qs)) if str(i) not in picks]
+    msg = '%s · 第 %s/%s 题 · 编号 %s' % (question_bank.label(run['board']), pos + 1, len(qs), q['id'])
+    blocks, mat = _bank_q(g, q)
+    sheet = '答题卡：' + ' '.join('%d%s' % (i + 1, '·' + picks[str(i)] if str(i) in picks else '·_') for i in range(len(qs)))
+    mine = picks.get(str(pos))
+    btns = [('exam_pick:%s:%s' % (pos, k), ('✓ ' if k == mine else '') + k) for k in 'ABCD']
+    if pos > 0:
+        btns.append(('exam_prev', '← 上一题'))
+    if pos + 1 < len(qs):
+        btns.append(('exam_next', '下一题 →'))
+    btns.append(('exam_submit', '交卷' if not left else '交卷（还有 %d 题没选）' % len(left)))
+    btns.append(('bank_pause', g.T('bank_pause')))
+    msgs = [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id']), _msg('sys', sheet)] + (extra or [])
+    r = _bank_resp(g, s, run, msgs, events, _buttons(*btns))
+    r['replace'] = True
+    return r
+
+
+def _exam_action(g, s, run, act):
+    qs, picks = run['questions'], run.setdefault('picks', {})
+    if run['phase'] == 'review':
+        return _review_action(g, s, run, act)
+    _tick(run)
+    if act.startswith('exam_pick:'):
+        _, pos, k = act.split(':')
+        if pos != str(run['pos']) or k not in 'ABCD':
+            raise TrainError('题目已经切换，请重新进入本组')
+        picks[pos] = k
+        if run['pos'] + 1 < len(qs):      # 选完自动翻到下一题；最后一题停住等交卷
+            run['pos'] += 1
+        return _exam_show(g, s, run)
+    if act == 'exam_prev':
+        run['pos'] = max(0, run['pos'] - 1)
+        return _exam_show(g, s, run)
+    if act == 'exam_next':
+        run['pos'] = min(len(qs) - 1, run['pos'] + 1)
+        return _exam_show(g, s, run)
+    if act == 'exam_submit':
+        left = [i for i in range(len(qs)) if str(i) not in picks]
+        if left:
+            run['pos'] = left[0]
+            return _exam_show(g, s, run, extra=[_msg('npc', _say(g, '试炼·没做完', 题号='、'.join(str(i + 1) for i in left))
+                                                     or '还有第 %s 题没选，交什么卷？' % '、'.join(str(i + 1) for i in left))])
+        events = []
+        for i in range(len(qs)):
+            run['pos'], run['phase'] = i, 'answer'
+            try:
+                events += question_bank.record(g, run, picks[str(i)])
+            except question_bank.BankError as e:
+                raise TrainError(str(e))
+        for i, r in enumerate(run['results']):
+            r['seconds'] = round(run.get('times', {}).get(str(i), 0))
+        group, ev = _settle(g, s, run, keep=True)
+        group['seconds'] = sum(r['seconds'] for r in run['results'])
+        _save_table(g, run, group['seconds'])
+        # 一题一条“+5 修为”会刷屏，合成一条
+        xp = sum(e['v'] for e in events + ev if e.get('kind') == 'xp')
+        events = ([{'kind': 'xp', 'v': xp, 'msg': '%s · %s 交卷' % (g.T('bank'), question_bank.label(s['board']))}] if xp else []) + \
+            [e for e in events + ev if e.get('kind') != 'xp']
+        run['phase'], run['rpos'] = 'review', 0
+        return _review_show(g, s, run, events, head=True)
+    raise TrainError('这一步请使用当前题目的按钮')
+
+
+def _rank_scene(group):
+    if group['correct'] == group['total']:
+        return '试炼·全对'
+    return {2: '试炼·上品', 1: '试炼·中品'}.get(group['rank'], '试炼·下品')
+
+
+def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=False):
+    qs, res, group = run['questions'], run['results'], run['settled']
+    i = run.setdefault('rpos', 0)
+    q, r = qs[i], res[i]
+    msgs = []
+    if head:
+        rate = 100 * group['correct'] / group['total']
+        table, total = _result_table(g, run)
+        msgs.append(_msg('sys', '交卷！%s · 正确率 %.1f%%（%s/%s）· 用时 %s（平均每题 %s）\n试炼品评：%s\n\n下面逐题复盘，看不懂的点「师傅解惑」。' % (
+            question_bank.label(run['board']), rate, group['correct'], group['total'], _clock(total), _clock(total / len(res)),
+            g.T('bank_rank.' + str(group['rank']))), table))
+        msgs.append(_msg('npc', _say(g, _rank_scene(group), 正确率='%.0f%%' % rate, 对题数=group['correct'],
+                                     总题数=group['total'], 错题数=group['total'] - group['correct']) or g.T('bank_close')))
+    qb, mat = _bank_q(g, q)
+    msgs.append(_msg('sys', '复盘 第 %s/%s 题 · 编号 %s · %s · 用时 %s' % (i + 1, len(qs), q['id'], '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
+                     qb, pin=True, material=mat, qkey='bank:' + q['id']))
+    msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s\n\n解析：' % (r['answer'], q['answer'], q['topic']),
+                     _bank_blocks(g, q['board'], q['analysis'] or '（这题没有解析，点「师傅解惑」让师傅讲）')))
+    if not r['ok'] and not head:
+        line = _say(g, '试炼·复盘错题', 你的答案=r['answer'], 正确答案=q['answer'])
+        if line:
+            msgs.append(_msg('npc', line))
+    if str(i) in run.get('explain', {}):
+        msgs.append(_msg('npc', run['explain'][str(i)]))
+    elif question_bank.TUTOR_HEAD not in (q['analysis'] or '') and q['id'] in question_bank.tutor_notes(g.paths):   # 旧版存在单独文件里的
+        msgs.append(_msg('sys', question_bank.tutor_notes(g.paths)[q['id']], fold='🧙 上次的师傅解惑'))
+    for h in run.get('chat', {}).get(str(i), []):          # 这道题上追问师傅的对话
+        msgs.append(_msg('me' if h['role'] == 'user' else 'npc', h['content']))
+    msgs += extra or []
+    wrong_after = [k for k in range(i + 1, len(qs)) if not res[k]['ok']]
+    btns = [('exam_explain:%s' % i, '🧙 师傅解惑' if str(i) not in run.get('explain', {}) else '🧙 再问师傅')]
+    if i > 0:
+        btns.append(('exam_rprev', '← 上一题'))
+    if i + 1 < len(qs):
+        btns.append(('exam_rnext', '下一题 →'))
+    if wrong_after:
+        btns.append(('exam_rwrong', '下一道错题'))
+    btns.append(('exam_close', '结束复盘'))
+    btns.append(('bank_pause', '暂时离开（保存进度）'))
+    inp = {'mode': 'text', 'placeholder': '对这道题还有疑问？直接问师傅（Ctrl+Enter 发送）；「🧙 师傅解惑」按功法 skill 把整题讲透',
+           'buttons': [{'id': k, 'label': v} for k, v in btns]}
+    rr = _bank_resp(g, s, run, msgs, events, _remember(s, inp))
+    rr['replace'] = True
+    if scroll_bottom:
+        rr['scroll'] = 'bottom'
+    return rr
+
+
+def _review_action(g, s, run, act):
+    qs, res = run['questions'], run['results']
+    i = run.get('rpos', 0)
+    if act == 'exam_rprev':
+        run['rpos'] = max(0, i - 1)
+    elif act == 'exam_rnext':
+        run['rpos'] = min(len(qs) - 1, i + 1)
+    elif act == 'exam_rwrong':
+        run['rpos'] = next((k for k in range(i + 1, len(qs)) if not res[k]['ok']), i)
+    elif act.startswith('exam_explain:'):
+        if act.split(':')[1] != str(i):
+            raise TrainError('题目已经切换，请重新点')
+        if not ai.available():   # 没连 AI：说一句，不记成“讲过了”
+            return _review_show(g, s, run, extra=[_msg('npc', (_say(g, '试炼·解惑没AI') or '为师今日闭关（没连上 AI）。先把解析读三遍。')
+                                                       + '\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题。）')])
+        mat = split_stem(qs[i]['board'], qs[i]['stem'])[0] if qs[i]['board'] in GROUP_BOARDS else ''
+        if mat:                  # 一拖五：这段条件下的几道题一起讲，讲解存进每一道
+            return _bank_group_explain(g, s, run, i, mat)
+        text, skill, used = _explain(g, qs[i], res[i])
+        run.setdefault('explain', {})[str(i)] = text
+        question_bank.save_tutor_note(g.paths, qs[i], text, g.t)        # 备份一份（历年题库重新转换时不丢）
+        where = question_bank.save_tutor_to_bank(g.paths, qs[i], text, g.t)
+        note = ('📌 已写进 训练/题库/%s 这道题的解析末尾（原解析保留；再问一次会换成新的）' % where if where
+                else '📌 题库里没找到这道题（可能改过编号），讲解存在 训练/题库/师傅解惑.md')
+        note += ('\n📜 依据 skill「%s」：%s' % (skill, '、'.join(used[:8]) + (' 等 %d 个文件' % len(used) if len(used) > 8 else ''))
+                 if used else '\n⚠ 这个板块没找到 skill 资料（copilot/skills/%s），师傅只能按通用方法讲' % (skill or '未配置'))
+        return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
+    elif act == 'exam_close':
+        group = run['settled']
+        table, total = _result_table(g, run)
+        question_bank.close(g, run)
+        text = '%s 复盘结束：%s/%s 正确，用时 %s。成绩表也存进了 训练/试炼记录/%s.md。%s已保存，可到%s继续磨练。' % (
+            question_bank.label(run['board']), group['correct'], group['total'], _clock(total), g.t, g.T('bank_wrong'), g.T('bank_review'))
+        return _resp(s, [_msg('sys', text, table), _msg('npc', _say(g, '试炼·复盘结束') or g.T('bank_close'))], finished=True)
+    else:
+        raise TrainError('这一步请使用当前题目的按钮')
+    return _review_show(g, s, run)
+
+
+GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整组一起讲，几道题共用一份讲解
+
+
+def _explain_group(g, board, material, items):
+    """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
+    skill = _skill_name(g, board)
+    digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ("", [])
+    try:
+        text = ai.chat(prompts.group_explain(g.persona, material, items, digest, skill), temperature=0.5, max_tokens=2800)
+    except ai.AIError as e:
+        raise TrainError("师傅没回话：%s" % e)
+    return text, skill, used
+
+
+def _skill_note(skill, used):
+    return ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
+            if used else "\n⚠ 这个板块没找到 skill 资料（%s），师傅只能按通用方法讲" % (skill or "未配置"))
+
+
+def _bank_group_explain(g, s, run, i, mat):
+    """真题试炼复盘里的一拖五：从题库找出同一段条件下的全部题（这一组里没抽到的也算上），一起讲"""
+    qs, res = run['questions'], run['results']
+    board = qs[i]['board']
+    same = lambda q: q['board'] == board and split_stem(board, q['stem'])[0] == mat
+    mine = {q['id']: r['answer'] for q, r in zip(qs, res) if same(q)}
+    try:
+        group = [q for q in question_bank.read(g.paths, board)[0] if same(q)]
+    except Exception:
+        group = []
+    if not any(q['id'] == qs[i]['id'] for q in group):
+        group = [q for q in qs if same(q)]
+    items = [{"label": q['id'], "stem": split_stem(board, q['stem'])[1] + "\n" + "\n".join("%s. %s" % kv for kv in q['options'].items()),
+              "answer": q['answer'], "mine": mine.get(q['id']) or "（这次没做）"} for q in group]
+    text, skill, used = _explain_group(g, board, mat, items)
+    for k, q in enumerate(qs):
+        if same(q):
+            run.setdefault('explain', {})[str(k)] = text
+    saved = 0
+    for q in group:
+        question_bank.save_tutor_note(g.paths, q, text, g.t)
+        saved += bool(question_bank.save_tutor_to_bank(g.paths, q, text, g.t))
+    note = '📌 一拖五整组讲解（%s），已写进题库里这 %d 道题的解析末尾（原解析保留；再问一次会换成新的）' % (
+        '、'.join(q['id'] for q in group), saved) + _skill_note(skill, used)
+    return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
+
+
+def _explain(g, q, r):
+    """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
+    skill = _skill_name(g, q['board'])
+    digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ('', [])
+    try:
+        text = ai.chat(prompts.bank_explain(g.persona, q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
+    except ai.AIError as e:
+        raise TrainError('师傅没回话：%s' % e)
+    return text, skill, used
+
+
+def _bank_resp(g, s, run, messages, events, inp):
+    """给网页提供只含进度的战斗面板，绝不包含答案或解析快照。"""
+    r = _resp(s, messages, events, input=inp)
+    exam = run.get('exam') and run['phase'] != 'review'
+    r['battle'] = {'board': run['board'], 'total': len(run['questions']),
+                   'position': (run.get('rpos', 0) if run['phase'] == 'review' else run['pos']) + 1,
+                   'answered': len(run.get('picks', {})) if exam else len(run['results']),
+                   'correct': None if exam else sum(x['ok'] for x in run['results']),
+                   'mode': run['mode'], 'phase': run['phase'], 'tower': question_bank.tower(g)}
+    if exam:   # 计时：网页按这两个数接着走秒（时间以程序记录为准）
+        times = run.get('times', {})
+        r['battle']['timer'] = {'total': round(sum(times.values())), 'question': round(times.get(str(run['pos']), 0))}
+    return r
+
+
+def _review_chat(g, s, run, text):
+    """复盘时追问：带着这道题、你的答案和解析问师傅（按板块 skill），对话留在这道题下面"""
+    i = run.get("rpos", 0)
+    q, r = run["questions"][i], run["results"][i]
+    hist = run.setdefault("chat", {}).setdefault(str(i), [])
+    if not ai.available():
+        return _review_show(g, s, run, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
+                                                                    + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
+    ctx = {"kind": "试炼复盘", "title": q["id"], "board": q["board"], "history": hist[-10:],
+           "question": q["stem"] + "\n" + "\n".join("%s. %s" % kv for kv in q["options"].items()),
+           "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
+    try:
+        reply = ai.chat(prompts.discuss(g.persona, ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500)
+    except ai.AIError as e:
+        raise TrainError("师傅没回话：%s" % e)
+    hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+    return _review_show(g, s, run, scroll_bottom=True)
+
+
+def _bank_reply(g, s, text):
+    run = question_bank.state(g)["runs"].get(s["board"])
+    if run and run["token"] == s["token"] and run.get("exam") and run["phase"] == "review":
+        return _review_chat(g, s, run, text)
+    if not run or run["token"] != s["token"] or run["phase"] != "answer":
+        raise TrainError("题目已提交或组已切换，请恢复当前进度")
+    if not run.get("reasoning"):
+        raise TrainError("请使用选项按钮")
+    # 专用答案行，不能把选项分析里的最后一个字母误当最终答案。
+    matches = re.findall(r"(?m)^\s*(?:【答案】|答案[:：])\s*([A-Da-d])\s*$", text)
+    if len(matches) != 1:
+        raise TrainError("请单独写且只写一行【答案】B，不能从拆题中的选项字母猜答案")
+    reasoning = re.sub(r"(?m)^\s*(?:【答案】|答案[:：])\s*[A-Da-d]\s*$", "", text).strip()
+    if not reasoning:
+        raise TrainError("还没有拆题过程，请写出论据、结论、结构及选项分析")
+    q = run["questions"][run["pos"]]
+    method_ok, feedback = None, "未连接AI，请提交后对照解析自行核对方法；正确率只表示答案正确率。"
+    if ai.available():
+        digest = vault.skill_digest(g.paths, g.boards.get(s["board"], {}).get("skill"))
+        r = ai.chat_json(prompts.bank_method_grade(g.persona, s["board"], q, text, digest))
+        dims = r.get("维度")
+        if type(r.get("通过")) is not bool or not isinstance(dims, dict) or any(
+                type(dims.get(k)) is not bool for k in ("方向", "结论论据", "结构", "选项分析")):
+            raise TrainError("AI方法审核格式不完整，尚未提交，请重试")
+        method_ok = r["通过"] and all(dims[k] for k in ("方向", "结论论据", "结构", "选项分析")) and bool(digest)
+        feedback = r.get("点评", "") + "\n正确思路：" + r.get("正确思路", "")
+    try:
+        ev = question_bank.record(g, run, matches[0].upper(), reasoning, method_ok, feedback)
+    except question_bank.BankError as e:
+        raise TrainError(str(e))
+    return _bank_show(g, s, run, ev)
+
+
+# ---------------------------------------------------------------- 大比复盘：一次模考按板块逐题复盘（界面同试炼交卷后的复盘；时间计入“复习”）
+MOCK_TIME_BOARD = {"类比关系": "类比推理", "中心理解": "片段阅读", "语句排序": "语句表达", "形式逻辑": "论证逻辑"}
+MOCK_ICON = {"✅": "✓ 答对", "❌": "✗ 答错", "⚪": "⚪ 没做"}
+
+
+def mock_boards(g, season):
+    """这一季模考拆出来的各板块（按文件顺序），只要有题的"""
+    d = next((d for n, d in vault.seasons(g.paths) if n == season), None)
+    if not d:
+        return None, []
+    return d, [f.stem[3:] for f in sorted(d.glob("[0-9][0-9]-*.md")) if vault.parse_board_file(f)]
+
+
+def mock_reviewed(g, season):
+    return g.state.setdefault("mocks", {}).setdefault(str(season), {}).setdefault("reviewed", {})
+
+
+def _time_board(g, src):
+    """复盘时间记到哪个修炼板块（首页“各模块学习时间”用）：同名的；拆试卷时的叫法换成修炼里的叫法；都没有就记总时间"""
+    bs = question_bank.boards(g)
+    for b in (src, MOCK_TIME_BOARD.get(src, "")):
+        if b in bs:
+            return b
+    return ""
+
+
+def _mreview_load(g, s, src):
+    d, boards = mock_boards(g, s["season"])
+    if not d or src not in boards:
+        raise TrainError("第%s季没有「%s」的复盘" % (s["season"], src))
+    qs = [dict(q, season=s["season"], source=src, dir=str(d), key="%s|%s|%s" % (s["season"], src, q["num"]))
+          for q in vault.parse_board_file(vault.board_file(d, src))]
+    picked = [q for q in qs if q["icon"] != "✅"] if s["only_wrong"] else qs
+    s["all_correct"] = s["only_wrong"] and not picked
+    s.update(source=src, board=_time_board(g, src), boards=boards, qs=picked or qs, rpos=0, explain={}, chat={},
+             title="📜 大比复盘 · 第%s季 · %s" % (s["season"], src))
+    # 上次“暂时离开”停在哪题：接着看
+    saved = mock_saved(g, s["season"]).get(src)
+    s["resumed"] = 0
+    if saved:
+        k = next((i for i, q in enumerate(s["qs"]) if q["num"] == saved), None)
+        if k:
+            s["rpos"] = s["resumed"] = k
+
+
+def mock_saved(g, season):
+    """大比复盘“暂时离开”时存的位置：{板块: 题号}"""
+    return g.state.setdefault("mocks", {}).setdefault(str(season), {}).setdefault("review_pos", {})
+
+
+def _start_mreview(g, task):
+    try:
+        season = int(task.get("season"))
+    except (TypeError, ValueError):
+        raise TrainError("选一季模考再复盘")
+    d, boards = mock_boards(g, season)
+    if not boards:
+        raise TrainError("第%s季还没有板块复盘：先到藏经阁 → 经卷 · 题库 → 导入真题，导入这一季的模考 PDF" % season)
+    src = task.get("board") if task.get("board") in boards else boards[0]
+    s = new_session("mock_review", "", task, season=season, only_wrong=bool(task.get("only_wrong")))
+    _mreview_load(g, s, src)
+    return _mreview_show(g, s, head=True)
+
+
+def _mreview_counts(qs):
+    return {k: sum(q["icon"] == k for q in qs) for k in ("✅", "❌", "⚪")}
+
+
+def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False):
+    qs, i = s["qs"], s["rpos"]
+    q = qs[i]
+    done = mock_reviewed(g, s["season"]).setdefault(s["source"], [])
+    if q["num"] not in done:
+        done.append(q["num"])
+    msgs = []
+    if head:
+        c = _mreview_counts(qs)
+        ok, n = c["✅"], len(qs)
+        rows = [[str(x["num"]), x["mine"] or "—", x["correct"] or "?", MOCK_ICON.get(x["icon"], x["icon"])] for x in qs]
+        note = ("（这个板块全对，没有错题，下面复盘全部题目）" if s.get("all_correct")
+                else "（只看错题和没做的）" if s["only_wrong"] else "")
+        if s.get("resumed"):
+            note += "（接着上次，从第 %d 题看起；表里点不了，用「← 上一题」往回翻）" % (s["resumed"] + 1)
+        msgs.append(_msg("sys", "📜 第%s季大比复盘 · %s%s\n答对 %d/%d（%.0f%%）· 答错 %d · 没做 %d\n\n下面逐题复盘：看题 → 对答案 → 读解析，看不懂的点「师傅解惑」。" % (
+            s["season"], s["source"], note, ok, n, 100 * ok / n, c["❌"], c["⚪"]),
+            [{"t": "table", "head": ["题号", "我选", "答案", "结果"], "rows": rows}]))
+        rate = ok / n
+        scene = "试炼·全对" if ok == n else "试炼·上品" if rate >= 0.8 else "试炼·中品" if rate >= 0.6 else "试炼·下品"
+        line = _say(g, scene, 正确率="%.0f%%" % (100 * rate), 对题数=ok, 总题数=n, 错题数=n - ok)
+        if line:
+            msgs.append(_msg("npc", line))
+    msgs.append(_msg("sys", "复盘 第 %d/%d 题 · 第%s季第 %s 题 · %s · %s" % (
+        i + 1, len(qs), s["season"], q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
+        vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
+        qkey="mock:" + q["key"]))
+    msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?"),
+                     vault.render_blocks(g.paths, {"body": q["analysis"] or "（这题还没写复盘解析，点「师傅解惑」让师傅讲；讲完自动写进这题的复盘笔记）",
+                                                   "dir": q["dir"]})))
+    if q["icon"] != "✅" and not head:
+        line = _say(g, "试炼·复盘错题", 你的答案=q["mine"] or "没做", 正确答案=q["correct"])
+        if line:
+            msgs.append(_msg("npc", line))
+    if str(i) in s["explain"]:
+        msgs.append(_msg("npc", s["explain"][str(i)]))
+    for h in s["chat"].get(str(i), []):
+        msgs.append(_msg("me" if h["role"] == "user" else "npc", h["content"]))
+    msgs += extra or []
+    btns = [("mr_explain:%d" % i, "🧙 师傅解惑" if str(i) not in s["explain"] else "🧙 再问师傅")]
+    if i > 0:
+        btns.append(("mr_prev", "← 上一题"))
+    if i + 1 < len(qs):
+        btns.append(("mr_next", "下一题 →"))
+    if any(x["icon"] != "✅" for x in qs[i + 1:]):
+        btns.append(("mr_wrong", "下一道错题"))
+    k = s["boards"].index(s["source"])
+    if k + 1 < len(s["boards"]) and (i + 1 == len(qs) or head):
+        btns.append(("mr_board:" + s["boards"][k + 1], "下一板块：%s →" % s["boards"][k + 1]))
+    btns.append(("mr_pause", "暂时离开（保存进度）"))
+    btns.append(("mr_close", "结束复盘"))
+    inp = {"mode": "text", "placeholder": "对这道题还有疑问？直接问师傅（Ctrl+Enter 发送）；「🧙 师傅解惑」按功法 skill 把整题讲透",
+           "buttons": [{"id": a, "label": b} for a, b in btns]}
+    r = _resp(s, msgs, events, input=_remember(s, inp))
+    c = _mreview_counts(qs)
+    r["battle"] = {"label": "大比复盘 · 第%s季 · %s" % (s["season"], s["source"]), "total": len(qs), "position": i + 1,
+                   "ok": c["✅"], "wrong": c["❌"], "blank": c["⚪"], "reviewed": len(done), "phase": "review"}
+    r["replace"] = True
+    if scroll_bottom:
+        r["scroll"] = "bottom"
+    return r
+
+
+def _mreview_pq(s, q):
+    """按试炼题的样子给师傅看：材料 + 题干（含选项）、答案、复盘解析"""
+    mat = vault.material_text(q)
+    stem = mat + ("\n\n" if mat else "") + q["body"]
+    return {"board": s["board"] or s["source"], "topic": s["source"], "stem": stem, "options": "（见题目）",
+            "answer": q["correct"], "analysis": q["analysis"]}
+
+
+def _mreview_action(g, s, act):
+    qs, i = s["qs"], s["rpos"]
+    if act == "mr_prev":
+        s["rpos"] = max(0, i - 1)
+    elif act == "mr_next":
+        s["rpos"] = min(len(qs) - 1, i + 1)
+    elif act == "mr_wrong":
+        s["rpos"] = next((k for k in range(i + 1, len(qs)) if qs[k]["icon"] != "✅"), i)
+    elif act.startswith("mr_board:"):
+        mock_saved(g, s["season"]).pop(s["source"], None)          # 这个板块看完了
+        _mreview_load(g, s, act.split(":", 1)[1])
+        r = _mreview_show(g, s, head=True)
+        r["title"] = s["title"]
+        return r
+    elif act.startswith("mr_explain:"):
+        if act.split(":")[1] != str(i):
+            raise TrainError("题目已经切换，请重新点")
+        if not ai.available():
+            return _mreview_show(g, s, extra=[_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。先把解析读三遍。")
+                                                     + "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题。）")])
+        q = qs[i]
+        if s["source"] in GROUP_BOARDS and q.get("material"):     # 一拖五：整组一起讲
+            return _mreview_group_explain(g, s, i)
+        text, skill, used = _explain(g, _mreview_pq(s, q), {"answer": q["mine"] or "未作答"})
+        s["explain"][str(i)] = text
+        where = vault.save_tutor_note(g.paths, q["key"], text, g.t)
+        note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
+                else "📌 没找到这道题的复盘文件，讲解没存下来")
+        note += ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
+                 if used else "\n⚠ 这个板块没找到 skill 资料（%s），师傅只能按通用方法讲" % (skill or "未配置"))
+        return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
+    elif act in ("mr_pause", "bank_pause"):
+        mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]
+        text = "进度已保存：第%s季 · %s 停在第 %d/%d 题（第 %s 题）。下次在宗门大比点这个板块，从这题接着复盘。" % (
+            s["season"], s["source"], i + 1, len(qs), qs[i]["num"])
+        return _resp(s, [_msg("sys", text)], finished=True)
+    elif act in ("mr_close", "skip"):
+        mock_saved(g, s["season"]).pop(s["source"], None)
+        c = _mreview_counts(qs)
+        done = mock_reviewed(g, s["season"]).get(s["source"], [])
+        text = "第%s季 · %s 复盘结束：这个板块复盘过 %d 题（这次看的 %d 题里答对 %d、答错 %d、没做 %d）。错题都在%s里，接着去%s。" % (
+            s["season"], s["source"], len(done), len(qs), c["✅"], c["❌"], c["⚪"], g.T("nav.wrong")[2:], g.T("kill") + g.T("wrong"))
+        return _resp(s, [_msg("sys", text), _msg("npc", _say(g, "试炼·复盘结束") or "复盘完了就去把错题斩干净。")], finished=True)
+    else:
+        raise TrainError("这一步请使用当前题目的按钮")
+    return _mreview_show(g, s)
+
+
+def _mreview_group_explain(g, s, i):
+    """大比复盘里的一拖五：这段材料下的几道题（只看错题时没列出来的也算上）一起讲，讲解写进每一道的复盘笔记"""
+    q = s["qs"][i]
+    d, _ = mock_boards(g, s["season"])
+    allq = [dict(x, key="%s|%s|%s" % (s["season"], s["source"], x["num"]))
+            for x in vault.parse_board_file(vault.board_file(d, s["source"]))]
+    group = [x for x in allq if x["material"] == q["material"]] or [q]
+    items = [{"label": "第%s题" % x["num"], "stem": x["body"], "answer": x["correct"], "mine": x["mine"] or "未作答"} for x in group]
+    text, skill, used = _explain_group(g, s["board"] or s["source"], vault.material_text(q), items)
+    nums = {x["num"] for x in group}
+    for k, x in enumerate(s["qs"]):
+        if x["num"] in nums:
+            s["explain"][str(k)] = text
+    saved = [x["num"] for x in group if vault.save_tutor_note(g.paths, x["key"], text, g.t)]
+    note = ("📌 一拖五整组讲解：第 %s 题共用这一份，已写进这 %d 道题的复盘笔记（再问一次会换成新的）" % (
+        "、".join(str(n) for n in sorted(nums)), len(saved))) + _skill_note(skill, used)
+    return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
+
+
+def _mreview_chat(g, s, text):
+    i = s["rpos"]
+    q = s["qs"][i]
+    hist = s["chat"].setdefault(str(i), [])
+    if not ai.available():
+        return _mreview_show(g, s, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
+                                                                 + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
+    pq = _mreview_pq(s, q)
+    ctx = {"kind": "大比复盘", "title": "第%s季第%s题" % (s["season"], q["num"]), "board": pq["board"], "history": hist[-10:],
+           "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
+    try:
+        reply = ai.chat(prompts.discuss(g.persona, ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500)
+    except ai.AIError as e:
+        raise TrainError("师傅没回话：%s" % e)
+    hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+    return _mreview_show(g, s, scroll_bottom=True)

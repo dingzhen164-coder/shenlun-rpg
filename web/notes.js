@@ -1,11 +1,11 @@
-/* 公务手账：手写笔记本（像 Notability）+ 📄 导出 PDF + 📚 调阅库里的 Markdown 笔记。
+/* 灵台手札：手写笔记本（像 Notability）+ 📄 导出 PDF + 📚 调阅库里的 Markdown 笔记。
    数据：/api/notes（本子列表）、/api/notes/get|save|delete|compile、/api/notes/tree、/api/notes/md（见 rpg/notes.py）。
    - 每页是“纸”上的逻辑坐标（宽 1000、高 1414），屏幕多大都对得上；两层画布：底下纸（横线 / 方格 / 空白），上面笔迹。
    - 平板上用过手写笔之后，手指只滚动、不写字（防手掌误触）；电脑上鼠标直接写。
-   - 写完自动保存到库里 训练/公务手账/手写/（坚果云同步）；导出 PDF 把每页（纸 + 笔迹）画成图片交给电脑，拼成 A4 PDF 存到 训练/公务手账/导出/。
+   - 写完自动保存到库里 训练/手札/手写/（坚果云同步）；导出 PDF 把每页（纸 + 笔迹）画成图片交给电脑，拼成 A4 PDF 存到 训练/手札/导出/。
    - 调阅：左边列出库里所有 .md，点开在阅读栏里看（标题、列表、表格、引用、图片都排好）；可以和本子左右并排，边看边记。
    - 调阅 PDF：库里的 .pdf 也列出来（📕），点开是一本“PDF 批注本”：每页底图是 PDF 那一页（/notes-pdfpage 现渲染），
-     上面照常用笔、荧光笔、橡皮勾画，自动保存；「📄 导出批注 PDF」把笔迹叠到原 PDF 上存到 训练/公务手账/导出/。
+     上面照常用笔、荧光笔、橡皮勾画，自动保存；「📄 导出批注 PDF」把笔迹叠到原 PDF 上存到 训练/手札/导出/。
      PDF 页数多：只有滚到附近的页才给画布分配内存（IntersectionObserver），滚远了就释放。 */
 (function () {
   const PW = 1000, PH = 1414;
@@ -14,7 +14,7 @@
   const WIDTHS = [2, 3.5, 6];
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let BOOKS = [], INFO = { vision: false, ai: false };
-  let TAB = "books";          // 左栏：books 公务手账 / library 调阅
+  let TAB = "books";          // 左栏：books 手札 / library 调阅
   let NB = null;              // 打开的本子 {id, title, paper, pages, text, compiled}
   let READ = null;            // 阅读栏里的笔记 {path, name, text, images}
   let FILES = null, FQ = "";  // 库里的 md、搜索
@@ -24,9 +24,9 @@
   let lastWrite = 0;          // 最后一次落笔 / 打字的时刻：记笔记算复习时间，停笔超过 1 分钟就不算（app.js 心跳读）
   const LS = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   // 手指：draw 写字 / scroll 只翻页。用过一次手写笔就自动变成 scroll（像 Notability），每台设备记住；工具栏 👆 可以切
-  let FINGER = LS.get("srpg-nt-finger", "draw");
-  let SIDE_MIN = LS.get("srpg-nt-side", "") === "min";          // 左栏收起
-  const OPEN = new Set(JSON.parse(LS.get("srpg-nt-open", "[]")));   // 调阅里展开的题型
+  let FINGER = LS.get("xrpg-nt-finger", "draw");
+  let SIDE_MIN = LS.get("xrpg-nt-side", "") === "min";          // 左栏收起
+  const OPEN = new Set(JSON.parse(LS.get("xrpg-nt-open", "[]")));   // 调阅里展开的板块
   const touchDev = () => document.documentElement.classList.contains("touch") || matchMedia("(pointer: coarse)").matches;
 
   // ---------------------------------------------------------------- 页面
@@ -39,7 +39,7 @@
     fit();
     paintMain();
     bindSide();
-    if (PENDING) { const p = PENDING; PENDING = null; openPdf(p); }     // 从档案室「业务手册 · 教材」点过来的 PDF
+    if (PENDING) { const p = PENDING; PENDING = null; openPdf(p); }     // 从藏经阁「功法 · 教材」点过来的 PDF
   }
   let PENDING = null;
   function fit() {
@@ -52,22 +52,22 @@
 
   function side() {
     const books = BOOKS.map((b) => `<button class="nt-item ${NB && NB.id === b.id ? "on" : ""}" data-nb="${esc(b.id)}">
-        <span class="nt-del" data-del="${esc(b.id)}" title="${b.pdf ? "删除这本批注（原 PDF 不动）" : "删除这本公务手账"}">🗑</span><b>${b.pdf ? "📕 " : ""}${esc(b.title)}</b><small>${esc(b.updated.slice(5, 16))} · ${b.pages} 页</small></button>`).join("");
+        <span class="nt-del" data-del="${esc(b.id)}" title="${b.pdf ? "删除这本批注（原 PDF 不动）" : "删除这本手札"}">🗑</span><b>${b.pdf ? "📕 " : ""}${esc(b.title)}</b><small>${esc(b.updated.slice(5, 16))} · ${b.pages} 页</small></button>`).join("");
     if (SIDE_MIN) return `<aside class="nt-side min"><button class="nt-sidebtn" id="ntSideOpen" title="展开左栏">»</button>
-        <button class="nt-sidebtn ${TAB === "books" ? "on" : ""}" data-ntab="books" title="公务手账">📓</button>
+        <button class="nt-sidebtn ${TAB === "books" ? "on" : ""}" data-ntab="books" title="手札">📓</button>
         <button class="nt-sidebtn ${TAB === "library" ? "on" : ""}" data-ntab="library" title="调阅">📚</button></aside>`;
-    return `<aside class="nt-side"><div class="nt-tabs"><button class="${TAB === "books" ? "on" : ""}" data-ntab="books">📓 公务手账</button>
+    return `<aside class="nt-side"><div class="nt-tabs"><button class="${TAB === "books" ? "on" : ""}" data-ntab="books">📓 手札</button>
         <button class="${TAB === "library" ? "on" : ""}" data-ntab="library">📚 调阅</button>
         <button class="nt-fold" id="ntSideMin" title="收起左栏">«</button></div>
       <div class="nt-list" id="ntList">${TAB === "books"
-        ? `<button class="primary nt-new" id="ntNew">＋ 新本子</button>${books || '<p class="small muted">还没有公务手账。点上面「新本子」开始写。</p>'}`
+        ? `<button class="primary nt-new" id="ntNew">＋ 新本子</button>${books || '<p class="small muted">还没有手札。点上面「新本子」开始写。</p>'}`
         : `<input id="ntQ" placeholder="搜库里的笔记（文件名 / 文件夹）" value="${esc(FQ)}"><div id="ntFiles">${filesHtml()}</div>`}</div></aside>`;
   }
   function filesHtml() {
     if (!FILES) return '<p class="small muted">读取中…</p>';
     const q = FQ.trim().toLowerCase();
     const hit = FILES.filter((f) => !q || f.path.toLowerCase().includes(q)).slice(0, 400);
-    if (!FILES.length) return '<p class="small muted">库里没找到申论各题型的文件夹（如「言语之逻辑填空」「资料分析」）。</p>';
+    if (!FILES.length) return '<p class="small muted">库里没找到行测各板块的文件夹（如「言语之逻辑填空」「资料分析」）。</p>';
     if (q && !hit.length) return '<p class="small muted">没有找到。</p>';
     const tops = [...new Set(FILES.map((f) => f.top))];
     let html = "";
@@ -101,14 +101,14 @@
     document.querySelectorAll("[data-top]").forEach((b) => (b.onclick = () => {
       const t = b.dataset.top;
       OPEN.has(t) ? OPEN.delete(t) : OPEN.add(t);
-      LS.set("srpg-nt-open", JSON.stringify([...OPEN]));
+      LS.set("xrpg-nt-open", JSON.stringify([...OPEN]));
       document.getElementById("ntFiles").innerHTML = filesHtml(); bindSide();
     }));
     const sm = document.getElementById("ntSideMin"), so = document.getElementById("ntSideOpen");
-    if (sm) sm.onclick = () => { SIDE_MIN = true; LS.set("srpg-nt-side", "min"); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
-    if (so) so.onclick = () => { SIDE_MIN = false; LS.set("srpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
+    if (sm) sm.onclick = () => { SIDE_MIN = true; LS.set("xrpg-nt-side", "min"); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
+    if (so) so.onclick = () => { SIDE_MIN = false; LS.set("xrpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
     if (SIDE_MIN) document.querySelectorAll(".nt-side [data-ntab]").forEach((b) => (b.onclick = async () => {
-      TAB = b.dataset.ntab; SIDE_MIN = false; LS.set("srpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0);
+      TAB = b.dataset.ntab; SIDE_MIN = false; LS.set("xrpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0);
       if (TAB === "library" && !FILES) document.querySelector('.nt-tabs [data-ntab="library"]').click();
     }));
     const nn = document.getElementById("ntNew");
@@ -134,9 +134,9 @@
     if (!m) return;
     m.className = "nt-main" + (READ && NB ? " split" : "");
     if (!READ && !NB) {
-      m.innerHTML = `<div class="nt-empty"><div class="nt-empty-mark">🪶</div><h2>公务手账</h2>
+      m.innerHTML = `<div class="nt-empty"><div class="nt-empty-mark">🪶</div><h2>灵台手札</h2>
         <p>像在纸上一样手写笔记：选纸（横线 / 方格 / 空白）、换笔、荧光笔、橡皮、撤销。写完自动存进库里，平板上写的电脑上也有。</p>
-        <p>写完点本子右上角的「📄 导出 PDF」，整本连纸带字存成 PDF（训练/公务手账/导出/），打印、发给别人都方便。</p>
+        <p>写完点本子右上角的「📄 导出 PDF」，整本连纸带字存成 PDF（训练/手札/导出/），打印、发给别人都方便。</p>
         <p>左边「📚 调阅」能翻库里所有的 Markdown 笔记，还能和本子并排打开，边看边记。</p>
         <button class="primary" id="ntNew2">＋ 新本子</button></div>`;
       document.getElementById("ntNew2").onclick = newBook;
@@ -160,7 +160,7 @@
   }
   async function delBook(id) {
     const b = BOOKS.find((x) => x.id === id);
-    if (!confirm(b && b.pdf ? `删除「${b.title}」上的批注？只删笔迹，库里的原 PDF 不动。` : `删除公务手账「${b ? b.title : id}」？手写的笔迹会删掉（已经导出的 PDF 留着）。`)) return;
+    if (!confirm(b && b.pdf ? `删除「${b.title}」上的批注？只删笔迹，库里的原 PDF 不动。` : `删除手札「${b ? b.title : id}」？手写的笔迹会删掉（已经导出的 PDF 留着）。`)) return;
     try {
       await api("/api/notes/delete", { id });
       if (NB && NB.id === id) { setFull(false); NB = null; dirty = false; }
@@ -199,7 +199,7 @@
           ${touchDev() ? `<button data-act="finger" class="${FINGER === "draw" ? "on" : ""}" title="手指写字（关掉 = 手指只翻页，笔写字）">☝</button>` : ""}
         </span>
         <span class="spacer"></span>
-        <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/公务手账/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/公务手账/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : "📄 导出 PDF"}</button>
+        <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : "📄 导出 PDF"}</button>
         <button class="ghost small nt-fullbtn" id="ntFull" title="全屏写（再点一次退出）">${fullIcon(isFull())}</button>
         <button class="ghost small" id="ntClose" title="收起本子（已自动保存）">✕</button>
       </div>
@@ -220,7 +220,7 @@
     return `<div class="nt-page" data-pg="${i}" style="aspect-ratio:${PW} / ${ph(i)}">${bg}<canvas class="nt-ink" data-pg="${i}"></canvas><canvas class="nt-live" data-pg="${i}"></canvas><span class="nt-pno">${i + 1}</span></div>`;
   }
   // 记住每本翻到哪一页（每台设备各记各的）：存“第几页 + 这一页往下多少”，换了屏幕宽度也能回到同一处
-  const POS_KEY = "srpg-nt-pos";
+  const POS_KEY = "xrpg-nt-pos";
   const readPos = () => { try { return JSON.parse(LS.get(POS_KEY, "{}")) || {}; } catch (e) { return {}; } };
   function pageTop(box, pg) { return pg.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop; }
   function curPos() {
@@ -294,7 +294,7 @@
     document.querySelectorAll(".nt-tools [data-act]").forEach((b) => (b.onclick = () => {
       const a = b.dataset.act;
       if (a === "undo") doUndo(); else if (a === "redo") doRedo();
-      else { FINGER = FINGER === "draw" ? "scroll" : "draw"; LS.set("srpg-nt-finger", FINGER); b.classList.toggle("on", FINGER === "draw");
+      else { FINGER = FINGER === "draw" ? "scroll" : "draw"; LS.set("xrpg-nt-finger", FINGER); b.classList.toggle("on", FINGER === "draw");
         toast(FINGER === "draw" ? "☝ 手指也能写字" : "☝ 手指只翻页，用笔写字"); }
     }));
   }
@@ -422,8 +422,8 @@
     const pt = (e) => { const r = c.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * PW / r.width * 10) / 10, Math.round((e.clientY - r.top) * ph(i) / r.height * 10) / 10]; };
     const box = () => document.getElementById("ntPages");
     c.onpointerdown = (e) => {
-      if (e.pointerType === "pen" && FINGER === "draw" && LS.get("srpg-nt-finger", "") === "") {   // 第一次用笔：手指改成只翻页
-        FINGER = "scroll"; LS.set("srpg-nt-finger", FINGER);
+      if (e.pointerType === "pen" && FINGER === "draw" && LS.get("xrpg-nt-finger", "") === "") {   // 第一次用笔：手指改成只翻页
+        FINGER = "scroll"; LS.set("xrpg-nt-finger", FINGER);
         const b = document.querySelector('.nt-tools [data-act="finger"]'); if (b) b.classList.remove("on");
       }
       e.preventDefault();
@@ -598,7 +598,7 @@
         r = await api("/api/notes/pdfexport", { id: NB.id, overlays: ov });
       } else {
         const imgs = pageImages();
-        if (!imgs.length) throw new Error("这本公务手账还没写字，没有可以导出的页");
+        if (!imgs.length) throw new Error("这本手札还没写字，没有可以导出的页");
         r = await api("/api/notes/pdf", { id: NB.id, images: imgs });
       }
       const local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
@@ -627,7 +627,7 @@
   }
   function readerHtml() {
     return `<div class="nt-reader"><div class="nt-rbar"><b>📖 ${esc(READ.name)}</b><span class="small faint">${esc(READ.path)}</span><span class="spacer"></span>
-        ${NB ? "" : `<button class="ghost small" id="ntNewBeside" title="开一本公务手账放在旁边，边看边记">＋ 旁边记公务手账</button>`}
+        ${NB ? "" : `<button class="ghost small" id="ntNewBeside" title="开一本手札放在旁边，边看边记">＋ 旁边记手札</button>`}
         <button class="ghost small" id="ntRClose">✕</button></div>
       <div class="nt-md">${mdRender(READ.text, READ.images || {})}</div></div>`;
   }

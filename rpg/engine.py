@@ -1,27 +1,27 @@
 """
 游戏规则核心（纯计算 + 修改存档字典；不发网络请求）。数值都来自 规则.md（config.Rules），说法来自 themes.py。
 
-一、政绩 → 综合评价（预估分）→ 职级
-    综合评价 = 起始分数 + (目标分数 − 起始分数) × 政绩 / 理想政绩，理想政绩 = 每日理想经验 × (目标日 − 开始日期)。
+一、修为 → 道行（预估分）→ 境界
+    道行 = 起始分数 + (目标分数 − 起始分数) × 修为 / 理想修为，理想修为 = 每日理想经验 × (目标日 − 开始日期)。
     即“每天学满、一天不断，到目标日正好目标分数（80）”；之后按同样速度继续涨，最高到“最高分数”。
-    职级按综合评价分段（themes.BANDS）：办事员 50 / 科员 51–59 / 副科级 60 / 正科级 65 / 副处级 70 / 正处级 75 / 副厅级 80 / 正厅级 85。
-    晋升考核：进入“晋升分数线”（60、65…）上的大职级必须晋升考核。政绩到了但没晋升考核 → 综合评价停在线下（瓶颈），多出的政绩照样累计，
-    晋升成功后一次性涌入。条件见 tribulation_status()。
-    年度考核（模考）：最近两次成绩里较低的那个若高于当前综合评价，政绩直接补到这个分数（add_boss 里的“考核认定”）。
+    境界按道行分段（themes.BANDS）：凡人 50 / 炼气 51–59 / 筑基 60 / 金丹 65 / 元婴 70 / 化神 75 / 大乘 80 / 真仙 85。
+    渡劫：进入“渡劫分数线”（60、65…）上的大境界必须渡劫。修为到了但没渡劫 → 道行停在线下（瓶颈），多出的修为照样累计，
+    渡劫成功后一次性涌入。条件见 tribulation_status()。
+    宗门大比（模考）：最近两次成绩里较低的那个若高于当前道行，修为直接补到这个分数（add_boss 里的“大比悟道”）。
 
-二、业务手册（骨架）掌握度：每一重（大项）0 未入门 →（背诵连续过 N 次）1 小成 →（向领导汇报过）2 大成 →（实操连续过 N 次）3 圆满，
-    之后按复查间隔复核；复核失败降回 0（业务生疏）。批次 / 周目逻辑同前（一批 = 一重阶段，全部打通 = 一个考核周期）。
+二、功法（骨架）掌握度：每一重（大项）0 未入门 →（背诵连续过 N 次）1 小成 →（论道过）2 大成 →（试剑连续过 N 次）3 圆满，
+    之后按复查间隔温养道基；温养失败降回 0（根基松动）。批次 / 周目逻辑同前（一批 = 一重秘境，全部打通 = 一个大周天）。
 
-三、专长（roots）：每个题型一条。有业务手册的题型全部圆满即激活；没有业务手册的按最近两季正确率激活。
-    品阶 0–7（初级Ⅰ…资深Ⅱ）按最近几次该题型得分率实时计算，会跌落，但激活后不低于 0。
-    加成：政绩 +品阶×每阶加成；复核间隔 ×(1+品阶×复查间隔加成)。高职级晋升考核要求一定数量、品阶的专长。
+三、灵根（roots）：每个板块一条。有功法的板块全部圆满即激活；没有功法的按最近两季正确率激活。
+    品阶 0–7（黄下…天上）按最近几季该板块正确率实时计算，会跌落，但激活后不低于 0。
+    加成：修为 +品阶×每阶加成；温养间隔 ×(1+品阶×复查间隔加成)。高境界渡劫要求一定数量、品阶的灵根。
 
-四、其他：补课券（加班补课 = 选题型加练一炉，按成功率补课完成，额外政绩）、下乡调研（指定题型政绩加成）、领导点拨（随机额外政绩）、
-    过劳预警（连续办理太久 / 连错太多 → 强制休息）、官声（近 N 天打卡占比，晋升考核门槛）、周例会、文件袋（推荐函、补卡券）。
+四、其他：丹药（炼丹 = 选板块加练一炉，按成功率成丹，额外修为）、闭关（指定板块修为加成）、顿悟（随机额外修为）、
+    走火入魔（连续修炼太久 / 连错太多 → 强制调息）、道心（近 N 天打卡占比，渡劫门槛）、宗门周常、储物袋（突破丹、护心丹）。
 
 所有“结果”函数返回事件列表，网页据此弹出提示：
     {"kind": "xp", "v": 30, "msg": "…"} / {"kind": "realm", "name": "筑基初期", "major": True, "score": 60.0} /
-    {"kind": "npc", "msg": "…", "scene": "晋升成功"} / {"kind": "info", "msg": "…"}
+    {"kind": "npc", "msg": "…", "scene": "渡劫成功"} / {"kind": "info", "msg": "…"}
 """
 import datetime as dt
 import math
@@ -30,8 +30,8 @@ import time
 
 from . import skeleton, themes, vault
 
-DAILY_WRONG = "wrong:daily"   # 今日功课/整改录共用的整改销号任务
-TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "grade")
+DAILY_WRONG = "wrong:daily"   # 今日功课/心魔录共用的斩心魔任务
+TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "grade")   # grade = 申论作答批改
 
 
 def D(s):
@@ -44,6 +44,7 @@ class Game:
         self.today = today or dt.date.today()
         self.t = self.today.isoformat()
         self.rng = rng or random.Random()
+        self.subject = getattr(paths, "subject", "行测")     # 行测 / 申论（rpg/subjects.py）：决定题库、批改等功能是否启用
         self._skel = {}
         self._acc = {}
 
@@ -68,7 +69,7 @@ class Game:
                 "skeleton": "编撰" + self.T("skeleton"), "tribulation": self.T("tribulation"),
                 "heal": self.T("heal")}.get(typ, typ)
 
-    # ================================================================ 题型 / 业务手册
+    # ================================================================ 板块 / 功法
     @property
     def boards(self):
         return self.rules.boards
@@ -82,7 +83,7 @@ class Game:
         return vault.skill_dir(self.paths, self.boards.get(board, {}).get("skill")) is not None
 
     def available(self, board):
-        """题型可以办理业务手册：有 skill，或者已经有业务手册（骨架）文件"""
+        """板块可以修炼功法：有 skill，或者已经有功法（骨架）文件"""
         return board in self.boards and (self.has_skill(board) or self.skel(board) is not None)
 
     def final_items(self, board):
@@ -134,15 +135,16 @@ class Game:
         return self.boards.get(board, {}).get("sources") or [board]
 
     def accuracy(self, board, last=None):
-        last = last or int(self.rules.num("专长取最近几次"))
+        last = last or int(self.rules.num("灵根取最近几季"))
         key = (board, last)
         if key not in self._acc:
-            self._acc[key] = self._grade_accuracy(board, last)
+            self._acc[key] = (self._grade_accuracy(board, last) if self.subject == "申论"
+                              else vault.accuracy(self.paths, self.sources(board), last=last))
         return self._acc[key]
 
     def _grade_accuracy(self, board, last):
-        """题型最近 last 次批改（不含试批）的得分率：{"rate", "trend", "per": [(第几次, 得分, 满分)], "count"}；没有批改返回 None。
-        一次批改 = 一“季”，专长的激活和品阶都按它算。"""
+        """申论：题型最近 last 次批改（不含试批）的得分率：{"rate", "trend", "per": [(第几次, 得分, 满分)], "count"}；没有批改返回 None。
+        一次批改 = 一“季”，灵根（专长）的觉醒和品阶都按它算。"""
         per = [(i + 1, float(x["correct"]), float(x["total"])) for i, x in enumerate(
             [x for x in self.state.get("practice", []) if x.get("source") == "批改" and x.get("board") == board and x.get("total")])]
         if not per:
@@ -159,7 +161,7 @@ class Game:
 
     # ================================================================ 申论：作答批改的成绩
     def on_grade(self, qid, board, score, full, words=0, lost=(), summary="", draft=False):
-        """一次作答批改的成绩。记进批改记录；正式的（不是试批）再计入专长得分率和政绩。
+        """一次作答批改的成绩。记进批改记录；正式的（不是试批）再计入专长得分率和修为。
         返回 {"id", "events"}。分数由 shenlun_rubric 算好传进来，这里不再判断。"""
         rate = score / full if full else 0.0
         rid = "%s-%d" % (self.t, int(time.time() * 1000) % 10 ** 9)
@@ -167,7 +169,7 @@ class Game:
                "words": words, "lost": list(lost), "summary": summary, "draft": bool(draft)}
         self.state.setdefault("grades", []).append(rec)
         if draft:
-            return {"id": rid, "events": [{"kind": "info", "msg": "试批：采分点还是草稿，这次不计入政绩和专长"}]}
+            return {"id": rid, "events": [{"kind": "info", "msg": "试批：采分点还是草稿，这次不计入修为和专长"}]}
         self.state["practice"].append({"id": rid, "d": self.t, "board": board, "total": full, "correct": score,
                                        "minutes": 0, "source": "批改", "note": qid})
         self._acc.clear()
@@ -176,15 +178,15 @@ class Game:
                          f"{qid} 批改 {score:g}/{full:g}（得分率 {rate:.0%}）")
         return {"id": rid, "events": ev}
 
-    # ================================================================ 政绩 → 综合评价 → 职级
+    # ================================================================ 修为 → 道行 → 境界
     def ideal_total(self):
-        """到目标日的理想政绩（综合评价从起始分数涨到目标分数所需的政绩）"""
+        """到目标日的理想修为（道行从起始分数涨到目标分数所需的修为）"""
         r = self.rules
         days = max(30, (r.date("目标日") - r.date("开始日期")).days)
         return r.num("每日理想经验") * days
 
     def curve(self):
-        """成长曲线指数 p：综合评价 = 起始 + 跨度 ×（政绩 / 理想政绩）^p。p < 1 前快后慢（刚入门进步快、越往上越难），p = 1 是直线"""
+        """成长曲线指数 p：道行 = 起始 + 跨度 ×（修为 / 理想修为）^p。p < 1 前快后慢（刚入门进步快、越往上越难），p = 1 是直线"""
         return max(0.3, min(1.0, float(self.rules.num("成长曲线指数") or 1)))
 
     def xp_at(self, score):
@@ -200,8 +202,8 @@ class Game:
         return min(r.num("最高分数"), r.num("起始分数") + span * (max(0.0, xp) / self.ideal_total()) ** self.curve())
 
     def claimed(self):
-        """玩家自己点过突破、真正踏入的小职级（起始分）。政绩满了不会自动升，要在办公室点「⚡ 突破」。
-        老存档第一次读：按原来的直线算法算出当时的职级，从那里开始（新曲线多出来的几层，自己一层层点上去）"""
+        """玩家自己点过突破、真正踏入的小境界（起始分）。修为满了不会自动升，要在洞府点「⚡ 突破」。
+        老存档第一次读：按原来的直线算法算出当时的境界，从那里开始（新曲线多出来的几层，自己一层层点上去）"""
         c = self.state.get("claimed")
         if c is None:
             r = self.rules
@@ -216,10 +218,10 @@ class Game:
         return c
 
     def gates(self):
-        return sorted(int(x) for x in self.rules.nums("晋升分数线"))
+        return sorted(int(x) for x in self.rules.nums("渡劫分数线"))
 
     def pending_gate(self, xp=None):
-        """政绩已到、但还没晋升考核的大职级分数线（瓶颈）；没有返回 None"""
+        """修为已到、但还没渡劫的大境界分数线（瓶颈）；没有返回 None"""
         raw = self.raw_score(xp)
         for g in self.gates():
             if g not in self.state["gates"] and raw >= g:
@@ -231,12 +233,12 @@ class Game:
         raw = self.raw_score(xp)
         gate = self.pending_gate(xp)
         eff = min(raw, gate - 0.01) if gate else raw
-        avail = int(math.floor(eff + 1e-9))               # 政绩够到的小职级
+        avail = int(math.floor(eff + 1e-9))               # 修为够到的小境界
         s_int = min(self.claimed(), avail)                # 真正踏入的（自己点过突破的）
         big, sub, a, b = themes.sub_stage(s_int)
         b = min(b, self.rules.num("最高分数"))
         name = themes.realm_name(self.theme, s_int)
-        ready = b > s_int and avail >= b                  # 政绩圆满：可以点突破进下一个小职级
+        ready = b > s_int and avail >= b                  # 修为圆满：可以点突破进下一个小境界
         if ready:
             into = need = int(self.xp_at(b) - self.xp_at(a))
             frac = 1.0
@@ -258,7 +260,7 @@ class Game:
                 "target": self.rules.num("目标分数"), "max_score": self.rules.num("最高分数")}
 
     def _stages_between(self, start, avail):
-        """从 start 起到 avail 为止，还能突破几次（每个小职级起始分）"""
+        """从 start 起到 avail 为止，还能突破几次（每个小境界起始分）"""
         s = start
         while s <= avail:
             yield s
@@ -268,18 +270,18 @@ class Game:
             s = nb
 
     def ready_event(self, before):
-        """政绩刚圆满（before 还没满、现在满了）：提醒去办公室点突破"""
+        """修为刚圆满（before 还没满、现在满了）：提醒去洞府点突破"""
         after = self.realm_info()
         if after["ready"] and not before.get("ready"):
             return [{"kind": "ready", "name": after["name"], "next": after["next"],
-                     "msg": f"{self.T('xp')}圆满！可以突破至「{after['next']}」了——去{self.th['terms'].get('nav.home', '办公室').split()[-1]}点「⚡ 突破」"}]
+                     "msg": f"{self.T('xp')}圆满！可以突破至「{after['next']}」了——去{self.th['terms'].get('nav.home', '洞府').split()[-1]}点「⚡ 突破」"}]
         return []
 
     def break_through(self):
-        """⚡ 突破：政绩圆满时自己点，踏入下一个小职级（大职级之间还是要晋升考核）"""
+        """⚡ 突破：修为圆满时自己点，踏入下一个小境界（大境界之间还是要渡劫）"""
         before = self.realm_info()
         if not before["ready"]:
-            raise ValueError("政绩还没圆满，不能突破" if not before["bottleneck"] else f"大职级要先{self.T('tribulation')}")
+            raise ValueError("修为还没圆满，不能突破" if not before["bottleneck"] else f"大境界要先{self.T('tribulation')}")
         self.state["claimed"] = before["ready_to"]
         after = self.realm_info()
         self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t, "type": "breakthrough",
@@ -287,15 +289,15 @@ class Game:
         return [{"kind": "realm", "name": after["name"], "major": after["big"] != before["big"], "score": after["score"],
                  "big_name": after["big_name"], "next": after["next"], "target": after["target"], "xp": self.state["xp"],
                  "from": before["name"], "more": after["ready"]},
-                self._npc("小职级提升")]
+                self._npc("小境界提升")]
 
     def _backfill_study_xp(self):
-        """3.3.0 起办理每分钟都给基础政绩：以前在程序里办理的时间一次补发（听课、静修、自练本来就按分钟 / 题给过，不重复）"""
+        """3.3.0 起修炼每分钟都给基础修为：以前在程序里修炼的时间一次补发（听道、静修、演武本来就按分钟 / 题给过，不重复）"""
         if self.state.get("xp_backfill"):
             return []
         self.state["xp_backfill"] = True
-        rate = self.rules.xp("办理每分钟")
-        mins = sum(self.study_minutes(d) for d in self.state["seconds"])            # 只算程序心跳计时的；静修、自练录入的分钟各有各的政绩
+        rate = self.rules.xp("修炼每分钟")
+        mins = sum(self.study_minutes(d) for d in self.state["seconds"])            # 只算程序心跳计时的；静修、演武录入的分钟各有各的修为
         mins -= sum(x.get("minutes", 0) for x in self.state.setdefault("selfstudy", []))
         mins -= sum(x.get("minutes", 0) for x in self.state.get("practice", []))
         mins = max(0, mins)
@@ -310,8 +312,8 @@ class Game:
         return [{"kind": "xp", "v": gain, "msg": f"补发以前 {int(mins)} 分钟{self.T('study')}的{self.T('xp')}"}] + self.ready_event(before)
 
     def study_xp(self, sec):
-        """有效办理时间给的基础政绩（经验.办理每分钟）：零头攒着，一天记成一条“办理 N 分钟”，政绩录不刷屏"""
-        rate = self.rules.xp("办理每分钟")
+        """有效修炼时间给的基础修为（经验.修炼每分钟）：零头攒着，一天记成一条“修炼 N 分钟”，修仙录不刷屏"""
+        rate = self.rules.xp("修炼每分钟")
         if not rate or sec <= 0:
             return []
         before = self.realm_info()
@@ -330,19 +332,19 @@ class Game:
         ev["note"] = f"{self.T('study')} {int(self.study_minutes(self.t))} 分钟"
         return self.ready_event(before)
 
-    # ================================================================ 时间 / 打卡 / 官声
+    # ================================================================ 时间 / 打卡 / 道心
     def study_minutes(self, day):
-        """在本程序里真正办理的分钟（网页心跳计时 + 历练录入）"""
+        """在本程序里真正修炼的分钟（网页心跳计时 + 历练录入）"""
         return self.state["seconds"].get(day if isinstance(day, str) else day.isoformat(), 0) / 60
 
     def lecture_minutes(self, day):
-        """听课（在其他平台看网课）的分钟，首页手动记录"""
+        """听道（在其他平台看网课）的分钟，首页手动记录"""
         ds = day if isinstance(day, str) else day.isoformat()
         return sum(x["minutes"] for x in self.state.setdefault("lectures", []) if x["d"] == ds)
 
     def time_split(self, days=None):
-        """学时分类：听课（听课）、做题（试炼/整改销号/实操/加班补课/晋升考核 + 自练）、复习（传授/背诵/向领导汇报/复核…）。
-        days=None 为累计；否则是日期字符串的集合。旧存档没分类的办理时间都算复习。"""
+        """三才时辰：听课（听道）、做题（试炼/斩心魔/试剑/炼丹/渡劫 + 演武自练）、复习（传授/背诵/论道/温养…）。
+        days=None 为累计；否则是日期字符串的集合。旧存档没分类的修炼时间都算复习。"""
         keep = (lambda d: True) if days is None else (lambda d: d in days)
         lecture = sum(x["minutes"] for x in self.state.setdefault("lectures", []) if keep(x["d"]))
         self_practice = sum(x.get("minutes", 0) for x in self.state["practice"] if keep(x["d"]))
@@ -354,12 +356,21 @@ class Game:
         return {"lecture": int(round(lecture)), "practice": int(round(drill + self_practice)), "review": int(round(review)),
                 "self": int(self_practice), "self_review": int(self_review)}
 
-    # 听课记录没选模块时，从“讲的什么”里认（写了“图形推理”“图推”“资料”之类）
-    BOARD_ALIAS = (("概括", "归纳概括"), ("归纳", "归纳概括"), ("分析", "综合分析"), ("对策", "提出对策"), ("公文", "贯彻执行"),
-                   ("贯彻", "贯彻执行"), ("执行", "贯彻执行"), ("大作文", "大作文"), ("作文", "大作文"), ("文章", "大作文"))
+    # 听道记录没选模块时，从“讲的什么”里认（写了“图形推理”“图推”“资料”之类）
+    BOARD_ALIAS = (("图推", "图形推理"), ("图形", "图形推理"), ("资料", "资料分析"), ("资分", "资料分析"), ("数量", "数量关系"),
+                   ("数推", "数量关系"), ("常识", "常识判断"), ("政治", "政治理论"), ("时政", "政治理论"), ("片段", "片段阅读"),
+                   ("填空", "逻辑填空"), ("定义", "定义判断"), ("类比", "类比推理"), ("论证", "论证逻辑"), ("形式", "形式逻辑"),
+                   ("翻译推理", "形式逻辑"), ("一拖五", "一拖五"))
+
+    def all_boards(self):
+        """能选的模块：板块 + 副线（行测的题库模块名单；申论没有题库，用专长的名单）"""
+        return self.root_boards() if self.subject == "申论" else list(dict.fromkeys(list(self.boards) + list(self.rules.side)))
+
+    BOARD_ALIAS_SHENLUN = (("概括", "归纳概括"), ("归纳", "归纳概括"), ("分析", "综合分析"), ("对策", "提出对策"), ("公文", "贯彻执行"),
+                           ("贯彻", "贯彻执行"), ("执行", "贯彻执行"), ("大作文", "大作文"), ("作文", "大作文"), ("文章", "大作文"))
 
     def lecture_board(self, x):
-        boards = self.root_boards()
+        boards = self.all_boards()
         if x.get("board") in boards:
             return x["board"]
         if x.get("board") == "none":          # 自己选了“不分模块”
@@ -368,7 +379,7 @@ class Game:
         for b in boards:
             if b in note:
                 return b
-        for k, b in self.BOARD_ALIAS:
+        for k, b in (self.BOARD_ALIAS_SHENLUN if self.subject == "申论" else self.BOARD_ALIAS):
             if k in note and b in boards:
                 return b
         return ""
@@ -377,15 +388,15 @@ class Game:
         x = next((x for x in self.state.setdefault("lectures", []) if x["id"] == lid), None)
         if not x:
             raise ValueError("找不到这条记录")
-        if board and board not in self.root_boards():
+        if board and board not in self.all_boards():
             raise ValueError("模块无效")
         x["board"] = board or "none"
 
-    _PRACTICE_EV = ("wrong", "apply", "pill", "tribulation", "practice")
+    _PRACTICE_EV = ("wrong", "apply", "grade", "bank", "bank_clear", "pill", "tribulation", "practice")
     _REVIEW_EV = ("recite", "review", "speedrun", "feynman", "example", "master", "selfstudy")
 
     def _day_weights(self, boards):
-        """每天每个模块练了几次（办理记录里的段落 + 办理事件），用来把没记模块的旧时间按比例分到模块"""
+        """每天每个模块练了几次（修炼记录里的段落 + 修炼事件），用来把没记模块的旧时间按比例分到模块"""
         import re as _re
         w = {}
         def add(d, k, b, n=1):
@@ -393,7 +404,7 @@ class Game:
                 w.setdefault(d, {}).setdefault(k, {}).setdefault(b, 0)
                 w[d][k][b] += n
         logs = {}
-        folder = self.paths.train / "办理记录" if self.paths.train else None
+        folder = self.paths.train / "修炼记录" if self.paths.train else None
         apply_label = self.label("apply")
         if folder and folder.is_dir():
             for f in folder.glob("*/*.md"):
@@ -416,7 +427,7 @@ class Game:
 
     def _board_days(self):
         """{日期: {模块: {lecture, practice, review}}}（分钟）+ {日期: 分不到模块的分钟}"""
-        boards = self.root_boards()
+        boards = self.all_boards()
         out, loose = {}, {}
         def add(d, b, k, m):
             if m > 0:
@@ -466,11 +477,11 @@ class Game:
         return out, loose
 
     def board_time(self, days=None, cache=None):
-        """十二模块的时辰：每个题型的听课、做题（含自练）、复习分钟，外加分不到模块的分钟。
-        办理时间按当时在练的模块记；以前没记模块的，按那天办理记录和办理事件里各模块练了几次按比例分。"""
+        """十二模块的时辰：每个板块的听课、做题（含自练）、复习分钟，外加分不到模块的分钟。
+        修炼时间按当时在练的模块记；以前没记模块的，按那天修炼记录和修炼事件里各模块练了几次按比例分。"""
         per, loose = cache or self._board_days()
         keep = (lambda d: True) if days is None else (lambda d: d in days)
-        out = {b: {"lecture": 0.0, "practice": 0.0, "review": 0.0} for b in self.root_boards()}
+        out = {b: {"lecture": 0.0, "practice": 0.0, "review": 0.0} for b in self.all_boards()}
         for d, bs in per.items():
             if keep(d):
                 for b, v in bs.items():
@@ -480,22 +491,22 @@ class Game:
                 "loose": int(round(sum(m for d, m in loose.items() if keep(d))))}
 
     def minutes(self, day):
-        """每日学时 = 办理 + 听课；每日目标、打卡、官声、周例会都按这个算"""
+        """每日功行 = 修炼 + 听道；每日目标、打卡、道心、周常都按这个算"""
         return self.study_minutes(day) + self.lecture_minutes(day)
 
     def add_lecture(self, minutes, note="", day=None, board=""):
-        """记一笔听课。day 可以是最近 7 天内（忘了记可以补）；给少量政绩（经验.听课每分钟）"""
+        """记一笔听道。day 可以是最近 7 天内（忘了记可以补）；给少量修为（经验.听道每分钟）"""
         minutes = int(minutes)
-        cap = int(self.rules.num("听课单次上限") or 600)
+        cap = int(self.rules.num("听道单次上限") or 600)
         if not 1 <= minutes <= cap:
-            raise ValueError("听课分钟要在 1–%d 之间" % cap)
+            raise ValueError("听道分钟要在 1–%d 之间" % cap)
         d = D(day) if day else self.today
         if not (self.today - dt.timedelta(days=7) <= d <= self.today):
-            raise ValueError("只能补记最近 7 天的听课")
+            raise ValueError("只能补记最近 7 天的听道")
         ds = d.isoformat()
         goal = self.rules.num("每日目标分钟")
         before = self.minutes(ds)
-        xp = int(round(minutes * self.rules.xp("听课每分钟")))
+        xp = int(round(minutes * self.rules.xp("听道每分钟")))
         ev = self._award(xp, "lecture", note="%s %d 分钟%s" % (self.T("lecture"), minutes, ("：" + note) if note else ""),
                          bonus=False) if xp else []
         rec = {"id": "%s-%d" % (ds, int(time.time() * 1000) % 10 ** 9), "d": ds,
@@ -508,7 +519,7 @@ class Game:
         return ev
 
     def delete_lecture(self, lid):
-        """删掉记错的一笔（同时扣回那次给的政绩）"""
+        """删掉记错的一笔（同时扣回那次给的修为）"""
         ls = self.state.setdefault("lectures", [])
         x = next((x for x in ls if x["id"] == lid), None)
         if not x:
@@ -553,8 +564,8 @@ class Game:
         return n if d >= start else 0
 
     def dao(self):
-        """官声 0–100：最近 N 天（不含今天）打卡的比例；开始办理之前的日子按“打卡”算（新入门官声圆满，缺一天降一截）"""
-        n = int(self.rules.num("官声统计天数"))
+        """道心 0–100：最近 N 天（不含今天）打卡的比例；开始修炼之前的日子按“打卡”算（新入门道心圆满，缺一天降一截）"""
+        n = int(self.rules.num("道心统计天数"))
         created = D(self.state["created"])
         ok = sum(1 for k in range(1, n + 1)
                  if (self.today - dt.timedelta(days=k)) < created or self.qualifies(self.today - dt.timedelta(days=k)))
@@ -563,7 +574,7 @@ class Game:
     def dao_label(self, v):
         return "稳固" if v >= 80 else "平稳" if v >= 60 else "动摇" if v >= 40 else "崩乱"
 
-    # ================================================================ 年度目标进度 / 预测
+    # ================================================================ 天道进度 / 预测
     def ideal(self):
         r = self.rules
         daily = r.num("每日理想经验")
@@ -574,12 +585,12 @@ class Game:
                 days += 1
             d += dt.timedelta(days=1)
         ideal_xp = daily * days
-        # 年度目标进度只比“自己修出来的”政绩：考核认定补上的政绩提升职级，但不算进度（免得一次模考考好就能躺几个月）
+        # 天道进度只比“自己修出来的”修为：大比悟道补上的修为提升境界，但不算进度（免得一次模考考好就能躺几个月）
         effort = self.state["xp"] - self.insight_xp()
         diff_days = (ideal_xp - effort) / daily                       # >0 落后，<0 领先
         xp14 = sum(e["xp"] for e in self.state["events"]
                    if D(e["d"]) > self.today - dt.timedelta(days=14) and e["type"] != "insight")
-        min14 = sum(self.study_minutes(self.today - dt.timedelta(days=k)) for k in range(14))   # 政绩主要来自办理，不含听课
+        min14 = sum(self.study_minutes(self.today - dt.timedelta(days=k)) for k in range(14))   # 修为主要来自修炼，不含听道
         per_min = xp14 / min14 if min14 >= 30 and xp14 > 0 else daily / r.num("每日目标分钟")
         catch = None
         if diff_days > 0.5:
@@ -612,7 +623,7 @@ class Game:
             days_left = math.ceil((1 - p) / ((p - past) / span))
         return {"progress": p, "days_left": days_left}
 
-    # ================================================================ 专长
+    # ================================================================ 灵根
     def root_boards(self):
         out = list(self.boards)
         out += [b for b in self.rules.side if b not in out]
@@ -634,12 +645,12 @@ class Game:
         return g
 
     def root_can_activate(self, board):
-        """专长养成有两条路，满足任一条即可：业务手册全部圆满；或者最近两次作答批改得分率都达到最低品阶线"""
         if self.available(board):
-            # 业务手册全部圆满（不看 lap_check：新一轮考核周期开始时圆满的手册会被标记“待复核”，但专长早已养成）
+            # 全部圆满即觉醒；不看 lap_check（新一轮大周天开始时圆满的功法会被标记“待重温”，但灵根早已觉醒）
             items = self.final_items(board)
-            if items and all(self.item(i["id"])["level"] >= 3 for i in items):
-                return True
+            ok = bool(items) and all(self.item(i["id"])["level"] >= 3 for i in items)
+            if ok or self.subject != "申论":
+                return ok       # 申论还有第二条路：最近两次批改得分率达线（下面）
         acc = self.accuracy(board, last=2)
         thr = self.rules.root_thresholds(board)[0]
         return bool(acc and len(acc["per"]) >= 2 and all(o / t + 1e-9 >= thr for _, o, t in acc["per"]))
@@ -653,17 +664,17 @@ class Game:
             g = self.root_grade(b) if on else 0
             acc = self.accuracy(b)
             out.append({"board": b, "name": self.root_name(b), "on": on, "since": st.get("on"),
-                        "grade": g, "grade_name": self.th["grades"][g] if on else "未养成",
+                        "grade": g, "grade_name": self.th["grades"][g] if on else "未觉醒",
                         "tier": g // 2, "acc": acc["rate"] if acc else None,
-                        "route": "业务手册" if self.final_items(b) else "批改得分率",
-                        "bonus": round(g * self.rules.num("专长每阶加成"), 3) if on else 0})
+                        "route": "功法" if self.available(b) else ("批改得分率" if self.subject == "申论" else "正确率"),
+                        "bonus": round(g * self.rules.num("灵根每阶加成"), 3) if on else 0})
         return out
 
     def root_bonus(self, board):
         st = self.state["roots"].get(board)
         if not board or not st or not st.get("on"):
             return 0.0
-        return self.root_grade(board) * self.rules.num("专长每阶加成")
+        return self.root_grade(board) * self.rules.num("灵根每阶加成")
 
     def _roots_housekeeping(self):
         ev = []
@@ -671,27 +682,27 @@ class Game:
             st = self.state["roots"].setdefault(b, {"on": None, "grade": 0})
             if not st["on"] and self.root_can_activate(b):
                 st["on"], st["grade"] = self.t, self.root_grade(b)
-                ev.append({"kind": "info", "msg": f"{self.root_name(b)}养成！（{self.th['grades'][st['grade']]}）"})
-                ev.append(self._npc("专长激活"))
+                ev.append({"kind": "info", "msg": f"{self.root_name(b)}觉醒！（{self.th['grades'][st['grade']]}）"})
+                ev.append(self._npc("灵根激活"))
                 continue
             if st["on"]:
                 g = self.root_grade(b)
                 if g != st.get("grade", 0):
                     up = g > st.get("grade", 0)
                     ev.append({"kind": "info", "msg": f"{self.root_name(b)}{'晋升' if up else '跌落'}为{self.th['grades'][g]}"})
-                    ev.append(self._npc("专长晋阶" if up else "专长跌落"))
+                    ev.append(self._npc("灵根晋阶" if up else "灵根跌落"))
                     st["grade"] = g
         return ev
 
     def roots_meet(self, gate):
-        """某晋升考核线的专长要求是否满足：(是否满足, 说明文字)"""
+        """某渡劫线的灵根要求是否满足：(是否满足, 说明文字)"""
         req = self.rules.gate_roots(gate)
         rs = [r for r in self.roots() if r["on"]]
         parts, ok = [], True
         if "激活" in req:
             n = len(rs)
             ok &= n >= req["激活"]
-            parts.append(f"已养成 {n}/{req['激活']}")
+            parts.append(f"已觉醒 {n}/{req['激活']}")
         for tier in range(4):
             if tier in req:
                 n = sum(1 for r in rs if r["tier"] >= tier)
@@ -699,9 +710,9 @@ class Game:
                 parts.append(f"{self.th['tiers'][tier]}及以上 {n}/{req[tier]}")
         return ok, "，".join(parts) or "无要求"
 
-    # ================================================================ 晋升考核
-    def contests(self, kind="考核"):
-        return [b for b in self.state["boss"] if b.get("kind", "考核") == kind]
+    # ================================================================ 渡劫
+    def contests(self, kind="大比"):
+        return [b for b in self.state["boss"] if b.get("kind", "大比") == kind]
 
     def tribulation_status(self):
         g = self.pending_gate()
@@ -719,21 +730,21 @@ class Game:
             {"name": self.T("boss"), "ok": len(last2) == 2 and min(last2) >= g,
              "text": ("最近两次：" + "、".join(str(x) for x in last2)) if last2 else "还没有记录", "need": f"两次都 ≥ {g}"},
             {"name": self.T("root"), "ok": roots_ok, "text": roots_txt},
-            {"name": self.T("dao"), "ok": dao >= r.num("晋升官声"), "text": f"{dao}（需 ≥ {r.num('晋升官声')}）"},
-            {"name": "冷却与补救", "ok": (not cool or cool <= self.t) and not heal_left,
-             "text": ("完好" if not cool or cool <= self.t else f"受损，{cool} 后可再晋升考核")
+            {"name": self.T("dao"), "ok": dao >= r.num("渡劫道心"), "text": f"{dao}（需 ≥ {r.num('渡劫道心')}）"},
+            {"name": "道基", "ok": (not cool or cool <= self.t) and not heal_left,
+             "text": ("完好" if not cool or cool <= self.t else f"受损，{cool} 后可再渡劫")
              + (f"；还需{self.T('heal')} {len(heal_left)} 项" if heal_left else "")},
         ]
         idx = self.gates().index(g)
-        counts = self.rules.nums("晋升关数")
+        counts = self.rules.nums("天劫雷数")
         n = int(counts[min(idx, len(counts) - 1)])
         return {"gate": g, "realm": themes.realm_of_gate(self.theme, g), "thunders": n,
                 "ready": all(c["ok"] for c in conds), "conds": conds,
-                "pill": self.th["gate_items"].get(g, "推荐函"),
+                "pill": self.th["gate_items"].get(g, "突破丹"),
                 "pills": self.state["bag"].get(self.th["gate_items"].get(g, ""), 0)}
 
     def weakest_board(self, candidates):
-        """正确率最低的题型（终审关 / 整改榜用）"""
+        """正确率最低的板块（紫霄神雷 / 心魔榜用）"""
         scored = [(self.accuracy(b)["rate"] if self.accuracy(b) else 1.0, b) for b in candidates]
         return min(scored)[1] if scored else None
 
@@ -747,13 +758,13 @@ class Game:
         return qs
 
     def build_gauntlet(self, kind, board=None, gate=None, ai_ok=True):
-        """晋升考核（kind="tribulation"）或加班补课（kind="alchemy"）的关卡列表：[{kind: recite|wrong|apply, target, board, label}]"""
+        """渡劫（kind="tribulation"）或炼丹（kind="alchemy"）的关卡列表：[{kind: recite|wrong|apply, target, board, label}]"""
         rng = self.rng
         if kind == "alchemy":
             items = [it for it in self.final_items(board)]
             known = [it for it in items if self.item(it["id"])["level"] >= 1] or items
             wrongs = sorted(self._pool_wrong([board]))
-            n = int(self.rules.num("补课题数"))
+            n = int(self.rules.num("炼丹题数"))
             steps = []
             for k in range(n):
                 use_wrong = (k % 2 == 1 and wrongs) or not known
@@ -764,7 +775,7 @@ class Game:
                     it = rng.choice(known)
                     steps.append({"kind": "recite", "target": it["id"], "board": board})
             return steps
-        # 晋升考核
+        # 渡劫
         st = self.tribulation_status()
         n = st["thunders"] if st else 3
         items = [it for it in self.all_items() if self.item(it["id"])["level"] >= 1]
@@ -793,7 +804,7 @@ class Game:
             else:
                 it = rng.choice(deep)
                 steps.append({"kind": "apply", "target": it["id"], "board": it["id"].split("::")[0], "label": names["apply"]})
-        # 终审关：最弱专长的整改
+        # 紫霄神雷：最弱灵根的心魔
         wb = self.weakest_board(roots_on)
         final = [x for x in self._pool_wrong([wb]) if x[2] not in {s["target"] for s in steps}] if wb else []
         if final:
@@ -818,26 +829,26 @@ class Game:
             before = self.realm_info()
             if gate not in self.state["gates"]:
                 self.state["gates"].append(gate)
-            self.state["claimed"] = max(self.claimed(), gate)          # 晋升考核本身就是突破大职级的仪式
+            self.state["claimed"] = max(self.claimed(), gate)          # 渡劫本身就是突破大境界的仪式
             tr.update(cooldown=None, heal=[])
-            ev = self._award(self.rules.xp("晋升成功"), "tribulation", note=f"{self.T('tribulation')}成功，踏入{realm}", bonus=False)
+            ev = self._award(self.rules.xp("渡劫成功"), "tribulation", note=f"{self.T('tribulation')}成功，踏入{realm}", bonus=False)
             after = self.realm_info()
             if after["score"] > before["score"]:
                 ev.append({"kind": "realm", "name": after["name"], "major": True, "score": after["score"], "tribulation": True,
                            "big_name": after["big_name"], "next": after["next"], "target": after["target"], "xp": self.state["xp"]})
-            ev.append(self._npc("晋升成功"))
+            ev.append(self._npc("渡劫成功"))
             return ev
-        tr["cooldown"] = (self.today + dt.timedelta(days=int(self.rules.num("晋升冷却天数")))).isoformat()
+        tr["cooldown"] = (self.today + dt.timedelta(days=int(self.rules.num("渡劫冷却天数")))).isoformat()
         tr["heal"] = [dict(failed_step, done=False)] if failed_step else []
         plan = self.state.get("plan")
-        if plan and plan.get("date") == self.t:  # 补救马上出现在今日功课里
+        if plan and plan.get("date") == self.t:  # 疗伤马上出现在今日功课里
             have = {t["id"] for t in plan["tasks"]}
             plan["tasks"] = [t for t in self._heal_tasks() if t["id"] not in have] + plan["tasks"]
         self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t,
                                      "type": "tribulation", "board": "", "item": "", "ok": False, "xp": 0,
-                                     "note": f"{realm}{self.T('tribulation')}失败，进入冷却"})
-        return [{"kind": "info", "msg": f"未通过：{tr['cooldown']} 后才能再次{self.T('tribulation')}，先完成{self.T('heal')}"},
-                self._npc("晋升失败")]
+                                     "note": f"{realm}{self.T('tribulation')}失败，道基受损"})
+        return [{"kind": "info", "msg": f"道基受损：{tr['cooldown']} 后才能再次{self.T('tribulation')}，先完成{self.T('heal')}"},
+                self._npc("渡劫失败")]
 
     def _heal_progress(self, kind, target, ok):
         if not ok:
@@ -861,7 +872,7 @@ class Game:
         return None
 
     def housekeeping(self):
-        """检查通关、专长、补卡券、周例会、下乡调研到期，记录进度快照。每次读取面板和提交结果后调用。"""
+        """检查通关、灵根、护心丹、周常、闭关到期，记录进度快照。每次读取面板和提交结果后调用。"""
         ev = self._backfill_study_xp() + self._roots_housekeeping()
         changed = True
         while changed:
@@ -895,7 +906,7 @@ class Game:
                 st["lap_check"] = True
         return ev
 
-    # ================================================================ 政绩
+    # ================================================================ 修为
     def _award(self, base, typ, board="", item="", ok=True, note="", bonus=True):
         before = self.realm_info()
         mult = 1.0
@@ -909,28 +920,28 @@ class Game:
         ev = [{"kind": "xp", "v": gain, "msg": note}] if gain else []
         if typ in TRAIN_TYPES:
             ev += self._qi_check(ok)
-            if ok and typ in ("wrong", "feynman", "apply", "grade") and self.rng.random() < self.rules.num("点拨概率"):
-                extra = int(round(gain * self.rules.num("点拨倍数")))
+            if ok and typ in ("wrong", "feynman", "apply", "grade") and self.rng.random() < self.rules.num("顿悟概率"):
+                extra = int(round(gain * self.rules.num("顿悟倍数")))
                 if extra:
                     self.state["xp"] += extra
                     self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t,
                                                  "type": "epiphany", "board": board, "item": item, "ok": True,
                                                  "xp": extra, "note": f"{self.T('epiphany')}！"})
                     ev.append({"kind": "xp", "v": extra, "msg": f"{self.T('epiphany')}！"})
-                    ev.append(self._npc("领导点拨"))
+                    ev.append(self._npc("顿悟"))
         after = self.realm_info()
-        ev += self.ready_event(before)                    # 政绩圆满不自动升：提醒自己去点突破
+        ev += self.ready_event(before)                    # 修为圆满不自动升：提醒自己去点突破
         if after["bottleneck"] and not before["bottleneck"]:
             ev.append(self._npc("瓶颈"))
         return ev
 
-    # ================================================================ 过劳预警 / 下乡调研
+    # ================================================================ 走火入魔 / 闭关
     def _rest(self, minutes, why):
         self.state["rest_until"] = time.time() + minutes * 60
-        return [{"kind": "info", "msg": f"{self.T('qi')}预警：{why}，休息 {int(minutes)} 分钟后再办理"}, self._npc("过劳预警")]
+        return [{"kind": "info", "msg": f"{self.T('qi')}预警：{why}，调息 {int(minutes)} 分钟后再修炼"}, self._npc("走火入魔")]
 
     def resting(self):
-        """还需休息的分钟数（0 表示可以办理）"""
+        """还需调息的分钟数（0 表示可以修炼）"""
         left = (self.state.get("rest_until") or 0) - time.time()
         return max(0, int(math.ceil(left / 60)))
 
@@ -939,15 +950,15 @@ class Game:
             self.state["fail_streak"] = 0
             return []
         self.state["fail_streak"] = self.state.get("fail_streak", 0) + 1
-        if self.state["fail_streak"] >= self.rules.num("过劳预警连错"):
+        if self.state["fail_streak"] >= self.rules.num("走火入魔连错"):
             self.state["fail_streak"] = 0
-            return self._rest(self.rules.num("过劳休息分钟"), f"连续失败 {int(self.rules.num('过劳预警连错'))} 次")
+            return self._rest(self.rules.num("走火调息分钟"), f"连续失败 {int(self.rules.num('走火入魔连错'))} 次")
         return []
 
     def _retreat_bonus(self, board):
         r = self.state.get("retreat")
         if r and board and r["board"] == board and time.time() < r["end"]:
-            return self.rules.num("调研加成")
+            return self.rules.num("闭关加成")
         return 0.0
 
     def start_retreat(self, board, minutes):
@@ -957,7 +968,7 @@ class Game:
         now = time.time()
         self.state["retreat"] = {"board": board, "start": now, "end": now + minutes * 60, "minutes": minutes,
                                  "xp0": self.state["xp"], "d": self.t}
-        return True, f"开始{self.T('retreat')}：{board} {minutes} 分钟，期间该题型{self.T('xp')} +{self.rules.num('调研加成'):.0%}"
+        return True, f"开始{self.T('retreat')}：{board} {minutes} 分钟，期间该板块{self.T('xp')} +{self.rules.num('闭关加成'):.0%}"
 
     def end_retreat(self):
         r = self.state.get("retreat")
@@ -969,7 +980,7 @@ class Game:
         self.state["events"].append({"t": dt.datetime.now().isoformat(timespec="seconds"), "d": self.t,
                                      "type": "retreat", "board": r["board"], "item": "", "ok": True, "xp": 0,
                                      "note": f"{self.T('retreat_end')}：{r['board']} {mins} 分钟，{self.T('xp')} +{gained}"})
-        e = self._npc("调研结束")
+        e = self._npc("出关")
         e["extra"] = f"刚结束 {mins} 分钟的{self.T('retreat')}（{r['board']}），期间{self.T('xp')} +{gained}"
         return [{"kind": "info", "msg": f"{self.T('retreat_end')}：{r['board']} {mins} 分钟，{self.T('xp')} +{gained}"}, e]
 
@@ -977,32 +988,32 @@ class Game:
         r = self.state.get("retreat")
         return self.end_retreat() if r and time.time() >= r["end"] else []
 
-    # ================================================================ 补卡券 / 周例会 / 文件袋
+    # ================================================================ 护心丹 / 周常 / 储物袋
     def bag_add(self, name, n=1):
         self.state["bag"][name] = self.state["bag"].get(name, 0) + n
 
     def heart_pill_name(self):
-        return "补卡券"
+        return "护心丹" if self.theme == "修仙" else "守护护符"
 
     def _heart_pill(self):
         ev = []
         y = self.today - dt.timedelta(days=1)
         yy = y - dt.timedelta(days=1)
-        name = "补卡券"  # 存档里统一叫补卡券，显示时按风格换名
+        name = "护心丹"  # 存档里统一叫护心丹，显示时按风格换名
         if (y >= D(self.state["created"]) and yy >= D(self.state["created"]) and not self.qualifies(y)
                 and self.qualifies(yy) and self.state["bag"].get(name, 0) > 0):
             self.state["bag"][name] -= 1
             self.state["protected"].append(y.isoformat())
-            ev.append({"kind": "info", "msg": f"昨天断了办理，自动服下{self.heart_pill_name()}，打卡不断"})
-            ev.append(self._npc("补卡券"))
+            ev.append({"kind": "info", "msg": f"昨天断了修炼，自动服下{self.heart_pill_name()}，打卡不断"})
+            ev.append(self._npc("护心丹"))
         run = self.streak()[0]
-        n = int(self.rules.num("补卡券连续天数"))
+        n = int(self.rules.num("护心丹连续天数"))
         start = (self.today - dt.timedelta(days=max(0, run - 1))).isoformat()
         key = f"{start}:{run // n}"
         if run >= n and key not in self.state["hx_awards"]:
             self.state["hx_awards"].append(key)
             self.bag_add(name)
-            ev.append({"kind": "info", "msg": f"连续办理 {run} 天，获得一颗{self.heart_pill_name()}"})
+            ev.append({"kind": "info", "msg": f"连续修炼 {run} 天，获得一颗{self.heart_pill_name()}"})
         return ev
 
     def week_key(self):
@@ -1010,22 +1021,22 @@ class Game:
         return f"{y}-W{w:02d}"
 
     def weekly(self):
-        """本周周例会：[{key, name, target, progress, done}]"""
+        """本周宗门周常：[{key, name, target, progress, done}]"""
         monday = self.today - dt.timedelta(days=self.today.weekday())
         days = {(monday + dt.timedelta(days=k)).isoformat() for k in range(7)}
         evs = [e for e in self.state["events"] if e["d"] in days and e.get("ok")]
         prog = {
-            "整改销号": sum(1 for e in evs if e["type"] == "wrong"),
-            "汇报要点": sum(1 for e in evs if e["type"] in ("recite", "review", "speedrun")),
-            "向领导汇报": sum(1 for e in evs if e["type"] == "feynman"),
-            "办理分钟": int(sum(self.minutes(d) for d in days)),
-            "年度考核": sum(1 for b in self.contests() if b["d"] in days),
+            "斩心魔": sum(1 for e in evs if e["type"] == "wrong"),
+            "背诵口诀": sum(1 for e in evs if e["type"] in ("recite", "review", "speedrun")),
+            "论道": sum(1 for e in evs if e["type"] == "feynman"),
+            "修炼分钟": int(sum(self.minutes(d) for d in days)),
+            "宗门大比": sum(1 for b in self.contests() if b["d"] in days),
         }
-        label = {"整改销号": self.T("kill"), "汇报要点": self.T("recite"), "向领导汇报": self.T("feynman"),
-                 "办理分钟": "学时分钟（办理 + %s）" % self.T("lecture"), "年度考核": self.T("boss")}
+        label = {"斩心魔": self.T("kill"), "背诵口诀": self.T("recite"), "论道": self.T("feynman"),
+                 "修炼分钟": "功行分钟（修炼 + %s）" % self.T("lecture"), "宗门大比": self.T("boss")}
         out = []
-        for k in ("整改销号", "汇报要点", "向领导汇报", "办理分钟", "年度考核"):
-            tgt = int(self.rules.num("周例会." + k))
+        for k in ("斩心魔", "背诵口诀", "论道", "修炼分钟", "宗门大比"):
+            tgt = int(self.rules.num("周常." + k))
             if tgt > 0:
                 out.append({"key": k, "name": label[k], "target": tgt, "progress": min(prog[k], tgt),
                             "done": prog[k] >= tgt})
@@ -1039,12 +1050,12 @@ class Game:
         for q in qs:
             if q["done"] and q["key"] not in claimed:
                 claimed.append(q["key"])
-                ev += self._award(self.rules.xp("周例会"), "weekly", note=f"{self.T('weekly')}完成：{q['name']}", bonus=False)
+                ev += self._award(self.rules.xp("周常"), "weekly", note=f"{self.T('weekly')}完成：{q['name']}", bonus=False)
         if qs and all(q["done"] for q in qs) and "all" not in claimed:
             claimed.append("all")
-            self.bag_add("补卡券")
+            self.bag_add("护心丹")
             ev.append({"kind": "info", "msg": f"本周{self.T('weekly')}全部完成，获得一颗{self.heart_pill_name()}"})
-            ev.append(self._npc("周例会完成"))
+            ev.append(self._npc("周常完成"))
         return ev
 
     def bag_view(self):
@@ -1052,15 +1063,15 @@ class Game:
         for name, n in self.state["bag"].items():
             if n <= 0:
                 continue
-            shown = self.heart_pill_name() if name == "补卡券" else name
-            desc = ("断修一天时自动服下，保住连续办理" if name == "补卡券" else
-                    f"{self.T('tribulation')}时抵挡一道失败的关卡")
+            shown = self.heart_pill_name() if name == "护心丹" else name
+            desc = ("断修一天时自动服下，保住连续修炼" if name == "护心丹" else
+                    f"{self.T('tribulation')}时抵挡一道失败的天雷")
             items.append({"name": shown, "count": n, "desc": desc})
         return items
 
     # ================================================================ 训练结果
     def on_recite(self, iid, ok, mode="recite"):
-        """汇报要点结果。mode: recite 办理 / review 复核 / speedrun 新周天重温 / trial 晋升考核加班补课（不改掌握度）"""
+        """背诵口诀结果。mode: recite 修炼 / review 温养 / speedrun 新周天重温 / trial 渡劫炼丹（不改掌握度）"""
         st = self.item(iid)
         board, name = iid.split("::", 1)
         st["last"] = self.t
@@ -1076,7 +1087,7 @@ class Game:
                 else:
                     iv = self.rules.nums("复查间隔天数")
                     st["stage"] = min(st["stage"] + 1, len(iv) - 1)
-                    stretch = 1 + self.root_grade(board) * self.rules.num("专长复查间隔加成") if self.root_bonus(board) else 1
+                    stretch = 1 + self.root_grade(board) * self.rules.num("灵根复查间隔加成") if self.root_bonus(board) else 1
                     st["next"] = (self.today + dt.timedelta(days=int(round(iv[st["stage"]] * stretch)))).isoformat()
                 ev += self._award(self.rules.xp("复查通过"), mode, board, iid, True, f"{self.label(mode)}成功「{name}」")
             else:
@@ -1155,7 +1166,7 @@ class Game:
         return ev + (self._l3_progress(iid, ok) if progress else [])
 
     def on_wrong(self, key, board, ok, iid=""):
-        """整改（错题）结果。iid：AI 判断这题对应的一重业务手册（可为空），斩掉计入该重的实操进度"""
+        """心魔（错题）结果。iid：AI 判断这题对应的一重功法（可为空），斩掉计入该重的试剑进度"""
         w = self.state["wrong"].setdefault(key, {"status": "new", "streak": 0, "tries": 0, "due": None})
         redo = w["status"] == "redo"
         w["tries"] += 1
@@ -1187,16 +1198,16 @@ class Game:
     def on_alchemy(self, board, n_ok, n_total, xp_gained):
         rate = n_ok / n_total if n_total else 0
         grade = 2 if rate >= 0.8 else (1 if rate >= 0.5 else 0)
-        pct = self.rules.nums("补课加成")
+        pct = self.rules.nums("丹药加成")
         bonus_pct = pct[min(grade, len(pct) - 1)]
         pname = themes.BOARD_PILLS.get(self.theme, {}).get(board, board + self.T("pill"))
         gname = self.th["pill_grades"][grade]
         self.state["pills"].append({"d": self.t, "board": board, "name": pname, "grade": gname, "rate": round(rate, 2)})
         ev = [{"kind": "info", "msg": f"{self.T('alchemy')}完成：{gname}{pname}（成功 {n_ok}/{n_total}）"}]
         ev += self._award(max(1, int(round(xp_gained * bonus_pct))), "pill", board,
-                          note=f"领取{gname}{pname}（+{bonus_pct:.0%}）", bonus=False)
-        e = self._npc("补课完成")
-        e["extra"] = f"刚完成加班补课，领取{gname}{pname}（{board}，成功 {n_ok}/{n_total}）"
+                          note=f"服下{gname}{pname}（+{bonus_pct:.0%}）", bonus=False)
+        e = self._npc("成丹")
+        e["extra"] = f"刚炼成并服下{gname}{pname}（{board}，成功 {n_ok}/{n_total}）"
         ev.append(e)
         return ev
 
@@ -1210,29 +1221,29 @@ class Game:
         self.state["leave"].append(self.t)
         return True, self.say("请假")
 
-    def add_boss(self, name, score, kind="考核"):
-        """年度考核（模考）/ 录用大考（国考）成绩"""
+    def add_boss(self, name, score, kind="大比"):
+        """宗门大比（模考）/ 飞升大典（国考）成绩"""
         self.state["boss"].append({"d": self.t, "name": name, "score": score, "kind": kind})
-        if kind == "上岸":
-            return self._award(self.rules.xp("上岸"), "ascend", note=f"{self.T('ascend')}「{name}」{score} 分", bonus=False)
+        if kind == "飞升":
+            return self._award(self.rules.xp("飞升"), "ascend", note=f"{self.T('ascend')}「{name}」{score} 分", bonus=False)
         ev = self._award(self.rules.xp("模考录分"), "boss", note=f"{self.T('boss')}「{name}」{score} 分", bonus=False)
-        e = self._npc("年度考核")
+        e = self._npc("宗门大比")
         e["extra"] = f"刚记录了{self.T('boss')}成绩：{name} {score} 分"
         ev.append(e)
-        # 考核认定：最近两次中较低的那个高于当前综合评价 → 政绩直接补到这个分数
+        # 大比悟道：最近两次中较低的那个高于当前道行 → 修为直接补到这个分数
         last2 = [b["score"] for b in self.contests()[-2:]]
         if len(last2) == 2:
             m = min(min(last2), self.rules.num("最高分数"))
             if m > self.raw_score():
                 gain = int(math.ceil(self.xp_at(m) - self.state["xp"]))
                 if gain > 0:
-                    ev += self._award(gain, "insight", note=f"{self.T('boss')}认定：{self.T('xp')}暴涨至 {m} 分", bonus=False)
-        # 推荐函：成绩达到下一道晋升考核线，奖励对应的推荐函（最多存 3 颗）
+                    ev += self._award(gain, "insight", note=f"{self.T('boss')}悟道：{self.T('xp')}暴涨至 {m} 分", bonus=False)
+        # 突破丹：成绩达到下一道渡劫线，奖励对应的突破丹（最多存 3 颗）
         nxt = next((g for g in self.gates() if g not in self.state["gates"]), None)
         item = self.th["gate_items"].get(nxt) if nxt else None
         if item and score >= nxt and self.state["bag"].get(item, 0) < 3:
             self.bag_add(item)
-            ev.append({"kind": "info", "msg": f"{self.T('boss')}成绩达到 {nxt} 分，获得一颗{item}（{self.T('tribulation')}时可抵挡一道关卡）"})
+            ev.append({"kind": "info", "msg": f"{self.T('boss')}成绩达到 {nxt} 分，获得一颗{item}（{self.T('tribulation')}时可抵挡一道天雷）"})
         return ev
 
     def add_practice(self, board, total, correct, minutes, source="", note="", day=None):
@@ -1257,7 +1268,7 @@ class Game:
         return ev
 
     def delete_practice(self, pid):
-        """删掉记错的一笔自练（扣回分钟和政绩；日志文件里的那段不动，自己在 Obsidian 里删）"""
+        """删掉记错的一笔自练（扣回分钟和修为；日志文件里的那段不动，自己在 Obsidian 里删）"""
         ps = self.state["practice"]
         x = next((x for x in ps if x.get("id") == pid), None)
         if not x:
@@ -1269,7 +1280,7 @@ class Game:
                                      "board": x["board"], "item": "", "ok": True, "xp": -x.get("xp", 0),
                                      "note": "删除%s记录 %s %d/%d" % (self.T("practice"), x["board"], x["correct"], x["total"])})
 
-    PRACTICE_DIR, SELFSTUDY_DIR = "自练录", "静修录"
+    PRACTICE_DIR, SELFSTUDY_DIR = "演武录", "静修录"
 
     def _log_folder(self, name):
         folder = self.paths.train / name
@@ -1283,7 +1294,7 @@ class Game:
         return folder
 
     def _practice_log(self, rec):
-        """自练（自练做题）日志写进库里：训练/自练录/年-月.md，一次一节，Obsidian 里能直接看"""
+        """演武（自练做题）日志写进库里：训练/演武录/年-月.md，一次一节，Obsidian 里能直接看"""
         if not self.paths.train:
             return
         folder = self._log_folder(self.PRACTICE_DIR)
@@ -1297,21 +1308,21 @@ class Game:
         if rec.get("note"):
             text += "\n" + rec["note"].strip() + "\n"
         if not f.exists():
-            text = f"# {self.T('practice_title')} · {rec['d'][:7]}\n\n纸质资料、其他 App 上的自练做题记录（办公室里录入）。\n" + text
+            text = f"# {self.T('practice_title')} · {rec['d'][:7]}\n\n纸质资料、其他 App 上的自练做题记录（洞府里录入）。\n" + text
         with f.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
 
-    # ---------------------------------------------------------------- 静修：自己复习（背要点、看笔记、整理错题本……）
+    # ---------------------------------------------------------------- 静修：自己复习（背口诀、看笔记、整理错题本……）
     def add_selfstudy(self, board, minutes, topic="", note="", day=None):
         minutes = int(minutes)
-        cap = int(self.rules.num("听课单次上限") or 600)
+        cap = int(self.rules.num("听道单次上限") or 600)
         if not 1 <= minutes <= cap:
             raise ValueError("静修分钟要在 1–%d 之间" % cap)
         d = D(day) if day else self.today
         if not (self.today - dt.timedelta(days=7) <= d <= self.today):
             raise ValueError("只能补记最近 7 天的静修")
         ds = d.isoformat()
-        board = board if board in self.root_boards() else ""
+        board = board if board in self.all_boards() else ""
         rec = {"id": "%s-%d" % (ds, int(time.time() * 1000) % 10 ** 9), "d": ds, "board": board,
                "minutes": minutes, "topic": str(topic)[:60], "note": str(note)[:2000]}
         goal, before = self.rules.num("每日目标分钟"), self.minutes(ds)
@@ -1348,7 +1359,7 @@ class Game:
         if rec.get("note"):
             text += "\n" + rec["note"].strip() + "\n"
         if not f.exists():
-            text = f"# {self.T('selfstudy_title')} · {rec['d'][:7]}\n\n自己复习（背要点、看笔记、整理错题本……）的记录（办公室里录入）。\n" + text
+            text = f"# {self.T('selfstudy_title')} · {rec['d'][:7]}\n\n自己复习（背口诀、看笔记、整理错题本……）的记录（洞府里录入）。\n" + text
         with f.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
 
@@ -1358,13 +1369,13 @@ class Game:
                       key=lambda x: (x["d"], x.get("id", "")), reverse=True)
 
     def practice_list(self, days=7):
-        """近 7 天的自练（新的在前），首页自练 · 历练记的记录"""
+        """近 7 天的自练（新的在前），首页演武 · 历练记的记录"""
         since = (self.today - dt.timedelta(days=days - 1)).isoformat()
         return sorted((x for x in self.state["practice"] if x["d"] >= since), key=lambda x: (x["d"], x.get("id", "")), reverse=True)
 
     def add_seconds(self, sec, kind="review", board=""):
-        """网页心跳：累加今天的办理时间；跨过达标 / 超额线时导师说话；连续办理太久触发过劳预警。
-        kind：practice（做题）/ review（复习），给首页的学时分类分类用"""
+        """网页心跳：累加今天的修炼时间；跨过达标 / 超额线时导师说话；连续修炼太久触发走火入魔。
+        kind：practice（做题）/ review（复习），给首页的三才时辰分类用"""
         before = self.minutes(self.t)
         self.state["seconds"][self.t] = self.state["seconds"].get(self.t, 0) + sec
         if kind == "practice":
@@ -1386,10 +1397,10 @@ class Game:
         if not run or now - run.get("last", 0) > 20 * 60:
             run = {"start": now, "last": now}
         run["last"] = now
-        limit = self.rules.num("过劳预警分钟") * 60
+        limit = self.rules.num("走火入魔分钟") * 60
         if now - run["start"] >= limit:
-            rest = self.rules.num("过劳休息分钟")
-            ev += self._rest(rest, f"已连续办理 {int(limit / 60)} 分钟")
+            rest = self.rules.num("走火调息分钟")
+            ev += self._rest(rest, f"已连续修炼 {int(limit / 60)} 分钟")
             run = {"start": now + rest * 60, "last": now + rest * 60}
         self.state["run"] = run
         return ev + self._retreat_check()
@@ -1402,13 +1413,13 @@ class Game:
         info = self.realm_info()
         ide = self.ideal() if scene.startswith("开场") else {"diff_days": 0}
         return self.lines.pick(
-            scene, 称呼=self.persona["称呼"], 导师名=self.persona["导师名"], 职级=info["name"],
+            scene, 称呼=self.persona["称呼"], 导师名=self.persona["导师名"], 境界=info["name"],
             分数=info["score"], 落后天数=max(0, round(ide["diff_days"])), 领先天数=max(0, round(-ide["diff_days"])),
             缺席天数=self.days_absent(), 连续天数=self.streak()[0], 今日分钟=int(self.minutes(self.t)),
             目标分钟=self.rules.num("每日目标分钟"))
 
     def tutor_context(self):
-        """给 AI 导师看的“同志现状”。导师开场、突破、聊天时都带上它，让她说话有依据。"""
+        """给 AI 导师看的“弟子现状”。导师开场、突破、聊天时都带上它，让她说话有依据。"""
         T = self.T
         info = self.realm_info()
         ide = self.ideal()
@@ -1424,18 +1435,18 @@ class Game:
         weak = sorted([r for r in self.roots() if r["acc"] is not None], key=lambda r: r["acc"])[:3]
         trib = self.tribulation_status()
         lines = [
-            f"同志：{self.persona['称呼']}（{self.persona['ID']}），{T('realm')}「{info['name']}」，{T('score')} {info['score']} 分"
+            f"弟子：{self.persona['称呼']}（{self.persona['ID']}），{T('realm')}「{info['name']}」，{T('score')} {info['score']} 分"
             f"（目标 {info['target']} 分），累计{T('xp')} {self.state['xp']}。",
             (f"正处于瓶颈：要{T('tribulation')}才能进入{info['gate_realm']}；条件："
              + "；".join(f"{c['name']}{'✓' if c['ok'] else '✗'}（{c['text']}）" for c in trib["conds"])) if trib else "",
             f"{T('ideal')}：{'落后' if ide['diff_days'] > 0 else '领先'} {abs(ide['diff_days'])} 天（目标日 {ide['target']}）。",
             f"{T('streak')} {run} 天，加成 {bonus:.0%}；{T('dao')} {self.dao()}；今天之前已缺席 {self.days_absent()} 天。",
-            f"今天已办理 {int(self.minutes(self.t))} 分钟（目标 {self.rules.num('每日目标分钟')}），昨天 {int(self.minutes(yday))} 分钟。",
+            f"今天已修炼 {int(self.minutes(self.t))} 分钟（目标 {self.rules.num('每日目标分钟')}），昨天 {int(self.minutes(yday))} 分钟。",
             f"{T('tasks')}完成 {sum(1 for t in plan if t['done'])}/{len(plan)}。",
             f"第 {self.state['lap']} 个{T('lap')}、第 {(cur or 0) + 1} {T('batch')}："
             f"{'、'.join(self.batch_boards(cur)) if cur is not None else '全部打通'}。",
-            (f"已养成{T('root')}：" + "、".join(f"{r['name']}（{r['grade_name']}）" for r in roots)) if roots else f"还没有养成任何{T('root')}。",
-            ("正确率最低的题型：" + "、".join(f"{r['board']} {r['acc']:.0%}" for r in weak)) if weak else "",
+            (f"已觉醒{T('root')}：" + "、".join(f"{r['name']}（{r['grade_name']}）" for r in roots)) if roots else f"还没有觉醒任何{T('root')}。",
+            ("正确率最低的板块：" + "、".join(f"{r['board']} {r['acc']:.0%}" for r in weak)) if weak else "",
             f"{T('redo')}的{T('wrong')} {redo} 只。",
             ("最近失败：" + "；".join(fails)) if fails else "",
             ("最近成功：" + "；".join(wins)) if wins else "",
@@ -1461,13 +1472,13 @@ class Game:
         t = {"id": f"{typ}:{target}", "type": typ, "board": board, "title": title, "target": target,
              "minutes": self.rules.minutes({"review": "复查", "speedrun": "复查", "recite": "默写",
                                             "feynman": "费曼", "example": "举例", "apply": "应用", "wrong": "错题",
-                                            "skeleton": "骨架", "tribulation": "晋升考核"}.get(typ, typ)),
+                                            "skeleton": "骨架", "tribulation": "渡劫"}.get(typ, typ)),
              "done": False, "ok": None, "optional": optional}
         if extra:
             t.update(extra)
         return t
 
-    # 办理殿改成便笺（记忆卡片）后，背诵 / 向领导汇报 / 化法为镜 / 实操 / 复核 / 编撰业务手册不再进主任荐课
+    # 修炼殿改成玉简（记忆卡片）后，背诵 / 论道 / 化法为镜 / 试剑 / 温养 / 编撰功法不再进师尊荐课
     OLD_TASKS = ('recite', 'review', 'speedrun', 'feynman', 'example', 'apply', 'skeleton')
 
     def plan(self, force=False):
@@ -1477,29 +1488,32 @@ class Game:
             p["tasks"] = [t for t in p["tasks"] if t.get("done") or t["type"] not in self.OLD_TASKS or t["target"] in heal]
             self._merge_wrong(p["tasks"])
             self._add_cards_task(p["tasks"])
+            self._add_bank_tasks(p["tasks"])
             return p
         tasks, used = [], set()
         cur = self.current_batch()
         cur_boards = self.batch_boards(cur) if cur is not None else []
 
-        # 1) 晋升考核（条件全部满足时）
+        # 1) 渡劫（条件全部满足时）
         tr = self.tribulation_status()
         if tr and tr["ready"]:
-            tasks.append(self._task("tribulation", "", f"{self.T('tribulation')}：冲击{tr['realm']}（{tr['thunders']} 道关卡）",
+            tasks.append(self._task("tribulation", "", f"{self.T('tribulation')}：冲击{tr['realm']}（{tr['thunders']} 道天雷）",
                                     str(tr["gate"])))
-        # 1b) 补救
+        # 1b) 疗伤
         for t in self._heal_tasks():
             tasks.append(t)
             used.add(t["target"])
-        # 2) 过便笺：今天到期的便笺
+        # 2) 温简：今天到期的玉简
         self._add_cards_task(tasks)
-        # 3) 整改
+        # 3) 心魔
         tasks += self._plan_wrong(cur, cur_boards, used)
+        # 4) 真题试炼：当前秘境的板块
         self.state["plan"] = {"date": self.t, "tasks": tasks, "boards": cur_boards}
+        self._add_bank_tasks(tasks)
         return self.state["plan"]
 
     def _add_cards_task(self, tasks):
-        """主任荐课里的“过便笺”：今天到期 + 可学的新便笺；没刻过便笺就不出"""
+        """师尊荐课里的“温简”：今天到期 + 可学的新简；没刻过玉简就不出"""
         from . import cards
         try:
             order, counts, _ = cards.queue(self, "")
@@ -1512,10 +1526,40 @@ class Game:
                 return
             t = self._task("cards", "", "", "all")
             tasks.insert(next((i for i, x in enumerate(tasks) if x["type"] not in ("tribulation",) and x not in self._heal_tasks()), len(tasks)), t)
-        t["title"] = ("过便笺 · 待复习 %d · 记忆中 %d · 新便笺 %d" % (counts["review"], counts["learn"], counts["new"])) if total else "过便笺 · 今天的便笺已温完"
+        t["title"] = ("温简 · 待温 %d · 参悟中 %d · 新简 %d" % (counts["review"], counts["learn"], counts["new"])) if total else "温简 · 今天的玉简已温完"
         t["minutes"] = max(1, round((counts["review"] * 10 + counts["learn"] * 10 + counts["new"] * 20) / 60)) if total else 0
         t["done"] = not total
         t["ok"] = True if not total else None
+
+    def _add_bank_tasks(self, tasks):
+        if self.subject == "申论":
+            return          # 申论没有题库实战，作答批改在“办理 → 实操”里自己选题
+        from . import question_bank
+        # 当前秘境的每个板块一项真题试炼（做过今天这组就打勾）；旧日计划也补上
+        data = question_bank.state(self)
+        p = self.state.get("plan") or {}
+        cur = self.current_batch()
+        boards = p.get("boards") if p.get("date") == self.t and p.get("boards") is not None else (self.batch_boards(cur) if cur is not None else [])
+        for b in boards:
+            if any(t['id'] == 'bank:' + b for t in tasks):
+                for t in tasks:
+                    if t['id'] == 'bank:' + b:
+                        t['title'] = '%s · %s' % (self.T('bank'), b)
+                continue
+            qs, errors = question_bank.read(self.paths, b)
+            remaining = [q for q in qs if q['key'] not in data['records']]
+            completed = any(x['date'] == self.t and b in (x['board'], *x.get('boards', ())) and x['mode'] == 'new'
+                            for x in data['groups'])
+            if (errors or not remaining) and b not in data['runs'] and not completed:
+                continue
+            n = min(question_bank.count(self), len(remaining))
+            if b in data['runs']:
+                n = len(data['runs'][b]['questions'])
+            task = self._task('bank', b, '%s · %s（顺序 %s 关）' % (self.T('bank'), b, n), b)
+            task['minutes'] = n * max(0, self.rules.num('分钟.实战每题'))
+            task['done'] = completed
+            task['ok'] = True if completed else None
+            tasks.append(task)
 
     def _heal_tasks(self):
         out = []
@@ -1556,7 +1600,7 @@ class Game:
         self._wrong_title(t)
         return [t]
 
-    # 今日功课和整改录共用的那一项“整改销号”：一天一只任务，按只数计进度
+    # 今日功课和心魔录共用的那一项“斩心魔”：一天一只任务，按只数计进度
     def _wrong_title(self, t):
         n, k = t["quota"], len(t["hits"])
         t["title"] = f"{self.T('kill')} · 今日 {min(k, n)}/{n} 只" + (f"（含{self.T('redo')} {t['redo']}）" if t.get("redo") else "")
@@ -1568,7 +1612,7 @@ class Game:
         return next((t for t in p.get("tasks", []) if t["id"] == DAILY_WRONG), None)
 
     def next_wrong(self, board=""):
-        """下一只该斩的整改 (board, key)：先按今日功课排好的顺序，再到所有题型里挑（到期回炉 > 没交手 > 其余）"""
+        """下一只该斩的心魔 (board, key)：先按今日功课排好的顺序，再到所有板块里挑（到期回炉 > 没交手 > 其余）"""
         t = self.daily_wrong()
         if t and not board:
             for b, key in t["keys"]:
@@ -1580,7 +1624,7 @@ class Game:
         return (pool[0][1], pool[0][2]) if pool else None
 
     def wrong_hit(self, key, ok):
-        """斩过一只（不论从哪进来的）：今日的整改销号任务进度 +1，够数就算完成"""
+        """斩过一只（不论从哪进来的）：今日的斩心魔任务进度 +1，够数就算完成"""
         t = self.daily_wrong()
         if not t or key in t["hits"]:
             return
@@ -1591,7 +1635,7 @@ class Game:
         self._wrong_title(t)
 
     def _merge_wrong(self, tasks):
-        """旧计划里一只整改一项：合成一项（已经斩过的算进度）"""
+        """旧计划里一只心魔一项：合成一项（已经斩过的算进度）"""
         heal = self.T("heal")
         old = [t for t in tasks if t["type"] == "wrong" and t["id"] != DAILY_WRONG and not t["title"].startswith(heal)]
         if not old:
@@ -1618,6 +1662,7 @@ class Game:
 
     # ================================================================ 面板
     def dashboard(self):
+        from . import question_bank
         info = self.realm_info()
         run, bonus = self.streak()
         cur = self.current_batch()
@@ -1645,6 +1690,8 @@ class Game:
         dao = self.dao()
         retreat = self.state.get("retreat")
         return {
+            "tower": question_bank.tower(self) if self.subject == "行测" else None,
+            "subject": self.subject,
             "today": self.t, "theme": {"name": self.theme, "terms": self.th["terms"],
                                        "levels": self.level_names(), "face": self.th["tutor_face"]},
             "realm": info, "xp": self.state["xp"],
@@ -1672,7 +1719,7 @@ class Game:
                         "floor": self.rules.num("保底分钟")},
             "leave": {"used": len([d for d in self.state["leave"] if d.startswith(self.t[:7])]),
                       "total": self.rules.num("每月请假卡"), "today": self.t in self.state["leave"]},
-            "boss": self.contests()[-6:], "boss_all": self.contests()[-24:], "ascend": self.contests("上岸"),
+            "boss": self.contests()[-6:], "boss_all": self.contests()[-24:], "ascend": self.contests("飞升"),
             "pills": self.state["pills"][-5:][::-1],
             "pill_boards": [b for b in self.boards if self.final_items(b) or vault.wrong_questions(self.paths, self.sources(b))],
             "greeting": self.say(scene), "scene": scene,

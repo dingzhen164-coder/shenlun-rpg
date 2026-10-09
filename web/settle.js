@@ -1,14 +1,14 @@
-/* 收功结算：记一笔听课 / 自练，或者在办理里做完一项复习、实战后，弹出一幕结算。
-   人物 = 办公室头像（换了头像这里也跟着换）接一身道袍：听课、复习是悬空打坐，做题是站立；双手结印，
-   周身是学时分类对应颜色的灵光（听课青、做题朱、复习金），脚下法阵缓转，灵气上升；
-   下面两条进度条从之前涨到之后：今日学时（+分钟）和政绩（+政绩）。
+/* 收功结算：记一笔听道 / 自练，或者在修炼里做完一项复习、实战后，弹出一幕结算。
+   人物 = 洞府头像（换了头像这里也跟着换）接一身道袍：听课、复习是悬空打坐，做题是站立；双手结印，
+   周身是三才时辰对应颜色的灵光（听课青、做题朱、复习金），脚下法阵缓转，灵气上升；
+   下面两条进度条从之前涨到之后：今日功行（+分钟）和修为（+修为）。
    用法：const s = SETTLE.snap(); …记录或做完… await refresh(); SETTLE.show({ kind, title, sub, before: s });
    点“收功”、点空白处或按 Esc 关闭。 */
 (function () {
   const KIND = {
-    lecture: { color: "#3f9e8f", glow: "#7fe0cf", pose: "sit", seal: "听", word: "听课完成", cat: "听课" },
-    review: { color: "#c9a227", glow: "#ffe08a", pose: "sit", seal: "复", word: "复核完成", cat: "复习" },
-    practice: { color: "#c2463a", glow: "#ff9a7a", pose: "stand", seal: "办", word: "办理完成", cat: "做题" },
+    lecture: { color: "#3f9e8f", glow: "#7fe0cf", pose: "sit", seal: "闻", word: "闻法圆满", cat: "听课" },
+    review: { color: "#c9a227", glow: "#ffe08a", pose: "sit", seal: "温", word: "温养功成", cat: "复习" },
+    practice: { color: "#c2463a", glow: "#ff9a7a", pose: "stand", seal: "历", word: "历练归来", cat: "做题" },
   };
   const TRIGRAMS = "☰☱☲☳☴☵☶☷";
 
@@ -134,11 +134,11 @@
           <div class="st-title">${esc(title)}</div>
           ${sub ? `<div class="st-sub">${esc(sub)}</div>` : ""}
           ${lines.length ? `<div class="st-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
-          ${meter(`今日学时 <b>${Math.round(after.today)}</b> / ${goal} 分钟`, b.today / goal, after.today / goal, "", dMin ? `+${dMin} 分钟` : "", k.glow)}
-          ${meter(`政绩 · ${esc(after.realm)}`, xpFrom, xpTo, "", dXp ? `+${dXp} 政绩` : "", k.glow)}
+          ${meter(`今日功行 <b>${Math.round(after.today)}</b> / ${goal} 分钟`, b.today / goal, after.today / goal, "", dMin ? `+${dMin} 分钟` : "", k.glow)}
+          ${meter(`修为 · ${esc(after.realm)}`, xpFrom, xpTo, "", dXp ? `+${dXp} 修为` : "", k.glow)}
           ${catGain ? `<div class="st-cat">今日${k.cat} <b>${Math.round(after.ts[kind] || 0)}</b> 分钟（本次 +${catGain}）</div>` : ""}
-          ${leveled ? `<div class="st-up">✦ 职级精进：${esc(b.realm)} → ${esc(after.realm)} ✦</div>` : ""}
-          <button class="primary st-btn">收工</button>
+          ${leveled ? `<div class="st-up">✦ 境界精进：${esc(b.realm)} → ${esc(after.realm)} ✦</div>` : ""}
+          <button class="primary st-btn">收功</button>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -156,7 +156,7 @@
     document.addEventListener("keydown", keyFn);
   }
 
-  // 办理里的会话类型 → 结算种类（和后端 trainer.PRACTICE_TYPES 对应；聊天、编撰业务手册不结算）
+  // 修炼里的会话类型 → 结算种类（和后端 trainer.PRACTICE_TYPES 对应；聊天、编撰功法不结算）
   const PRACTICE = ["bank", "bank_review", "wrong", "apply", "tribulation", "alchemy"];
   const REVIEW = ["teach", "recite", "review", "speedrun", "feynman", "example", "mock_review"];
   function kindOf(type) { return PRACTICE.includes(type) ? "practice" : REVIEW.includes(type) ? "review" : null; }

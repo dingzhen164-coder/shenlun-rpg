@@ -1,7 +1,7 @@
 /* ◎ 专注模式：顶栏「◎」→ 选正计时或番茄钟（25 / 45 / 60 / 90 分钟）→ 藏起顶栏、提醒条、语录和导师的弹窗，只留正在做的题 / 卡 / 笔记；
    电脑浏览器里顺便全屏。顶上一颗小胶囊：剩余（或已用）时间、⏸ 暂停、✕ 退出。
    倒计时到点：轻响一声，问「歇 5 分钟 / 再来一轮 / 退出专注」；歇完再响一声。
-   专注只是“不打扰”，不另外记办理时间（办理时间照旧由做功课 / 过便笺 / 写公务手账的心跳来记）。
+   专注只是“不打扰”，不另外记修炼时间（修炼时间照旧由做功课 / 温简 / 写手札的心跳来记）。
    今天完成了几轮番茄记在这台设备里（胶囊上显示）。Esc 或平板返回键退出。 */
 (function () {
   const root = document.documentElement;
@@ -39,7 +39,7 @@
     const len = (F.rest ? 5 : F.mode) * 60;
     const e = elapsed();
     pill.querySelector(".fc-time").textContent = len ? mmss(len - e) : mmss(e);
-    pill.querySelector(".fc-label").textContent = F.rest ? "休息" : F.mode ? "专注" : "专注 · 正计时";
+    pill.querySelector(".fc-label").textContent = F.rest ? "调息" : F.mode ? "专注" : "专注 · 正计时";
     pill.querySelector(".fc-pause").textContent = F.pausedAt ? "▶" : "⏸";
     pill.querySelector(".fc-pause").title = F.pausedAt ? "继续" : "暂停";
     const n = rounds();
@@ -52,7 +52,7 @@
   function done() {
     clearInterval(F.tick); F.tick = null;
     chime(F.rest ? 1 : 2);
-    if (F.rest) { F.rest = false; ask("休息好了", "再来一轮？"); return; }
+    if (F.rest) { F.rest = false; ask("调息好了", "再来一轮？"); return; }
     addRound();
     ask(`✦ 专注圆满 · ${F.mode} 分钟 ✦`, `今天第 ${rounds()} 轮。站起来走走，喝口水。`, true);
   }
@@ -117,7 +117,7 @@
     const last = +store.get("mode", "25");
     const m = document.getElementById("modal");
     m.innerHTML = `<div class="modal-box fc-choose"><h3>◎ 专注模式</h3>
-      <p class="small muted">藏起顶栏、提醒和导师的弹窗，只留眼前这道题 / 这枚便笺 / 这页公务手账。办理时间照常记。</p>
+      <p class="small muted">藏起顶栏、提醒和导师的弹窗，只留眼前这道题 / 这枚玉简 / 这页手札。修炼时间照常记。</p>
       <div class="fc-modes">${MODES.map(([v, n, h]) => `<a data-m="${v}" class="${v === last ? "on" : ""}"><b>${n}</b><small>${h}</small></a>`).join("")}</div>
       <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="ghost" id="fcCancel">取消</button><button class="primary" id="fcGo">开始专注</button></div></div>`;
     m.classList.remove("hidden");

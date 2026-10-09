@@ -1,13 +1,16 @@
 """
-路径：找 Obsidian 申论库（vault）、训练文件夹、本机设置。
+路径：找 Obsidian 行测库（vault）、训练文件夹、本机设置。
 
-约定（和 obsidian-to-shenlun 项目一致）：
-    <库>/copilot/skills/<skill名>/SKILL.md          题型解题 skill（只读）
-    <库>/FB模考试卷复盘/题型复盘/第N季/NN-题型.md     模考题型复盘（只读）
+约定（和 obsidian-to-xingce 项目一致）：
+    <库>/copilot/skills/<skill名>/SKILL.md          板块解题 skill（只读）
+    <库>/FB模考试卷复盘/板块复盘/第N季/NN-板块.md     模考板块复盘（只读）
     <库>/训练/                                       本程序的数据（规则、骨架、存档……），坚果云同步
-    ~/.shenlun-rpg/settings.json                      本机设置（API key、库路径），不同步、不进仓库
+    ~/.shenlun-rpg/settings.json                     本机设置（API key、库路径），不同步、不进仓库
 
-找库的顺序：环境变量 SHENLUN_VAULT → 本机设置里的 vault → 从程序所在目录往上找。
+两个科目（rpg/subjects.py）各有一个库：行测库、申论库。找库的顺序（按当前科目）：
+    环境变量（行测 XINGCE_VAULT / 申论 SHENLUN_VAULT）→ 本机设置 vaults[科目]（旧版的 vault 键 = 申论库）→
+    （仅申论）从程序所在目录往上找 → 到常见位置里猜。
+首次运行时，本机设置里没有的 API key 等，会从旧的行测程序的设置（~/.xingce-rpg/settings.json）里借用一次。
 """
 import json
 import os
@@ -23,49 +26,80 @@ RES_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR)) if FROZEN else APP_DIR        
 WEB_DIR = RES_DIR / "web"
 DEFAULTS_DIR = RES_DIR / "defaults"                       # 首次运行时复制到 训练/ 的默认配置
 SETTINGS_DIR = Path.home() / ".shenlun-rpg"
+_DEFAULT_SETTINGS_DIR = SETTINGS_DIR
+LEGACY_SETTINGS = Path.home() / ".xingce-rpg" / "settings.json"   # 旧行测程序的设置，只读一次借用
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
 
 SKILLS_REL = Path("copilot") / "skills"
-SEASONS_REL = Path("FB模考试卷复盘") / "题型复盘"
+SEASONS_REL = Path("FB模考试卷复盘") / "板块复盘"
 TRAIN_REL = Path("训练")
 
 
 def load_settings():
-    """本机设置：{"api_key", "base_url", "model", "vault"}，文件不存在就返回空字典"""
+    """本机设置：{"api_key", "base_url", "model", "subject", "vaults", ...}，文件不存在就返回空字典。
+    旧版（1.x）的 "vault" 视为申论库；缺的 AI 设置和行测库从旧行测程序的设置里补（只补缺的，不写回）。"""
     try:
-        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
-        return {}
+        data = {}
+    vaults = dict(data.get("vaults") or {})
+    if data.get("vault") and "申论" not in vaults:
+        vaults["申论"] = data["vault"]
+    try:   # 测试里把 SETTINGS_DIR 指到临时目录时，不去借真实机器上的旧设置
+        old = json.loads(LEGACY_SETTINGS.read_text(encoding="utf-8")) if SETTINGS_DIR == _DEFAULT_SETTINGS_DIR else {}
+    except Exception:
+        old = {}
+    for k in ("api_key", "base_url", "model", "vision_model", "vision_base_url", "vision_api_key"):
+        if not data.get(k) and old.get(k):
+            data[k] = old[k]
+    if old.get("vault") and "行测" not in vaults:
+        vaults["行测"] = old["vault"]
+    data["vaults"] = vaults
+    return data
 
 
 def save_settings(data):
+    data = {k: v for k, v in data.items() if k != "vault"}   # 旧版单库键已并进 vaults
     SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
     tmp = SETTINGS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, SETTINGS_FILE)
 
 
-def looks_like_vault(p: Path) -> bool:
-    return (p / SKILLS_REL).is_dir() or (p / SEASONS_REL).is_dir()
+def looks_like_vault(p: Path, subject=None) -> bool:
+    """像不像这个科目的库。行测库有 FB模考试卷复盘；申论库有 copilot/skills 但没有 FB模考试卷复盘。
+    subject=None 时只要有 skills 或 模考复盘文件夹就算（用户自己选的路径用这个宽松判断）"""
+    has_season, has_skills = (p / SEASONS_REL).is_dir(), (p / SKILLS_REL).is_dir()
+    if subject == "行测":
+        return has_season
+    if subject == "申论":
+        return has_skills and not has_season
+    return has_season or has_skills
 
 
-def find_vault():
-    """返回库根目录（Path）；找不到返回 None，网页会提示用户在“设置”里填写"""
-    env = os.environ.get("SHENLUN_VAULT")
+def find_vault(subject=None):
+    """返回当前科目的库根目录（Path）；找不到返回 None，网页会提示用户在“设置”里填写"""
+    from . import subjects
+    subject = subject if subjects.valid(subject) else subjects.active()
+    env = os.environ.get(subjects.SUBJECTS[subject]["vault_env"])
     if env and looks_like_vault(Path(env).expanduser()):
         return Path(env).expanduser().resolve()
-    s = load_settings().get("vault")
+    s = load_settings().get("vaults", {}).get(subject)
     if s and looks_like_vault(Path(s).expanduser()):
         return Path(s).expanduser().resolve()
-    # 推荐把程序放在 <库>/训练/程序/ 里，这样往上两级就是库
-    for p in [APP_DIR, *APP_DIR.parents]:
-        if looks_like_vault(p):
-            return p
+    if subject == subjects.DEFAULT_SUBJECT:
+        # 推荐把程序放在 <库>/训练/程序/ 里，这样往上两级就是库
+        for p in [APP_DIR, *APP_DIR.parents]:
+            if looks_like_vault(p, subject):
+                return p
     # 程序不在库里（比如 Mac 上把 App 放进了“应用程序”）：到坚果云、桌面、文稿里找一找，找到就记进本机设置
-    v = guess_vault()
+    v = guess_vault(subject=subject)
     if v:
         st = load_settings()
-        st["vault"] = str(v)
+        vs = dict(st.get("vaults") or {})
+        vs[subject] = str(v)
+        st["vaults"] = vs
+        st.pop("vault", None)
         save_settings(st)
     return v
 
@@ -73,8 +107,8 @@ def find_vault():
 SKIP_DIRS = {"Library", "Applications", "node_modules", "AppData", "Pictures", "Music", "Movies", "Videos", "Downloads"}
 
 
-def guess_vault(home=None, limit=6000):
-    """在常见位置（坚果云同步文件夹、桌面、文稿、主目录）往下几层找像申论库的文件夹；只找一个，找不到返回 None"""
+def guess_vault(home=None, limit=6000, subject=None):
+    """在常见位置（坚果云同步文件夹、桌面、文稿、主目录）往下几层找像这个科目的库的文件夹；只找一个，找不到返回 None"""
     home = Path(home) if home else Path.home()
     roots = [(home / n, 4) for n in ("Nutstore Files", "Nutstore", "坚果云", "我的坚果云", "Desktop", "Documents", "桌面", "文稿")]
     roots.append((home, 2))
@@ -88,7 +122,7 @@ def guess_vault(home=None, limit=6000):
                 if seen > limit:
                     return None
                 try:
-                    if looks_like_vault(d):
+                    if looks_like_vault(d, subject):
                         return d.resolve()
                     nxt += sorted(c for c in d.iterdir() if c.is_dir() and not c.name.startswith(".") and c.name not in SKIP_DIRS)
                 except OSError:
@@ -98,37 +132,41 @@ def guess_vault(home=None, limit=6000):
 
 
 class Paths:
-    """一个库对应的全部路径。vault 为 None 时各属性也为 None。"""
+    """一个库对应的全部路径。vault 为 None 时各属性也为 None。subject 缺省 = 当前科目（rpg/subjects.py）。"""
 
-    def __init__(self, vault):
+    def __init__(self, vault, subject=None):
+        from . import subjects
+        self.subject = subject if subjects.valid(subject) else subjects.active()
+        sub = subjects.SUBJECTS[self.subject]
+        self.defaults_dir = DEFAULTS_DIR / sub["defaults_dir"] if sub["defaults_dir"] else DEFAULTS_DIR   # 本科目的默认配置
         self.vault = vault
         self.skills = vault / SKILLS_REL if vault else None
         self.seasons = vault / SEASONS_REL if vault else None
         self.train = vault / TRAIN_REL if vault else None
         self.skeletons = self.train / "骨架" if vault else None
-        self.rubrics = self.train / "采分点" if vault else None      # 申论：每题一个采分点文件
-        self.materials = self.train / "资料" if vault else None      # 申论：导入的真题解析文档
-        self.reviews = self.train / "作答" if vault else None        # 申论：每次批改的复盘
         self.save_dir = self.train / "存档" if vault else None
         self.save_file = self.save_dir / "存档.json" if vault else None
         self.rules = self.train / "规则.md" if vault else None
         self.persona = self.train / "角色设定.md" if vault else None
         self.lines = self.train / "台词库.md" if vault else None
+        self.rubrics = self.train / "采分点" if vault else None      # 申论：每题一个采分点文件
+        self.materials = self.train / "资料" if vault else None      # 申论：导入的真题解析文档
+        self.reviews = self.train / "作答" if vault else None        # 申论：每次批改的复盘
 
     def _migrate_rules(self):
         """规则的小迁移：只改仍是旧默认值的行，用户改过的值不动。
-        每日目标从“只算办理 120 分钟”改为“办理 + 听课（网课）合计 300 分钟”，周例会分钟同步放大。"""
+        每日目标从“只算修炼 120 分钟”改为“修炼 + 听道（网课）合计 300 分钟”，周常分钟同步放大。"""
         f = self.rules
         if not f or not f.is_file():
             return
         t = f.read_text(encoding="utf-8")
         n = re.sub(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)120\b[^\n]*$",
-                   r"\g<1>300  # 办理 + 听课（网课）合计", t)
-        n = re.sub(r"(?m)^(\s*-\s*周例会\.办理分钟\s*[:：]\s*)600\b[^\n]*$", r"\g<1>1500  # 含听课", n)
+                   r"\g<1>300  # 修炼 + 听道（网课）合计", t)
+        n = re.sub(r"(?m)^(\s*-\s*周常\.修炼分钟\s*[:：]\s*)600\b[^\n]*$", r"\g<1>1500  # 含听道", n)
         if n != t:
             with open(f, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(n)
-            NOTICES.append("规则.md 已调整：每日目标 120 → 300 分钟（办理 + 听课合计），周例会学时 600 → 1500 分钟。")
+            NOTICES.append("规则.md 已调整：每日目标 120 → 300 分钟（修炼 + 听道合计），周常功行 600 → 1500 分钟。")
 
     def ensure_train_dir(self):
         """建 训练/ 文件夹，把缺失的默认配置复制进去。
@@ -138,19 +176,23 @@ class Paths:
         from .mdconf import parse, to_num
         if not self.vault:
             return []
-        for d in (self.train, self.skeletons, self.rubrics, self.materials, self.reviews, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐"):
+        shen = self.subject == "申论"
+        dirs = [self.train, self.skeletons, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐"]
+        if shen:
+            dirs += [self.rubrics, self.materials, self.reviews]
+        for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
         quotes = self.train / "语录.md"   # 背景上的语录，用户自己改；只在缺失时复制
-        if not quotes.exists() and (DEFAULTS_DIR / "语录.md").exists():
+        if not quotes.exists() and (self.defaults_dir / "语录.md").exists():
             with open(quotes, "w", encoding="utf-8", newline="\n") as fp:
-                fp.write((DEFAULTS_DIR / "语录.md").read_text(encoding="utf-8"))
+                fp.write((self.defaults_dir / "语录.md").read_text(encoding="utf-8"))
         upgraded = []
-        for name in ("规则.md", "角色设定.md", "台词库.md"):
+        for name in (("规则.md", "角色设定.md", "台词库.md") if shen else ("规则.md", "角色设定.md", "台词库.md", "台词库·玄幻.md")):
             dst = self.train / name
-            src = DEFAULTS_DIR / name
+            src = self.defaults_dir / name
             if dst.exists():
                 ver = to_num(parse(dst.read_text(encoding="utf-8", errors="ignore")).get("配置版本", 1), 1)
-                if ver >= FILE_VERSIONS.get(name, 1):
+                if ver >= FILE_VERSIONS[self.subject].get(name, 1):
                     continue
                 bak = dst.with_name(dst.stem + ".旧版.md")
                 if bak.exists():
@@ -159,16 +201,16 @@ class Paths:
                 upgraded.append(name)
             with open(dst, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(src.read_text(encoding="utf-8"))
-        # 程序自带的业务手册（图形推理.md = 图推 24 诀；资料分析.md = 题型识别 + 公式速算）：库里还没有时复制一份草稿，已有的绝不覆盖。
+        # 程序自带的功法（图形推理.md = 图推 24 诀；资料分析.md = 题型识别 + 公式速算）：库里还没有时复制一份草稿，已有的绝不覆盖。
         # （defaults/骨架/ 里的其他文件如 论证逻辑.md 由 scripts/update-local.ps1 按需替换，这里不自动复制。）
-        for name in AUTO_SKELETONS:
+        for name in (() if shen else AUTO_SKELETONS):
             src = DEFAULTS_DIR / "骨架" / name
             dst = self.skeletons / name
             if not src.exists():
                 continue
             text = src.read_text(encoding="utf-8")
             if dst.exists():
-                # 库里已有同名业务手册：不覆盖。若它是别处来的（比如之前按 skill 生成的草稿，“来源skill”不同），
+                # 库里已有同名功法：不覆盖。若它是别处来的（比如之前按 skill 生成的草稿，“来源skill”不同），
                 # 旁边放一份“xxx.程序自带版.md”供对照/替换；是程序自带那份（用户改过也一样）就什么都不做。
                 src_of = lambda t: (re.search(r"^来源skill[:：]\s*(.*)$", t, re.M) or [None, ""])[1].strip()
                 if src_of(dst.read_text(encoding="utf-8", errors="ignore")) == src_of(text):
@@ -178,13 +220,17 @@ class Paths:
                     continue
             with open(dst, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(text)
-        self._migrate_rules()
+        if not shen:
+            self._migrate_rules()
         if upgraded:
             UPGRADED.extend(upgraded)
+        if not shen:
+            from .question_bank import ensure_templates
+            ensure_templates(self)
         return upgraded
 
 
 UPGRADED = []  # 本次运行中被升级的配置文件（网页上提示一次）
 NOTICES = []   # 本次运行中对配置做的小改动说明（网页上提示一次）
-AUTO_SKELETONS = ()   # 程序自带的方法骨架（1.1.0 起提供申论题型骨架）
+AUTO_SKELETONS = ("图形推理.md", "资料分析.md")
 

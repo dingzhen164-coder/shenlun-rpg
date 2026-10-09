@@ -1,11 +1,11 @@
-"""🧙 领导制卡：把 PDF / Markdown / 粘贴的文字交给 AI，按“一张卡只考一个点”的规则出便笺草稿，学员审过再刻入。
+"""🧙 师傅制卡：把 PDF / Markdown / 粘贴的文字交给 AI，按“一张卡只考一个点”的规则出玉简草稿，学员审过再刻入。
 
-流程（网页 web/cards.js 的“领导制卡”）：
+流程（网页 web/cards.js 的“师傅制卡”）：
 1. load：上传 PDF / .md / .txt（存到 ~/.shenlun-rpg/制卡/），或选库里的一篇笔记、或粘贴文字 → 返回页数、目录（PDF 书签）、分段；
 2. chunks：按选的章节 / 页码把正文切成每段约 3000 字的小块（PDF 一段 = 连续几页）；
 3. gen：一块一块交给 AI 出卡（网页逐块调用，显示进度，可以中途停），返回 [{type, front, back, tags}]；
    扫描版 PDF 那页没有文字时：配了识图模型就把这页画成图片交给识图模型，没配就跳过并说明。
-出卡规则参照 anki-expert（github.com/gong1414/anki-card-skill，MIT），加了申论的要求。
+出卡规则参照 anki-expert（github.com/gong1414/anki-card-skill，MIT），加了行测的要求。
 """
 import base64
 import hashlib
@@ -121,13 +121,13 @@ def _describe(sid):
 
 
 def vault_files(paths):
-    """能拿来制卡的库内笔记：各题型文件夹（同调阅）+ 公务手账编纂出的 训练/公务手账/*.md"""
+    """能拿来制卡的库内笔记：各板块文件夹（同调阅）+ 灵台手札编纂出的 训练/手札/*.md"""
     files = notes.md_tree(paths)
-    d = paths.train / "公务手账"
+    d = paths.train / "手札"
     if d.is_dir():
         for f in sorted(d.glob("*.md")):
             rel = f.relative_to(paths.vault).as_posix()
-            files.append({"path": rel, "name": f.stem, "dir": "训练/公务手账", "top": "公务手账"})
+            files.append({"path": rel, "name": f.stem, "dir": "训练/手札", "top": "手札"})
     return {"files": files}
 
 
@@ -203,13 +203,13 @@ def chunks(paths, body):
 
 
 # ---------------------------------------------------------------- 出卡
-RULES = """你是申论（公务员考试《行政职业能力测验》）备考的记忆卡片专家，把学员给的资料做成高质量的 Anki 式卡片（叫“便笺”）。
+RULES = """你是行测（公务员考试《行政职业能力测验》）备考的记忆卡片专家，把学员给的资料做成高质量的 Anki 式卡片（叫“玉简”）。
 规则：
 1. 最小信息原则：一张卡只考一个知识点，问题清楚具体，答案简洁；但不能漏掉关键信息。
 2. 问题要能自然引出答案：问“用途 / 条件 / 区别 / 步骤 / 公式”，不要只问名字。答案有几条，就在问题末尾用括号写出条数，如“（3 条）”，答案用 Markdown 列表。
 3. 找隐含知识点：资料里分散在几处的内容，补出“总结卡”“对比卡”（如两种方法的区别）。
-4. 适合填空的（关键词、数字、公式里的一项、要点）出填空卡：正面写完整句子，把要记的部分写成 {{c1::答案}}，同一句可以有 {{c2::…}}；填空卡的 back 可以留空或写一句补充。
-5. 申论要求：
+4. 适合填空的（关键词、数字、公式里的一项、口诀）出填空卡：正面写完整句子，把要记的部分写成 {{c1::答案}}，同一句可以有 {{c2::…}}；填空卡的 back 可以留空或写一句补充。
+5. 行测要求：
    - 公式 / 方法卡：正面写“什么情况下用 / 题目怎么问”，背面写公式或步骤 + 一个最简单的例子；
    - 实词、成语：正面给词或给一个语境，背面写意思、侧重点、搭配、易混词；
    - 常识、政治理论：正面问具体事实（时间、人物、内容、意义），不要出大而空的问题；
@@ -261,7 +261,7 @@ def _chat(msgs, vision=False):
 def gen(paths, body):
     """出一块的卡：{src, chunk: {pages | text, label}, density, types, note, deck} → {cards, skipped}"""
     if not ai.available():
-        raise GenError("还没填 AI 的 API key：设置里填好才能请领导制卡")
+        raise GenError("还没填 AI 的 API key：设置里填好才能请师傅制卡")
     f, name = _src_file(body.get("src"))
     ch = body.get("chunk") or {}
     density = DENSITY.get(body.get("density"), DENSITY["标准"])
@@ -271,7 +271,7 @@ def gen(paths, body):
     elif types == "填空":
         types = "只出填空卡"
     want = ("\n\n学员对这批卡的要求：%s" % str(body["note"]).strip()) if str(body.get("note") or "").strip() else ""
-    head = "资料：《%s》%s，放进便笺夹「%s」。\n%s\n卡片类型：%s。%s" % (re.sub(r"\.\w+$", "", name), ch.get("label", ""), body.get("deck") or "", density, types, want)
+    head = "资料：《%s》%s，放进简匣「%s」。\n%s\n卡片类型：%s。%s" % (re.sub(r"\.\w+$", "", name), ch.get("label", ""), body.get("deck") or "", density, types, want)
     skipped = []
     if ch.get("pages"):
         fitz = _fitz()

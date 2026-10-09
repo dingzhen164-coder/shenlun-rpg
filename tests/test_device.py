@@ -17,6 +17,14 @@ from rpg import api, lan, paths, update  # noqa: E402
 import server  # noqa: E402
 
 
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
+
+
 class DeviceTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -93,7 +101,7 @@ class DeviceTest(unittest.TestCase):
         """平板 App 更新：电脑替平板去 GitHub 下安装包，平板从局域网拿（不用口令）"""
         from rpg import appapk
         fake = b"PK\x03\x04 fake apk"
-        info = {"latest": "9.9.9", "apk_url": "https://example/shenlun-guantu.apk", "apk_size": len(fake)}
+        info = {"latest": "9.9.9", "apk_url": "https://example/xingce-xiuxian.apk", "apk_size": len(fake)}
 
         class Resp:
             def __init__(self): self.left = fake
@@ -105,16 +113,16 @@ class DeviceTest(unittest.TestCase):
         with patch.object(update, "check", return_value=info), patch("urllib.request.urlopen", return_value=Resp()):
             r, data = self.req("GET", "/api/app/latest")
         d = json.loads(data)
-        self.assertEqual((d["latest"], d["ready"], d["path"]), ("9.9.9", True, "/app/shenlun-guantu.apk"))
-        self.assertTrue((self.tmp / "apk" / "shenlun-guantu-9.9.9.apk").is_file())
-        r, data = self.req("GET", "/app/shenlun-guantu.apk", remote=True)                 # 平板浏览器下载：没有 cookie 也给
+        self.assertEqual((d["latest"], d["ready"], d["path"]), ("9.9.9", True, "/app/xingce-xiuxian.apk"))
+        self.assertTrue((self.tmp / "apk" / "xingce-xiuxian-9.9.9.apk").is_file())
+        r, data = self.req("GET", "/app/xingce-xiuxian.apk", remote=True)                 # 平板浏览器下载：没有 cookie 也给
         self.assertEqual((r.status, data), (200, fake))
         self.assertEqual(r.getheader("Content-Type"), "application/vnd.android.package-archive")
         r, _ = self.req("GET", "/api/app/latest", remote=True)                             # 别的接口照样要口令
         self.assertEqual(r.status, 401)
         port = appapk.serve_apk_port("127.0.0.1", 18960)                                 # 旧版 App 用的“只给安装包”端口
         c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
-        c.request("GET", "/shenlun-guantu.apk")
+        c.request("GET", "/xingce-xiuxian.apk")
         rr = c.getresponse()
         self.assertEqual((rr.status, rr.read()), (200, fake))
         c.request("GET", "/api/lan")
@@ -130,7 +138,7 @@ class DeviceTest(unittest.TestCase):
 
     def test_guess_vault(self):
         home = self.tmp / "home"
-        v = home / "Nutstore Files" / "我的坚果云" / "申论obsidian" / "申论"
+        v = home / "Nutstore Files" / "我的坚果云" / "行测obsidian" / "行测"
         (v / "copilot" / "skills").mkdir(parents=True)
         (home / "Library" / "x" / "copilot" / "skills").mkdir(parents=True)     # 系统文件夹不去翻
         self.assertEqual(paths.guess_vault(home), v.resolve())
@@ -190,7 +198,7 @@ class DeviceTest(unittest.TestCase):
     def test_web_files(self):
         r, data = self.req("GET", "/manifest.webmanifest")
         self.assertEqual(r.status, 200)
-        self.assertEqual(json.loads(data)["short_name"], "申论官途")
+        self.assertEqual(json.loads(data)["short_name"], "修仙传")
         r, _ = self.req("GET", "/device.js")
         self.assertEqual(r.status, 200)
 

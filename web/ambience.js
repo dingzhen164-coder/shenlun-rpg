@@ -10,9 +10,9 @@ const AMB = (() => {
   let DATA = null;            // /api/appearance 的返回
   let QUOTE = "";             // 本次打开显示的语录（随机模式每次打开换一句）
   // 明暗：每台设备各自记（localStorage），默认亮色；"auto" = 跟随系统
-  const themeMode = () => { try { return localStorage.getItem("srpg-theme") || "light"; } catch (e) { return "light"; } };
+  const themeMode = () => { try { return localStorage.getItem("xrpg-theme") || "light"; } catch (e) { return "light"; } };
   function setTheme(mode) {
-    try { localStorage.setItem("srpg-theme", mode); } catch (e) { /* 存不了就只管这一次 */ }
+    try { localStorage.setItem("xrpg-theme", mode); } catch (e) { /* 存不了就只管这一次 */ }
     const m = mode === "auto" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
     document.documentElement.dataset.theme = m;
     document.documentElement.style.colorScheme = m;
@@ -111,7 +111,7 @@ const AMB = (() => {
 
   // ---------------------------------------------------------------- 设置页
   function settingsHtml() {
-    if (!DATA?.current) return `<div class="card"><h3>🌄 外观与音乐</h3><p class="small muted">先在下面设置好申论库路径。</p></div>`;
+    if (!DATA?.current) return `<div class="card"><h3>🌄 外观与音乐</h3><p class="small muted">先在下面设置好行测库路径。</p></div>`;
     const c = DATA.current, esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
     const tile = (key, label) => `<button class="bg-tile ${c.bg === key ? "sel" : ""}" data-bg="${esc2(key)}" title="${esc2(label)}">
       <span class="bg-thumb" style='background-image:${bgCss(key) || "none"}'></span><span class="bg-name">${esc2(label)}</span></button>`;

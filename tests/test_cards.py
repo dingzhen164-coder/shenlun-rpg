@@ -1,4 +1,5 @@
-"""便笺（记忆卡片）：Markdown 存取、FSRS 排期、每日上限、撤销、便笺夹、导入、便笺库、心跳计时。"""
+"""玉简（记忆卡片）：Markdown 存取、FSRS 排期、每日上限、撤销、简匣、导入、藏简阁、心跳计时。"""
+import os
 import datetime as dt
 import tempfile
 import time
@@ -6,6 +7,14 @@ import unittest
 from pathlib import Path
 
 from rpg import api, cards, config, engine, paths, store
+
+
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
 
 
 class CardsTest(unittest.TestCase):
@@ -29,20 +38,20 @@ class CardsTest(unittest.TestCase):
         r = self.add("隔年增长率怎么算？", "r = r1 + r2 + r1×r2", tags="增长 公式")
         f = self.vault / "训练/卡片/资料分析.md"
         text = f.read_text(encoding="utf-8")
-        self.assertIn("## 便笺 %s\n便笺夹: 资料分析::速算\n类型: 问答\n标签: 增长 公式\n### 正\n隔年增长率怎么算？" % r["id"], text)
+        self.assertIn("## 玉简 %s\n简匣: 资料分析::速算\n类型: 问答\n标签: 增长 公式\n### 正\n隔年增长率怎么算？" % r["id"], text)
         # 在 Obsidian 里手写一枚没编号的：读到时补上编号，写回文件
-        f.write_text(text + "## 便笺\n便笺夹: 资料分析\n类型: 填空\n### 正\n比重差小于 {{c1::增长率差}}，{{c2::右边}}\n### 反\n\n", encoding="utf-8")
+        f.write_text(text + "## 玉简\n简匣: 资料分析\n类型: 填空\n### 正\n比重差小于 {{c1::增长率差}}，{{c2::右边}}\n### 反\n\n", encoding="utf-8")
         notes, _ = cards.load(self.p)
         self.assertEqual(len(notes), 2)
         self.assertTrue(notes[1]["id"])
-        self.assertIn("## 便笺 %s\n" % notes[1]["id"], f.read_text(encoding="utf-8"))
+        self.assertIn("## 玉简 %s\n" % notes[1]["id"], f.read_text(encoding="utf-8"))
         self.assertEqual(cards.card_ords(notes[1]), ["c1", "c2"])
         # 改内容不丢进度
         key = "%s#1" % r["id"]
         cards.answer(self.g, key, 4)
         cards.update(self.g, {"id": r["id"], "back": "r1 + r2 + r1·r2"})
         self.assertEqual(self.g.state["cards"]["sched"][key]["st"], 2)
-        # 换到别的顶层便笺夹 = 换文件
+        # 换到别的顶层简匣 = 换文件
         cards.move(self.g, [r["id"]], "数量关系::工程")
         self.assertIn(r["id"], (self.vault / "训练/卡片/数量关系.md").read_text(encoding="utf-8"))
         self.assertNotIn(r["id"], f.read_text(encoding="utf-8"))
@@ -61,7 +70,7 @@ class CardsTest(unittest.TestCase):
         s = self.g.state["cards"]["sched"][key]
         self.assertEqual(s["st"], 2)
         self.assertGreaterEqual(s["ivl"], 1)
-        # 复习卡：四个评分的间隔 晦涩 ≤ 通透 < 了然，再参进入重看
+        # 复习卡：四个评分的间隔 晦涩 ≤ 通透 < 了然，再参进入重参
         s.update(due=self.g.state["cards"]["today"]["d"], last=(dt.date.fromisoformat(s["due"]) - dt.timedelta(days=4)).isoformat())
         iv = cards.intervals(self.g, key, "资料分析::速算", now)
         days = [float(iv[k][:-1]) for k in (2, 3, 4)]
@@ -77,7 +86,7 @@ class CardsTest(unittest.TestCase):
         rev = self.add("正", "反", typ="问答+反向")
         cards.deck_action(self.g, {"action": "options", "name": "资料分析", "options": {"new_per_day": 3}})
         order, counts, _ = cards.queue(self.g, "资料分析")
-        self.assertEqual(counts["new"], 3)                          # 上层的每日新便笺数管着子匣
+        self.assertEqual(counts["new"], 3)                          # 上层的每日新简数管着子匣
         first = order[0]
         xp = self.g.state["xp"]
         cards.answer(self.g, first, 4)
@@ -89,7 +98,7 @@ class CardsTest(unittest.TestCase):
         self.assertEqual(counts["new"], 3)
         self.assertEqual(self.g.state["xp"], xp)
         self.assertNotIn(first, self.g.state["cards"]["sched"])
-        # 反向便笺：正向温过后，反向今天不再出
+        # 反向玉简：正向温过后，反向今天不再出
         cards.deck_action(self.g, {"action": "options", "name": "资料分析", "options": {"new_per_day": 50}})
         cards.answer(self.g, rev["id"] + "#1", 4)
         order, _, _ = cards.queue(self.g, "资料分析")
@@ -102,7 +111,7 @@ class CardsTest(unittest.TestCase):
         self.add("甲", deck="资料分析::速算")
         self.add("乙", deck="资料分析::比重", tags="比重")
         tree = {d["name"]: d for d in cards.tree(self.g)}
-        self.assertIn("政治理论", tree)                              # 默认 12 个题型
+        self.assertIn("政治理论", tree)                              # 默认 12 个板块
         self.assertEqual((tree["资料分析"]["new"], tree["资料分析::速算"]["new"], tree["资料分析::速算"]["depth"]), (2, 1, 1))
         cards.deck_action(self.g, {"action": "rename", "name": "资料分析::速算", "new": "资料分析::速算技巧"})
         self.assertEqual(cards.search(self.g, {"q": "甲"})["rows"][0]["deck"], "资料分析::速算技巧")
@@ -120,7 +129,7 @@ class CardsTest(unittest.TestCase):
         self.assertEqual((r["added"], r["skipped"]), (2, 1))
         rows = cards.search(self.g, {"deck": "资料分析"})["rows"]
         self.assertEqual(cards.note_get(self.g, rows[0]["id"])["front"], "**增长量**公式？")   # Anki 的粗体转成 Markdown
-        self.assertEqual(rows[0]["front"], "增长量公式？")                                       # 便笺库列表里显示纯文字
+        self.assertEqual(rows[0]["front"], "增长量公式？")                                       # 藏简阁列表里显示纯文字
         self.assertEqual(rows[1]["type"], "填空")
         table = "Question | Answer | Tags\n------- | -------- | --------\n什么是比重？ | 部分/整体 | 比重\n"
         self.assertEqual(cards.import_text(self.g, {"deck": "资料分析", "text": table.replace(" | ", "|")}) ["added"], 0)
@@ -166,7 +175,7 @@ class CardsApiTest(unittest.TestCase):
         self._settings = paths.SETTINGS_FILE, paths.SETTINGS_DIR
         paths.SETTINGS_DIR = self.vault / ".home"
         paths.SETTINGS_FILE = paths.SETTINGS_DIR / "settings.json"
-        paths.save_settings({"vault": str(self.vault)})
+        paths.save_settings({"vaults": {"行测": str(self.vault)}})
         cards._CACHE["key"] = None
 
     def tearDown(self):
@@ -179,7 +188,7 @@ class CardsApiTest(unittest.TestCase):
         self.assertEqual(r["card"]["front"], "“不刊之论”的刊？")
         self.assertEqual(r["intervals"]["1"] if "1" in r["intervals"] else r["intervals"][1], "1分钟")
         cards.LAST_ANSWER["t"] = 0
-        self.assertFalse(api.heartbeat({"seconds": 30, "cards": True})["studying"])      # 没过便笺不算
+        self.assertFalse(api.heartbeat({"seconds": 30, "cards": True})["studying"])      # 没温简不算
         r = api.cards_answer({"deck": "言语", "key": r["card"]["key"], "rating": 4, "secs": 8})
         self.assertTrue(r["done"])
         hb = api.heartbeat({"seconds": 60, "cards": True})
@@ -192,7 +201,7 @@ class CardsApiTest(unittest.TestCase):
 
 
 class CardGenTest(CardsApiTest):
-    """🧙 领导制卡（PDF / Markdown → AI 出卡草稿 → 刻入）和 AI 方案切换"""
+    """🧙 师傅制卡（PDF / Markdown → AI 出卡草稿 → 刻入）和 AI 方案切换"""
 
     def _pdf(self):
         import pymupdf
@@ -257,25 +266,25 @@ class CardGenTest(CardsApiTest):
 
 
 class CardsMoreTest(CardsApiTest):
-    """2.4.0：领导讲讲只帮记忆并存进便笺、每日数量的总设置、脉络图（思维导图）"""
+    """2.4.0：师傅讲讲只帮记忆并存进玉简、每日数量的总设置、灵脉图（思维导图）"""
 
     def test_explain_saved_and_prompt(self):
         from unittest.mock import patch
         from rpg import ai
         api.cards_add({"deck": "政治理论", "type": "问答", "front": "逻辑关系包括？", "back": "全同、全异、种属、交叉"})
         key = api.cards_next({"deck": ""})["card"]["key"]
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", return_value="要点：同异种交\n### 小标题") as chat:
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", return_value="口诀：同异种交\n### 小标题") as chat:
             r = api.cards_explain({"key": key})
         system = chat.call_args.args[0][0]["content"]
         self.assertIn("不评判", system)
         self.assertNotIn("卡片内容如果有错", system)
         self.assertIn("#### ", r["saved"])
-        self.assertIn("＃＃＃ 小标题", r["saved"])                       # 回复里的标题降级，不打乱便笺格式
+        self.assertIn("＃＃＃ 小标题", r["saved"])                       # 回复里的标题降级，不打乱玉简格式
         text = (self.vault / "训练/卡片/政治理论.md").read_text(encoding="utf-8")
-        self.assertIn("### 领导讲讲\n#### ", text)
+        self.assertIn("### 师傅讲讲\n#### ", text)
         cards._CACHE["key"] = None
-        self.assertIn("要点：同异种交", api.cards_next({"deck": ""})["card"]["ai"])
-        self.assertTrue(cards.reviewing())                                 # 在过便笺页面上就算在复习
+        self.assertIn("口诀：同异种交", api.cards_next({"deck": ""})["card"]["ai"])
+        self.assertTrue(cards.reviewing())                                 # 在温简页面上就算在复习
 
     def test_global_daily_limits(self):
         for i in range(5):
@@ -299,7 +308,7 @@ class CardsMoreTest(CardsApiTest):
         self.assertEqual([m["name"] for m in api.mm_list({})["boards"][-1]["maps"]], ["资料分析", "速算"])
         e = api.mm_export({"board": "资料分析", "name": "资料分析", "ext": "md",
                            "data": "data:text/markdown;base64," + __import__("base64").b64encode("# 资料分析".encode()).decode()})
-        self.assertEqual(e["path"], "训练/脉络图/导出/资料分析.md")
+        self.assertEqual(e["path"], "训练/灵脉图/导出/资料分析.md")
         self.assertIn("&t=", e["url"])
         with self.assertRaises(api.ApiError):
             api.mm_export({"board": "资料分析", "name": "x", "ext": "exe", "data": "data:,1"})
@@ -309,3 +318,39 @@ class CardsMoreTest(CardsApiTest):
         self.assertEqual(len(api.mm_list({})["boards"][-1]["maps"]), 1)
 
 
+class IdiomCardsTest(CardsApiTest):
+    """成语实词录里师傅答疑过的词条 → 玉简（逻辑填空::成语实词录）"""
+
+    def entry(self, word, tutor=True):
+        return {"word": word, "letter": "B", "detail": {"chars": [{"char": "刊", "meaning": "删改", "like": ["刊误"]}],
+                                                       "origin": {"from": "《答李翊书》", "text": "", "note": ""}},
+                "sources": [{"key": "k", "id": "真题-1", "board": "逻辑填空", "source": "逻辑填空真题.md", "paper": "2024国考",
+                             "blank": 1, "blanks": 1, "answer": "A", "option_text": word, "meaning": "不能删改的言论",
+                             "others": [{"word": "至理名言", "option": "B", "meaning": "最正确的道理"}],
+                             "compare": "不刊之论强调不可更改", "tutor": tutor, "date": "2026-10-07"}]}
+
+    def test_sync(self):
+        from rpg import idioms
+        with api.open_game() as g:
+            idioms.data(g)["不刊之论"] = self.entry("不刊之论")
+            idioms.data(g)["没答疑"] = self.entry("没答疑", tutor=False)
+        api.cards_overview({})                                              # 第一次打开修炼殿：补做
+        rows = api.cards_search({"deck": "逻辑填空::成语实词录"})["rows"]
+        self.assertEqual([r["front"] for r in rows], ["不刊之论 （成语 · 说出意思和用法）"])
+        n = api.cards_note({"id": rows[0]["id"]})
+        for part in ("**释义**：不能删改的言论", "**逐字**：刊 = 删改（同样用法：刊误）", "**出处**：《答李翊书》",
+                     "**辨析**：不刊之论强调不可更改", "- 至理名言：最正确的道理"):
+            self.assertIn(part, n["back"])
+        self.assertNotIn("真题", n["back"])
+        # 温过之后再答疑：同一枚玉简改内容，进度不丢
+        key = rows[0]["key"]
+        api.cards_answer({"deck": "", "key": key, "rating": 4})
+        with api.open_game() as g:
+            idioms.data(g)["不刊之论"]["sources"][0]["compare"] = "新的辨析"
+            idioms.sync_card(g, "不刊之论")
+        self.assertIn("新的辨析", api.cards_note({"id": rows[0]["id"]})["back"])
+        self.assertEqual(api.cards_info({"key": key})["sched"]["state"], "复习")
+        # 删词条：玉简一起删
+        with api.open_game() as g:
+            idioms.delete(g, "不刊之论")
+        self.assertEqual(api.cards_search({"deck": "逻辑填空"})["total"], 0)

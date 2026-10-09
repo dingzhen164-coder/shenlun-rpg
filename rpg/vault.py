@@ -1,7 +1,7 @@
 """
-只读访问 Obsidian 申论库：模考题型复盘、解题 skill、截图。本模块从不写库里的任何文件。
+只读访问 Obsidian 行测库：模考板块复盘、解题 skill、截图。本模块从不写库里的任何文件。
 
-题型复盘文件由 shenlun-mokao-split 生成，格式（节选）：
+板块复盘文件由 xingce-mokao-split 生成，格式（节选）：
 
     ### 102. ❌                         ← 题号 + 结果图标（✅ 对 / ❌ 错 / ⚪ 未作答）
     ![[S36-Q102.png]]                   ← 可能有截图
@@ -10,11 +10,11 @@
     > [!check]- 答案
     > 正确答案：**B**　我的答案：**A**　错误
     > [!note] 复盘
-    > 【答案】B ……                       ← 解析（shenlun-jiexi-all 写入）或自己的笔记
+    > 【答案】B ……                       ← 解析（xingce-jiexi-all 写入）或自己的笔记
     ---
 
 资料分析 / 一拖五 这类有“## 材料（第a-b题）”的，材料正文挂在对应题目上。
-解析规则和 obsidian-to-shenlun 仓库里的 jiexi.py 保持一致。
+解析规则和 obsidian-to-xingce 仓库里的 jiexi.py 保持一致。
 """
 import re
 from pathlib import Path
@@ -54,7 +54,7 @@ def skill_digest(paths, name, limit=None):
         parts.append("资料提示：没有章节正文。只可依据现有内容，方法细节缺失时应标注待核对。")
     text = "\n\n".join(parts)
     if limit is not None and len(text) > limit:
-        raise ValueError("skill 正文超过读取上限，请分题型整理资料；未生成残缺草稿")
+        raise ValueError("skill 正文超过读取上限，请分板块整理资料；未生成残缺草稿")
     return text
 
 
@@ -83,7 +83,7 @@ def _vault_find(paths, ref):
 
 def skill_material(paths, name, extra=()):
     """生成骨架用的素材：skill 自己的文字 + 它引用的库内资料正文（`00-xxx.md`、`01-治理母逻辑` 文件夹、其他检索 skill 里的资料），
-    再加上规则里“骨架素材.<题型>”指定的路径。返回 (文字, 读到的资料清单)。
+    再加上规则里“骨架素材.<板块>”指定的路径。返回 (文字, 读到的资料清单)。
     很多 skill 只是“去读某个文件、调用某个检索 skill”的操作规程，真正要背的知识在被引用的文件里，所以要一起读。"""
     base = skill_digest(paths, name)
     d = skill_dir(paths, name)
@@ -125,7 +125,7 @@ def skill_material(paths, name, extra=()):
         rel = f.relative_to(paths.vault).as_posix() if paths.vault in f.parents else f.name
         t = f.read_text(encoding="utf-8", errors="ignore")
         if total + len(t) > MATERIAL_LIMIT:
-            parts.append("=== 资料 %s ===\n（资料总量超过上限，这个文件没有读入；需要时在规则.md 用“骨架素材.题型”只列核心文件）" % rel)
+            parts.append("=== 资料 %s ===\n（资料总量超过上限，这个文件没有读入；需要时在规则.md 用“骨架素材.板块”只列核心文件）" % rel)
             used.append(rel + "（未读入：超出上限）")
             continue
         total += len(t)
@@ -135,11 +135,11 @@ def skill_material(paths, name, extra=()):
     return text, used
 
 
-TUTOR_LIMIT = 60000   # 讲题时给主任的 skill 资料上限（字）
+TUTOR_LIMIT = 60000   # 讲题时给师傅的 skill 资料上限（字）
 
 
 def skill_for_tutor(paths, name):
-    """讲题（领导解惑、复盘追问、传授）用的 skill 资料：skill 文件夹里所有 .md（SKILL.md 在前；scripts/ 不读），
+    """讲题（师傅解惑、复盘追问、传授）用的 skill 资料：skill 文件夹里所有 .md（SKILL.md 在前；scripts/ 不读），
     再加上 skill 里引用的库内资料。超出上限的文件写明“未读入”，不悄悄截断。返回 (文字, 读到的文件清单)"""
     d = skill_dir(paths, name)
     if not d:
@@ -257,7 +257,7 @@ def parse_board_file(path):
 
 
 def questions(paths, source, last_n=0):
-    """某个复盘题型在所有季里的题目，附上 season / source / key / dir"""
+    """某个复盘板块在所有季里的题目，附上 season / source / key / dir"""
     ss = seasons(paths)
     if last_n:
         ss = ss[-last_n:]
@@ -280,12 +280,12 @@ def wrong_questions(paths, sources, last_n=0):
     return sorted(out, key=lambda q: (-q["season"], q["num"]))
 
 
-TUTOR_HEAD = "> **🧙 领导解惑**"
-TUTOR_END = "> <!-- /领导解惑 -->"
+TUTOR_HEAD = "> **🧙 师傅解惑**"
+TUTOR_END = "> <!-- /师傅解惑 -->"
 
 
 def save_tutor_note(paths, key, text, date):
-    """把“领导解惑”写进这道题的复盘笔记（> [!note] 复盘 里），下次“复盘解析”就能看到。
+    """把“师傅解惑”写进这道题的复盘笔记（> [!note] 复盘 里），下次“复盘解析”就能看到。
     同一题再问一次就换成新的那段，不越堆越多；自己写的笔记不动。返回写进的文件（库内相对路径）"""
     q = find_question(paths, key)
     if not q:

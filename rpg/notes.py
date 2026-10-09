@@ -1,14 +1,14 @@
-"""公务手账：手写笔记本（像 Notability）+ 主任编纂（手写 → Markdown）+ 调阅库里的 Markdown 笔记。
+"""灵台手札：手写笔记本（像 Notability）+ 师傅编纂（手写 → Markdown）+ 调阅库里的 Markdown 笔记。
 
-- 本子存在库里 训练/公务手账/手写/<id>.json（坚果云同步，平板上写的电脑上也有）：
+- 本子存在库里 训练/手札/手写/<id>.json（坚果云同步，平板上写的电脑上也有）：
   {"id", "title", "paper": "lines|grid|blank", "pages": [{"strokes": [{"t": "pen|hl|er", "c", "w", "p": [[x, y], …]}]}],
    "text": 打字补充, "compiled": 编纂出的 md（库内路径）, "updated"}
   坐标是“纸”上的逻辑坐标（一页宽 1000、高 1414，A4 比例），和屏幕大小无关。
-- 主任编纂：网页把每页画成白底 PNG 传上来 →
+- 师傅编纂：网页把每页画成白底 PNG 传上来 →
   配了识图模型（设置里的 vision_model）就直接让它认字 + 排版；没有就用系统自带 OCR（Windows / Mac）认字，再让 AI 排版。
-  排好的 Markdown 存到 训练/公务手账/<标题>.md。
+  排好的 Markdown 存到 训练/手札/<标题>.md。
 - 调阅：列出库里的 .md（不含 .obsidian、存档这类），读一篇时把 ![[图片]] 换成能在网页上显示的库内路径。
-- 调阅 PDF：库里的 .pdf 也列出来。点开就是一本“PDF 批注本”（同样存在 训练/公务手账/手写/<id>.json，多了 "pdf": 库内路径、
+- 调阅 PDF：库里的 .pdf 也列出来。点开就是一本“PDF 批注本”（同样存在 训练/手札/手写/<id>.json，多了 "pdf": 库内路径、
   "paper": "pdf"，每页多一个 "h" = 这一页按宽 1000 算的高度）；每页的底图由 /notes-pdfpage?p=&n= 现渲染（pymupdf），
   上面照常用笔、荧光笔、橡皮勾画，自动保存。导出时把每页笔迹（透明 PNG）叠到原 PDF 上，原文字保持清晰。
 """
@@ -32,7 +32,7 @@ class NotesError(Exception):
 
 
 def folder(paths):
-    return paths.train / "公务手账"
+    return paths.train / "手札"
 
 
 def data_dir(paths):
@@ -62,7 +62,7 @@ def listing(paths):
 def get(paths, nid):
     f = _file(paths, nid)
     if not f.is_file():
-        raise NotesError("这本公务手账不见了（可能在另一台电脑上删了）")
+        raise NotesError("这本手札不见了（可能在另一台电脑上删了）")
     d = json.loads(f.read_text(encoding="utf-8"))
     if d.get("pdf"):                       # 底图的版本号（PDF 换过就刷新缓存）
         p = pdf_file(paths, d["pdf"])
@@ -84,13 +84,13 @@ def _clean_pages(pages):
     return out or [{"strokes": []}]
 
 
-# 记笔记算复习时间：服务器记下每本公务手账最后一次真的写了东西（笔迹或打字有变化）的时刻，心跳只认最近写过的本子
+# 记笔记算复习时间：服务器记下每本手札最后一次真的写了东西（笔迹或打字有变化）的时刻，心跳只认最近写过的本子
 WRITE_GRACE = 60          # 停笔超过 1 分钟就不再计时
 LAST_WRITE = {}
 
 
 def writing(nid, window=WRITE_GRACE + 35):
-    """这本公务手账最近是否在写：最后一次有内容变化的保存在 window 秒内（网页每 30 秒上报一次，再加停笔的 1 分钟）"""
+    """这本手札最近是否在写：最后一次有内容变化的保存在 window 秒内（网页每 30 秒上报一次，再加停笔的 1 分钟）"""
     return time.time() - LAST_WRITE.get(str(nid or ""), 0) <= window
 
 
@@ -99,7 +99,7 @@ def save(paths, body):
     f = _file(paths, nid)
     old = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
     d = {"id": nid,
-         "title": (str(body.get("title") or "").strip() or old.get("title") or dt.datetime.now().strftime("公务手账 %m-%d %H:%M"))[:60],
+         "title": (str(body.get("title") or "").strip() or old.get("title") or dt.datetime.now().strftime("手札 %m-%d %H:%M"))[:60],
          "paper": body.get("paper") if body.get("paper") in PAPERS else old.get("paper", "lines"),
          "pages": _clean_pages(body["pages"]) if "pages" in body else old.get("pages") or [{"strokes": []}],
          "text": str(body["text"])[:20000] if "text" in body else old.get("text", ""),
@@ -128,7 +128,7 @@ def delete(paths, nid):
     return {"ok": True}
 
 
-# ---------------------------------------------------------------- 主任编纂
+# ---------------------------------------------------------------- 师傅编纂
 def _png(data_url):
     m = re.match(r"^data:image/(png|jpeg|jpg);base64,(.+)$", str(data_url or ""), re.S)
     if not m:
@@ -136,7 +136,7 @@ def _png(data_url):
     return base64.b64decode(m.group(2))
 
 
-VISION_PROMPT = ("下面是学员手写的申论学习笔记（%d 页，按顺序）。请把手写内容认出来，整理成一份排版清楚的 Markdown 笔记：\n"
+VISION_PROMPT = ("下面是学员手写的行测学习笔记（%d 页，按顺序）。请把手写内容认出来，整理成一份排版清楚的 Markdown 笔记：\n"
                  "1）忠实于原笔记的内容和结构，不要添加笔记里没有的知识；认不清的字用［?］标出；\n"
                  "2）用标题（## / ###）、列表、加粗、表格整理层次；画的框图、箭头关系用列表或表格表达；\n"
                  "3）开头一行 `# 标题`（按内容起一个简短的标题）；\n"
@@ -145,11 +145,11 @@ VISION_PROMPT = ("下面是学员手写的申论学习笔记（%d 页，按顺�
 
 def _organize_prompt(title, ocr_pages, typed):
     pages = "\n\n".join("【第 %d 页 认出来的字】\n%s" % (i + 1, t.strip() or "（这页没认出字）") for i, t in enumerate(ocr_pages))
-    return [{"role": "system", "content": "你是一位整理申论学习笔记的助手。只输出 Markdown，不要解释。"},
+    return [{"role": "system", "content": "你是一位整理行测学习笔记的助手。只输出 Markdown，不要解释。"},
             {"role": "user", "content": (
                 f"学员手写笔记「{title}」，先用 OCR 认了字（手写识别可能有错字、断行、顺序乱），另外还有学员打字补充的内容。\n"
                 f"{pages}\n\n【打字补充】\n{typed.strip() or '（无）'}\n\n"
-                "请整理成一份排版清楚的 Markdown 笔记：1）根据上下文和申论知识修正明显的 OCR 错字，拿不准的用［?］标出；"
+                "请整理成一份排版清楚的 Markdown 笔记：1）根据上下文和行测知识修正明显的 OCR 错字，拿不准的用［?］标出；"
                 "2）忠实于笔记内容，不要添加笔记里没有的知识；3）用标题（## / ###）、列表、加粗、表格整理层次；"
                 "4）开头一行 `# 标题`。只输出 Markdown 本身。")}]
 
@@ -159,7 +159,7 @@ def compile(paths, nid, images, typed=""):
     pngs = [_png(x) for x in (images or [])][:30]
     typed = str(typed if typed is not None else d.get("text", ""))
     if not pngs and not typed.strip():
-        raise NotesError("这本公务手账还是空的：先写点什么再编纂")
+        raise NotesError("这本手札还是空的：先写点什么再编纂")
     how = ""
     if pngs and ai.vision_available():
         content = [{"type": "text", "text": VISION_PROMPT % (len(pngs), ("\n学员另外打字补充：\n" + typed) if typed.strip() else "")}]
@@ -169,11 +169,11 @@ def compile(paths, nid, images, typed=""):
     else:
         texts = []
         if pngs:
-            from . import ocr
+            from . import report
             for b in pngs:
                 try:
-                    texts.append(ocr.ocr(b))
-                except ocr.OcrError as e:
+                    texts.append(report.ocr(b))
+                except report.ReportError as e:
                     if not typed.strip():
                         raise NotesError("认不了手写：%s。可以在设置里填一个“识图模型”（能看图的 AI），"
                                          "认手写最准" % str(e).split("：")[0])
@@ -187,7 +187,7 @@ def compile(paths, nid, images, typed=""):
     md = re.sub(r"^```(?:markdown|md)?\s*\n(.*?)\n```\s*$", r"\1", md.strip(), flags=re.S).strip() + "\n"
     name = re.sub(r'[\\/:*?"<>|#^\[\]]+', " ", d["title"]).strip()[:50] or nid
     out = folder(paths) / (name + ".md")
-    head = "> 公务手账 · 主任编纂（%s）· %s\n\n" % (how, dt.datetime.now().strftime("%Y-%m-%d %H:%M"))
+    head = "> 灵台手札 · 师傅编纂（%s）· %s\n\n" % (how, dt.datetime.now().strftime("%Y-%m-%d %H:%M"))
     if md.startswith("# "):
         first, _, rest = md.partition("\n")
         text = first + "\n\n" + head + rest.lstrip("\n")
@@ -202,15 +202,15 @@ def compile(paths, nid, images, typed=""):
 
 
 # ---------------------------------------------------------------- 导出 PDF
-EXPORT_DIR = ("公务手账", "导出")
+EXPORT_DIR = ("手札", "导出")
 
 
 def export_pdf(paths, nid, images):
-    """网页把每页（纸 + 笔迹）画成图片传上来 → 拼成 A4 的 PDF，存到 训练/公务手账/导出/<标题>.pdf（同名覆盖）"""
+    """网页把每页（纸 + 笔迹）画成图片传上来 → 拼成 A4 的 PDF，存到 训练/手札/导出/<标题>.pdf（同名覆盖）"""
     d = get(paths, nid)
     pics = [_png(x) for x in (images or [])][:200]
     if not pics:
-        raise NotesError("这本公务手账还是空的，没有可以导出的页")
+        raise NotesError("这本手札还是空的，没有可以导出的页")
     try:
         import pymupdf as fitz
     except ImportError:
@@ -223,7 +223,7 @@ def export_pdf(paths, nid, images):
     for b in pics:
         page = doc.new_page(width=w, height=h)
         page.insert_image(page.rect, stream=b)
-    doc.set_metadata({"title": d["title"], "creator": "申论官途 · 公务手账"})
+    doc.set_metadata({"title": d["title"], "creator": "行测修仙传 · 灵台手札"})
     out = paths.train.joinpath(*EXPORT_DIR)
     out.mkdir(parents=True, exist_ok=True)
     name = re.sub(r'[\\/:*?"<>|#^\[\]]+', " ", d["title"]).strip()[:50] or nid
@@ -235,7 +235,7 @@ def export_pdf(paths, nid, images):
 
 
 def export_file(paths, rel):
-    """导出的文件的真实路径：只认 训练/公务手账/导出/ 里的 .pdf、训练/脉络图/导出/ 里导出的思维导图、训练/战报/ 里的海报、训练/时政简报/原文/ 里的 PDF"""
+    """导出的文件的真实路径：只认 训练/手札/导出/ 里的 .pdf、训练/灵脉图/导出/ 里导出的思维导图、训练/战报/ 里的海报、训练/天机简报/原文/ 里的 PDF"""
     p = (paths.vault / str(rel or "")).resolve()
     if not p.is_file():
         return None
@@ -267,7 +267,7 @@ def open_local(p):
 
 
 # ---------------------------------------------------------------- 调阅库里的 Markdown
-# 调阅只看申论各题型的笔记：库根目录下名字带这些词的文件夹（不含 skill、copilot、训练、模考复盘这类）
+# 调阅只看行测各板块的笔记：库根目录下名字带这些词的文件夹（不含 skill、copilot、训练、模考复盘这类）
 BOARD_WORDS = ("常识", "政治", "言语", "逻辑填空", "中心理解", "片段阅读", "语句", "数量", "判断", "图形", "定义",
                "类比", "论证", "形式逻辑", "资料")
 NOT_BOARD = ("skill", "copilot", "训练", "模考", "复盘", "book")
@@ -279,7 +279,7 @@ def is_board_dir(name):
 
 
 def md_tree(paths, limit=4000):
-    """各题型文件夹里的 .md 和 .pdf：[{path, name, dir, top, kind: md|pdf}]（top = 题型文件夹），按文件夹、文件名排"""
+    """各板块文件夹里的 .md 和 .pdf：[{path, name, dir, top, kind: md|pdf}]（top = 板块文件夹），按文件夹、文件名排"""
     root = paths.vault
     out = []
 
@@ -435,7 +435,7 @@ def pdf_page(paths, rel, n, width=1400):
 
 def export_pdf_annot(paths, nid, overlays):
     """PDF 批注本导出：网页把每页的笔迹画成透明 PNG（没写的页传 null）→ 叠到原 PDF 对应页上，
-    存到 训练/公务手账/导出/<标题>（批注）.pdf（同名覆盖）"""
+    存到 训练/手札/导出/<标题>（批注）.pdf（同名覆盖）"""
     d = get(paths, nid)
     p = pdf_file(paths, d.get("pdf"))
     if not p:
@@ -461,13 +461,13 @@ def export_pdf_annot(paths, nid, overlays):
 
 
 def pdf_list(paths, limit=3000):
-    """库里所有的 PDF（档案室「业务手册 · 教材」）：[{path, name, dir, top}]。
-    不含隐藏文件夹、训练/ 里程序自己生成的（公务手账导出、战报、程序文件夹），训练/时政简报/原文/ 保留"""
+    """库里所有的 PDF（藏经阁「功法 · 教材」）：[{path, name, dir, top}]。
+    不含隐藏文件夹、训练/ 里程序自己生成的（手札导出、战报、程序文件夹），训练/天机简报/原文/ 保留"""
     root = paths.vault
     out = []
-    keep = ("训练", "时政简报", "原文")
+    keep = ("训练", "天机简报", "原文")
 
-    def blocked(parts):       # 训练/ 下只进 训练/时政简报/原文/
+    def blocked(parts):       # 训练/ 下只进 训练/天机简报/原文/
         return parts[0] == "训练" and tuple(parts[:3]) != keep[:min(3, len(parts))]
 
     def walk(d, depth):

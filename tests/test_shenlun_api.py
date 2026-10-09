@@ -18,6 +18,14 @@ from rpg import ai, api, paths, shenlun  # noqa: E402
 from test_shenlun import DOC, GOOD, HALF, RUBRIC, fake_ai  # noqa: E402
 
 
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "申论"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
+
+
 class ShenlunApiTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -30,7 +38,7 @@ class ShenlunApiTest(unittest.TestCase):
         self._settings = paths.SETTINGS_FILE, paths.SETTINGS_DIR
         paths.SETTINGS_DIR = self.tmp / "home"
         paths.SETTINGS_FILE = paths.SETTINGS_DIR / "settings.json"
-        paths.save_settings({"vault": str(v), "api_key": "test"})
+        paths.save_settings({"vaults": {"申论": str(v)}, "api_key": "test"})
         self.srv = FakeAI("ok")
         self.srv.__enter__()
         os.environ["SHENLUN_AI_BASE_URL"] = self.srv.url

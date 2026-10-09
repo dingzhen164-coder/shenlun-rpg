@@ -18,44 +18,55 @@ from pathlib import Path
 
 LOCK = threading.RLock()  # 所有读改写存档的操作都要先拿这把锁
 SCHEMA_VERSION = 2
-APP_ID = "申论官途1"   # 存档里没有这个标记 = 0.x 旧版存档，首次启动备份后从头开始
 DEVICE = platform.node() or "本机"
 
 
-def new_state(today):
+APP_ID = "申论官途1"   # 申论存档里没有这个标记 = 0.x 旧版存档，首次启动备份成“存档-旧版.json”后从头开始（行测存档不检查）
+
+
+def new_state(today, subject="行测"):
+    from . import subjects
+    st = _new_state(today)
+    st["theme"] = subjects.SUBJECTS[subject]["default_theme"]
+    if subject == "申论":
+        st["app"] = APP_ID
+    return st
+
+
+def _new_state(today):
     return {
         "version": SCHEMA_VERSION,
-        "app": APP_ID,
         "created": today.isoformat(),
         "xp": 0,                 # 累计经验（已含连续打卡加成）
         "events": [],            # 每次得经验的记录：{t, d, type, board, item, ok, xp, note}
-        "items": {},             # 骨架大项的掌握状态，键 "题型::大项"（结构见 engine.item_state）
-        "wrong": {},             # 错题状态，键 "季|复盘题型|题号"
+        "items": {},             # 骨架大项的掌握状态，键 "板块::大项"（结构见 engine.item_state）
+        "wrong": {},             # 错题状态，键 "季|复盘板块|题号"
         "seconds": {},           # 每天学习秒数 {日期: 秒}（网页心跳累加，只算页面可见且有操作的时间）
         "leave": [],             # 用过请假卡的日期
+        "bank": {"records": {}, "runs": {}, "groups": []},  # 真题记录与可恢复实战组（行测）
+        "grades": [],            # 申论：采分点批改记录 {d, qid, board, score, full, words, lost, draft}
         "plan": None,            # 今日任务 {date, tasks: [...]}
         "lap": 1,                # 当前周目
         "cleared": {},           # {周目: [已通关批次序号(从1开始)]}
-        "gates": [],             # 已渡过的劫（晋升分数线，如 60、65）
+        "gates": [],             # 已渡过的劫（渡劫分数线，如 60、65）
         "boss": [],              # 模考 / 国考真实分 {d, name, score}
-        "lectures": [],          # 听课（其他平台看网课）记录 {id, d, minutes, note, xp}；计入每日时长
-        "practice": [],          # 自练记录 {d, board, total, correct, minutes}；source=="批改" 的是作答批改（专长得分率用）
-        "grades": [],            # 作答批改记录 {id, d, qid, board, score, full, rate, words, lost, summary, draft}
+        "lectures": [],          # 听道（其他平台看网课）记录 {id, d, minutes, note, xp}；计入每日时长
+        "practice": [],          # 自练记录 {d, board, total, correct, minutes}
         "progress_hist": {},     # 每天的周目进度快照 {日期: 0~1}，算“近7天速度”用
         "last_seen": None,       # 上次打开网页的日期（判断“回归”）
         "tutor_greet": None,     # AI 导师今天的开场问候缓存 {d, text}
-        "theme": "官场",         # 界面风格（目前只有官场）
-        "roots": {},             # 专长 {题型: {on: 养成日期, grade: 上次品阶}}
-        "bag": {},               # 文件袋 {物品名: 数量}（补卡券、副科推荐函……）
-        "trib": {"cooldown": None, "heal": []},  # 晋升考核：冷却到哪天、待补救的关卡
-        "pills": [],             # 服过的补课券 {d, board, name, grade, rate}
-        "weekly": {},            # 已领取的周例会 {“2026-W40”: [键…]}
-        "protected": [],         # 补卡券保住的日期
-        "hx_awards": [],         # 已发放的“连续办理补卡券”
-        "fail_streak": 0,        # 连续失败次数（过劳预警）
-        "run": None,             # 本次连续办理 {start, last}（时间戳）
-        "rest_until": 0,         # 休息到什么时候（时间戳）
-        "retreat": None,         # 下乡调研 {board, start, end, minutes, xp0, d}
+        "theme": "修仙",         # 界面风格：修仙 / 玄幻（行测）；官场（申论）
+        "roots": {},             # 灵根 {板块: {on: 觉醒日期, grade: 上次品阶}}
+        "bag": {},               # 储物袋 {物品名: 数量}（护心丹、筑基丹……）
+        "trib": {"cooldown": None, "heal": []},  # 渡劫：冷却到哪天、待疗伤的关卡
+        "pills": [],             # 服过的丹药 {d, board, name, grade, rate}
+        "weekly": {},            # 已领取的周常 {“2026-W40”: [键…]}
+        "protected": [],         # 护心丹保住的日期
+        "hx_awards": [],         # 已发放的“连续修炼护心丹”
+        "fail_streak": 0,        # 连续失败次数（走火入魔）
+        "run": None,             # 本次连续修炼 {start, last}（时间戳）
+        "rest_until": 0,         # 调息到什么时候（时间戳）
+        "retreat": None,         # 闭关 {board, start, end, minutes, xp0, d}
     }
 
 
@@ -67,22 +78,22 @@ class Store:
     def load(self, today):
         f = self.paths.save_file
         if not f or not f.exists():
-            return new_state(today)
+            return new_state(today, self.paths.subject)
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
         except Exception:
             # 存档坏了：不覆盖它，改名留证，从最近的备份恢复
             bad = f.with_name(f"存档-损坏-{int(time.time())}.json")
             os.replace(f, bad)
-            return self._latest_backup() or new_state(today)
-        if data.get("app") != APP_ID:
+            return self._latest_backup() or new_state(today, self.paths.subject)
+        if self.paths.subject == "申论" and data.get("app") != APP_ID:
             old = f.with_name("存档-旧版.json")
             if not old.exists():
                 os.replace(f, old)
-            return new_state(today)
-        base = new_state(today)
+            return new_state(today, "申论")
+        base = new_state(today, self.paths.subject)
         if data.get("version", 1) < 2:
-            # 第一、二版的 gates 是“等级”（10/20/30、30/60/90），第三版改成晋升分数线，旧值作废；
+            # 第一、二版的 gates 是“等级”（10/20/30、30/60/90），第三版改成渡劫分数线，旧值作废；
             # 今日任务的标题也换了说法，重新生成
             data["gates"] = []
             data["plan"] = None

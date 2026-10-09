@@ -1,11 +1,11 @@
-/* 🔮 时政简报：政治理论的时政学习（数据见 rpg/tianji.py）。
+/* 🔮 天机简报：政治理论的时政学习（数据见 rpg/tianji.py）。
    首页两栏：
    - 📰 月半时政：按时间顺序一期一本，封面学《求是》杂志（红色刊名、期号、会动的日出 / 祥云 / 飞鸽、封面要目）；
    - 📜 专题时政：按专题分类（两会·政府报告、经济、农业、外交、科技…），每份是一页会动的红头文件（红色文头、文号、红线五角星、盖章）。
    右上「＋ 导入 PDF」（或把 PDF 拖进来）：小黑月半时政的讲义直接拆成可学的一期。
    点开一期，四步学：
    - 📖 研读：一条条新闻（专题是每道母题的原文速递），消化清单要考的字句标红；读完点「✓ 读完了」；
-   - ✍ 消化：消化清单的挖空，点一下揭开（算记得），再点一下标成没记住（红），没记住的可以一键刻成便笺（填空）；
+   - ✍ 消化：消化清单的挖空，点一下揭开（算记得），再点一下标成没记住（红），没记住的可以一键刻成玉简（填空）；
    - 📝 精卷：小黑金卷 / 母题，点选项就判，出答案和解析，能跳回原文；
    - 📊 小结：进度、错题、没记住的空。
    计时：开着这一期、5 分钟内动过就算学习时间（研读 / 消化算复习，精卷算做题，都记在政治理论）。 */
@@ -25,7 +25,7 @@
   let NEWS = 0;              // 研读看到第几条
   let ONLY_FORGOT = false, ONLY_WRONG = false;
   let REDO = new Set();      // 精卷里点了「重做这题」的题
-  let LEFT = store.get("left", "toc");   // 研读页左栏：toc 目录 / ask 问主任
+  let LEFT = store.get("left", "toc");   // 研读页左栏：toc 目录 / ask 问师傅
   let ASKING = false;
   let lastAct = 0;
   let ROOT = null;
@@ -62,13 +62,13 @@
   function hongtou(it, i, n) {
     const s = it.stat;
     return `<a class="tj-cover tj-hd" data-open="topic|${esc(it.id)}" style="--d:${(i % 5) * 0.9}s" title="${esc(it.title)}">
-      <div class="tj-hd-org">时政简报专题文件</div>
+      <div class="tj-hd-org">天机简报专题文件</div>
       <div class="tj-hd-no">天机〔${it.year || ""}〕${n}号</div>
       <div class="tj-hd-rule"><i></i><b>★</b><i></i></div>
       <div class="tj-hd-title">关于学习${esc(it.title)}的专题</div>
       <div class="tj-hd-text"><i style="width:92%"></i><i style="width:100%"></i><i style="width:78%"></i><i style="width:96%"></i><i style="width:60%"></i></div>
       <svg class="tj-hd-seal" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="#d62a1e" stroke-width="5"/>
-        <path id="tjArc${i}" d="M18 52 A32 32 0 1 1 82 52" fill="none"/><text font-size="12" fill="#d62a1e" font-weight="700" letter-spacing="2"><textPath href="#tjArc${i}" startOffset="50%" text-anchor="middle">时政简报编纂处</textPath></text>
+        <path id="tjArc${i}" d="M18 52 A32 32 0 1 1 82 52" fill="none"/><text font-size="12" fill="#d62a1e" font-weight="700" letter-spacing="2"><textPath href="#tjArc${i}" startOffset="50%" text-anchor="middle">天机简报编纂处</textPath></text>
         <path d="M50 34 l4.7 9.6 10.6 1.5 -7.7 7.5 1.8 10.5 -9.4 -5 -9.4 5 1.8 -10.5 -7.7 -7.5 10.6 -1.5z" fill="#d62a1e"/></svg>
       <div class="tj-hd-cat">${esc(it.category || "其他")}</div>
       ${progBar(s)}</a>`;
@@ -207,9 +207,9 @@
       <div class="tj-ititle"><b>${esc(CUR.kind === "month" ? `${d.title} · 月半时政` : d.title)}</b><small class="muted">${esc(d.overview || "")}</small></div>
       <span class="spacer"></span>
       ${CUR.kind === "topic" ? `<select id="tjCat" title="归到哪个专题">${(LIST?.categories || [d.category]).map((c) => `<option ${c === d.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>` : ""}
-      ${d.pdf ? `<button class="ghost small" id="tjNote" title="把这一期的讲义原文开成一本公务手账，直接用笔勾画、写批注（自动保存）">✏ 勾画笔记</button>
+      ${d.pdf ? `<button class="ghost small" id="tjNote" title="把这一期的讲义原文开成一本手札，直接用笔勾画、写批注（自动保存）">✏ 勾画笔记</button>
         <button class="ghost small" id="tjPdf" title="看原来的 PDF">📄 原文</button>` : ""}
-      <button class="ghost small" id="tjDel" title="从时政简报里删掉这一期（学习进度一起删）">🗑</button>
+      <button class="ghost small" id="tjDel" title="从天机简报里删掉这一期（学习进度一起删）">🗑</button>
       <div class="tj-itabs">${tabs.map(([k, n, c]) => `<a data-mode="${k}" class="${MODE === k ? "on" : ""}">${n}<small>${c}</small></a>`).join("")}</div></div>`;
   }
 
@@ -227,7 +227,7 @@
         <span>${x.stars ? `<em class="tj-star">${"★".repeat(x.stars)}</em>` : ""}${esc(x.title)}</span></a>`;
     }).join("");
     const qs = n.qs.map((k) => d.questions[k]).filter(Boolean);
-    const leftTabs = `<div class="tj-ltabs"><a data-left="toc" class="${LEFT === "toc" ? "on" : ""}">📑 目录</a><a data-left="ask" class="${LEFT === "ask" ? "on" : ""}">🧙 问主任</a></div>`;
+    const leftTabs = `<div class="tj-ltabs"><a data-left="toc" class="${LEFT === "toc" ? "on" : ""}">📑 目录</a><a data-left="ask" class="${LEFT === "ask" ? "on" : ""}">🧙 问师傅</a></div>`;
     return `<div class="tj-read ${LEFT === "ask" ? "asking" : ""}">
       <aside class="card tj-toc">${leftTabs}${LEFT === "ask" ? askHtml(n) : `<div class="tj-toc-list">${toc}</div>`}</aside>
       <article class="card tj-news">
@@ -245,7 +245,7 @@
       </article></div>`;
   }
 
-  // 🧙 问主任：针对正在读的这一条。「总结怎么记」重点讲红字；也可以打字问不懂的地方（可追问），问过的都留着
+  // 🧙 问师傅：针对正在读的这一条。「总结怎么记」重点讲红字；也可以打字问不懂的地方（可追问），问过的都留着
   function askHtml(n) {
     const saved = ((CUR.progress.ask || {})[String(NEWS)]) || [];
     const md = (s) => (window.NOTES ? NOTES.mdRender(s, {}) : esc(s).replace(/\n/g, "<br>"));
@@ -253,8 +253,8 @@
       <div class="tj-ask-for">问的是：<b>${esc(n.title)}</b></div>
       <button class="primary small tj-ask-mem" id="tjAskMem" ${ASKING ? "disabled" : ""}>🧠 总结这一条怎么记（红字）</button>
       <div class="tj-ask-msgs" id="tjAskMsgs">${saved.map((x) => `<div class="tj-am me">${esc(x.q)}<small>${esc(x.t || "")}</small></div><div class="tj-am ai">${md(x.a)}</div>`).join("")
-        || '<div class="muted small tj-ask-empty">点上面的按钮，主任把这一条理一遍、教你记红字；看不懂的地方也可以直接在下面问。</div>'}
-        ${ASKING ? '<div class="tj-am ai faint">主任思索中…</div>' : ""}</div>
+        || '<div class="muted small tj-ask-empty">点上面的按钮，师傅把这一条理一遍、教你记红字；看不懂的地方也可以直接在下面问。</div>'}
+        ${ASKING ? '<div class="tj-am ai faint">师傅思索中…</div>' : ""}</div>
       <div class="tj-ask-in"><textarea id="tjAskIn" rows="2" placeholder="哪里不懂？比如：“四个面向”是哪四个？（回车发送，Shift+回车换行）"></textarea>
         <button class="small" id="tjAskGo" ${ASKING ? "disabled" : ""}>问</button></div></div>`;
   }
@@ -316,7 +316,7 @@
         <span class="small muted">已过 ${s.seen}/${s.blanks} · 没记住 <b style="color:var(--red)">${s.forgot}</b></span>
         <label class="small"><input type="checkbox" id="tjOnlyNo" ${ONLY_FORGOT ? "checked" : ""}> 只看没记住的</label>
         <button class="ghost small" id="tjClozeReset" title="全部重新遮住，再过一遍">↺ 重练</button>
-        <button class="small ${left > 0 ? "primary" : "ghost"}" id="tjCards" ${left > 0 ? "" : "disabled"} title="没记住的空做成填空便笺，放进 政治理论::时政简报 便笺夹">🀄 没记住的刻成${esc(W("yj"))}${left > 0 ? ` (${left})` : ""}</button></div>
+        <button class="small ${left > 0 ? "primary" : "ghost"}" id="tjCards" ${left > 0 ? "" : "disabled"} title="没记住的空做成填空玉简，放进 政治理论::天机简报 简匣">🀄 没记住的刻成${esc(W("yj"))}${left > 0 ? ` (${left})` : ""}</button></div>
       ${items || '<div class="card muted">没有没记住的空 👍</div>'}`;
   }
 
@@ -395,7 +395,7 @@
       } catch (e) { showError(e); }
     };
     $1("#tjDel").onclick = async () => {
-      if (!confirm(`从时政简报里删掉「${CUR.data.title}」？学习进度一起删（库里的原 PDF 留着，可以再导入）。`)) return;
+      if (!confirm(`从天机简报里删掉「${CUR.data.title}」？学习进度一起删（库里的原 PDF 留着，可以再导入）。`)) return;
       try { await api("/api/tianji/delete", { kind: CUR.kind, id: CUR.id }); close(); } catch (e) { showError(e); }
     };
     // 研读
@@ -403,7 +403,7 @@
     const note = $1("#tjNote");
     if (note) note.onclick = async () => {
       try {
-        await api("/api/notes/pdfopen", { p: CUR.data.pdf, title: `时政简报 · ${CUR.data.title}` });
+        await api("/api/notes/pdfopen", { p: CUR.data.pdf, title: `天机简报 · ${CUR.data.title}` });
         NOTES.openPdfLater(CUR.data.pdf); go("notes");
       } catch (e) { showError(e); }
     };
@@ -438,7 +438,7 @@
         const r = await api("/api/tianji/cards", { kind: CUR.kind, id: CUR.id });
         const g = await api("/api/tianji/get", { kind: CUR.kind, id: CUR.id });
         CUR.progress = g.progress; CUR.stat = g.stat;
-        toast(`🀄 刻好 ${r.added} 枚${esc(W("yj"))}，在办理殿「政治理论 › 时政简报」便笺夹里`);
+        toast(`🀄 刻好 ${r.added} 枚${esc(W("yj"))}，在修炼殿「政治理论 › 天机简报」简匣里`);
         keepScroll(renderIssue);
       } catch (e) { showError(e); }
     };
@@ -451,7 +451,7 @@
     $$("[data-goread]").forEach((a) => (a.onclick = () => { NEWS = +a.dataset.goread; MODE = "read"; renderIssue(); window.scrollTo(0, 0); }));
     const ow = $1("#tjOnlyWrong"); if (ow) ow.onchange = () => { ONLY_WRONG = ow.checked; renderIssue(); };
     const qr = $1("#tjQuizReset");
-    if (qr) qr.onclick = async () => { if (!confirm("清掉这一期精卷的作答，整卷重做？（政绩不会重复发）")) return; try { await mark({ reset: "quiz" }); REDO = new Set(); renderIssue(); } catch (e) { showError(e); } };
+    if (qr) qr.onclick = async () => { if (!confirm("清掉这一期精卷的作答，整卷重做？（修为不会重复发）")) return; try { await mark({ reset: "quiz" }); REDO = new Set(); renderIssue(); } catch (e) { showError(e); } };
     $$("[data-goq]").forEach((a) => (a.onclick = () => { const k = a.dataset.goq; MODE = "quiz"; renderIssue(); setTimeout(() => document.getElementById("tjq" + k)?.scrollIntoView({ block: "start" }), 50); }));
   }
 

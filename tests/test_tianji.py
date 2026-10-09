@@ -1,4 +1,5 @@
-"""🔮 时政简报（rpg/tianji.py）：用 pymupdf 现画一份小黑月半时政版式的 PDF，测拆分、填空答案、进度、做成便笺"""
+"""🔮 天机简报（rpg/tianji.py）：用 pymupdf 现画一份小黑月半时政版式的 PDF，测拆分、填空答案、进度、做成玉简"""
+import os
 import base64
 import tempfile
 import unittest
@@ -64,6 +65,14 @@ TOPIC = [
 
 
 @unittest.skipIf(fitz is None, "没有 pymupdf")
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
+
+
 class TianjiTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -72,7 +81,7 @@ class TianjiTest(unittest.TestCase):
         self._settings = paths.SETTINGS_FILE, paths.SETTINGS_DIR
         paths.SETTINGS_DIR = self.vault / ".home"
         paths.SETTINGS_FILE = paths.SETTINGS_DIR / "settings.json"
-        paths.save_settings({"vault": str(self.vault)})
+        paths.save_settings({"vaults": {"行测": str(self.vault)}})
         cards._CACHE["key"] = None
         self.month = self.vault / "m.pdf"
         self.topic = self.vault / "t.pdf"
@@ -111,8 +120,8 @@ class TianjiTest(unittest.TestCase):
         data = "data:application/pdf;base64," + base64.b64encode(self.month.read_bytes()).decode()
         r = api.tj_import({"data": data})
         self.assertEqual((r["kind"], r["id"], r["found"], r["blanks"], r["questions"]), ("month", "2026-09-下", 2, 2, 2))
-        self.assertTrue((self.vault / "训练/时政简报/月半时政/2026-09-下.json").is_file())
-        self.assertTrue((self.vault / "训练/时政简报/原文/月半时政-2026-09-下.pdf").is_file())
+        self.assertTrue((self.vault / "训练/天机简报/月半时政/2026-09-下.json").is_file())
+        self.assertTrue((self.vault / "训练/天机简报/原文/月半时政-2026-09-下.pdf").is_file())
         api.tj_import({"data": base64.b64encode(self.topic.read_bytes()).decode()})
         ls = api.tj_list({})
         self.assertEqual([x["id"] for x in ls["month"]], ["2026-09-下"])
@@ -124,7 +133,7 @@ class TianjiTest(unittest.TestCase):
         api.tj_mark(dict(k, cloze="0-3", ok=0))
         r = api.tj_mark(dict(k, quiz=0, choice="B"))
         self.assertTrue(r["progress"]["quiz"]["0"]["ok"])
-        self.assertTrue(r["events"])                       # 第一次答发政绩
+        self.assertTrue(r["events"])                       # 第一次答发修为
         self.assertFalse(api.tj_mark(dict(k, quiz=0, choice="A"))["events"])
         st = r["stat"]
         self.assertEqual((st["read"], st["seen"], st["forgot"], st["done"]), (1, 2, 1, 1))
@@ -137,17 +146,17 @@ class TianjiTest(unittest.TestCase):
         self.assertEqual(hb["minutes"], 1)
         api.tj_meta({"kind": "topic", "id": ls["topic"][0]["id"], "category": "经济"})
         self.assertEqual(api.tj_list({})["topic"][0]["category"], "经济")
-        # 🧙 问主任：总结怎么记（带红字）/ 追问，问过的存进进度
+        # 🧙 问师傅：总结怎么记（带红字）/ 追问，问过的存进进度
         seen = []
         def fake_chat(msgs, **kw):
             seen.append(msgs)
-            return "要点：珠江北部湾"
+            return "口诀：珠江北部湾"
         with patch.object(api.ai, "available", return_value=True), patch.object(api.ai, "chat", side_effect=fake_chat):
             r = api.tj_ask(dict(k, news=0))
-            self.assertEqual(r["saved"][-1]["a"], "要点：珠江北部湾")
-            self.assertIn("珠江、北部湾", seen[0][1]["content"])          # 红字带给主任
+            self.assertEqual(r["saved"][-1]["a"], "口诀：珠江北部湾")
+            self.assertIn("珠江、北部湾", seen[0][1]["content"])          # 红字带给师傅
             self.assertIn("请帮我记住这一条", seen[0][1]["content"])
-            r = api.tj_ask(dict(k, news=0, question="西江是什么？", history=[{"role": "user", "content": "总结"}, {"role": "assistant", "content": "要点"}]))
+            r = api.tj_ask(dict(k, news=0, question="西江是什么？", history=[{"role": "user", "content": "总结"}, {"role": "assistant", "content": "口诀"}]))
             self.assertEqual(len(r["saved"]), 2)
             self.assertEqual(len(seen[1]), 4)
             with self.assertRaises(api.ApiError):

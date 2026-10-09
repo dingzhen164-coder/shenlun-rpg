@@ -1,4 +1,4 @@
-"""局域网模式：让同一个 Wi-Fi 下的手机、平板用浏览器打开申论官途（电脑当主机，数据只有电脑上这一份）。
+"""局域网模式：让同一个 Wi-Fi 下的手机、平板用浏览器打开修仙传（电脑当主机，数据只有电脑上这一份）。
 
 - 设置在本机设置（~/.shenlun-rpg/settings.json）里：lan = true / false，lan_code = 6 位访问口令；
 - 开了局域网模式，程序监听 0.0.0.0（重启生效）；本机（127.0.0.1）访问不用口令，别的设备第一次要输口令，
@@ -12,7 +12,7 @@ import socket
 
 from .paths import load_settings, save_settings
 
-COOKIE = "srpg_lan"
+COOKIE = "xrpg_lan"
 
 
 def settings():
@@ -95,7 +95,7 @@ def status(port, listening_lan):
 
 
 LOGIN_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>申论官途 · 入山门</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>行测修仙传 · 入山门</title>
 <style>
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#14302b,#050a09 70%);
     font-family:"STKaiti","KaiTi","楷体",serif;color:#e8dcc0}

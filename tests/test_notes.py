@@ -1,4 +1,5 @@
-"""公务手账：本子存取、主任编纂（识图 / OCR+AI / 只有 OCR）、调阅库里的 Markdown。"""
+"""灵台手札：本子存取、师傅编纂（识图 / OCR+AI / 只有 OCR）、调阅库里的 Markdown。"""
+import os
 import base64
 import json
 import tempfile
@@ -6,10 +7,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from rpg import ai, notes, ocr, paths
+from rpg import ai, notes, paths, report
 
 PNG = "data:image/png;base64," + base64.b64encode(b"\x89PNG fake").decode("ascii")
 STROKE = {"t": "pen", "c": "#222", "w": 3, "p": [[10, 10], [20, 30.123]]}
+
+
+def setUpModule():
+    os.environ["SHENLUN_SUBJECT"] = "行测"     # 本文件的测试跑在这个科目下（rpg/subjects.py）
+
+
+def tearDownModule():
+    os.environ.pop("SHENLUN_SUBJECT", None)
 
 
 class NotesTest(unittest.TestCase):
@@ -25,7 +34,7 @@ class NotesTest(unittest.TestCase):
     def test_save_list_get_delete(self):
         r = notes.save(self.paths, {"title": "言语 · 主旨题", "paper": "grid", "pages": [{"strokes": [STROKE]}, {"strokes": []}]})
         nid = r["id"]
-        self.assertTrue((self.paths.train / "公务手账/手写" / (nid + ".json")).is_file())
+        self.assertTrue((self.paths.train / "手札/手写" / (nid + ".json")).is_file())
         d = notes.get(self.paths, nid)
         self.assertEqual(d["paper"], "grid")
         self.assertEqual(d["pages"][0]["strokes"][0]["p"][1], [20.0, 30.1])
@@ -49,9 +58,9 @@ class NotesTest(unittest.TestCase):
         self.assertTrue(chat.call_args.kwargs["vision"])
         content = chat.call_args.args[0][0]["content"]
         self.assertEqual(content[1]["type"], "image_url")
-        self.assertEqual(r["path"], "训练/公务手账/片段阅读.md")
+        self.assertEqual(r["path"], "训练/手札/片段阅读.md")
         text = (self.paths.vault / r["path"]).read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("# 主旨题\n\n> 公务手账 · 主任编纂（识图模型（vl-test））"))
+        self.assertTrue(text.startswith("# 主旨题\n\n> 灵台手札 · 师傅编纂（识图模型（vl-test））"))
         self.assertIn("- **但是** 后面是重点", text)
         self.assertNotIn("```", text)
         self.assertEqual(notes.get(self.paths, nid)["compiled"], r["path"])
@@ -59,7 +68,7 @@ class NotesTest(unittest.TestCase):
     def test_compile_ocr_then_ai_and_ocr_only(self):
         nid = notes.save(self.paths, {"title": "数量", "pages": [{"strokes": [STROKE]}]})["id"]
         with patch.object(ai, "vision_available", return_value=False), patch.object(ai, "available", return_value=True), \
-                patch.object(ocr, "ocr", return_value="工程问题 赋值总量"), \
+                patch.object(report, "ocr", return_value="工程问题 赋值总量"), \
                 patch.object(ai, "chat", return_value="# 工程问题\n\n- 赋值总量") as chat:
             r = notes.compile(self.paths, nid, [PNG], "效率比")
         prompt = chat.call_args.args[0][1]["content"]
@@ -67,13 +76,13 @@ class NotesTest(unittest.TestCase):
         self.assertIn("效率比", prompt)
         self.assertIn("系统 OCR 认字 + AI 排版", r["markdown"])
         with patch.object(ai, "vision_available", return_value=False), patch.object(ai, "available", return_value=False), \
-                patch.object(ocr, "ocr", return_value="工程问题"):
+                patch.object(report, "ocr", return_value="工程问题"):
             r = notes.compile(self.paths, nid, [PNG], "")
         self.assertIn("没有 AI", r["markdown"])
         self.assertIn("工程问题", r["markdown"])
         # 认不了字也没打字：说清楚怎么办
         with patch.object(ai, "vision_available", return_value=False), \
-                patch.object(ocr, "ocr", side_effect=ocr.OcrError("这台电脑没有 OCR：…")):
+                patch.object(report, "ocr", side_effect=report.ReportError("这台电脑没有 OCR：…")):
             with self.assertRaisesRegex(notes.NotesError, "识图模型"):
                 notes.compile(self.paths, nid, [PNG], "")
         with self.assertRaises(notes.NotesError):
@@ -96,7 +105,7 @@ class NotesTest(unittest.TestCase):
         (v / "根目录.md").write_text("x", encoding="utf-8")
         tree = notes.md_tree(self.paths)
         files = [f["path"] for f in tree]
-        self.assertEqual(sorted(files), ["言语/主旨.md", "资料分析/速算/x.md"])   # 只有题型文件夹，不含 skill / copilot / 训练 / 根目录
+        self.assertEqual(sorted(files), ["言语/主旨.md", "资料分析/速算/x.md"])   # 只有板块文件夹，不含 skill / copilot / 训练 / 根目录
         self.assertEqual({f["top"] for f in tree}, {"言语", "资料分析"})
         self.assertFalse(any(f.startswith((".obsidian", "存档")) for f in files))
         r = notes.read_md(self.paths, "言语/主旨.md")
@@ -114,12 +123,12 @@ class NotesTest(unittest.TestCase):
         pix.clear_with(255)
         jpg = "data:image/jpeg;base64," + base64.b64encode(pix.tobytes("jpeg")).decode()
         r = notes.export_pdf(self.paths, nid, [jpg, jpg])
-        self.assertEqual((r["path"], r["pages"]), ("训练/公务手账/导出/类比推理.pdf", 2))
+        self.assertEqual((r["path"], r["pages"]), ("训练/手札/导出/类比推理.pdf", 2))
         doc = pymupdf.open(str(self.paths.vault / r["path"]))
         self.assertEqual((doc.page_count, round(doc[0].rect.width)), (2, 595))      # A4
         self.assertEqual(notes.export_file(self.paths, r["path"]), (self.paths.vault / r["path"]).resolve())
         self.assertIsNone(notes.export_file(self.paths, "训练/存档/存档.json"))      # 只给导出目录里的 PDF
-        self.assertIsNone(notes.export_file(self.paths, "训练/公务手账/导出/../../存档/x.pdf"))
+        self.assertIsNone(notes.export_file(self.paths, "训练/手札/导出/../../存档/x.pdf"))
         with self.assertRaises(notes.NotesError):
             notes.export_pdf(self.paths, nid, [])
 
@@ -186,7 +195,7 @@ class PdfNotesTest(unittest.TestCase):
         out = fitz.open(str(self.paths.vault / r["path"]))
         self.assertIn("hello", out[0].get_text())                # 原文字还在（不是整页图片）
         self.assertIsNotNone(notes.export_file(self.paths, r["path"]))
-        # 档案室「业务手册 · 教材」：库里所有 PDF，不含公务手账导出
+        # 藏经阁「功法 · 教材」：库里所有 PDF，不含手札导出
         lst = [x["path"] for x in notes.pdf_list(self.paths)]
         self.assertIn(self.rel, lst)
         self.assertNotIn(r["path"], lst)

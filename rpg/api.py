@@ -8,34 +8,36 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     GET  /api/dashboard            面板 + 今日任务 + 角色信息 + 提醒
     POST /api/tutor/greet          AI 导师今天的开场问候（每天生成一次并缓存）
     GET  /api/changelog            版本更新记录（rpg/data/changelog.md）
-    GET  /api/notes …              公务手账：本子列表；POST get {id} / save / delete / compile（主任编纂）；GET tree（库里的 md、pdf）；POST md {p}（读一篇）
+    GET  /api/notes …              灵台手札：本子列表；POST get {id} / save / delete / compile（师傅编纂）；GET tree（库里的 md、pdf）；POST md {p}（读一篇）
                                    POST pdfopen {p}（调阅 PDF → 批注本）/ pdfexport {id, overlays}；GET /notes-pdfpage?p=&n=（PDF 一页的底图）
-    GET  /api/app/latest           平板 App 的最新版本（电脑替平板去 GitHub 下安装包）；/app/shenlun-guantu.apk 拿安装包
-    POST /api/retreat/start        {"board", "minutes"}  下乡调研；POST /api/retreat/end 提前调研结束
+    GET  /api/subject              当前科目和可选科目；POST {"subject": "行测"|"申论"} 切换（网页随后重新加载）
+    GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
+    GET  /api/app/latest           平板 App 的最新版本（电脑替平板去 GitHub 下安装包）；/app/xingce-xiuxian.apk 拿安装包
+    POST /api/theme                {"theme": "修仙"|"玄幻"}  切换风格
+    POST /api/retreat/start        {"board", "minutes"}  闭关；POST /api/retreat/end 提前出关
     POST /api/plan/regenerate      重新生成今日任务
-    POST /api/session/start        {"task_id"} 或 {"task": {type, board, target, title}} 开始办理
-                                   （type 还可以是 tribulation 晋升考核、alchemy 加班补课(board)、chat 聊天）
+    POST /api/session/start        {"task_id"} 或 {"task": {type, board, target, title}} 开始修炼
+                                   （type 还可以是 tribulation 渡劫、alchemy 炼丹(board)、chat 聊天）
     POST /api/session/reply        {"session", "text"}      提交文字
     POST /api/session/action       {"session", "action"}    点按钮
-    GET  /api/skeletons            各题型骨架与每个大项的掌握度
+    GET  /api/skeletons            各板块骨架与每个大项的掌握度
     GET  /api/wrong                错题池统计
-    GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
-    POST /api/heartbeat            {"seconds", "session", "notes"}  网页每 30 秒上报；只有正在办理的会话、或 1 分钟内动过笔的公务手账才计时
+    POST /api/heartbeat            {"seconds", "session", "notes"}  网页每 30 秒上报；只有正在修炼的会话、或 1 分钟内动过笔的手札才计时
     POST /api/leave                用请假卡
-    POST /api/boss                 {"name", "score", "kind": "考核"|"上岸", "result"?}  年度考核（模考）/ 录用大考（国考）
-    GET  /api/idioms               档案室·成语实词录：按首字拼音首字母排的词条
+    POST /api/boss                 {"name", "score", "kind": "大比"|"飞升", "result"?}  宗门大比（模考）/ 飞升大典（国考）
+    GET  /api/idioms               藏经阁·成语实词录：按首字拼音首字母排的词条
     POST /api/idioms/backfill      把以前做过的逻辑填空题一次收进成语实词录
     POST /api/idioms/edit          {"word", "new_word"?, "sources": {"0": {"meaning", "compare"}}}  修改词条
     POST /api/idioms/delete        {"word"}  删除词条（以后收录也不再收回来）
-    POST /api/idioms/tutor         {"word"}  主任答疑：AI 写一句话辨析，替换原辨析
-    GET  /api/mock                 年度考核：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
+    POST /api/idioms/tutor         {"word"}  师傅答疑：AI 写一句话辨析，替换原辨析
+    GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
     POST /api/mock/marks/scan      {"season", "images": [base64]}  读答题卡截图（绿对红错）→ 每题对错
     POST /api/mock/report/scan     {"images": [base64], "text"?}  读粉笔成绩截图（Windows OCR）或粘贴的报告文字 → 成绩单各项
-    POST /api/mock/marks/save      {"season", "marks": {题号: ok/bad}}  写回这一季的题型复盘
+    POST /api/mock/marks/save      {"season", "marks": {题号: ok/bad}}  写回这一季的板块复盘
     POST /api/mock/analysis        {"season"}  这一季的考情分析对话
-    POST /api/mock/analyze         {"season", "text"?, "fresh"?}  主任考核分析（无 text 先做完整分析；有 text 接着追问）
+    POST /api/mock/analyze         {"season", "text"?, "fresh"?}  师傅大比分析（无 text 先做完整分析；有 text 接着追问）
     POST /api/mock/save            {"season", "score", "avg", "top", "beat", "rank", "people", "date", "minutes": {模块}, "scores": {模块}}
-    POST /api/practice             {"board", "total", "correct", "minutes", "source", "note"}  自练（自练做题）+ 日志；"date" 可补记最近 7 天
+    POST /api/practice             {"board", "total", "correct", "minutes", "source", "note"}  演武（自练做题）+ 日志；"date" 可补记最近 7 天
     POST /api/practice/delete      {"id"}  删掉记错的一笔自练
     POST /api/selfstudy            {"board"?, "minutes", "topic"?, "note"?, "date"?}  静修（自己复习）
     POST /api/selfstudy/delete     {"id"}
@@ -49,12 +51,12 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/import/normalize     整理题库格式：选项统一“A. ”，修复 OCR 认错的 ①② / ⅠⅡ
     POST /api/import/rename        {"old", "new", "boards"?}  改编号前缀（题库 + 作答记录一起改）
     POST /api/import/upload_pdf    {"name", "data"(base64), "season"?}  新模考 PDF 存进 FB模考试卷复盘/模考试卷/
-    POST /api/import/split         {"file"}  运行 shenlun-mokao-split 拆分并导入那一季
+    POST /api/import/split         {"file"}  运行 xingce-mokao-split 拆分并导入那一季
     POST /api/import/install_pymupdf  用户点按钮才运行 pip install pymupdf
     GET  /api/appearance           背景 / 语录 / 音乐的可选项和当前选择；POST 同路径保存选择
-    POST /api/lecture              {"minutes", "note"?, "date"?, "board"?}  记一笔听课（其他平台看网课），计入每日学时
+    POST /api/lecture              {"minutes", "note"?, "date"?, "board"?}  记一笔听道（其他平台看网课），计入每日功行
     POST /api/lecture/delete       {"id"}  删掉记错的一笔
-    POST /api/lecture/board        {"id", "board"}  改一笔听课算哪个模块（空 = 不分模块）
+    POST /api/lecture/board        {"id", "board"}  改一笔听道算哪个模块（空 = 不分模块）
     GET  /api/settings             本机设置（不返回完整 key）
     POST /api/settings             {"vault"?, "api_key"?, "base_url"?, "model"?}
     POST /api/settings/test        测试 AI 连接
@@ -70,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import appapk, appearance, cardgen, cards, mindmap, notes, poster, shenlun, tianji, lan, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import wording, appapk, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -86,8 +88,11 @@ def open_game(save=True):
         st = store.Store(paths)
         today = dt.date.today()
         state = st.load(today)
-        # 风格存在存档里：它决定用哪套导师设定、哪个台词库
-        rules, persona, lines = config.load_all(paths, state.get("theme") or themes.DEFAULT_THEME)
+        # 风格存在存档里：它决定用哪套导师设定、哪个台词库；风格必须属于当前科目（行测：修仙 / 玄幻；申论：官场）
+        sub = subjects.SUBJECTS[paths.subject]
+        if state.get("theme") not in sub["themes"]:
+            state["theme"] = sub["default_theme"]
+        rules, persona, lines = config.load_all(paths, state["theme"])
         g = engine.Game(paths, rules, persona, lines, state, today)
         g.store = st
         yield g
@@ -124,6 +129,8 @@ def dashboard(body):
         d.update(plan=plan, persona=_persona_view(g), events=tutor.enrich(g, ev), first_today=first_today,
                  greet_pending=bool(not cached and tutor.enabled(g)), upgraded=upgraded, notices=notices,
                  vault=str(g.paths.vault) if g.paths.vault else None, ai=ai.available(),
+                 subject=g.subject, subjects=[{"name": n, "brand": subjects.SUBJECTS[n]["brand"]} for n in subjects.NAMES],
+                 features=subjects.SUBJECTS[g.subject]["features"],
                  other_device=g.store.heartbeat(), conflicts=g.store.conflicts())
         return d
 
@@ -153,7 +160,7 @@ def _with_housekeeping(g, resp):
 
 
 def realm_break(body):
-    """⚡ 突破：政绩圆满后由办理者自己按住「突破」进入下一层（不自动升级，留一点仪式感）"""
+    """⚡ 突破：修为圆满后由修炼者自己按住「突破」进入下一层（不自动升级，留一点仪式感）"""
     with open_game() as g:
         try:
             ev = g.break_through()
@@ -178,74 +185,264 @@ def session_action(body):
         return _with_housekeeping(g, trainer.action(g, body["session"], body.get("action", "")))
 
 
+def bank_view(body):
+    with open_game(save=False) as g:
+        return question_bank.summary(g)
 
 
+def library_catalog(body):
+    with open_game(save=False) as g:
+        return library.catalog(g)
 
 
+def library_search(body):
+    with open_game(save=False) as g:
+        return library.search(g, body)
 
 
+def library_question(body):
+    with open_game(save=False) as g:
+        try:
+            return library.detail(g, body.get("key", ""))
+        except question_bank.BankError as e:
+            raise ApiError(str(e))
 
 
+def _import_paths():
+    """导入不碰存档，不拿全局锁（AI 分类可能要几十秒，不能挡住计时心跳）"""
+    p = Paths(find_vault())
+    if not p.vault:
+        raise ApiError("请先在设置中指定行测库路径")
+    p.ensure_train_dir()
+    return p
 
 
+def _import_call(fn, body):
+    try:
+        return fn(_import_paths(), body)
+    except importer.ImportError_ as e:
+        raise ApiError(str(e))
 
 
+def import_status(body):
+    return importer.status(_import_paths())
 
 
+def import_preview(body):
+    return _import_call(importer.preview, body)
 
 
+def _mock_imported(rep, season):
+    """导入了一份模考试卷 → 演武 · 历练记记 120 分钟（每季一次）"""
+    if season:
+        with open_game() as g:
+            ev = mock.on_import(g, int(season))
+            if ev:
+                rep["events"] = tutor.enrich(g, ev)
+                rep["practice_minutes"] = mock.IMPORT_MINUTES
+    return rep
 
 
+def import_commit(body):
+    rep = _import_call(importer.commit, body)
+    if body.get("kind") == "season" and not rep.get("dry"):
+        _mock_imported(rep, body.get("season"))
+    return rep
 
 
+def import_answers(body):
+    return _import_call(importer.fill_answers, body)
 
 
+def import_upload_pdf(body):
+    return _import_call(importer.save_pdf, body)
 
 
+def import_split(body):
+    rep = _import_call(importer.split_pdf, body)
+    return _mock_imported(rep, rep.get("season"))
 
 
+def idioms_list(body):
+    with open_game() as g:
+        idioms.migrate(g)
+        if idioms.clean_tags(g):
+            idioms.write_file(g)
+        return idioms.listing(g)
 
 
+def idioms_backfill(body):
+    with open_game() as g:
+        r = idioms.backfill(g)
+        return dict(r, **idioms.listing(g))
 
 
+def _idiom_call(fn, *args):
+    with open_game() as g:
+        try:
+            fn(g, *args)
+        except ValueError as e:
+            raise ApiError(str(e))
+        except ai.AIError as e:
+            raise ApiError("师傅没回话：%s" % e)
+        return idioms.listing(g)
 
 
+def idioms_edit(body):
+    return _idiom_call(idioms.edit, str(body.get("word") or ""), {"word": body.get("new_word"), "sources": body.get("sources") or {}})
 
 
+def idioms_delete(body):
+    return _idiom_call(idioms.delete, str(body.get("word") or ""))
 
 
+def idioms_tutor(body):
+    if not ai.available():
+        raise ApiError("师傅答疑要用 AI：先在“设置”里填 AI 的 API key")
+    return _idiom_call(idioms.ask_tutor, str(body.get("word") or ""))
 
 
+def mock_marks_scan(body):
+    try:
+        season = int(body.get("season") or 0)
+    except (TypeError, ValueError):
+        raise ApiError("先选是第几季")
+    with open_game(save=False) as g:
+        try:
+            return marks.scan(g.paths, season, marks.decode(body.get("images")))
+        except marks.MarksError as e:
+            raise ApiError(str(e))
 
 
+def mock_report_scan(body):
+    try:
+        return report.scan(marks.decode(body.get("images")), body.get("text") or "")
+    except (report.ReportError, marks.MarksError) as e:
+        raise ApiError(str(e))
 
 
+def mock_marks_save(body):
+    try:
+        season = int(body.get("season") or 0)
+    except (TypeError, ValueError):
+        raise ApiError("先选是第几季")
+    with open_game() as g:
+        try:
+            r = marks.apply(g.paths, season, body.get("marks") or {})
+        except marks.MarksError as e:
+            raise ApiError(str(e))
+        mock.after_marks(g, season)
+        g._acc = {}
+        return dict(r, summary=mock.summary(g))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def _season(body):
+    try:
+        return int(body.get("season") or 0)
+    except (TypeError, ValueError):
+        raise ApiError("先选是第几季")
+
+
+def mock_analysis_get(body):
+    with open_game(save=False) as g:
+        return {"season": _season(body), "conv": mock.analysis(g, _season(body))}
+
+
+def mock_analyze(body):
+    if not ai.available():
+        raise ApiError("师傅大比分析要用 AI：先在“设置”里填 AI 的 API key")
+    text = str(body.get("text") or "").strip()
+    with open_game() as g:
+        try:
+            conv = mock.analyze(g, _season(body), text or None, fresh=bool(body.get("fresh")))
+        except mock.MockError as e:
+            raise ApiError(str(e))
+        except ai.AIError as e:
+            raise ApiError("师傅没回话：%s" % e)
+        return {"season": _season(body), "conv": conv}
+
+
+def mock_summary(body):
+    with open_game(save=False) as g:
+        return mock.summary(g)
+
+
+def mock_save(body):
+    with open_game() as g:
+        try:
+            ev = mock.save(g, body)
+        except mock.MockError as e:
+            raise ApiError(str(e))
+        return {"events": tutor.enrich(g, ev + g.housekeeping()) if ev else [], "summary": mock.summary(g)}
+
+
+def import_install(body):
+    return _import_call(importer.install_pymupdf, body)
+
+
+def import_rename(body):
+    """改编号前缀：题库文件和存档里的作答记录一起改，所以要拿存档"""
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        try:
+            return importer.rename_prefix(g.paths, body, g.state)
+        except importer.ImportError_ as e:
+            raise ApiError(str(e))
+
+
+def import_dedupe(body):
+    """题库去重：要动存档里的作答记录，所以拿存档；预览不保存"""
+    with open_game(save=not body.get("dry")) as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        return importer.dedupe_bank(g.paths, body, g.state)
+
+
+def import_distill(body):
+    """给已入库的真题补蒸馏解析（读本机的蒸馏笔记文件夹）"""
+    from . import zhenti
+    p = _import_paths()
+    folder = str(body.get("folder") or "").strip().strip('"')
+    if not folder:
+        raise ApiError("填蒸馏笔记所在的文件夹")
+    try:
+        return zhenti.merge_distilled(p.train, folder, dry=bool(body.get("dry")))
+    except ValueError as e:
+        raise ApiError(str(e))
+
+
+def import_normalize(body):
+    return _import_call(importer.normalize_bank, body)
+
+
+def import_remove(body):
+    with open_game(save=False) as g:   # 做过的题有作答记录，不删
+        done = set(question_bank.state(g)["records"])
+    return _import_call(lambda p, b: importer.remove(p, b, done), body)
+
+
+def import_classify(body):
+    return _import_call(lambda p, b: importer.classify(p, max(1, min(300, int(b.get("limit") or 100)))), body)
+
+
+def bank_count(body):
+    if "order" in body:
+        if body["order"] not in question_bank.ORDERS:
+            raise ApiError("出题顺序无效")
+        with open_game() as g:
+            question_bank.state(g)["order"] = body["order"]
+        return {"order": body["order"]}
+    n = body.get("count")
+    if n not in (10, 15):
+        raise ApiError("题量只能选择 10 或 15")
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        # 追加同名配置，保留用户的其余规则；最后一项生效。
+        with g.paths.rules.open("a", encoding="utf-8", newline="\n") as f:
+            f.write("\n- 实战每组题数: %s\n" % n)
+    return {"count": n}
 
 
 def skeletons(body):
@@ -282,14 +479,14 @@ def wrong(body):
 
 
 def heartbeat(body):
-    """网页定时上报。只有带着“正在办理”的会话（见 trainer.is_studying）才计时；
+    """网页定时上报。只有带着“正在修炼”的会话（见 trainer.is_studying）才计时；
     只是开着网页、看面板、和导师闲聊，只刷新状态，不计时。"""
     sec = max(0, min(90, int(body.get("seconds", 0))))
     studying = trainer.is_studying(body.get("session"))
-    noting = not studying and bool(body.get("notes")) and notes.writing(body.get("notes"))   # 在公务手账里写（1 分钟内动过笔）
-    carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 在过便笺（2 分半内答过一张）
-    answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 在作答页写答案
-    tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在时政简报里学（5 分钟内翻过、填过、答过）
+    noting = not studying and bool(body.get("notes")) and notes.writing(body.get("notes"))   # 在手札里写（1 分钟内动过笔）
+    carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 在温简（2 分半内答过一张）
+    answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 申论：在作答页写答案
+    tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在天机简报里学（5 分钟内翻过、填过、答过）
     with open_game() as g:
         sid = body.get("session")
         if studying and sec:
@@ -305,142 +502,6 @@ def heartbeat(body):
         studying = studying or noting or carding or answer or bool(tj)
         return {"events": ev, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
                 "rest": g.resting(), "retreat_on": bool(g.state.get("retreat"))}
-
-
-def leave(body):
-    with open_game() as g:
-        ok, msg = g.use_leave()
-        ev = [{"kind": "npc", "msg": msg, "scene": "请假"}] if ok else [{"kind": "info", "msg": msg}]
-        return {"ok": ok, "events": tutor.enrich(g, ev)}
-
-
-def boss(body):
-    """年度考核（kind=考核，默认）或录用大考（kind=上岸，国考）成绩"""
-    name = str(body.get("name", "")).strip() or "模考"
-    kind = "上岸" if body.get("kind") == "上岸" else "考核"
-    try:
-        score = float(body["score"])
-    except Exception:
-        raise ApiError("分数要填数字")
-    if not 0 <= score <= 100:
-        raise ApiError("分数要在 0–100 之间")
-    with open_game() as g:
-        if kind == "上岸" and body.get("result"):
-            name = f"{name}（{body['result']}）"
-        return {"events": tutor.enrich(g, g.add_boss(name, score, kind) + g.housekeeping())}
-
-
-
-
-def lecture_add(body):
-    """记一笔听课（其他平台看网课的时间）"""
-    with open_game() as g:
-        try:
-            ev = g.add_lecture(body.get("minutes") or 0, str(body.get("note") or "").strip(), body.get("date") or None,
-                               str(body.get("board") or "").strip())
-        except (ValueError, TypeError) as e:
-            raise ApiError(str(e))
-        return {"events": tutor.enrich(g, ev)}
-
-
-def lecture_board(body):
-    with open_game() as g:
-        try:
-            g.set_lecture_board(str(body.get("id") or ""), str(body.get("board") or ""))
-        except ValueError as e:
-            raise ApiError(str(e))
-        return {"ok": True}
-
-
-def lecture_delete(body):
-    with open_game() as g:
-        try:
-            g.delete_lecture(str(body.get("id") or ""))
-        except ValueError as e:
-            raise ApiError(str(e))
-        return {"ok": True}
-
-
-def appearance_get(body):
-    with open_game(save=False) as g:
-        return appearance.view(g.paths, g.state) if g.paths.vault else {"current": appearance.current({}),
-                                                                             "backgrounds": [], "music": [], "quotes": [], "daily": ""}
-
-
-def appearance_set(body):
-    with open_game() as g:
-        if not g.paths.vault:
-            raise ApiError("请先在设置中指定申论库路径")
-        return {"current": appearance.update(g.paths, g.state, body)}
-
-
-def retreat_start(body):
-    try:
-        minutes = int(body.get("minutes") or 60)
-    except Exception:
-        raise ApiError("分钟要填数字")
-    board = str(body.get("board", "")).strip()
-    with open_game() as g:
-        if board not in g.boards and board not in g.rules.side:
-            raise ApiError("先选一个题型")
-        if g.resting():
-            raise ApiError(f"还需休息 {g.resting()} 分钟")
-        ok, msg = g.start_retreat(board, max(15, min(240, minutes)))
-        if not ok:
-            raise ApiError(msg)
-        return {"events": [{"kind": "info", "msg": msg}]}
-
-
-def retreat_end(body):
-    with open_game() as g:
-        return {"events": tutor.enrich(g, g.end_retreat())}
-
-
-def practice(body):
-    try:
-        total, correct = int(body.get("total") or 0), int(body.get("correct") or 0)
-        minutes = int(body.get("minutes") or 0)
-    except Exception:
-        raise ApiError("题数、正确数、分钟要填数字")
-    note, source = str(body.get("note") or "").strip(), str(body.get("source") or "").strip()[:60]
-    if total < 0 or not (0 <= correct <= total) or (total == 0 and not note):
-        raise ApiError("题数要大于 0、正确数不能超过题数（只写日志的话题数填 0）")
-    with open_game() as g:
-        try:
-            return {"events": g.add_practice(str(body.get("board", "")).strip() or "自练", total, correct, minutes, source, note[:5000],
-                                             body.get("date") or None)}
-        except ValueError as e:
-            raise ApiError(str(e))
-
-
-def selfstudy_add(body):
-    with open_game() as g:
-        try:
-            ev = g.add_selfstudy(str(body.get("board") or ""), body.get("minutes") or 0, str(body.get("topic") or "").strip(),
-                                 str(body.get("note") or "").strip(), body.get("date") or None)
-        except (ValueError, TypeError) as e:
-            raise ApiError(str(e))
-        return {"events": tutor.enrich(g, ev)}
-
-
-def selfstudy_delete(body):
-    with open_game() as g:
-        try:
-            g.delete_selfstudy(str(body.get("id") or ""))
-        except ValueError as e:
-            raise ApiError(str(e))
-        return {"ok": True}
-
-
-def practice_delete(body):
-    with open_game() as g:
-        try:
-            g.delete_practice(str(body.get("id") or ""))
-        except ValueError as e:
-            raise ApiError(str(e))
-        return {"ok": True}
-
-
 
 
 # ---------------------------------------------------------------- 申论：题库与批改（逻辑在 rpg/shenlun.py）
@@ -498,12 +559,183 @@ def shenlun_grade(body):
         return res
 
 
+def subject_get(body):
+    return {"subject": subjects.active(), "subjects": [{"name": n, "brand": subjects.SUBJECTS[n]["brand"],
+                                                       "vault": str(find_vault(n) or "")} for n in subjects.NAMES]}
+
+
+def subject_set(body):
+    name = body.get("subject")
+    if not subjects.valid(name):
+        raise ApiError("未知的科目")
+    s = load_settings()
+    s["subject"] = name
+    save_settings(s)
+    return subject_get({})
+
+
+def leave(body):
+    with open_game() as g:
+        ok, msg = g.use_leave()
+        ev = [{"kind": "npc", "msg": msg, "scene": "请假"}] if ok else [{"kind": "info", "msg": msg}]
+        return {"ok": ok, "events": tutor.enrich(g, ev)}
+
+
+def boss(body):
+    """宗门大比（kind=大比，默认）或飞升大典（kind=飞升，国考）成绩"""
+    name = str(body.get("name", "")).strip() or "模考"
+    kind = "飞升" if body.get("kind") == "飞升" else "大比"
+    try:
+        score = float(body["score"])
+    except Exception:
+        raise ApiError("分数要填数字")
+    if not 0 <= score <= 100:
+        raise ApiError("分数要在 0–100 之间")
+    with open_game() as g:
+        if kind == "飞升" and body.get("result"):
+            name = f"{name}（{body['result']}）"
+        return {"events": tutor.enrich(g, g.add_boss(name, score, kind) + g.housekeeping())}
+
+
+def theme_set(body):
+    name = body.get("theme")
+    if name not in themes.THEMES:
+        raise ApiError("未知的风格")
+    if name not in subjects.get(subjects.active())["themes"]:
+        raise ApiError("这个科目没有这种风格")
+    with open_game() as g:
+        g.state["theme"] = name
+        g.state["tutor_greet"] = None   # 换了导师，重新打招呼
+        g.state["plan"] = None          # 功课标题换成新风格的说法
+        return {"ok": True}
+
+
+def lecture_add(body):
+    """记一笔听道（其他平台看网课的时间）"""
+    with open_game() as g:
+        try:
+            ev = g.add_lecture(body.get("minutes") or 0, str(body.get("note") or "").strip(), body.get("date") or None,
+                               str(body.get("board") or "").strip())
+        except (ValueError, TypeError) as e:
+            raise ApiError(str(e))
+        return {"events": tutor.enrich(g, ev)}
+
+
+def lecture_board(body):
+    with open_game() as g:
+        try:
+            g.set_lecture_board(str(body.get("id") or ""), str(body.get("board") or ""))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"ok": True}
+
+
+def lecture_delete(body):
+    with open_game() as g:
+        try:
+            g.delete_lecture(str(body.get("id") or ""))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"ok": True}
+
+
+def appearance_get(body):
+    with open_game(save=False) as g:
+        return appearance.view(g.paths, g.state) if g.paths.vault else {"current": appearance.current({}),
+                                                                             "backgrounds": [], "music": [], "quotes": [], "daily": ""}
+
+
+def appearance_set(body):
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        return {"current": appearance.update(g.paths, g.state, body)}
+
+
+def retreat_start(body):
+    try:
+        minutes = int(body.get("minutes") or 60)
+    except Exception:
+        raise ApiError("分钟要填数字")
+    board = str(body.get("board", "")).strip()
+    with open_game() as g:
+        if board not in g.boards and board not in g.rules.side:
+            raise ApiError("先选一个板块")
+        if g.resting():
+            raise ApiError(f"还需调息 {g.resting()} 分钟")
+        ok, msg = g.start_retreat(board, max(15, min(240, minutes)))
+        if not ok:
+            raise ApiError(msg)
+        return {"events": [{"kind": "info", "msg": msg}]}
+
+
+def retreat_end(body):
+    with open_game() as g:
+        return {"events": tutor.enrich(g, g.end_retreat())}
+
+
+def practice(body):
+    try:
+        total, correct = int(body.get("total") or 0), int(body.get("correct") or 0)
+        minutes = int(body.get("minutes") or 0)
+    except Exception:
+        raise ApiError("题数、正确数、分钟要填数字")
+    note, source = str(body.get("note") or "").strip(), str(body.get("source") or "").strip()[:60]
+    if total < 0 or not (0 <= correct <= total) or (total == 0 and not note):
+        raise ApiError("题数要大于 0、正确数不能超过题数（只写日志的话题数填 0）")
+    with open_game() as g:
+        try:
+            return {"events": g.add_practice(str(body.get("board", "")).strip() or "自练", total, correct, minutes, source, note[:5000],
+                                             body.get("date") or None)}
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def selfstudy_add(body):
+    with open_game() as g:
+        try:
+            ev = g.add_selfstudy(str(body.get("board") or ""), body.get("minutes") or 0, str(body.get("topic") or "").strip(),
+                                 str(body.get("note") or "").strip(), body.get("date") or None)
+        except (ValueError, TypeError) as e:
+            raise ApiError(str(e))
+        return {"events": tutor.enrich(g, ev)}
+
+
+def selfstudy_delete(body):
+    with open_game() as g:
+        try:
+            g.delete_selfstudy(str(body.get("id") or ""))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"ok": True}
+
+
+def practice_delete(body):
+    with open_game() as g:
+        try:
+            g.delete_practice(str(body.get("id") or ""))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"ok": True}
+
+
+def bank_add(body):
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        try:
+            return question_bank.add_question(g, body)
+        except question_bank.BankError as e:
+            raise ApiError(str(e))
+
 
 def settings_get(body):
     s = load_settings()
     a = ai.settings()
     key = a["api_key"]
-    return {"vault": str(find_vault() or ""), "vault_setting": s.get("vault", ""),
+    return {"vault": str(find_vault() or ""), "vault_setting": s.get("vaults", {}).get(subjects.active(), ""),
+            "subject": subjects.active(),
+            "vaults": {n: str(find_vault(n) or "") for n in subjects.NAMES},
             "base_url": a["base_url"], "model": a["model"],
             "has_key": bool(key), "key_tail": key[-4:] if key else "",
             "vision_model": s.get("vision_model", ""), "vision_base_url": s.get("vision_base_url", ""),
@@ -517,11 +749,14 @@ def settings_set(body):
     s = load_settings()
     if "vault" in body:
         v = str(body["vault"]).strip()
+        sub = body.get("vault_subject") if subjects.valid(body.get("vault_subject")) else subjects.active()
         if v:
             from pathlib import Path
             if not looks_like_vault(Path(v).expanduser()):
-                raise ApiError("这个文件夹里没有 copilot/skills 或 FB模考试卷复盘，不像申论库根目录")
-        s["vault"] = v
+                raise ApiError("这个文件夹里没有 copilot/skills 或 FB模考试卷复盘，不像%s库根目录" % sub)
+        vs = dict(s.get("vaults") or {})
+        vs[sub] = v
+        s["vaults"] = vs
     changed = False
     for k in ("api_key", "base_url", "model"):
         if k in body and str(body[k]).strip():
@@ -577,6 +812,17 @@ def settings_test(body):
 ROUTES = {
     ("GET", "/api/dashboard"): dashboard,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
+    ("POST", "/api/theme"): theme_set,
+    ("GET", "/api/subject"): subject_get,
+    ("POST", "/api/subject"): subject_set,
+    ("GET", "/api/shenlun/questions"): shenlun_questions,
+    ("POST", "/api/shenlun/question"): shenlun_question,
+    ("POST", "/api/shenlun/finalize"): shenlun_finalize,
+    ("POST", "/api/shenlun/import"): shenlun_import,
+    ("POST", "/api/shenlun/draft"): shenlun_draft,
+    ("POST", "/api/shenlun/install_pdf"): shenlun_install_pdf,
+    ("POST", "/api/shenlun/active"): shenlun_active,
+    ("POST", "/api/shenlun/grade"): shenlun_grade,
     ("GET", "/api/appearance"): appearance_get,
     ("POST", "/api/lecture"): lecture_add,
     ("POST", "/api/lecture/delete"): lecture_delete,
@@ -589,23 +835,46 @@ ROUTES = {
     ("POST", "/api/session/start"): session_start,
     ("POST", "/api/session/reply"): session_reply,
     ("POST", "/api/session/action"): session_action,
+    ("GET", "/api/bank"): bank_view,
+    ("POST", "/api/bank/count"): bank_count,
+    ("GET", "/api/library"): library_catalog,
+    ("POST", "/api/library/search"): library_search,
+    ("POST", "/api/library/question"): library_question,
+    ("GET", "/api/import"): import_status,
+    ("POST", "/api/import/preview"): import_preview,
+    ("POST", "/api/import/commit"): import_commit,
+    ("POST", "/api/import/answers"): import_answers,
+    ("POST", "/api/import/classify"): import_classify,
+    ("POST", "/api/import/remove"): import_remove,
+    ("POST", "/api/import/normalize"): import_normalize,
+    ("POST", "/api/import/distill"): import_distill,
+    ("POST", "/api/import/dedupe"): import_dedupe,
+    ("POST", "/api/import/rename"): import_rename,
+    ("POST", "/api/import/upload_pdf"): import_upload_pdf,
+    ("POST", "/api/import/split"): import_split,
+    ("POST", "/api/import/install_pymupdf"): import_install,
     ("GET", "/api/skeletons"): skeletons,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,
     ("POST", "/api/boss"): boss,
     ("POST", "/api/practice"): practice,
+    ("GET", "/api/mock"): mock_summary,
+    ("GET", "/api/idioms"): idioms_list,
+    ("POST", "/api/idioms/backfill"): idioms_backfill,
+    ("POST", "/api/idioms/edit"): idioms_edit,
+    ("POST", "/api/idioms/delete"): idioms_delete,
+    ("POST", "/api/idioms/tutor"): idioms_tutor,
+    ("POST", "/api/mock/save"): mock_save,
+    ("POST", "/api/mock/marks/scan"): mock_marks_scan,
+    ("POST", "/api/mock/report/scan"): mock_report_scan,
+    ("POST", "/api/mock/marks/save"): mock_marks_save,
+    ("POST", "/api/mock/analysis"): mock_analysis_get,
+    ("POST", "/api/mock/analyze"): mock_analyze,
     ("POST", "/api/practice/delete"): practice_delete,
     ("POST", "/api/selfstudy"): selfstudy_add,
     ("POST", "/api/selfstudy/delete"): selfstudy_delete,
-    ("GET", "/api/shenlun/questions"): shenlun_questions,
-    ("POST", "/api/shenlun/question"): shenlun_question,
-    ("POST", "/api/shenlun/finalize"): shenlun_finalize,
-    ("POST", "/api/shenlun/import"): shenlun_import,
-    ("POST", "/api/shenlun/draft"): shenlun_draft,
-    ("POST", "/api/shenlun/install_pdf"): shenlun_install_pdf,
-    ("POST", "/api/shenlun/active"): shenlun_active,
-    ("POST", "/api/shenlun/grade"): shenlun_grade,
+    ("POST", "/api/bank/add"): bank_add,
     ("GET", "/api/settings"): settings_get,
     ("POST", "/api/settings"): settings_set,
     ("POST", "/api/settings/test"): settings_test,
@@ -659,17 +928,17 @@ def app_latest(body):
     return dict(appapk.latest(), apk_port=RUNTIME.get("apk_port") or 0, path="/app/" + appapk.NAME)
 
 
-# ---------------------------------------------------------------- 公务手账
+# ---------------------------------------------------------------- 灵台手札
 def _notes_call(fn, *a):
     with open_game(save=False) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         try:
             return fn(g.paths, *a)
         except notes.NotesError as e:
             raise ApiError(str(e))
         except ai.AIError as e:
-            raise ApiError("主任编纂失败：%s" % e)
+            raise ApiError("师傅编纂失败：%s" % e)
 
 
 def notes_list(body):
@@ -727,7 +996,7 @@ def notes_open(body):
 def export_token(rel):
     """平板下载导出的 PDF 用的口令（系统浏览器下载时没有 cookie）：按文件路径 + 局域网口令算"""
     import hashlib
-    return hashlib.sha256(("shenlun-pdf:%s:%s" % (lan.settings().get("code", ""), rel)).encode("utf-8")).hexdigest()[:20]
+    return hashlib.sha256(("xingce-pdf:%s:%s" % (lan.settings().get("code", ""), rel)).encode("utf-8")).hexdigest()[:20]
 
 
 def notes_tree(body):
@@ -738,11 +1007,11 @@ def notes_md(body):
     return _notes_call(notes.read_md, body.get("p") or body.get("path"))
 
 
-# ---------------------------------------------------------------- 📜 便笺（记忆卡片，见 rpg/cards.py）
+# ---------------------------------------------------------------- 📜 玉简（记忆卡片，见 rpg/cards.py）
 def _cards(fn, *a, save=True):
     with open_game(save=save) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         try:
             return fn(g, *a)
         except cards.CardError as e:
@@ -837,7 +1106,7 @@ def cards_add_many(body):
 def _gen(fn, body):
     with open_game(save=False) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         p = g.paths
     try:
         return fn(p, body)
@@ -864,14 +1133,14 @@ def cardgen_gen(body):
 
 
 def cards_explain(body):
-    """🙋 领导讲讲：翻面后看不懂，问 AI（可追问）"""
+    """🙋 师傅讲讲：翻面后看不懂，问 AI（可追问）"""
     with open_game(save=False) as g:
         try:
             card = cards.card_view(g, body.get("key"))
         except cards.CardError as e:
             raise ApiError(str(e))
     if not ai.available():
-        raise ApiError("还没填 AI 的 API key：设置里填好才能请主任讲")
+        raise ApiError("还没填 AI 的 API key：设置里填好才能请师傅讲")
     try:
         reply = ai.chat(cards.explain_prompt(card, body.get("question"), body.get("history")), temperature=0.5, max_tokens=900)
     except ai.AIError as e:
@@ -880,11 +1149,11 @@ def cards_explain(body):
     return {"reply": reply.strip(), "saved": saved}
 
 
-# ---------------------------------------------------------------- 🌿 脉络图（思维导图，见 rpg/mindmap.py）
+# ---------------------------------------------------------------- 🌿 灵脉图（思维导图，见 rpg/mindmap.py）
 def _mm(fn, *a):
     with open_game(save=False) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         p = g.paths
     try:
         return fn(p, *a)
@@ -924,7 +1193,7 @@ def mm_export(body):
     return r
 
 
-# ---------------------------------------------------------------- 🖼 办理战报（见 rpg/poster.py、web/poster.js）
+# ---------------------------------------------------------------- 🖼 修炼战报（见 rpg/poster.py、web/poster.js）
 def poster_stats(body):
     with open_game(save=False) as g:
         try:
@@ -938,7 +1207,7 @@ def poster_stats(body):
 def poster_save(body):
     with open_game(save=False) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         try:
             r = poster.save(g.paths, body.get("data"), body.get("span") or "day", g.t)
         except poster.PosterError as e:
@@ -947,11 +1216,11 @@ def poster_save(body):
     return r
 
 
-# ---------------------------------------------------------------- 🔮 时政简报（见 rpg/tianji.py、web/tianji.js）
+# ---------------------------------------------------------------- 🔮 天机简报（见 rpg/tianji.py、web/tianji.js）
 def _tj(fn, *a, save=True):
     with open_game(save=save) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         try:
             return fn(g, *a)
         except tianji.TianjiError as e:
@@ -1003,17 +1272,17 @@ def tj_cards(body):
 
 
 def tj_ask(body):
-    """🧙 问主任：question 空 = 总结这一条怎么记（尤其红字）；否则就这一条提问。可以追问（history）"""
+    """🧙 问师傅：question 空 = 总结这一条怎么记（尤其红字）；否则就这一条提问。可以追问（history）"""
     with open_game(save=False) as g:
         if not g.paths.vault:
-            raise ApiError("还没找到申论库")
+            raise ApiError("还没找到行测库")
         try:
             data = tianji.load(g.paths, body.get("kind"), body.get("id"))
             msgs = tianji.ask_prompt(data, int(body.get("news") or 0), str(body.get("question") or "").strip(), body.get("history"))
         except (tianji.TianjiError, ValueError) as e:
             raise ApiError(str(e))
     if not ai.available():
-        raise ApiError("还没填 AI 的 API key：设置里填好才能问主任")
+        raise ApiError("还没填 AI 的 API key：设置里填好才能问师傅")
     tianji.touch()
     try:
         reply = ai.chat(msgs, temperature=0.5, max_tokens=1200).strip()
@@ -1119,7 +1388,7 @@ class Handler(BaseHTTPRequestHandler):
     def _gate(self, method, url):
         """局域网里别的设备：没输过口令先输口令。返回 True 表示这次请求已经处理完了"""
         addr = self.client_address[0]
-        if url.path == "/lan/ping":            # 平板 App 在 Wi-Fi 里找电脑用：不用口令，只说“我是申论官途”
+        if url.path == "/lan/ping":            # 平板 App 在 Wi-Fi 里找电脑用：不用口令，只说“我是修仙传”
             self._send(200, lan.ping())
             return True
         if url.path == "/app/" + appapk.NAME and method == "GET":    # 平板 App 安装包：公开的东西，不用口令（系统浏览器下载时没有 cookie）
@@ -1135,7 +1404,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return True
-        if url.path == "/notes-file" and method == "GET":       # 导出的公务手账 PDF：带对的 t 就给（平板交给系统浏览器下载，没有 cookie）
+        if url.path == "/notes-file" and method == "GET":       # 导出的手札 PDF：带对的 t 就给（平板交给系统浏览器下载，没有 cookie）
             q = parse_qs(url.query)
             rel = unquote(q.get("p", [""])[0])
             if lan.authorized(addr, self.headers.get("Cookie")) or q.get("t", [""])[0] == export_token(rel):
@@ -1185,7 +1454,7 @@ class Handler(BaseHTTPRequestHandler):
                 if method == "POST":
                     n = int(self.headers.get("Content-Length") or 0)
                     body = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
-                self._send(200, fn(body))
+                self._send(200, wording.fix_events(fn(body)) if subjects.active() == "申论" else fn(body))
             except (ApiError, trainer.TrainError, ai.AIError) as e:
                 self._send(400, {"error": str(e)})
             except Exception as e:
@@ -1223,7 +1492,8 @@ class Handler(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(f.name)[0] or "text/plain"
         if ctype.startswith("text/") or ctype in ("application/javascript",):
             ctype += "; charset=utf-8"
-        self._send(200, f.read_bytes(), ctype, cache=rel.startswith("vendor/"))   # 第三方库（6MB 的思维导图编辑器）让平板缓存，不每次重下
+        raw = wording.web(rel, f.read_bytes(), subjects.active())        # 申论科目：网页里写死的修仙说法换成官场说法（rpg/wording.py）
+        self._send(200, raw, ctype, cache=rel.startswith("vendor/"))   # 第三方库（6MB 的思维导图编辑器）让平板缓存，不每次重下
 
     def do_GET(self):
         self._handle("GET")

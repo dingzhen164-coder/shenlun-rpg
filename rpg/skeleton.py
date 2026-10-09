@@ -1,10 +1,10 @@
 """
-骨架文件：训练/骨架/<题型>.md —— 每个题型要能“一个不漏说出来”的知识清单，是默写和判分的唯一标准。
+骨架文件：训练/骨架/<板块>.md —— 每个板块要能“一个不漏说出来”的知识清单，是默写和判分的唯一标准。
 
 格式（AI 生成草稿，用户在 Obsidian 里审改，改完把“状态”改成“已定稿”或在网页上点“定稿”）：
 
     ---
-    题型: 论证逻辑
+    板块: 论证逻辑
     状态: 草稿                 ← 草稿 / 已定稿；只有已定稿的骨架才会进入训练
     来源skill: xue-rui-argument-logic
     ---
@@ -14,16 +14,16 @@
     - 【术语】否定论点：……      ← 【术语】：完整名称清单，允许同义表述（AI 按含义判断）
     - 【术语】拆桥
     - 【思路】先找论点论据……    ← 【思路】或不带标记的条目：说出大意即可（AI 判断覆盖率）
-    - 【原句】先看对称一笔画     ← 【原句】：整句一字不差（程序逐字比对，忽略标点；不走 AI 含义判断）；适合图推 24 诀这类要点
+    - 【口诀】先看对称一笔画     ← 【口诀】：整句一字不差（程序逐字比对，忽略标点；不走 AI 含义判断）；适合图推 24 诀这类口诀
     - 【特征】【翻译】……        ← 其他【xx】标记都按【思路】处理（说出大意即可）
     - ……⚠ 待核对：……          ← “⚠”之后是给用户看的提示，不参与判分
 
-大项的 id 是 “题型::标题”（去掉开头的编号），改标题会被当成新大项，旧进度留在存档里不删。
+大项的 id 是 “板块::标题”（去掉开头的编号），改标题会被当成新大项，旧进度留在存档里不删。
 """
 import re
 
 TERM_TAG = "【术语】"
-VERSE_TAG = "【原句】"
+VERSE_TAG = "【口诀】"
 THOUGHT_TAG = "【思路】"
 NOTE_MARK = "⚠"
 FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.S)
@@ -78,7 +78,7 @@ def parse(text, board):
         if "【举例】" in body:
             cur["examples"].append(body.replace("【举例】", "").strip())
         elif VERSE_TAG in body:
-            # 【原句】整句都要一字不差：单独存在 verses 里，由程序逐字比对（【术语】改为 AI 按含义判断，要点不适用）
+            # 【口诀】整句都要一字不差：单独存在 verses 里，由程序逐字比对（【术语】改为 AI 按含义判断，口诀不适用）
             v = body.split(VERSE_TAG, 1)[1].split(NOTE_MARK, 1)[0].strip().rstrip("。")
             if v:
                 cur["verses"].append(v)
@@ -124,7 +124,7 @@ def save_draft(paths, board, skill, body):
         p.with_name(f"{board}.bak.md").write_bytes(p.read_bytes())
     body = re.sub(r"^```(?:markdown|md)?\s*\n|\n```\s*$", "", body.strip())
     body = FM_RE.sub("", body, 1).strip()  # AI 若自己写了 frontmatter，去掉，用下面统一的
-    text = (f"---\n题型: {board}\n状态: 草稿\n来源skill: {skill}\n---\n"
+    text = (f"---\n板块: {board}\n状态: 草稿\n来源skill: {skill}\n---\n"
             f"# {board} · 骨架\n\n"
             f"> 审改说明：一个 `## 标题` = 一个大项；`【术语】` 是完整分类清单，允许同义表达；`【思路】` 用自己的话讲清；`【举例】` 自行编例子验证理解。\n"
             f"> 改完把上面的“状态: 草稿”改成“状态: 已定稿”（或在网页上点“定稿”），才会进入训练。\n\n"
@@ -143,14 +143,14 @@ def set_final(paths, board, final=True):
     if re.search(r"^状态[:：].*$", t, re.M):
         t = re.sub(r"^状态[:：].*$", f"状态: {new}", t, count=1, flags=re.M)
     else:
-        t = f"---\n题型: {board}\n状态: {new}\n---\n" + t
+        t = f"---\n板块: {board}\n状态: {new}\n---\n" + t
     with open(p, "w", encoding="utf-8", newline="\n") as fp:
         fp.write(t)
     return True
 
 
 def check_verses(item, answer):
-    """逐字比对【原句】：返回 (命中列表, 遗漏列表)。忽略空白和标点，其余必须一字不差"""
+    """逐字比对【口诀】：返回 (命中列表, 遗漏列表)。忽略空白和标点，其余必须一字不差"""
     a = norm(answer)
     hit = [v for v in item.get("verses", []) if norm(v) and norm(v) in a]
     miss = [v for v in item.get("verses", []) if v not in hit]

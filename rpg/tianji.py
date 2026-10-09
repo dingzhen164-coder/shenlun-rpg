@@ -1,4 +1,4 @@
-"""🔮 时政简报：政治理论的时政学习（月半时政 + 专题时政）。
+"""🔮 天机简报：政治理论的时政学习（月半时政 + 专题时政）。
 
 导入：把小黑月半时政班的 PDF 交给 parse_pdf（网页上拖进导入框），按版面自动拆成：
 - 月半时政（封面写“2026 年 9 月·下”）：课程讲义（一条条新闻，★ 星级、【分类】【标题】、正文，正文里夹着随堂题）、
@@ -6,8 +6,8 @@
 - 专题时政（封面写“…专题”）：小黑母题（每道题后面跟【原文速递】，按【小节】分组）、消化清单、答案与解析。
 消化清单里的空（____）对着讲义 / 原文速递自动找出答案，不用 AI。
 
-存放：训练/时政简报/月半时政/<年-月-上|下>.json、训练/时政简报/专题时政/<标题>.json（内容，坚果云同步，换电脑也在），
-原 PDF 复制一份到 训练/时政简报/原文/。学习进度（读过哪条、哪些空没记住、精卷答案）存在存档 state["tianji"][编号]。
+存放：训练/天机简报/月半时政/<年-月-上|下>.json、训练/天机简报/专题时政/<标题>.json（内容，坚果云同步，换电脑也在），
+原 PDF 复制一份到 训练/天机简报/原文/。学习进度（读过哪条、哪些空没记住、精卷答案）存在存档 state["tianji"][编号]。
 
 数据格式（JSON）：
   {id, kind: month|topic, title, label, year, month, half, category, overview, groups: [小节名],
@@ -23,7 +23,7 @@ import shutil
 import time
 from pathlib import Path
 
-DIR = "时政简报"
+DIR = "天机简报"
 KINDS = {"month": "月半时政", "topic": "专题时政"}
 CATEGORIES = ["两会·政府报告", "经济", "农业", "科技", "外交", "党建", "文化", "生态", "民生", "国防", "其他"]
 CAT_WORDS = [("两会·政府报告", ("两会", "政府工作报告")), ("农业", ("农业", "农村", "乡村", "一号文件", "粮食")),
@@ -34,7 +34,7 @@ CAT_WORDS = [("两会·政府报告", ("两会", "政府工作报告")), ("农�
              ("国防", ("国防", "军队", "阅兵", "军事"))]
 HALF_ORDER = {"上": 1, "下": 2}
 CN_NUM = "〇一二三四五六七八九十"
-LAST_ACT = {"t": 0.0}          # 最近一次在时政简报里学（翻页、填空、答题），心跳靠它判断算不算学习时间
+LAST_ACT = {"t": 0.0}          # 最近一次在天机简报里学（翻页、填空、答题），心跳靠它判断算不算学习时间
 
 
 class TianjiError(Exception):
@@ -537,9 +537,9 @@ def mark(g, kind, iid, body):
         old = pr["quiz"].get(str(q["key"]))
         ok = bool(q.get("answer")) and choice == q["answer"]
         pr["quiz"][str(q["key"])] = {"a": choice, "ok": ok, "d": g.t, "n": (old or {}).get("n", 0) + 1}
-        if not old:                       # 每道题第一次作答发政绩（再练不发）
-            ev = g._award(g.rules.xp("简报答对") if ok else g.rules.xp("简报答错"), "practice", "", "tianji:%s:%s" % (iid, q["key"]), ok,
-                          "时政简报 · %s 第%s题" % (data["title"], q["no"]))
+        if not old:                       # 每道题第一次作答发修为（再练不发）
+            ev = g._award(g.rules.xp("实战答对") if ok else g.rules.xp("实战答错"), "bank", "政治理论", "tianji:%s:%s" % (iid, q["key"]), ok,
+                          "天机简报 · %s 第%s题" % (data["title"], q["no"]))
     if body.get("reset"):
         part = body["reset"]
         if part in ("read", "cloze", "quiz"):
@@ -566,7 +566,7 @@ def delete(g, kind, iid):
 
 
 def forgot_cards(g, kind, iid):
-    """消化清单里没记住的空 → 便笺（填空），放进 政治理论::时政简报 便笺夹；一个空一枚，已经做过的不重复"""
+    """消化清单里没记住的空 → 玉简（填空），放进 政治理论::天机简报 简匣；一个空一枚，已经做过的不重复"""
     from . import cards
     data = load(g.paths, kind, iid)
     pr = progress_of(g, kind, iid)
@@ -583,23 +583,23 @@ def forgot_cards(g, kind, iid):
             b = re.split(r"[。；！？]", before)[-1]
             a = re.split(r"(?<=[。；！？])", after)[0]
             items.append({"type": "填空", "front": "%s{{c1::%s}}%s" % (b, p["a"], a),
-                          "extra": "%s · %s" % (data["title"], c.get("title") or ""), "tags": ["时政简报", data["title"]]})
+                          "extra": "%s · %s" % (data["title"], c.get("title") or ""), "tags": ["天机简报", data["title"]]})
             made.add(key)
     if not items:
         return {"added": 0}
-    r = cards.add_many(g, "政治理论::时政简报", items)
+    r = cards.add_many(g, "政治理论::天机简报", items)
     pr["carded"] = sorted(made)
     return r
 
 
-# ---------------------------------------------------------------- 🧙 问主任（研读页左栏）：总结本条怎么记（尤其红字）/ 不懂的地方提问
-ASK_SYSTEM = ("你是帮学员备考公务员政治理论（时政）的主任。下面给你一条时政学习材料（讲义原文），"
+# ---------------------------------------------------------------- 🧙 问师傅（研读页左栏）：总结本条怎么记（尤其红字）/ 不懂的地方提问
+ASK_SYSTEM = ("你是帮学员备考公务员政治理论（时政）的师傅。下面给你一条时政学习材料（讲义原文），"
               "以及消化清单要挖空考的字句（学员看到的“红字”）。回答以材料为准，不编造材料里没有的时间、数字、提法；"
               "需要补充背景常识时，单独标明“背景补充”，并尽量简短。\n"
               "用 Markdown，口语化、条理清楚，不超过 450 字。")
 ASK_MEMORY = ("请帮我记住这一条：\n"
               "1. 用 3~5 条要点把这一条的核心内容理清（谁、什么时候、什么会 / 文件、提出了什么）；\n"
-              "2. 红字逐个（或分组）给记忆办法：要点 / 首字连读、谐音、对比易混提法、数字记忆、联想画面等；\n"
+              "2. 红字逐个（或分组）给记忆办法：口诀 / 首字连读、谐音、对比易混提法、数字记忆、联想画面等；\n"
               "3. 指出最容易出题的 2~3 个点（选项常怎么偷换）；\n"
               "4. 最后给 3 道一句话自测题（只出题，答案放在最后一行）。")
 

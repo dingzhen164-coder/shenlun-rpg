@@ -1,4 +1,4 @@
-"""打包后的 exe / Mac App 自检（CI 用）：shenlun-guantu.exe --run-script tests/smoke_frozen.py
+"""打包后的 exe / Mac App 自检（CI 用）：xingce-xiuxian.exe --run-script tests/smoke_frozen.py
 确认 exe 里带齐了 pymupdf、segno、网页文件和程序模块。"""
 import sys
 

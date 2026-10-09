@@ -8,7 +8,7 @@
 (function () {
   const COLORS = ['#e53935', '#1e63d6', '#222222', '#2e9d57'];
   const st = { on: false, tool: 'pen', color: COLORS[0], width: 3, strokes: [], redo: [], cur: null, key: '' };
-  const PREFIX = 'srpg-draw:', INDEX = 'srpg-draw-index', KEEP = 300;
+  const PREFIX = 'xrpg-draw:', INDEX = 'xrpg-draw-index', KEEP = 300;
 
   // ---------------------------------------------------------------- 按题存笔记
   const keyNow = () => { try { return (window.DRAW_KEY && window.DRAW_KEY()) || 'page'; } catch (e) { return 'page'; } };
