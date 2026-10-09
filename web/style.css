@@ -1775,6 +1775,7 @@ details.card-fold > summary small { font-family: system-ui, sans-serif; font-wei
    全部写在 .guantu（<body> 的类）下面，不影响行测的修仙 / 玄幻。字体用仿宋 / 宋体做标题，正文照旧无衬线。
    =================================================================================== */
 html.theme-gc, html.theme-gc body { background: var(--bg); }
+html.theme-gc body.has-bg { background: transparent; }   /* 选了背景图：body 的底色不能盖住背景层（上面那条优先级更高，所以这里要再写一遍） */
 .guantu * { text-shadow: none !important; }
 body.guantu {
   --radius: 4px; --shadow: 0 1px 3px rgba(20, 30, 50, .08);
