@@ -6,9 +6,9 @@
    点“收功”、点空白处或按 Esc 关闭。 */
 (function () {
   const KIND = {
-    lecture: { color: "#3f9e8f", glow: "#7fe0cf", pose: "sit", seal: "闻", word: "闻法圆满", cat: "听课" },
-    review: { color: "#c9a227", glow: "#ffe08a", pose: "sit", seal: "温", word: "复核功成", cat: "复习" },
-    practice: { color: "#c2463a", glow: "#ff9a7a", pose: "stand", seal: "历", word: "历练归来", cat: "做题" },
+    lecture: { color: "#3f9e8f", glow: "#7fe0cf", pose: "sit", seal: "听", word: "听课完成", cat: "听课" },
+    review: { color: "#c9a227", glow: "#ffe08a", pose: "sit", seal: "复", word: "复核完成", cat: "复习" },
+    practice: { color: "#c2463a", glow: "#ff9a7a", pose: "stand", seal: "办", word: "办理完成", cat: "做题" },
   };
   const TRIGRAMS = "☰☱☲☳☴☵☶☷";
 
@@ -138,7 +138,7 @@
           ${meter(`政绩 · ${esc(after.realm)}`, xpFrom, xpTo, "", dXp ? `+${dXp} 政绩` : "", k.glow)}
           ${catGain ? `<div class="st-cat">今日${k.cat} <b>${Math.round(after.ts[kind] || 0)}</b> 分钟（本次 +${catGain}）</div>` : ""}
           ${leveled ? `<div class="st-up">✦ 职级精进：${esc(b.realm)} → ${esc(after.realm)} ✦</div>` : ""}
-          <button class="primary st-btn">收功</button>
+          <button class="primary st-btn">收工</button>
         </div>
       </div>`;
     document.body.appendChild(el);

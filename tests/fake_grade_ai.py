@@ -53,12 +53,15 @@ class FakeAI:
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 outer.calls += 1
-                prompt = next(m["content"] for m in reversed(body["messages"]) if "考生作答" in m["content"])
-                if outer.mode == "always_bad" or (outer.mode == "bad_once" and outer.calls == 1):
+                prompt = next((m["content"] for m in reversed(body["messages"]) if "考生作答" in m["content"]), None)
+                if prompt is None:
+                    reply = "好的，继续努力。"
+                elif outer.mode == "always_bad" or (outer.mode == "bad_once" and outer.calls == 1):
                     reply = {"points": [], "bonus": []}
                 else:
                     reply = judge(prompt, outer.mode)
-                out = json.dumps({"choices": [{"message": {"content": json.dumps(reply, ensure_ascii=False)}, "finish_reason": "stop"}]}).encode("utf-8")
+                text = reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)
+                out = json.dumps({"choices": [{"message": {"content": text}, "finish_reason": "stop"}]}).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(out)))

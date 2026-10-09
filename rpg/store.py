@@ -18,12 +18,14 @@ from pathlib import Path
 
 LOCK = threading.RLock()  # 所有读改写存档的操作都要先拿这把锁
 SCHEMA_VERSION = 2
+APP_ID = "申论官途1"   # 存档里没有这个标记 = 0.x 旧版存档，首次启动备份后从头开始
 DEVICE = platform.node() or "本机"
 
 
 def new_state(today):
     return {
         "version": SCHEMA_VERSION,
+        "app": APP_ID,
         "created": today.isoformat(),
         "xp": 0,                 # 累计经验（已含连续打卡加成）
         "events": [],            # 每次得经验的记录：{t, d, type, board, item, ok, xp, note}
@@ -73,6 +75,11 @@ class Store:
             bad = f.with_name(f"存档-损坏-{int(time.time())}.json")
             os.replace(f, bad)
             return self._latest_backup() or new_state(today)
+        if data.get("app") != APP_ID:
+            old = f.with_name("存档-旧版.json")
+            if not old.exists():
+                os.replace(f, old)
+            return new_state(today)
         base = new_state(today)
         if data.get("version", 1) < 2:
             # 第一、二版的 gates 是“等级”（10/20/30、30/60/90），第三版改成晋升分数线，旧值作废；

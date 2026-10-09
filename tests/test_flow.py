@@ -542,7 +542,7 @@ class MigrationTest(unittest.TestCase):
 
 
 
-    def test_old_save_gates_are_reset(self):
+    def test_old_save_is_backed_up_and_restarted(self):
         from rpg import store
         tmp = Path(tempfile.mkdtemp())
         try:
@@ -553,9 +553,11 @@ class MigrationTest(unittest.TestCase):
             (v / "训练/存档/存档.json").write_text(json.dumps({"version": 1, "created": "2026-09-29", "xp": 500, "gates": [30]}),
                                                   encoding="utf-8")
             st = store.Store(p).load(dt.date(2026, 10, 1))
-            self.assertEqual(st["gates"], [])
-            self.assertEqual(st["xp"], 500)
+            self.assertEqual(st["xp"], 0)
             self.assertEqual(st["theme"], "官场")
+            old = v / "训练/存档/存档-旧版.json"
+            self.assertEqual(json.loads(old.read_text(encoding="utf-8"))["xp"], 500)
+            self.assertFalse((v / "训练/存档/存档.json").exists())
         finally:
             paths.UPGRADED.clear()
             shutil.rmtree(tmp, ignore_errors=True)

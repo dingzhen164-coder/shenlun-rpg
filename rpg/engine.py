@@ -1672,7 +1672,7 @@ class Game:
                         "floor": self.rules.num("保底分钟")},
             "leave": {"used": len([d for d in self.state["leave"] if d.startswith(self.t[:7])]),
                       "total": self.rules.num("每月请假卡"), "today": self.t in self.state["leave"]},
-            "boss": self.contests()[-6:], "ascend": self.contests("上岸"),
+            "boss": self.contests()[-6:], "boss_all": self.contests()[-24:], "ascend": self.contests("上岸"),
             "pills": self.state["pills"][-5:][::-1],
             "pill_boards": [b for b in self.boards if self.final_items(b) or vault.wrong_questions(self.paths, self.sources(b))],
             "greeting": self.say(scene), "scene": scene,
