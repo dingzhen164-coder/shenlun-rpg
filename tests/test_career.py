@@ -101,13 +101,14 @@ class CareerEngineTest(unittest.TestCase):
         self.assertEqual(themes.band_of(55)[0], 1)
 
     def test_xuandiao_bonus_only_before_threshold(self):
-        g = make_game(rules_text="- 选调生加成: 0.5\n- 选调生加成分数线: 60")
+        # 点拨概率设成 0：领导点拨（随机额外政绩）会让数目不确定
+        g = make_game(rules_text="- 点拨概率: 0\n- 选调生加成: 0.5\n- 选调生加成分数线: 60")
         gain = g._award(100, "grade", "归纳概括", "q1", True, "x", bonus=True)
         self.assertEqual(g.state["xp"], 150)
-        g2 = make_game(rules_text="- 选调生加成: 0")
+        g2 = make_game(rules_text="- 点拨概率: 0\n- 选调生加成: 0")
         g2._award(100, "grade", "归纳概括", "q1", True, "x", bonus=True)
         self.assertEqual(g2.state["xp"], 100)
-        g3 = make_game(rules_text="- 选调生加成: 0.5\n- 选调生加成分数线: 40")
+        g3 = make_game(rules_text="- 点拨概率: 0\n- 选调生加成: 0.5\n- 选调生加成分数线: 40")
         g3._award(100, "grade", "归纳概括", "q1", True, "x", bonus=True)
         self.assertEqual(g3.state["xp"], 100)                           # 综合评价已经不低于分数线
 
