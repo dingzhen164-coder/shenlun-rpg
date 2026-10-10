@@ -2111,3 +2111,17 @@ html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
 .sl-paper { border-left:4px solid #b99a65; }
 .sl-paper > summary { padding:10px 0; color:var(--accent2); }
 .sl-paper-q > .row { margin:10px 0; flex-wrap:wrap; }
+
+/* 领取办理目录：公文目录按五种题型展开，长标题换行，状态在题名后。 */
+.sl-claims { margin-top:16px; border-top:3px solid var(--accent2); }
+.sl-claims > .row h3 { margin:0; }
+.sl-claims-category { margin-top:10px; border:1px solid var(--line); border-radius:4px; background:var(--panel); }
+.sl-claims-category > summary { display:flex; align-items:center; gap:12px; padding:14px; cursor:pointer; }
+.sl-claims-category > summary::before { content:'▸'; color:var(--accent2); }
+.sl-claims-category[open] > summary::before { content:'▾'; }
+.sl-claims-folder { color:#b4945c; font-size:22px; }
+.sl-claimed-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:15px; border-top:1px solid var(--line); }
+.sl-claimed-title { flex:1 1 320px; display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; min-width:0; }
+.sl-claimed-title b { overflow-wrap:anywhere; line-height:1.7; }
+.sl-claimed-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.sl-claims-empty { padding:0 15px 10px; }
