@@ -81,10 +81,12 @@
   }
 
   // ---------------------------------------------------------------- 首页
+  const isSl = () => DASH?.subject === "申论";
   function hubHtml() {
     const L = LIST || { month: [], topic: [] };
     let body = "";
-    if (TAB === "month") {
+    if (TAB === "article" && isSl()) body = `<div id="arRoot"></div>`;
+    else if (TAB === "month") {
       const years = {};
       L.month.forEach((it) => (years[it.year] = years[it.year] || []).push(it));
       const ys = Object.keys(years).sort((a, b) => b - a);
@@ -110,8 +112,8 @@
     return `<div class="tj-hub">
       <div class="card tj-head"><div><h2>${esc(W("nav.tianji"))}</h2><div class="muted small">政治理论 · 时政。月半时政按时间一期一期学，专题时政按专题归档；每一期都是 研读 → 消化 → 精卷。</div></div>
         <span class="spacer"></span>
-        <div class="tj-tabs"><a data-tab="month" class="${TAB === "month" ? "on" : ""}">📰 月半时政 <small>${L.month.length}</small></a><a data-tab="topic" class="${TAB === "topic" ? "on" : ""}">📜 专题时政 <small>${L.topic.length}</small></a></div>
-        <button class="primary" id="tjImport">＋ 导入 PDF</button>
+        <div class="tj-tabs"><a data-tab="month" class="${TAB === "month" ? "on" : ""}">📰 月半时政 <small>${L.month.length}</small></a><a data-tab="topic" class="${TAB === "topic" ? "on" : ""}">📜 专题时政 <small>${L.topic.length}</small></a>${isSl() ? `<a data-tab="article" class="${TAB === "article" ? "on" : ""}">📅 每日文章</a>` : ""}</div>
+        <button class="primary" id="tjImport" ${TAB === "article" && isSl() ? "hidden" : ""}>＋ 导入 PDF</button>
         <input type="file" id="tjFile" accept="application/pdf,.pdf" multiple hidden></div>
       <div class="tj-drop" id="tjDrop" hidden>松手导入 PDF</div>
       ${body}</div>`;
@@ -133,8 +135,9 @@
     bindHub();
   }
   function bindHub() {
+    if (TAB === "article" && isSl() && window.ARTICLES) ARTICLES.mount(ROOT.querySelector("#arRoot"));
     const v = ROOT;
-    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = () => { TAB = a.dataset.tab; store.set("tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
+    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = () => { if (window.ARTICLES) ARTICLES.close(); TAB = a.dataset.tab; store.set("tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
     const file = v.querySelector("#tjFile");
     v.querySelectorAll("#tjImport, [data-import]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); file.click(); }));
     file.onchange = () => importFiles([...file.files]);
@@ -173,7 +176,7 @@
       window.scrollTo(0, 0);
     } catch (e) { showError(e); }
   }
-  function close() { CUR = null; if (VIEW === "tianji") render(ROOT); }
+  function close() { if (window.ARTICLES && ARTICLES.isOpen()) { ARTICLES.close(); return; } CUR = null; if (VIEW === "tianji") render(ROOT); }
 
   function answersOf(i) {      // 第 i 条新闻里消化清单要考的字句（按顺序）
     const out = [];
@@ -456,7 +459,7 @@
   }
 
   // 心跳：开着一期、看得见、2 分钟内动过 → 研读 / 消化算复习，精卷算做题
-  const active = () => (VIEW === "tianji" && CUR && document.visibilityState === "visible" && Date.now() - lastAct < 120000 ? (MODE === "quiz" ? "quiz" : "read") : "");
+  const active = () => window.ARTICLES && ARTICLES.active() ? "read" : (VIEW === "tianji" && CUR && document.visibilityState === "visible" && Date.now() - lastAct < 120000 ? (MODE === "quiz" ? "quiz" : "read") : "");
 
-  window.TIANJI = { render, open, close, active, isOpen: () => !!CUR, importFiles };
+  window.TIANJI = { render, open, close, active, isOpen: () => !!CUR || !!(window.ARTICLES && ARTICLES.isOpen()), importFiles };
 })();
