@@ -9,7 +9,7 @@ name: build-exe
 on:
   push:
     branches: [main, claude/dazzling-fermat-0n9kbc]
-    paths: [rpg/version.py]
+    paths: [rpg/version.py, .github/workflows/build-exe.yml]
   workflow_dispatch:
 
 permissions:
@@ -74,14 +74,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           V=$(python -c "import re;print(re.search(r'VERSION = \"(.+?)\"', open('rpg/version.py', encoding='utf-8').read()).group(1))")
+          # GitHub 会清理纯中文资源名；下载文件用 ASCII，应用和资源标签保留中文。
+          cp dist/公考模拟器.exe dist/gongkao-simulator.exe
           if gh release view "v$V" >/dev/null 2>&1; then
-            gh release upload "v$V" dist/公考模拟器.exe --clobber
+            gh release upload "v$V" "dist/gongkao-simulator.exe#公考模拟器.exe" --clobber
           else
             # 更新说明：取 rpg/data/changelog.md 里这一版的那一节（没有就用提交说明，去掉署名行）
             NOTES=$(PYTHONIOENCODING=utf-8 python -c "import sys; sys.path.insert(0, '.'); from rpg import changelog; e = changelog.entries(); print('\n'.join('- ' + x for x in e[0]['items']) if e and e[0]['version'] == '$V' else '')")
             [ -n "$NOTES" ] || NOTES=$(git log -1 --pretty=%B | grep -v -E '^(Co-Authored-By|Claude-Session):')
-            gh release create "v$V" dist/公考模拟器.exe --title "公考模拟器 v$V" --notes "$NOTES"
+            gh release create "v$V" "dist/gongkao-simulator.exe#公考模拟器.exe" --title "公考模拟器 v$V" --notes "$NOTES"
           fi
+          # 清理本次中文资源名被 GitHub 自动生成的占位文件，避免重复下载入口。
+          OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$V" --jq ' .assets[] | select(.name == "default.exe") | .id')
+          if [ -n "$OLD" ]; then gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$OLD"; fi
 
   apk:
     needs: build
