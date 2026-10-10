@@ -72,6 +72,24 @@ class StudyCardTest(unittest.TestCase):
         with self.assertRaises(bank.BankError):self.save(material_marks=changed)
         self.assertEqual(bank.answer_get(self.p,self.qid)['material_marks'],d['material_marks'])
 
+    def test_large_card_layout_height_ocr_and_legacy_hash(self):
+        large=copy.deepcopy(CARD);large['layout']=2
+        large['pages'][0]['strokes'][0]['points']=[[40,1000],[70,1300]]
+        d=self.save(card=large,confirm_handwriting=True)
+        self.assertEqual(d['card'],large);self.assertEqual(d['confirmed_card_hash'],hw.digest(large))
+        png=b'\x89PNG\r\n\x1a\n'+b'\0'*8+(1040).to_bytes(4,'big')+(1360).to_bytes(4,'big')
+        body={'qid':self.qid,'revision':d['revision'],'images':['data:image/png;base64,'+base64.b64encode(png).decode()]}
+        with patch.object(hw.ai,'vision_available',return_value=False),patch.object(hw.report,'ocr',return_value=ANSWER):
+            self.assertEqual(hw.recognize(self.p,body)['text'],ANSWER)
+        bad=copy.deepcopy(large);bad.pop('layout')
+        with self.assertRaises(bank.BankError):self.save(card=bad)
+        bad=copy.deepcopy(large);bad['pages'][0]['strokes'][0]['points'][0][1]=1361
+        with self.assertRaises(bank.BankError):self.save(card=bad)
+        for layout in [0,3,True,'2']:
+            with self.assertRaises(bank.BankError):self.save(card=dict(large,layout=layout))
+        legacy=self.save(card=CARD,confirm_handwriting=True)
+        self.assertEqual(legacy['card'],CARD);self.assertEqual(legacy['confirmed_card_hash'],hw.digest(CARD))
+
     def test_ocr_transcription_and_stale_result(self):
         d=self.save(card=CARD)
         png=b'\x89PNG\r\n\x1a\n'+b'\0'*8+(1040).to_bytes(4,'big')+(560).to_bytes(4,'big')
