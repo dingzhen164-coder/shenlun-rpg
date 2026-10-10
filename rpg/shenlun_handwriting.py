@@ -14,6 +14,9 @@ def card(value):
     if value is None:return {'pages':[]}
     if not isinstance(value,dict) or not isinstance(value.get('pages'),list) or len(value['pages'])>10:
         raise bank.BankError('答题卡页数不正确（最多10页）')
+    layout=value.get('layout',1)
+    if type(layout) is not int or layout not in (1,2):raise bank.BankError('答题卡排版版本不正确')
+    max_height=1360 if layout==2 else 900
     count=0;out=[]
     for page in value['pages']:
         if not isinstance(page,dict) or not isinstance(page.get('strokes'),list):raise bank.BankError('答题卡笔迹格式不正确')
@@ -23,7 +26,7 @@ def card(value):
             pts=[]
             for xy in stroke['points']:
                 if not isinstance(xy,list) or len(xy)!=2 or any(type(v) not in (int,float) or not math.isfinite(v) for v in xy):raise bank.BankError('笔迹坐标不正确')
-                if not (0<=xy[0]<=1040 and 0<=xy[1]<=900):raise bank.BankError('笔迹超出答题区域')
+                if not (0<=xy[0]<=1040 and 0<=xy[1]<=max_height):raise bank.BankError('笔迹超出答题区域')
                 pts.append(xy)
             count+=len(pts)
             if count>100000:raise bank.BankError('答题卡笔迹太多，请分题练习')
@@ -31,7 +34,7 @@ def card(value):
             if type(w) not in (int,float) or not 1<=w<=30:raise bank.BankError('笔宽不正确')
             strokes.append({'points':pts,'erase':bool(stroke.get('erase')),'width':w})
         out.append({'strokes':strokes})
-    return {'pages':out}
+    return {'pages':out,'layout':2} if layout==2 else {'pages':out}
 
 
 def digest(c):return hashlib.sha256(json.dumps(c,sort_keys=True,ensure_ascii=False).encode('utf-8')).hexdigest()
@@ -63,7 +66,7 @@ def recognize(p,body):
         except Exception:raise bank.BankError('识别图片格式不正确')
         if not b.startswith(b'\x89PNG\r\n\x1a\n') or len(b)<24:raise bank.BankError('请使用PNG答题卡图片')
         w=int.from_bytes(b[16:20],'big');h=int.from_bytes(b[20:24],'big')
-        if not 0<w<=1500 or not 0<h<=1200:raise bank.BankError('识别图片尺寸过大')
+        if not 0<w<=1500 or not 0<h<=(1360 if before.get('card',{}).get('layout')==2 else 1200):raise bank.BankError('识别图片尺寸过大')
         pngs.append(b)
     if ai.vision_available():
         content=[{'type':'text','text':'逐页忠实转录这份申论手写答案，只输出原文字，不润色、不补充、不修正内容。保留段落及标点，忽略格线，认不清的字写［?］。'}]

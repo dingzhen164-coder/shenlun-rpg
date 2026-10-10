@@ -2059,3 +2059,9 @@ html.in-sl-exam .sl-writing.sl-card-expanded { height:auto; }
 html.in-sl-exam button.ghost:not(:disabled) { color:var(--text); }
 html.in-sl-exam .sl-marks-tools button[aria-pressed="true"] { color:#fff; }
 html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
+
+/* 2.6.2 大格长答题卡：纸张可延长/放大，外框滚动，不缩回旧高度。 */
+.sl-card-viewport { width:100%; overflow-x:auto; }
+.sl-card-viewport .sl-card-paper { box-sizing:border-box; width:100%; max-width:none; margin:10px 0; }
+.sl-card-tools select { width:auto; padding:6px; }
+.sl-card-tools label { display:inline-flex; align-items:center; gap:5px; }

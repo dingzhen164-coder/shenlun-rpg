@@ -328,7 +328,7 @@
     })();
     try{return await B.saving;}finally{B.saving=null;}
   }
-  async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}B.marksView?.destroy();if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
+  async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}B.marksView?.destroy();B.cardView?.destroy();if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
   async function clockTick(active){if(!S.q?.complete_bank)return;const qid=S.qid;try{const d=await post('/api/shenlun/card/clock',{qid,session:B.clockSession,active});if(qid!==S.qid)return;B.seconds=d.seconds;B.clockStamp=Date.now();const el=document.getElementById('slElapsed');if(el)el.textContent='作答用时 '+String(Math.floor(d.seconds/60)).padStart(2,'0')+':'+String(d.seconds%60).padStart(2,'0');}catch(e){B.clockOn=false;toast(e.message);}}
   function bindFullAnswer(root,ta) {
     ta.value=S.draftText||'';
@@ -343,7 +343,7 @@
     const count=()=>{const n=[...ta.value.replace(/\s/g,'')].length;root.querySelector('#slCnt').textContent=n+'字'+(S.q.words?' / '+S.q.words:'');};
     ta.oninput=()=>{B.confirm=false;S.lastKey=Date.now();S.draftText=ta.value;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);if(Date.now()-S.lastPing>15000){S.lastPing=Date.now();post('/api/shenlun/active').catch(()=>{});}};count();
     root.querySelector('#slDraftSave').onclick=flushDraft;
-    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>ta.oninput());B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
+    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>ta.oninput());B.cardView?.destroy();B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
     root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);});
     root.querySelector('#slSubmit').onclick=async()=>{if(S.busy||!ta.value.trim())return;S.busy=true;const btn=root.querySelector('#slSubmit');btn.disabled=true;ta.disabled=true;
       try{await clockTick(false);if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');btn.textContent='建立标准并阅卷中……';root.querySelector('#slRes').innerHTML='<div class="card thinking">领导正在核对题干、材料与作答证据……</div>';
