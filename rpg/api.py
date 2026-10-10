@@ -529,7 +529,13 @@ def _sl_bank(fn, *args):
 
 
 def shenlun_papers(body):
-    return {"papers": _sl_bank(shenlun_bank.listing)}
+    from . import shenlun_training
+    return {"papers": _sl_bank(shenlun_bank.listing), "topics":list(shenlun_training.TOPICS)}
+
+
+def shenlun_topics(body):
+    from . import shenlun_training
+    return _sl_bank(shenlun_training.save,body) if body.get("save") else _sl_bank(shenlun_training.read)
 
 
 def shenlun_bank_import(body):
@@ -938,6 +944,7 @@ ROUTES = {
     ("POST", "/api/subject"): subject_set,
     ("GET", "/api/shenlun/papers"): shenlun_papers,
     ("POST", "/api/shenlun/bank_import"): shenlun_bank_import,
+    ("POST", "/api/shenlun/topics"): shenlun_topics,
     ("POST", "/api/shenlun/bank_source"): shenlun_bank_source,
     ("POST", "/api/shenlun/answer"): shenlun_answer,
     ("POST", "/api/shenlun/card/clock"): shenlun_card_clock,

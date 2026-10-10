@@ -23,6 +23,10 @@ def main():
         paths.SETTINGS_DIR=r/'home';paths.SETTINGS_FILE=paths.SETTINGS_DIR/'settings.json';paths.LEGACY_SETTINGS=r/'无.json'
         paths.save_settings({'subject':'申论','vaults':{'申论':str(v)}})
         p=paths.Paths(v,'申论');p.ensure_train_dir();ai.chat_json=fake;report.ocr=lambda data:ANSWER
+        bank.import_packages(p,{'title':'2026主题训练自编套卷','region':'验证专用','year':'2026',
+            'materials':[{'id':'1','text':'乡村完善农业服务，帮助农民发展农村产业。'},{'id':'2','text':'科技团队加强研发，应用人工智能提升技术创新能力。'}],
+            'questions':[{'type':'归纳概括','text':'概括乡村农业服务措施。','score':20,'limit':300,'material_ids':['1']},
+                         {'type':'综合分析','text':'分析科技研发的意义。','score':20,'limit':300,'material_ids':['2']}]})
         def source_start(p):
             result=bank.import_packages(p,dict(PACKAGE,title='2025自编下载验证卷',region='国考',materials=[{'id':'1','text':PACKAGE['materials'][0]['text']+'居民提出新的需求。部门持续改进服务！！'*25}]))
             bank.JOBS[str(p.train)]={'running':False,'message':'录入完成','progress':100,'result':result}

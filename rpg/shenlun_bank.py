@@ -166,6 +166,8 @@ def listing(p):
         out[-1].update(count=len(d['questions']), materials=len(d['materials']), questions=[
             {'qid':q['qid'],'no':q['no'],'type':q['type'],'total':q['total'],'words':q['words'],
              'stem':q['stem'],'complete':bool(d['materials']) and q['total']>0} for q in d['questions']])
+    from . import shenlun_training
+    shenlun_training.classify(p,papers(p),out)
     return sorted(out,key=lambda x:(x['year'],x['region'],x['title']),reverse=True)
 
 

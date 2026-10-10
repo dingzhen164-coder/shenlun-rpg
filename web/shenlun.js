@@ -1,6 +1,6 @@
 /* ✍ 实操：申论题库、作答、采分点批改（后端 rpg/shenlun.py，接口 /api/shenlun/*）。
    两处用到：
-   - 办理殿「实操」厅（HALL = shizhan）：题库列表 → 作答 → 批改结果；
+   - 办理殿「实操」厅（HALL = shizhan）：分类选择训练 → 作答 → 批改结果；
    - 档案室「📑 题库 · 采分点」：导入真题解析文档、让 AI 起草采分点、审定定稿。
    在作答页写答案会计入“做题”学时：敲键盘时通知后端（节流），后端核对 2 分钟内有操作才算。 */
 "use strict";
@@ -15,31 +15,6 @@
 
   async function hallHtml() {
     return S.page === "answer" ? answerHtml() : listHtml();
-  }
-
-  async function legacyListHtml() {
-    let d;
-    try { d = await api("/api/shenlun/questions"); } catch (e) { return `<div class="card muted">${esc(e.message)}</div>`; }
-    S.qs = d.questions;
-    const scored = (d.recent || []).filter((x) => !x.draft);
-    S.stat = d.questions.length ? `${d.questions.length} 道题${scored.length ? " · 最近 " + Math.round(scored[0].rate * 100) + "%" : ""}` : "题库还是空的";
-    const head = `<div class="card sl-head"><div class="row"><h3 style="margin:0">✍ 实操 <small>写完交卷，领导按采分点逐条批阅，分数由程序计算</small></h3><span class="spacer"></span>
-      <button class="ghost small" id="slToLib">📑 题库 · 导入</button></div></div>`;
-    if (!d.questions.length) {
-      return head + `<div class="card sl-empty"><div class="sl-empty-ico">📄</div><b>题库还是空的</b>
-        <p class="muted">先把真题解析文档（PDF 或文本）导入：到「${esc(NAV("skeleton"))} · 题库 · 采分点」，选文件，让 AI 起草采分点，审定后就能在这里作答了。</p>
-        <button class="primary" id="slToLib2">去导入</button></div>`;
-    }
-    const cards = d.questions.map((q) => `<div class="card sl-q" data-slq="${esc(q.qid)}">
-      <div class="row"><span class="tag cur">${esc(q.type || "未分类")}</span>${q.status === "已定稿" ? '<span class="tag ok">已定稿</span>' : '<span class="tag lock">草稿</span>'}
-        <span class="small muted">${esc(q.qid)} · ${q.total} 分${q.words ? " · " + q.words + " 字" : ""} · ${q.points} 个采分点</span></div>
-      <p class="sl-stem">${esc((q.stem || "（未录入题干）").split("\n")[0])}</p>
-      <div class="row"><span class="spacer"></span><button class="primary small">${q.status === "已定稿" ? "作答" : "试批"}</button></div></div>`).join("");
-    const recent = (d.recent || []).length ? `<div class="card"><h3>📜 最近批改</h3>${d.recent.map((x) => `<div class="sl-rec"><span class="small faint">${esc(x.d)}</span>
-      <b>${esc(x.qid)}</b><span class="small muted">${esc(x.board || "")}</span><span class="spacer"></span>
-      ${x.draft ? '<span class="tag lock">试批</span>' : ""}<span class="sl-rate"><i style="width:${Math.round(x.rate * 100)}%"></i></span><b>${x.score}/${x.full}</b>
-      ${(x.lost || []).map((c) => `<span class="tag bad">${esc(c)}</span>`).join("")}</div>`).join("")}</div>` : "";
-    return head + `<div class="sl-grid">${cards}</div>` + recent;
   }
 
   async function answerHtml() {
@@ -82,15 +57,16 @@
 
   function bindHall(root) {
     bindBank(root);
+    SL_TRAINING.bind(root,open);
     const lib = () => { LIB.tab = "bank"; go("skeleton"); };
     const l1 = root.querySelector("#slToLib"), l2 = root.querySelector("#slToLib2");
     if (l1) l1.onclick = lib;
     if (l2) l2.onclick = lib;
     root.querySelectorAll("[data-slq]").forEach((c) => (c.onclick = () => { open(c.dataset.slq); }));
     const back = root.querySelector("#slBack");
-    if (back) back.onclick = async () => { if (!(await leaveAnswer())) return; S.page = "list"; S.result = null; rerender(); };
+    if (back) back.onclick = async () => { if (!(await leaveAnswer())) return; S.page = "list"; S.result = null;if(S.origin==="library"){LIB.tab="bank";go("skeleton");}else rerender(); };
     const ta = root.querySelector("#slAns");
-    if (ta && S.q.complete_bank) { bindFullAnswer(root, ta); return; }
+    if (ta && S.q.complete_bank) { bindFullAnswer(root, ta);SL_TRAINING.bindNavigation(root,S.qid,open); return; }
     if (ta) {
       ta.value = S.draftText && S.draftFor === S.qid ? S.draftText : "";
       const count = () => {
@@ -107,8 +83,11 @@
     }
   }
 
-  async function open(qid) {
+  async function open(qid,training=false) {
+    if(S.opening)return;S.opening=true;
+    try {
     if (!(await leaveAnswer())) return;
+    S.origin=training?"train":"library";if(!training)SL_TRAINING.clearSession();
     S.draftText = ""; S.draftFor = ""; S.q = null; S.result = null; S.qid = qid;
     if (qid.startsWith("slq-")) {
       try {
@@ -122,7 +101,8 @@
       } catch (e) { showError(e); return; }
     }
     HALL = "shizhan"; S.page = "answer";
-    VIEW === "train" ? renderTrain() : go("train");
+    await (VIEW === "train" ? renderTrain() : go("train"));
+    } finally {S.opening=false;}
   }
 
   async function submit(root, ta) {
@@ -223,18 +203,16 @@
   }
 
   // 完整真题：题干材料与作答分开，参考资料只在批改后展示。
-  const B = { papers: [], region: '', year: '', type: '', search: '', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null, card: {pages:[]}, marks:{}, marksView:null, confirm: false, clockSession: '', clockOn: true, clockTimer: null, cardView: null, ocrBusy:false, clockStamp:0 };
+  const B = { papers: [], region: '', year: '', type: '', search: '', topic:'', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null, card: {pages:[]}, marks:{}, marksView:null, confirm: false, clockSession: '', clockOn: true, clockTimer: null, cardView: null, ocrBusy:false, clockStamp:0 };
   const localDraft = qid => { try { return JSON.parse(localStorage.getItem('sl.draft.' + qid) || 'null'); } catch (_) { return null; } };
   const keepDraft = () => { try { localStorage.setItem('sl.draft.' + S.qid, JSON.stringify({ text: S.draftText, card:B.card, material_marks:B.marks, revision: B.revision, updated: Date.now() })); } catch (_) {} };
   const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, '0')).join('');
   async function listHtml() {
-    const full = await bankHtml(false);
-    const legacy = await legacyListHtml();
-    return full + `<details class="card"><summary>旧版采分点练习</summary>${legacy}</details>`;
+    return SL_TRAINING.html();
   }
   async function bankHtml(importing) {
     const d = await api('/api/shenlun/papers'); B.papers = d.papers;
-    const controls = `<div class="card sl-bank-head"><div class="row"><h3>📑 完整真题 <small>录入 → 作答 → 证据批改 → 修改复练</small></h3><span class="spacer"></span>${importing ? '' : '<button class="ghost small" id="slBankImport">录入真题</button>'}</div>
+    const controls = `<div class="card sl-bank-head"><div class="row"><h3>真题档案库 <small>录入 → 作答 → 证据批改 → 修改复练</small></h3><span class="spacer"></span>${importing ? '' : '<button class="ghost small" id="slBankImport">录入真题</button>'}</div>
       <p class="small muted">按题干和给定资料独立作答，交卷前隐藏参考答案。批改建议分供训练使用，评分标准同题固定。</p>
       <button class="primary" id="slSourceStart">⬇ 下载并录入公开申论题库</button> <button class="ghost small" id="slBankRefresh">刷新题库</button>
       <div class="small muted" id="slSourceStatus">首次下载约330MB，保存到电脑的申论库；重复录入保留已有题目。</div>
@@ -251,19 +229,20 @@
   function paperListHtml() {
     const regions = [...new Set(B.papers.map(p=>p.region))].sort(), years = [...new Set(B.papers.map(p=>p.year))].sort().reverse();
     const select = (id, values, value, label) => `<select id="${id}" aria-label="${label}"><option value="">${label}</option>${values.map(x=>`<option ${x===value?'selected':''}>${esc(x)}</option>`).join('')}</select>`;
-    const filtered = B.papers.filter(p=>(!B.region||p.region===B.region)&&(!B.year||p.year===B.year)&&(!B.search||p.title.includes(B.search))).map(p=>({...p,questions:p.questions.filter(q=>!B.type||q.type===B.type)})).filter(p=>p.questions.length);
+    const filtered = B.papers.filter(p=>(!B.region||p.region===B.region)&&(!B.year||p.year===B.year)&&(!B.search||p.title.includes(B.search))).map(p=>({...p,questions:p.questions.filter(q=>(!B.type||q.type===B.type)&&(!B.topic||q.topics.includes(B.topic)))})).filter(p=>p.questions.length);
     const count = Math.ceil(filtered.length/12); B.page = Math.min(B.page, Math.max(0,count-1));
-    const filter = `<div class="card row sl-bank-filters">${select('slFilterRegion',regions,B.region,'全部地区')}${select('slFilterYear',years,B.year,'全部年份')}${select('slFilterType',['归纳概括','综合分析','提出对策','贯彻执行','大作文'],B.type,'全部题型')}<input id="slFilterSearch" placeholder="搜索试卷" value="${esc(B.search)}"><span class="small muted">${filtered.length}套 · ${filtered.reduce((n,p)=>n+p.questions.length,0)}题</span></div>`;
+    const filter = `<div class="card row sl-bank-filters">${select('slFilterRegion',regions,B.region,'全部地区')}${select('slFilterYear',years,B.year,'全部年份')}${select('slFilterType',['归纳概括','综合分析','提出对策','贯彻执行','大作文'],B.type,'全部题型')}${select('slFilterTopic',[...new Set(B.papers.flatMap(p=>p.questions.flatMap(q=>q.topics)))].sort(),B.topic,'全部主题')}<input id="slFilterSearch" placeholder="搜索试卷" value="${esc(B.search)}"><span class="small muted">${filtered.length}套 · ${filtered.reduce((n,p)=>n+p.questions.length,0)}题</span></div>`;
     if (!filtered.length) return filter + '<div class="card sl-empty">还没有匹配的完整真题。可下载公开题库，或在档案室录入自己的题目。</div>';
-    return filter + filtered.slice(B.page*12,B.page*12+12).map(p=>`<details class="card sl-paper"><summary><b>${esc(p.title)}</b><span class="tag">${esc(p.region)}</span><span class="small muted">${p.questions.length}题 · ${esc(p.edition)}</span></summary><p class="small muted">${esc(p.source)} · 材料${p.materials}则</p>${p.questions.map(q=>`<div class="sl-paper-q"><span class="tag cur">第${q.no}题 · ${esc(q.type)}</span><span class="small muted">${q.total||'分值待补'}分${q.words?' · '+q.words+'字':''}</span>${q.complete?'':'<span class="tag bad">资料待补全</span>'}<p>${esc(q.stem)}</p><button class="primary small" data-slq="${esc(q.qid)}">作答</button></div>`).join('')}</details>`).join('') + `<div class="card row"><button id="slPaperPrev" ${B.page?'':'disabled'}>← 上一页</button><span>第${B.page+1}/${count}页</span><button id="slPaperNext" ${B.page<count-1?'':'disabled'}>下一页 →</button></div>`;
+    return filter + filtered.slice(B.page*12,B.page*12+12).map(p=>`<details class="card sl-paper"><summary><b>${esc(p.title)}</b><span class="tag">${esc(p.region)}</span><span class="small muted">${p.questions.length}题 · ${esc(p.edition)}</span></summary><p class="small muted">${esc(p.source)} · 材料${p.materials}则</p><div class="row">${p.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<button class="ghost small" data-sl-topic-edit="${esc(p.id)}">标注整卷主题</button></div>${p.questions.map(q=>`<div class="sl-paper-q"><span class="tag cur">第${q.no}题 · ${esc(q.type)}</span><span class="small muted">${q.total||'分值待补'}分${q.words?' · '+q.words+'字':''}</span>${q.complete?'':'<span class="tag bad">资料待补全</span>'}<p>${esc(q.stem)}</p><div class="row">${q.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="small muted">${esc(q.topic_scope)}</span><button class="ghost small" data-sl-topic-edit="${esc(q.qid)}">标注本题主题</button></div><button class="primary small" data-slq="${esc(q.qid)}">作答</button></div>`).join('')}</details>`).join('') + `<div class="card row"><button id="slPaperPrev" ${B.page?'':'disabled'}>← 上一页</button><span>第${B.page+1}/${count}页</span><button id="slPaperNext" ${B.page<count-1?'':'disabled'}>下一页 →</button></div>`;
   }
   function bindBank(root) {
     const $ = s=>root.querySelector(s);
     const redraw = () => { const box=$('#slPaperList'); if(box) { box.innerHTML=paperListHtml(); bindBank(root); } };
-    for (const [id,key] of [['#slFilterRegion','region'],['#slFilterYear','year'],['#slFilterType','type']]) { const el=$(id); if(el)el.onchange=()=>{B[key]=el.value;B.page=0;redraw();}; }
+    for (const [id,key] of [['#slFilterRegion','region'],['#slFilterYear','year'],['#slFilterType','type'],['#slFilterTopic','topic']]) { const el=$(id); if(el)el.onchange=()=>{B[key]=el.value;B.page=0;redraw();}; }
     const search=$('#slFilterSearch'); if(search)search.onchange=()=>{B.search=search.value.trim();B.page=0;redraw();};
     root.querySelectorAll('[data-slq]').forEach(el=>el.onclick=()=>open(el.dataset.slq));
     const prev=$('#slPaperPrev'),next=$('#slPaperNext'); if(prev)prev.onclick=()=>{B.page--;redraw();};if(next)next.onclick=()=>{B.page++;redraw();};
+    SL_TRAINING.bindTopics(root,B.papers);
     const imp=$('#slBankImport');if(imp)imp.onclick=()=>{LIB.tab='bank';go('skeleton');};
     const refreshBtn=$('#slBankRefresh');if(refreshBtn)refreshBtn.onclick=rerender;
     const status=$('#slSourceStatus'),start=$('#slSourceStart');
@@ -292,7 +271,7 @@
   }
   function fullAnswerHtml() {
     const q=S.q;
-    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← 回题库</button><span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span></div><div class="sl-task-scroll"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'〔原库材料ID：$1〕').replace(/\n/g,'<br>')}</p>${q.stem.includes('[materialid]')?'<p class="small warn">来源库的材料ID不是下方材料序号；下方保留整卷资料，请先按题干内容核对本题对应材料。</p>':''}${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
+    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span></div><div class="sl-task-scroll"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'〔原库材料ID：$1〕').replace(/\n/g,'<br>')}</p>${q.stem.includes('[materialid]')?'<p class="small warn">来源库的材料ID不是下方材料序号；下方保留整卷资料，请先按题干内容核对本题对应材料。</p>':''}${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
       <div class="sl-full-grid"><section class="card sl-materials"><div class="sl-material-toolbar"><h3>给定资料</h3>${SL_MATERIALS.toolbar()}</div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
       <section class="card sl-writing"><div class="row"><h3>我的作答</h3><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button></div>
