@@ -30,6 +30,8 @@ import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
+from . import net
+
 DIR = "时政文章"
 CATEGORIES = ["社论评论", "党政治理", "经济", "民生社会", "文化教育", "生态", "科技", "国际", "其他"]
 CAT_WORDS = [("生态", ("生态", "环保", "绿色", "碳", "污染", "绿水青山")), ("科技", ("科技", "创新", "人工智能", "智能", "数字", "算力", "航天")),
@@ -73,7 +75,7 @@ def aid(url):
 # ---------------------------------------------------------------- 网页 → 文字
 def fetch(url, timeout=12):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "zh-CN,zh;q=0.9"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with net.urlopen(req, timeout=timeout) as r:
         raw = r.read(3_000_000)
         head = r.headers.get_content_charset()
     m = re.search(rb'charset=["\']?([\w-]+)', raw[:4000], re.I)

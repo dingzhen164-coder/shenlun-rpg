@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import net
 from .paths import FROZEN
 from .version import REPO, VERSION
 
@@ -40,7 +41,7 @@ def _notes(body):
 def check():
     req = urllib.request.Request(API, headers={"User-Agent": "shenlun-rpg", "Accept": "application/vnd.github+json"})
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with net.urlopen(req, timeout=15) as r:
             rel = json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 404:       # 还没发布过 Release
@@ -108,7 +109,7 @@ def apply():
     new = exe.with_name(exe.stem + ".new.exe")
     req = urllib.request.Request(info["asset_url"], headers={"User-Agent": "shenlun-rpg"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as r, open(new, "wb") as f:
+        with net.urlopen(req, timeout=60) as r, open(new, "wb") as f:
             while True:
                 chunk = r.read(1 << 16)
                 if not chunk:

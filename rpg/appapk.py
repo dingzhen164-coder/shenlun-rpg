@@ -11,7 +11,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import paths, update
+from . import net, paths, update
 
 NAME = "xingce-xiuxian.apk"
 _LOCK = threading.Lock()
@@ -59,7 +59,7 @@ def ensure(ver, url, size=0):
         tmp = f.with_suffix(".part")
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "shenlun-rpg"})
-            with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as out:
+            with net.urlopen(req, timeout=60) as r, open(tmp, "wb") as out:
                 while True:
                     chunk = r.read(1 << 16)
                     if not chunk:
