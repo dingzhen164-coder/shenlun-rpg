@@ -13,6 +13,7 @@ import sqlite3
 import threading
 import urllib.request
 from pathlib import Path
+from contextlib import closing
 from . import net
 
 
@@ -191,9 +192,15 @@ def answer_get(p,qid):
 
 
 def answer_save(p,body):
+    # revision检查和原子替换作为一个临界区，两个标签页不能同时写入旧版本。
+    with _IMPORT_LOCK:
+        return _answer_save(p,body)
+
+
+def _answer_save(p,body):
     qid=body.get('qid'); question(p,qid)
     old=answer_get(p,qid)
-    if body.get('revision')!=old['revision']:
+    if type(body.get('revision')) is not int or body.get('revision')!=old['revision']:
         raise BankError('答案已在另一处更新，请保留当前文字，再重新打开题目')
     value=str(body.get('text') or '')
     if len(value)>30000: raise BankError('答案太长')
@@ -209,7 +216,7 @@ def answer_save(p,body):
 
 def import_sqlite(p, dbfile, matfile):
     added=skipped=questions=0
-    with sqlite3.connect(Path(dbfile).resolve().as_uri()+'?mode=ro',uri=True) as db, sqlite3.connect(Path(matfile).resolve().as_uri()+'?mode=ro',uri=True) as md:
+    with closing(sqlite3.connect(Path(dbfile).resolve().as_uri()+'?mode=ro',uri=True)) as db, closing(sqlite3.connect(Path(matfile).resolve().as_uri()+'?mode=ro',uri=True)) as md:
         db.row_factory=md.row_factory=sqlite3.Row
         for row in db.execute("SELECT * FROM papers WHERE subjectName IN ('公务员·申论','申论') ORDER BY id"):
             r=dict(row)

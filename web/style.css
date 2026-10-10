@@ -1985,7 +1985,8 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .sl-bank-input label { display: block; margin: 10px 0; }
 .sl-manual-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 12px; }
 .sl-bank-filters { flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-.sl-bank-filters input { flex: 1; min-width: 160px; }
+.sl-bank-filters select { width: auto; flex: 1 1 160px; min-width: 0; }
+.sl-bank-filters input { width: auto; flex: 1 1 190px; min-width: 160px; }
 .sl-paper { margin-bottom: 12px; }
 .sl-paper > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; }
 .sl-paper-q { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
