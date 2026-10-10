@@ -24,8 +24,15 @@ def wrap(text, columns=42):
             continue
         size = 2 if unicodedata.east_asian_width(char) in ("W", "F", "A") else 1
         if width + size > columns and line:
-            lines.append(line)
-            line, width = "", 0
+            # 收尾标点不在行首、开括号不在行末；把末字带到下一行，不增删原文。
+            if len(line) > 1 and (char in "，。！？；：、）》】”’…,.!?;:%％" or line[-1] in "（《【“‘("):
+                last = line[-1]
+                lines.append(line[:-1])
+                line = last
+                width = 2 if unicodedata.east_asian_width(last) in ("W", "F", "A") else 1
+            else:
+                lines.append(line)
+                line, width = "", 0
         line += char
         width += size
     if line:

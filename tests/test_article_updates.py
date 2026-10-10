@@ -87,6 +87,13 @@ class ArticleUpdateTest(unittest.TestCase):
         html = '<a href="http://evil.test/page2.html">下一页</a><a href="/page2.html">下一页</a><a href="/art/2.html">更多</a>'
         self.assertEqual(articles.history_links(html, 'http://x.test/', r'/art/\d+\.html'), ['http://x.test/page2.html'])
 
+    def test_article_wrap_preserves_punctuation_and_avoids_hanging(self):
+        text = '一' * 21 + '，继续阅读。' + '甲' * 15 + '（括号内的说明）'
+        lines = article_notes.wrap(text)
+        self.assertEqual(''.join(lines), text)
+        self.assertTrue(all(not line.startswith(('，', '。', '）')) for line in lines))
+        self.assertTrue(all(not line.endswith('（') for line in lines))
+
     def seed(self):
         art = {'id': 'abc12345', 'title': '科技服务基层', 'date': '2026-10-09', 'source': '自编测试', 'url': 'http://a.test/x',
                'category': '科技', 'paras': ['完整原文不截断，中英文 mixed text。' * 100, '尾段完整保留。']}
