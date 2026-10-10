@@ -26,9 +26,29 @@ async function main(){
   const response=await page.request.get(base+'/manifest.webmanifest'),manifest=await response.json();assert.equal(manifest.name,'公考模拟器');assert.equal(manifest.short_name,'公考模拟器');assert.ok(manifest.description.includes('行测与申论'));
   for(const icon of manifest.icons)assert.equal((await page.request.get(base+'/'+icon.src)).status(),200);
   assert.ok((await page.locator('body').textContent()).includes('gongkao-simulator-mac.zip')===false,'源码运行不显示Mac专用提示');
+  if(subject==='申论'){
+   for(const asset of ['hall','archive','night']){
+    const response=await page.request.get(base+'/assets/shenlun/'+asset+'.webp');assert.equal(response.status(),200);
+    assert.ok(await page.evaluate(src=>new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im.naturalWidth>1000);im.onerror=()=>resolve(false);im.src=src;}),base+'/assets/shenlun/'+asset+'.webp'));
+   }
+   for(const view of ['home','train','notes','contest','tianji','skeleton','log']){
+    await page.locator('#nav [data-view="'+view+'"]').click();await page.locator('.sl-ui-masthead').waitFor();
+    assert.equal(await page.locator('#nav .sl-ui-icon').count(),8);
+    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){
+     await page.setViewportSize({width,height});
+     for(const theme of ['light','dark']){
+      await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page '+view+' fits '+name);
+      if(width>1100)assert.ok(await page.evaluate(()=>document.querySelector('#view').getBoundingClientRect().left>=document.querySelector('.topbar').getBoundingClientRect().right),'sidebar does not cover work');
+      await page.screenshot({path:path.join(out,`sl-ui-${view}-${name}-${theme}.png`),fullPage:false,animations:'disabled'});
+     }
+    }
+   }
+   await page.setViewportSize({width:1280,height:860});await settings();
+  }
   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,`brand-${subject==='申论'?'shenlun':'xingce'}-${name}-${theme}.png`),fullPage:false});}}
  }
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:8,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗']},null,2));console.log('BRAND-UI-OK');
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:36,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗','申论七页整体视觉','内置背景离线解码','导航避让']},null,2));console.log('BRAND-UI-OK');
  }finally{if(browser)await browser.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
