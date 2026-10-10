@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import wording, appapk, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -1308,6 +1308,95 @@ def tj_pdf(body):
     return {"url": "/notes-file?p=%s&t=%s" % (quote(rel), export_token(rel))}
 
 
+# ---------------------------------------------------------------- 📅 每日文章（申论；见 rpg/articles.py、web/articles.js）
+def _ar(fn, *a, save=True):
+    with open_game(save=save) as g:
+        if not g.paths.vault:
+            raise ApiError("还没找到申论库")
+        if g.paths.subject != "申论":
+            raise ApiError("每日文章只在申论科目里")
+        try:
+            return fn(g, *a)
+        except articles.ArticleError as e:
+            raise ApiError(str(e))
+
+
+def ar_list(body):
+    return _ar(articles.listing, save=False)
+
+
+def ar_get(body):
+    return _ar(articles.get, str(body.get("id") or ""))
+
+
+def ar_mark(body):
+    return _ar(articles.mark, str(body.get("id") or ""), body)
+
+
+def ar_crawl(body):
+    return _ar(articles.start_crawl, save=False)
+
+
+def ar_import_url(body):
+    return _ar(lambda g: articles.import_url(g.paths, body.get("url")), save=False)
+
+
+def ar_source(body):
+    act = body.get("act")
+    if act == "toggle":
+        return _ar(articles.toggle_source, str(body.get("name") or ""), bool(body.get("on")))
+    if act == "add":
+        return _ar(articles.add_source, body.get("name"), body.get("url"), body.get("category"))
+    if act == "remove":
+        return _ar(articles.remove_source, str(body.get("name") or ""))
+    raise ApiError("不认识的操作")
+
+
+def ar_category(body):
+    return _ar(articles.set_category, str(body.get("id") or ""), body.get("category"), save=False)
+
+
+def ar_delete(body):
+    return _ar(articles.delete, str(body.get("id") or ""))
+
+
+def ar_cards(body):
+    return _ar(articles.jd_cards, str(body.get("id") or ""))
+
+
+def ar_jd(body):
+    """一键精读：AI 提炼成结构化 JSON，程序校验（金句必须在原文里），不合格重试一次；存下来，再点直接给旧的（force 才重做）"""
+    iid = str(body.get("id") or "")
+    with open_game(save=False) as g:
+        if g.paths.subject != "申论":
+            raise ApiError("每日文章只在申论科目里")
+        try:
+            art = articles.find(g.paths, iid)
+            old = articles.load_jd(g.paths, iid)
+        except articles.ArticleError as e:
+            raise ApiError(str(e))
+        if old and not body.get("force"):
+            return {"jd": old, "cached": True}
+        tixing = list(cards.DEFAULT_DECKS_SHENLUN)
+        paths = g.paths
+    if not ai.available():
+        raise ApiError("还没填 AI 的 API key：设置里填好才能精读")
+    tianji.touch()
+    msgs = articles.jd_messages(art, tixing)
+    err = None
+    for _ in range(2):
+        try:
+            jd = articles.check_jd(ai.chat_json(msgs, temperature=0.3, max_tokens=1800), art, tixing)
+            break
+        except (ai.AIError, articles.ArticleError) as e:
+            err = e
+    else:
+        raise ApiError("精读没成功（%s），稍后再试" % err)
+    jd = articles.save_jd(paths, iid, jd)
+    return {"jd": jd, "cached": False}
+
+
+
 def changelog_get(body):
     from . import changelog
     return {"entries": changelog.entries()}
@@ -1332,6 +1421,10 @@ ROUTES[("POST", "/api/poster/stats")] = poster_stats
 ROUTES[("GET", "/api/tianji")] = tj_list
 for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta", tj_meta), ("delete", tj_delete), ("cards", tj_cards), ("pdf", tj_pdf), ("ask", tj_ask)):
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
+ROUTES[("GET", "/api/articles")] = ar_list
+for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import_url", ar_import_url), ("source", ar_source),
+               ("category", ar_category), ("delete", ar_delete), ("cards", ar_cards), ("jd", ar_jd)):
+    ROUTES[("POST", "/api/articles/" + _n)] = _f
 ROUTES[("POST", "/api/poster/save")] = poster_save
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),
                ("update", cards_update), ("delete", cards_delete), ("suspend", cards_suspend), ("forget", cards_forget),
