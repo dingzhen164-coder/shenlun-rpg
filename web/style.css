@@ -2034,7 +2034,7 @@ html.in-sl-exam main { max-width: none; width:100%; margin:0; padding:10px; box-
 html.in-sl-exam .sl-exam-heading { position:sticky; top:0; z-index:15; margin:0 0 10px; padding:10px 16px; background:var(--panel); }
 .sl-exam-heading .sl-task-scroll { max-height:100px; overflow:auto; }
 .sl-exam-heading .sl-stem { margin:8px 0; font-size:16px; line-height:1.65; }
-html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); margin:0; gap:12px; height:calc(100dvh - 172px); min-height:420px; }
+html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); margin:0; gap:12px; height:calc(100dvh - var(--sl-exam-heading-height,142px) - 30px); min-height:420px; }
 html.in-sl-exam .sl-materials, html.in-sl-exam .sl-writing { min-width:0; max-height:none; height:100%; box-sizing:border-box; margin:0; background:var(--panel); }
 html.in-sl-exam .sl-materials { display:flex; flex-direction:column; overflow:hidden; padding:12px; }
 html.in-sl-exam .sl-writing { overflow:auto; padding:12px; }
@@ -2056,3 +2056,7 @@ html.in-sl-exam #slRes { margin-top:16px; }
 }
 
 html.in-sl-exam .sl-writing.sl-card-expanded { height:auto; }
+
+html.in-sl-exam button.ghost:not(:disabled) { color:var(--text); }
+html.in-sl-exam .sl-marks-tools button[aria-pressed="true"] { color:#fff; }
+html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
