@@ -1,0 +1,183 @@
+/* 2.8.0 申论政务工作台：独立视觉层，所有组件限于guantu，作答坐标和行测布局不变。 */
+body.guantu {
+  --bg:#f2f1ec; --panel:#fffefa; --panel2:#f4f5f4; --line:#dce1e2;
+  --text:#22313d; --muted:#63717b; --faint:#879299;
+  --accent:#a52e33; --accent2:#214761; --gold:#967044; --green:#327566;
+  --red:#ab3540; --orange:#966025; --purple:#315774;
+  --radius:8px; --shadow:0 3px 16px rgba(30,47,62,.045);
+  --display:'Songti SC','STSong','SimSun',Georgia,serif;
+  --sl-rail:#172c3e; --sl-rail-text:#ccd6dd; --sl-paper-line:#ecece5;
+  --c-lecture:#315b76; --c-practice:#a52e33; --c-review:#967044;
+  font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+html[data-theme=dark] body.guantu {
+  --bg:#101b25; --panel:#182733; --panel2:#20323e; --line:#30434f;
+  --text:#e1e7e9; --muted:#a4b3bc; --faint:#7e939f;
+  --accent:#db8584; --accent2:#91b5c8; --gold:#c5ab7d; --green:#84baa7;
+  --red:#e09196; --orange:#d6b17c; --purple:#91b5c8;
+  --shadow:0 4px 18px rgba(0,0,0,.12); --sl-paper-line:#233440;
+  --c-lecture:#91b5c8; --c-practice:#db8584; --c-review:#c5ab7d;
+}
+body.guantu.has-bg .card { background:color-mix(in srgb,var(--panel) 94%,transparent); backdrop-filter:blur(10px); }
+body.guantu .card { border-radius:var(--radius); padding:22px 24px; border-color:var(--line); box-shadow:var(--shadow); }
+body.guantu .card h3 { font:700 19px/1.6 var(--display); border-left:0; padding:0; letter-spacing:.025em; color:var(--text); }
+body.guantu .card h3 small { font:400 12px/1.7 -apple-system,'Microsoft YaHei',sans-serif; display:inline; }
+body.guantu button { border-radius:5px; padding:9px 16px; font-size:14px; font-weight:500; transition:background .18s,border-color .18s,box-shadow .18s; }
+body.guantu button:hover:not(:disabled) { border-color:var(--accent2); background:var(--panel2); box-shadow:0 2px 6px rgba(20,40,55,.06); }
+body.guantu button.primary { background:#284c65; border:1px solid #284c65; color:#fff; box-shadow:0 2px 4px rgba(30,55,70,.1); }
+body.guantu button.primary:hover:not(:disabled) { background:#1b3c54; border-color:#1b3c54; filter:none; }
+body.guantu button.ghost { background:transparent; color:var(--accent2); }
+html body.guantu .sl-marks-tools button[aria-pressed="true"],html body.guantu .sl-marks-tools button[aria-pressed="true"]:hover { background:#284c65; border-color:#284c65; color:#fff; }
+body.guantu button.small { font-size:12px; padding:7px 11px; }
+body.guantu input,body.guantu select,body.guantu textarea { border-radius:5px; background:var(--panel); padding:10px 12px; font-size:14px; }
+body.guantu :is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--accent2); outline-offset:3px; }
+body.guantu input:focus,body.guantu textarea:focus,body.guantu select:focus { border-color:var(--accent2); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent2) 12%,transparent); }
+body.guantu .tag { border:1px solid var(--line); background:var(--panel2); border-radius:3px; padding:2px 7px; margin-left:0; font-size:11px; line-height:1.6; color:var(--muted); }
+body.guantu .tag.ok { color:var(--green); background:color-mix(in srgb,var(--green) 9%,var(--panel)); border-color:color-mix(in srgb,var(--green) 23%,var(--line)); }
+body.guantu .tag.cur { color:var(--accent); background:color-mix(in srgb,var(--accent) 7%,var(--panel)); border-color:color-mix(in srgb,var(--accent) 22%,var(--line)); }
+body.guantu .tag.half { color:var(--orange); background:color-mix(in srgb,var(--orange) 8%,var(--panel)); }
+body.guantu .tag.bad { color:var(--red); background:color-mix(in srgb,var(--red) 8%,var(--panel)); }
+body.guantu .toast { border-radius:7px; box-shadow:0 7px 30px rgba(18,37,51,.15); padding:14px 18px; }
+body.guantu #banner .warn { border-radius:6px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); color:var(--muted); font-size:12px; padding:10px 16px; }
+/* 左侧导航与一致的线图标。主体始终为实色，个人背景不会干扰导航。 */
+body.guantu .topbar,body.guantu.has-bg .topbar { background:var(--sl-rail); color:var(--sl-rail-text); border:0; box-shadow:none; backdrop-filter:none; }
+body.guantu .brand { display:flex; align-items:center; flex-wrap:wrap; gap:9px; color:#faf6e9; font-family:var(--display); font-size:19px; letter-spacing:1px; line-height:1.5; }
+body.guantu .brand .app-brand-icon { width:34px; height:34px; border-radius:6px; }
+body.guantu .app-subject { font:11px/1.5 -apple-system,'Microsoft YaHei',sans-serif; letter-spacing:1px; color:#d4c29a; border:1px solid #6b6c5f; background:transparent; padding:1px 6px; border-radius:2px; }
+body.guantu #nav a { display:flex; gap:12px; align-items:center; border:0; border-radius:4px; color:#b9c7d1; padding:12px 15px; font-size:14px; white-space:nowrap; }
+body.guantu #nav a.active { background:#2a4255; color:#fff; box-shadow:inset 3px 0 #c0a373; }
+body.guantu #nav a:hover { background:#233c50; color:#fff; }
+.sl-ui-icon { width:20px; height:20px; flex:none; }
+body.guantu .topbar .bgm-btn { background:#20384b; border:1px solid #3a5061; color:#bdcbd5; width:34px; height:34px; padding:0; }
+body.guantu .today-pill { background:#20384b; color:#c9d6de; border:1px solid #374f60; border-radius:5px; font-size:11px; line-height:1.8; padding:10px; }
+@media(min-width:1101px) {
+  body.guantu .topbar { position:fixed; inset:0 auto 0 0; width:224px; height:100dvh; z-index:20; padding:30px 16px 20px; display:flex; flex-direction:column; align-items:stretch; gap:0; overflow-y:auto; }
+  body.guantu .brand { padding:0 3px 24px; border-bottom:1px solid #354859; }
+  body.guantu .brand::after { content:'申论备考工作台'; width:100%; color:#92a5b5; font:10px/1.7 -apple-system,'Microsoft YaHei',sans-serif; letter-spacing:3px; padding-left:43px; }
+  body.guantu #nav { flex-direction:column; flex-wrap:nowrap; gap:5px; margin-top:26px; }
+  body.guantu #nav::before { content:'工作导航'; color:#7f95a6; font-size:10px; letter-spacing:3px; padding:0 15px 11px; }
+  body.guantu .top-tools { margin: auto 0 0; padding-top:28px; flex-wrap:wrap; justify-content:flex-start; gap:8px; }
+  body.guantu .top-tools .today-pill { flex-basis:100%; margin:0 0 8px; }
+  body.guantu #view { max-width:1440px; width:calc(100% - 288px); margin:0 32px 0 256px; padding:24px 0 64px; }
+  body.guantu #banner { margin:0 32px 0 256px; padding-top:18px; }
+  body.guantu #banner .warn { max-width:none; margin:8px 0 0; }
+  html.in-chat body.guantu .train { left:calc(50% + 112px); width:min(var(--chat-w,80vw),calc(100vw - 256px)); }
+  html.focus body.guantu #view,html.in-sl-exam body.guantu #view { width:100%; max-width:none; margin:0; }
+  html.focus.in-chat body.guantu .train { left:50%; width:var(--chat-w,80vw); }
+}
+@media(max-width:1100px) {
+  body.guantu .topbar { position:sticky; top:0; padding:15px 20px 0; display:grid; grid-template-columns:1fr auto; gap:12px; }
+  body.guantu #nav { grid-column:1 / -1; grid-row:2; width:100%; overflow-x:auto; flex-wrap:nowrap; padding:0 0 10px; gap:4px; scrollbar-width:thin; }
+  body.guantu #nav a { padding:10px 12px; gap:7px; font-size:13px; }
+  body.guantu #nav a.active { box-shadow:inset 0 -2px #c0a373; }
+  body.guantu .top-tools { grid-column:2; grid-row:1; margin:0; gap:7px; }
+  body.guantu .top-tools .today-pill { max-width:220px; padding:6px 9px; }
+  body.guantu #view { max-width:none; padding:20px 20px 50px; }
+  body.guantu #banner .warn { margin:12px 20px 0; }
+}
+@media(max-width:640px) {
+  body.guantu .topbar { padding:12px 12px 0; }
+  body.guantu .brand { font-size:17px; gap:6px; }
+  body.guantu .brand .app-brand-icon { width:29px; height:29px; }
+  body.guantu .top-tools .today-pill { display:none; }
+  body.guantu #view { padding:16px 12px 40px; }
+  body.guantu .card { padding:18px 16px; }
+  body.guantu #banner .warn { margin:10px 12px 0; }
+}
+/* 页面台头：图像只作为背景，内容区保持高对比纸面。 */
+.sl-ui-masthead { position:relative; display:flex; align-items:center; justify-content:space-between; overflow:hidden; min-height:188px; margin:0 0 24px; padding:30px 34px; border:1px solid #354d5f; border-radius:9px; color:#f6f3e8; background:linear-gradient(90deg,rgba(22,45,65,.98),rgba(22,45,65,.84) 60%,rgba(22,45,65,.58)),url('assets/shenlun/hall.webp') center 57% / cover; box-shadow:0 10px 25px rgba(27,50,67,.08); }
+.sl-ui-masthead.sl-ui-archive { background-image:linear-gradient(90deg,rgba(22,45,65,.97),rgba(22,45,65,.85) 55%,rgba(22,45,65,.55)),url('assets/shenlun/archive.webp'); }
+html[data-theme=dark] .sl-ui-masthead { background-image:linear-gradient(90deg,rgba(20,39,55,.97),rgba(20,39,55,.7)),url('assets/shenlun/night.webp'); border-color:#3c5262; }
+.sl-ui-heading-copy { position:relative; z-index:1; }
+.sl-ui-eyebrow { font-size:10px; letter-spacing:3px; color:#c5c4b0; }
+.sl-ui-eyebrow span { padding:0 9px; color:#708697; }
+.sl-ui-masthead h1 { margin:12px 0 8px; font:700 34px/1.35 var(--display); letter-spacing:3px; color:#fff9ed; }
+.sl-ui-masthead p { margin:0; font-size:13px; color:#c6d3da; letter-spacing:.3px; }
+.sl-ui-heading-seal { border:3px double #c5ac7e; color:#ddc397; padding:10px 13px; font:700 23px/1.1 var(--display); transform:rotate(-7deg); margin-left:20px; opacity:.9; }
+.sl-ui-heading-rule { position:absolute; bottom:0; left:34px; right:34px; height:3px; background:linear-gradient(90deg,#b57568 0 58px,#a99573 58px 150px,transparent 150px); }
+@media(max-width:640px) { .sl-ui-masthead { min-height:155px; padding:24px 22px; margin-bottom:18px; } .sl-ui-masthead h1 { font-size:28px; } .sl-ui-heading-seal { font-size:18px; padding:8px; } .sl-ui-eyebrow { letter-spacing:1.5px; } }
+/* 办理入口收紧，公文式选项代替悬浮的游戏门牌。 */
+body.guantu .hall-gates { margin:0 0 20px; gap:14px; }
+body.guantu .gate { min-height:102px; padding:19px 23px; border:1px solid var(--line); border-radius:7px; box-shadow:none; background:var(--panel); }
+body.guantu .gate.on { background:var(--panel); border-color:var(--accent2); box-shadow:inset 4px 0 var(--accent2); }
+body.guantu .gate:hover { border-color:var(--accent2); }
+body.guantu .gate-name { color:var(--text); font-size:23px; letter-spacing:1px; }
+body.guantu .gate-sub { font-size:13px; color:var(--muted); margin-top:4px; }
+body.guantu .gate-stat { font-size:11px; color:var(--faint); margin-top:6px; }
+body.guantu .gate-icon { opacity:.5; right:24px; top:30px; color:var(--accent2); }
+body.guantu .gate-icon .sl-ui-icon { width:34px; height:34px; }
+body.guantu .gate.on::after { content:'办理中'; background:var(--accent2); font-size:10px; letter-spacing:1px; padding:2px 7px; }
+body.guantu .sl-dossier-header { border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:7px; padding:22px 24px; }
+body.guantu .sl-dossier-header h2 { margin:6px 0 7px; font:700 25px/1.5 var(--display); letter-spacing:1px; }
+body.guantu .sl-dossier-header p { font-size:13px; color:var(--muted); margin:0; }
+body.guantu .sl-dossier-kicker { color:var(--accent); font-size:10px; letter-spacing:2px; }
+body.guantu .sl-training-modes { margin-top:22px; gap:0; padding:0; border-bottom:1px solid var(--line); }
+body.guantu .sl-training-modes button { border:0; border-radius:0; padding:12px 24px; background:transparent; color:var(--muted); }
+body.guantu .sl-training-modes button.selected { color:var(--accent2); background:transparent; box-shadow:inset 0 -3px var(--accent2); }
+body.guantu .sl-training-filters { padding:20px 24px; background:var(--panel); gap:16px; }
+body.guantu .sl-training-filters label { color:var(--muted); font-size:11px; letter-spacing:.5px; }
+body.guantu .sl-training-filters select { margin-top:5px; }
+body.guantu .sl-training-filters p { font-size:11px; line-height:1.8; }
+body.guantu .sl-training-folder { background:var(--panel); padding:18px 18px 16px; min-height:184px; border-radius:7px; border:1px solid var(--line); }
+body.guantu .sl-training-folder.selected { border:1px solid var(--accent2); box-shadow:inset 0 -3px var(--accent2); background:var(--panel); }
+body.guantu .sl-training-folder:hover { background:var(--panel); border-color:var(--accent2); }
+body.guantu .sl-training-folder b { font-size:18px; letter-spacing:.5px; }
+body.guantu .sl-folder-art { margin:8px 0 16px; transform:scale(.82); transform-origin:left center; }
+body.guantu .sl-file-cover { background:linear-gradient(125deg,#e4d7b8,#cbb78f); border-color:#b59f79; box-shadow:0 3px 6px #22334412; }
+body.guantu .sl-folder-number { font-size:9px; letter-spacing:2px; color:var(--gold); }
+body.guantu .sl-training-item { padding:22px 0; }
+body.guantu .sl-training-item p { color:var(--muted); font-size:14px; margin:12px 0; }
+/* 已领取目录：标题/卷名/状态三层，不挤成同一串字。 */
+body.guantu .sl-claims { border:1px solid var(--line); padding:24px; }
+body.guantu .sl-claims > .row { padding-bottom:12px; border-bottom:1px solid var(--line); }
+body.guantu .sl-claims > .row h3::before { content:'目录'; display:inline-block; border:1px solid var(--accent); color:var(--accent); font-size:10px; font-family:-apple-system,'Microsoft YaHei',sans-serif; font-weight:500; letter-spacing:2px; padding:2px 5px; margin-right:12px; vertical-align:middle; }
+body.guantu .sl-claims-category { border-radius:5px; border-color:var(--line); background:var(--panel); }
+body.guantu .sl-claims-category > summary { padding:14px 18px; background:var(--panel2); font-size:14px; }
+body.guantu .sl-claims-category > summary b { font-family:var(--display); font-size:16px; letter-spacing:1px; }
+body.guantu .sl-claims-folder { color:var(--gold); }
+body.guantu .sl-claimed-row { padding:18px; gap:15px; }
+body.guantu .sl-claimed-title b { font-size:14px; font-weight:600; }
+body.guantu .sl-claimed-actions .tag { white-space:nowrap; }
+body.guantu .sl-paper { border-left:3px solid #ac9671; background:var(--panel); padding:0; overflow:hidden; }
+body.guantu .sl-paper > summary { padding:20px 24px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:var(--panel); font-size:14px; }
+body.guantu .sl-paper > summary b { font:700 17px/1.65 var(--display); }
+body.guantu .sl-paper > p,body.guantu .sl-paper > .row { margin:16px 24px; }
+body.guantu .sl-paper-q { padding:22px 24px; margin:0; border-top:1px solid var(--line); }
+body.guantu .sl-paper-q p { font-size:14px; color:var(--muted); line-height:1.9; }
+body.guantu .sl-bank-head { border:1px solid var(--line); border-top:3px solid var(--accent2); }
+body.guantu .lib-tabs { border-radius:5px; padding:4px; gap:4px; background:var(--panel2); }
+body.guantu .lib-tabs button { border-radius:3px; padding:9px 16px; font-size:13px; }
+body.guantu .lib-tabs button.on { color:var(--accent2); box-shadow:0 1px 6px rgba(30,50,60,.06); background:var(--panel); border:1px solid var(--line); }
+/* 办公室履历、学时、手账、报刊与对话沿用同一纸面规范。 */
+body.guantu .hero { border:1px solid var(--line); border-top:3px solid var(--gold); padding:26px; gap:24px; }
+body.guantu .hero-name { color:var(--text); font-size:26px; letter-spacing:1px; }
+body.guantu .hero-title { color:var(--accent2); }
+body.guantu .avatar img,body.guantu .avatar .def { border-radius:8px; border:2px solid var(--gold); }
+body.guantu .avatar .def { background:#304c60; }
+body.guantu .hero-score .big { color:var(--accent2); font-size:39px; }
+body.guantu .lv-badge { background:var(--accent2); border-radius:3px; }
+body.guantu .stat { background:var(--panel); border:1px solid var(--line); border-radius:6px; border-left:0; border-top:2px solid var(--accent2); padding:15px 18px; }
+body.guantu .stat .v { font:700 24px/1.5 var(--display); margin:4px 0; }
+body.guantu .orb-ring { border-radius:6px; background:var(--panel2); border:1px solid var(--line); border-top:2px solid var(--c); }
+body.guantu .orb-name { letter-spacing:1px; font-size:18px; }
+body.guantu .bar,body.guantu .dual-bar { border-radius:3px; }
+body.guantu .bar > div { background:var(--accent2); border-radius:3px; box-shadow:none; }
+body.guantu .npc .say { border-radius:6px; background:var(--panel2); border:1px solid var(--line); padding:12px 16px; }
+body.guantu .npc .face { border-radius:6px; background:#334e60; border-color:var(--gold); }
+body.guantu .nt-tabs { background:var(--panel2); }
+body.guantu .nt-app { border-radius:8px; }
+body.guantu th { color:var(--muted); background:var(--panel2); font-size:11px; letter-spacing:.5px; }
+body.guantu td { padding:11px 10px; font-size:13px; }
+body.guantu .fold,body.guantu .sl-bank-input { border-radius:5px; }
+/* 专注作答不改变纸张逻辑尺寸；仅重做工具栏和报告样式。 */
+html.in-sl-exam body.guantu #view { width:100%; max-width:none; margin:0; padding:12px; }
+html.in-sl-exam body.guantu .sl-exam-heading { padding:13px 18px; border-top:3px solid var(--accent2); border-radius:6px; }
+html.in-sl-exam body.guantu .sl-materials,html.in-sl-exam body.guantu .sl-writing { padding:12px; }
+html.in-sl-exam body.guantu .sl-material-toolbar h3 { font-size:17px; }
+body.guantu .sl-review-total { border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--panel); }
+body.guantu .sl-point-detail { border-radius:5px; border:1px solid var(--line); background:var(--panel); }
+body.guantu .sl-point-detail > summary { padding:14px 16px; }
+body.guantu .sl-ev { border-left:2px solid var(--gold); border-radius:0; background:var(--panel2); }
+body.guantu .sl-dossier-stamp { border:3px double var(--accent); color:var(--accent); font:700 16px/1.7 var(--display); padding:5px 9px; }
+body.guantu .sl-topic-dialog { box-shadow:0 20px 70px #091a2b55; }
+@media(prefers-reduced-motion:reduce) { body.guantu *,body.guantu *::before,body.guantu *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }

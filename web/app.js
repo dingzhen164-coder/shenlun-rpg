@@ -162,6 +162,7 @@ function applyTheme() {
   $(".brand").innerHTML = `<img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>${esc(DASH.app_name || "公考模拟器")}</span><small class="app-subject">${esc(DASH.subject || "")}</small>`;
   document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
   document.querySelectorAll("#nav a").forEach((a) => (a.textContent = W("nav." + a.dataset.view)));
+  if(isSL())window.SL_UI?.chrome();
 }
 
 async function refresh() {
@@ -209,6 +210,7 @@ async function render() {
     else if (VIEW === "wrong" || VIEW === "pill") { VIEW = "log"; return go("log"); }   // 心魔录、丹房在 3.0 去掉了
     else if (VIEW === "log") { await refresh(); v.innerHTML = views.log(); bindLog(); }
     else if (VIEW === "settings") { await refresh(); await AMB.load(); v.innerHTML = await views.settings(); bindSettings(); }
+    if(isSL())window.SL_UI?.mount(VIEW);
   } catch (e) { showError(e); }
 }
 
@@ -934,7 +936,7 @@ function chatPrefs() {
 }
 function applyChatLayout(p = chatPrefs()) {
   const root = document.documentElement;
-  const hdr = document.querySelector("header");
+  const hdr = isSL() && innerWidth>1100 ? null : document.querySelector("header");
   const ban = $("#banner");
   const top = root.classList.contains("focus") ? 52      // ◎ 专注：顶栏藏起来了，只给顶上的小胶囊留位置
     : Math.max(hdr ? hdr.getBoundingClientRect().bottom : 60, ban && ban.offsetHeight ? ban.getBoundingClientRect().bottom : 0) + 8;
@@ -958,6 +960,7 @@ async function renderTrain() {
   if (VIEW !== "train") return;
   $("#view").innerHTML = html;
   bindTrain();
+  if(isSL())window.SL_UI?.mount(VIEW);
   fitChat();
   const box = $("#msgs"); if (box) box.scrollTop = T.top ? 0 : box.scrollHeight;
   startTimer();
@@ -1052,10 +1055,10 @@ async function slHubHtml() {
   document.documentElement.classList.toggle('in-sl-exam',!!focused);
   if(focused)return SHENLUN.hallHtml();
   const gates = `<div class="hall-gates">
-    <div class="gate ${HALL === 'xiulian' ? 'on' : ''}" data-hall="xiulian"><div class="gate-cloud"></div><div class="gate-icon">📝</div>
-      <div class="gate-name">办 理</div><div class="gate-sub">${esc(W('yj'))}复习 · 脉络图</div><div class="gate-stat">${esc(W('yj_review'))} · ${esc(W('yj_rule'))} · 脉络图</div></div>
-    <div class="gate ${HALL === 'shizhan' ? 'on' : ''}" data-hall="shizhan"><div class="gate-cloud"></div><div class="gate-icon">✍</div>
-      <div class="gate-name">实 操</div><div class="gate-sub">作答 · 采分点批改</div><div class="gate-stat">${window.SHENLUN ? esc(SHENLUN.hallStat()) : '作答批改'}</div></div></div>`;
+    <div class="gate ${HALL === 'xiulian' ? 'on' : ''}" data-hall="xiulian"><div class="gate-cloud"></div><div class="gate-icon">${SL_UI.icon('notes')}</div>
+      <div class="gate-name">知识办理</div><div class="gate-sub">${esc(W('yj'))}复习 · 脉络图</div><div class="gate-stat">${esc(W('yj_review'))} · ${esc(W('yj_rule'))} · 脉络图</div></div>
+    <div class="gate ${HALL === 'shizhan' ? 'on' : ''}" data-hall="shizhan"><div class="gate-cloud"></div><div class="gate-icon">${SL_UI.icon('train')}</div>
+      <div class="gate-name">实操训练</div><div class="gate-sub">作答 · 采分点批改</div><div class="gate-stat">${window.SHENLUN ? esc(SHENLUN.hallStat()) : '作答批改'}</div></div></div>`;
   const body = HALL === 'shizhan' && window.SHENLUN ? await SHENLUN.hallHtml() : await xiulianHtml();
   return gates + `<div class="hall-body">${body}</div>`;
 }
