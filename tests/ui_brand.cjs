@@ -35,6 +35,16 @@ async function main(){
     await page.locator('#nav [data-view="'+view+'"]').click();
     const title={home:'办公室',train:'办理中心',notes:'公务手账',contest:'年度考核',tianji:'时政简报',skeleton:'档案室',log:'政绩录'}[view];
     await page.waitForFunction(title=>document.querySelector('.sl-ui-masthead h1')?.textContent===title,title);
+    if(view==='train')assert.equal(await page.locator('.sl-ui-masthead [data-hall]').count(),2);
+    if(view==='skeleton')assert.equal(await page.locator('.sl-ui-masthead [data-libtab]').count(),3);
+    if(view==='notes'){
+     assert.equal(await page.locator('.sl-ui-masthead [data-ntab]').count(),2);
+     await page.locator('.sl-ui-masthead [data-ntab="library"]').click();await page.locator('#ntQ').waitFor();
+     await page.locator('#ntSideMin').click();await page.locator('#ntSideOpen').waitFor();
+     await page.locator('.sl-ui-masthead [data-ntab="books"]').click();await page.locator('#ntNew').waitFor();
+     assert.equal(await page.locator('.sl-ui-masthead [data-ntab]').count(),2);
+     assert.equal(await page.locator('.nt-side [data-ntab]').count(),0);
+    }
     assert.equal(await page.locator('#nav .sl-ui-icon').count(),8);
     for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){
      await page.setViewportSize({width,height});

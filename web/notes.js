@@ -39,6 +39,7 @@
       BOOKS = r.notebooks; INFO = r;
     } catch (e) { v.innerHTML = `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; return; }
     v.innerHTML = `<div class="notes" id="notesRoot">${side()}<section class="nt-main" id="ntMain"></section></div>`;
+    if((typeof isSL==='function'&&isSL()))window.SL_UI?.mount('notes');
     fit();
     paintMain();
     bindSide();
@@ -56,6 +57,7 @@
   function side() {
     const books = BOOKS.map((b) => `<button class="nt-item ${NB && NB.id === b.id ? "on" : ""}" data-nb="${esc(b.id)}">
         <span class="nt-del" data-del="${esc(b.id)}" title="${b.pdf ? "删除这本批注（原 PDF 不动）" : "删除这本手札"}">🗑</span><b>${b.article ? "📰 " : b.pdf ? "📕 " : ""}${esc(b.title)}</b><small>${esc(b.updated.slice(5, 16))} · ${b.pages} 页</small></button>`).join("");
+    if (SIDE_MIN && (typeof isSL==='function'&&isSL())) return `<aside class="nt-side min"><button class="nt-sidebtn" id="ntSideOpen" title="展开左栏">»</button><div class="nt-tabs"><button class="${TAB==='books'?'on':''}" data-ntab="books">公务手账</button><button class="${TAB==='library'?'on':''}" data-ntab="library">调阅</button></div></aside>`;
     if (SIDE_MIN) return `<aside class="nt-side min"><button class="nt-sidebtn" id="ntSideOpen" title="展开左栏">»</button>
         <button class="nt-sidebtn ${TAB === "books" ? "on" : ""}" data-ntab="books" title="手札">📓</button>
         <button class="nt-sidebtn ${TAB === "library" ? "on" : ""}" data-ntab="library" title="调阅">📚</button></aside>`;
@@ -95,6 +97,7 @@
   function bindSide() {
     document.querySelectorAll("[data-ntab]").forEach((b) => (b.onclick = async () => {
       TAB = b.dataset.ntab;
+      if((typeof isSL==='function'&&isSL())&&SIDE_MIN){SIDE_MIN=false;LS.set("xrpg-nt-side", "");}
       repaintSide();
       if (TAB === "library" && !FILES) {
         try { FILES = (await api("/api/notes/tree")).files; } catch (e) { FILES = []; showError(e); }
@@ -128,6 +131,7 @@
     if (!old) return;
     const focus = document.activeElement && document.activeElement.id === "ntQ";
     old.outerHTML = side();
+    if((typeof isSL==='function'&&isSL()))window.SL_UI?.mount('notes');
     bindSide();
     if (focus) { const q = document.getElementById("ntQ"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
   }

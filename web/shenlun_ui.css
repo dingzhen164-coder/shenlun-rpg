@@ -181,3 +181,21 @@ body.guantu .sl-ev { border-left:2px solid var(--gold); border-radius:0; backgro
 body.guantu .sl-dossier-stamp { border:3px double var(--accent); color:var(--accent); font:700 16px/1.7 var(--display); padding:5px 9px; }
 body.guantu .sl-topic-dialog { box-shadow:0 20px 70px #091a2b55; }
 @media(prefers-reduced-motion:reduce) { body.guantu *,body.guantu *::before,body.guantu *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+
+/* 2.8.1：页面分类融入蓝色台头，正文只保留当前办理内容。 */
+.sl-ui-heading-copy { flex:1; min-width:0; }
+.sl-ui-title-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px 28px; margin:12px 0 8px; }
+.sl-ui-title-row h1 { margin:0; flex:none; }
+.sl-ui-section-tabs { min-width:0; max-width:100%; }
+.sl-ui-section-tabs:empty { display:none; }
+body.guantu .sl-ui-section-tabs :is(.hall-gates,.nt-tabs,.lib-tabs) { display:flex; flex-wrap:wrap; gap:6px; margin:0; padding:0; background:transparent; border:0; border-radius:0; }
+body.guantu .sl-ui-section-tabs :is(button,.gate) { display:flex; align-items:center; gap:8px; flex:0 1 auto; min-height:42px; width:auto; margin:0; padding:8px 15px; border:1px solid transparent; border-radius:4px; background:transparent; color:#d5e0e7; box-shadow:none; font:500 15px/1.6 var(--display); letter-spacing:.5px; cursor:pointer; }
+body.guantu .sl-ui-section-tabs :is(button,.gate):hover { color:#fff; background:rgba(255,255,255,.08); border-color:rgba(213,224,231,.3); }
+body.guantu .sl-ui-section-tabs :is(button,.gate).on { color:#f2dfb5; background:rgba(220,195,146,.1); border-color:#bba477; box-shadow:inset 0 -2px #bba477; }
+body.guantu .sl-ui-section-tabs :is(button,.gate):focus-visible { outline:2px solid #f2dfb5; outline-offset:3px; }
+body.guantu .sl-ui-section-tabs .gate :is(.gate-cloud,.gate-sub,.gate-stat),body.guantu .sl-ui-section-tabs .gate.on::after { display:none; }
+body.guantu .sl-ui-section-tabs .gate-icon { position:static; width:18px; height:18px; opacity:1; color:inherit; }
+body.guantu .sl-ui-section-tabs .gate-icon svg { width:18px; height:18px; }
+body.guantu .sl-ui-section-tabs .gate-name { font:inherit; color:inherit; margin:0; }
+body.guantu .nt-side > .nt-fold { display:block; width:100%; border:0; border-bottom:1px solid var(--line); text-align:right; background:var(--panel2); color:var(--muted); padding:5px 12px; }
+@media(max-width:640px) { .sl-ui-title-row { gap:12px; } body.guantu .sl-ui-section-tabs :is(button,.gate) { padding:7px 10px; font-size:14px; } .sl-ui-heading-seal { display:none; } }
