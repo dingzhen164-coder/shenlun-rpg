@@ -92,7 +92,7 @@ vX.Y.Z 已推送
 
 ## 10. 与行测项目的关系
 - 1.0.0 起，代码直接以行测 3.3.0 为底座（`rpg/` + `web/`），申论批改作为“实操”接入；世界观只留“官场”，不再有修仙/玄幻。
-- 发布：2.0.3 起恢复行测时的方式——合并到 main 后 GitHub Actions 自动打包 Windows exe、Mac App（Apple 芯片）、平板 APK，发到 Releases（tag v<版本>）；程序里「检查更新」读它。只有改了 `rpg/version.py` 才会触发打包。
+- 发布：2.0.3 起恢复行测时的方式——合并到 main 后 GitHub Actions 自动打包 Windows exe、Mac App（Apple 芯片）、平板 APK，发到 Releases（tag v<版本>）；程序里「检查更新」读它。改了 `rpg/version.py` 或打包工作流会触发打包。
 - 平板 App 沿用行测的包名 `com.xingce.xiuxian` 和签名钥匙 `android/xiuxian.keystore`，别改（改了已装的平板就不能覆盖升级）；局域网探测名 `xingce-rpg`（`rpg/lan.py` 的 ping）也别改。
 - `scripts/update-local.ps1`（PowerShell 更新命令）保留作为源码版 / 备用更新方式。
 - 注意 `.gitignore` 只忽略根目录的 `/data/`，`rpg/data/` 里的文件（更新记录等）必须提交。
