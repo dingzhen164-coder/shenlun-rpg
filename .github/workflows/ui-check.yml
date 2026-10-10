@@ -26,6 +26,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Real article interactions and screenshots
         run: node tests/ui_articles.cjs
+      - name: Real shenlun exam interactions and screenshots
+        run: node tests/ui_shenlun.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -120,6 +120,7 @@ function realmUp(e) {
 
 // ------------------------------------------------------------ 导航 / 风格
 async function go(view) {
+  if (window.SHENLUN && !(await SHENLUN.flush())) return;
   if (window.NOTES && NOTES.embedded() && !(await NOTES.leaveArticle())) return;
   if (VIEW === "notes" && view !== "notes" && window.NOTES && !(await NOTES.flush())) return;
   if (view === "tianji" && VIEW === "tianji" && window.TIANJI && TIANJI.isOpen()) TIANJI.close();   // 在一期里再点顶栏：回天机简报首页

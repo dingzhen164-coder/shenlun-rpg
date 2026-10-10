@@ -1977,3 +1977,28 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .ar-list .card, .ar-wrap .card, .ar-read .card { margin: 0; }
 .ar-src-row label { display: flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; }
 .ar-src-row input[type=checkbox] { width: auto; margin: 0; }
+
+/* 完整申论真题与证据批改（2.5.0） */
+.sl-bank-head { margin-bottom: 14px; }
+.sl-bank-head h3 { margin: 0; }
+.sl-bank-input { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sl-bank-input label { display: block; margin: 10px 0; }
+.sl-manual-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 12px; }
+.sl-bank-filters { flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.sl-bank-filters input { flex: 1; min-width: 160px; }
+.sl-paper { margin-bottom: 12px; }
+.sl-paper > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; }
+.sl-paper-q { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.sl-paper-q p { line-height: 1.8; }
+.sl-full-grid, .sl-review-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin: 16px 0; align-items: start; }
+.sl-full-grid > *, .sl-review-grid > * { min-width: 0; overflow-wrap: anywhere; }
+.sl-materials { max-height: 720px; overflow-y: auto; line-height: 1.9; }
+.sl-materials article { margin-bottom: 24px; }
+.sl-writing .sl-ta { min-height: 430px; width: 100%; resize: vertical; }
+.sl-review-total { font-size: 28px; color: var(--accent); }
+.sl-comparison { border-left: 4px solid var(--green); }
+@media (max-width: 850px) {
+  .sl-full-grid, .sl-review-grid { grid-template-columns: minmax(0,1fr); }
+  .sl-materials { max-height: 460px; }
+  .sl-bank-head .row { flex-wrap: wrap; }
+}
