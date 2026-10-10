@@ -9,7 +9,7 @@ async function main(){
  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);
  async function settings(){
-  await settings();
+  await page.locator('#nav [data-view="settings"]').click();
   const button=page.locator('[data-subject="行测"]');await button.waitFor({state:'attached'});
   if(await button.evaluate(el=>{const d=el.closest('details');return d&&!d.open;}))await page.locator('details').filter({has:button}).locator('summary').first().click();
   await button.waitFor({state:'visible'});
