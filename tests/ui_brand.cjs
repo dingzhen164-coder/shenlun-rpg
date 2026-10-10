@@ -17,6 +17,9 @@ async function main(){
  for(const subject of ['申论','行测']){
   if(subject==='行测'){await settings();await page.locator('[data-subject="行测"]').click();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='行测');}
   await settings();
+  const dateInput=page.locator('#scheduleStart');await dateInput.waitFor({state:'attached'});await dateInput.evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
+  assert.ok((await page.locator('body').textContent()).includes(subject==='申论'?'仕途备考日程':'修炼备考历'));
+  assert.match(await dateInput.inputValue(),/^\d{4}-\d{2}-\d{2}$/);
   await page.waitForFunction(()=>document.querySelector('.app-brand-icon')?.complete&&document.querySelector('.app-brand-icon')?.naturalWidth===192);
   assert.equal(await page.title(),'公考模拟器 · '+subject);assert.equal(await page.locator('.brand span').textContent(),'公考模拟器');assert.equal(await page.locator('.app-subject').textContent(),subject);
   assert.deepEqual(await page.locator('[data-subject]').allTextContents(),['行测','申论']);

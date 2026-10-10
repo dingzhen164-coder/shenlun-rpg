@@ -114,11 +114,11 @@
       try {
         S.q = await post("/api/shenlun/question", { qid });
         const d = await post("/api/shenlun/answer", { qid });
-        S.draftText = d.text; S.draftFor = qid; B.revision = d.revision; B.seconds = d.seconds;
+        S.draftText = d.text; S.draftFor = qid; B.revision = d.revision; B.seconds = d.seconds;B.card=d.card||{pages:[]};B.confirm=!!d.confirmed_card_hash;B.clockSession=uid();B.clockOn=true;
         B.history = (await post("/api/shenlun/history", { qid })).history; B.dirty = false; B.seq = 0;
         const local = localDraft(qid);
-        B.recovery = local && local.text !== d.text ? local : null;
-        if (B.recovery && local.revision === d.revision) { S.draftText = local.text; B.dirty = true; }
+        B.recovery = local && (local.text !== d.text || JSON.stringify(local.card)!==JSON.stringify(d.card)) ? local : null;
+        if (B.recovery && local.revision === d.revision) { S.draftText = local.text;B.card=local.card||B.card;B.confirm=false; B.dirty = true; }
       } catch (e) { showError(e); return; }
     }
     HALL = "shizhan"; S.page = "answer";
@@ -223,9 +223,9 @@
   }
 
   // 完整真题：题干材料与作答分开，参考资料只在批改后展示。
-  const B = { papers: [], region: '', year: '', type: '', search: '', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null };
+  const B = { papers: [], region: '', year: '', type: '', search: '', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null, card: {pages:[]}, confirm: false, clockSession: '', clockOn: true, clockTimer: null, cardView: null, ocrBusy:false, clockStamp:0 };
   const localDraft = qid => { try { return JSON.parse(localStorage.getItem('sl.draft.' + qid) || 'null'); } catch (_) { return null; } };
-  const keepDraft = () => { try { localStorage.setItem('sl.draft.' + S.qid, JSON.stringify({ text: S.draftText, revision: B.revision, updated: Date.now() })); } catch (_) {} };
+  const keepDraft = () => { try { localStorage.setItem('sl.draft.' + S.qid, JSON.stringify({ text: S.draftText, card:B.card, revision: B.revision, updated: Date.now() })); } catch (_) {} };
   const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, '0')).join('');
   async function listHtml() {
     const full = await bankHtml(false);
@@ -296,7 +296,8 @@
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
       <div class="sl-full-grid"><section class="card sl-materials"><h3>给定资料 <small>交卷前不显示参考答案</small></h3>${q.materials.map(m=>`<article><h4>${esc(m.label)}</h4>${materialHtml(m.text)}</article>`).join('')||'<p class="muted">尚未录入材料</p>'}</section>
       <section class="card sl-writing"><div class="row"><h3>我的作答</h3><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button></div>
-      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}<textarea id="slAns" class="sl-ta" spellcheck="false" placeholder="输入答案，或粘贴你已经写好的报告……"></textarea>
+      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}<div class="row sl-exam-clock"><b id="slElapsed">作答用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button></div>${SL_CARD.html(q)}
+      <details class="sl-transcription" open><summary>识别文字核对 / 打字作答</summary><textarea id="slAns" class="sl-ta" spellcheck="false" placeholder="手写识别结果在这里核对；也可直接打字作答。"></textarea><button class="ghost small" id="slConfirmText">确认文字并保存</button><span id="slOcrStatus" class="small muted"></span></details>
       <div class="row"><span class="small muted" id="slCnt"></span><span class="spacer"></span><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div>
       <p class="small muted">材料、题干和本次答案会发给设置中的AI。先建立材料评分标准，再按含义判断；失败不计分，草稿保留。</p>
       ${B.history.length?`<details><summary>历史作答与批改（${B.history.length}稿）</summary>${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</details>`:''}</section></div>
@@ -304,7 +305,7 @@
   }
   function comprehensiveHtml(r) {
     const points=r.points.map(x=>`<div class="sl-pt ${x.hit}"><div class="row"><b>${esc(x.name)}</b><span class="tag">${HIT[x.hit][0]}</span><span class="spacer"></span><span>${x.earned}/${x.score}</span></div><p class="sl-point-action">${x.hit==='full'?'核心含义已覆盖，保持。':esc(x.suggestion||x.reason||'补充该核心含义。')}</p><details class="sl-point-detail"><summary>查看材料与作答证据</summary><p class="small"><b>材料依据：</b>${esc(x.material_quote)}</p><blockquote class="sl-ev"><b>你的原句：</b>${esc(x.evidence||'未体现')}</blockquote><p class="small">${esc(x.reason)}</p></details></div>`).join('');
-    return `<div class="card sl-pishi"><div class="row"><h3>领导批示 · 综合批改</h3><span class="spacer"></span><b class="sl-review-total">${r.total}/${r.full}</b></div><p>${esc(r.summary)}</p><div class="row">${r.parts.map(x=>`<span class="tag">${esc(x.name)} ${x.earned}/${x.full}</span>`).join('')}<span class="small muted">${r.words}字 · ${esc(r.method)}</span></div><p class="small muted">${esc(r.scoring_note)}${r.word_warning?' · '+esc(r.word_warning):''}</p></div>
+    return `<div class="card sl-pishi"><div class="row"><h3>领导批示 · 综合批改</h3><span class="spacer"></span><b class="sl-review-total">${r.total}/${r.full}</b></div><p>${esc(r.summary)}</p><div class="row">${r.parts.map(x=>`<span class="tag">${esc(x.name)} ${x.earned}/${x.full}</span>`).join('')}<span class="small muted">${r.words}字${r.answer_seconds!==undefined?' · 作答用时'+Math.floor(r.answer_seconds/60)+'分'+r.answer_seconds%60+'秒':''} · ${esc(r.method)}</span></div><p class="small muted">${esc(r.scoring_note)}${r.word_warning?' · '+esc(r.word_warning):''}</p></div>
       ${r.comparison?`<div class="card sl-comparison"><h3>修改稿对比</h3><p>上一稿${r.comparison.previous}分 → 本稿${r.total}分（${r.comparison.change>=0?'+':''}${r.comparison.change}）</p><p>改善：${esc(r.comparison.improved.join('、')||'暂无新增命中')}</p><p>退步：${esc(r.comparison.regressed.join('、')||'暂无')}</p></div>`:''}
       <div class="card"><h3>题干任务拆解</h3><p>${esc(r.task)}</p></div>
       ${points?`<div class="card"><h3>材料与作答逐点对照</h3>${points}</div>`:''}
@@ -319,29 +320,38 @@
       while(B.dirty&&S.q?.complete_bank){
         const qid=S.qid,text=S.draftText,seq=B.seq,revision=B.revision;
         saveLabel('正在保存……');
-        try{const d=await post('/api/shenlun/answer',{save:true,qid,text,revision});B.revision=d.revision;B.seconds=d.seconds;
+        try{const d=await post('/api/shenlun/answer',{save:true,qid,text,revision,card:B.card,confirm_handwriting:B.confirm});B.revision=d.revision;B.seconds=d.seconds;
           if(B.seq===seq){B.dirty=false;try{localStorage.removeItem('sl.draft.'+qid);}catch(_){}}else keepDraft();
-          saveLabel('已保存 · 有效编辑'+Math.floor(B.seconds/60)+'分钟');
+          saveLabel('已保存');
         }catch(e){saveLabel('保存失败，点击“保存”重试');toast(e.message);return false;}
       }return true;
     })();
     try{return await B.saving;}finally{B.saving=null;}
   }
-  async function leaveAnswer(){if(S.busy){toast('正在批改，请等本次批改完成');return false;}return flushDraft();}
+  async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
+  async function clockTick(active){if(!S.q?.complete_bank)return;const qid=S.qid;try{const d=await post('/api/shenlun/card/clock',{qid,session:B.clockSession,active});if(qid!==S.qid)return;B.seconds=d.seconds;B.clockStamp=Date.now();const el=document.getElementById('slElapsed');if(el)el.textContent='作答用时 '+String(Math.floor(d.seconds/60)).padStart(2,'0')+':'+String(d.seconds%60).padStart(2,'0');}catch(e){B.clockOn=false;toast(e.message);}}
   function bindFullAnswer(root,ta) {
     ta.value=S.draftText||'';
+    const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
+    B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
+    root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};
+    clearInterval(B.clockTimer);S.lastKey=Date.now();clockTick(true);let ticks=0;B.clockTimer=setInterval(()=>{if(!root.isConnected){clearInterval(B.clockTimer);return;}const active=B.clockOn&&!S.busy&&!B.ocrBusy&&!document.hidden&&Date.now()-S.lastKey<120000;if(++ticks%10===0)clockTick(active);const seconds=B.seconds+(active&&B.clockStamp?Math.min(10,Math.floor((Date.now()-B.clockStamp)/1000)):0);root.querySelector('#slElapsed').textContent='作答用时 '+String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');},1000);
+    root.querySelector('.sl-materials').onpointerdown=()=>{S.lastKey=Date.now();};
+    root.querySelector('#slRecognize').onclick=async()=>{const btn=root.querySelector('#slRecognize');btn.disabled=true;B.ocrBusy=true;try{await clockTick(false);if(!(await flushDraft()))return;const seq=B.seq;const images=B.cardView.images();if(!images.length)throw Error('先在答题卡上写字');root.querySelector('#slOcrStatus').textContent='正在识别原文……';const d=await post('/api/shenlun/card/recognize',{qid:S.qid,revision:B.revision,images});if(seq!==B.seq)throw Error('识别期间笔迹已修改，请重新识别');ta.value=d.text;ta.oninput();root.querySelector('#slOcrStatus').textContent=d.engine+'：请核对错字、标点和段落，再确认文字。';}catch(e){root.querySelector('#slOcrStatus').textContent=e.message;}finally{btn.disabled=false;B.ocrBusy=false;S.lastKey=Date.now();}};
+    root.querySelector('#slConfirmText').onclick=async()=>{B.confirm=true;B.dirty=true;B.seq++;if(await flushDraft())root.querySelector('#slOcrStatus').textContent='文字已确认，可以提交批改。';};
     const count=()=>{const n=[...ta.value.replace(/\s/g,'')].length;root.querySelector('#slCnt').textContent=n+'字'+(S.q.words?' / '+S.q.words:'');};
-    ta.oninput=()=>{S.lastKey=Date.now();S.draftText=ta.value;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);if(Date.now()-S.lastPing>15000){S.lastPing=Date.now();post('/api/shenlun/active').catch(()=>{});}};count();
+    ta.oninput=()=>{B.confirm=false;S.lastKey=Date.now();S.draftText=ta.value;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);if(Date.now()-S.lastPing>15000){S.lastPing=Date.now();post('/api/shenlun/active').catch(()=>{});}};count();
     root.querySelector('#slDraftSave').onclick=flushDraft;
-    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;ta.oninput();recover.remove();};
+    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
     root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);});
     root.querySelector('#slSubmit').onclick=async()=>{if(S.busy||!ta.value.trim())return;S.busy=true;const btn=root.querySelector('#slSubmit');btn.disabled=true;ta.disabled=true;
-      try{if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');btn.textContent='建立标准并阅卷中……';root.querySelector('#slRes').innerHTML='<div class="card thinking">领导正在核对题干、材料与作答证据……</div>';
+      try{await clockTick(false);if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');btn.textContent='建立标准并阅卷中……';root.querySelector('#slRes').innerHTML='<div class="card thinking">领导正在核对题干、材料与作答证据……</div>';
         const r=await post('/api/shenlun/comprehensive',{qid:S.qid,answer:S.draftText,revision:B.revision,submission_id:(B.pending?.text===S.draftText&&B.pending.qid===S.qid?B.pending.id:(B.pending={text:S.draftText,qid:S.qid,id:uid()}).id)});B.pending=null;S.result=r;root.querySelector('#slRes').innerHTML=comprehensiveHtml(r);B.history=(await post('/api/shenlun/history',{qid:S.qid})).history;handleEvents(r.events);await refresh();
       }catch(e){root.querySelector('#slRes').innerHTML=`<div class="card warn">${esc(e.message)}。答案草稿仍保留；若网络断开，重试会核对本次交卷记录。</div>`;}
       S.busy=false;btn.disabled=false;ta.disabled=false;btn.textContent='交卷 · 综合批改';};
     if(B.dirty)B.timer=setTimeout(flushDraft,800);
   }
+  document.addEventListener('visibilitychange',()=>{if(document.getElementById('slElapsed'))clockTick(!document.hidden&&B.clockOn&&!S.busy&&!B.ocrBusy);});
   addEventListener('beforeunload',e=>{if(B.dirty){keepDraft();e.preventDefault();e.returnValue='';}});
   window.SHENLUN = { hallStat, hallHtml, bindHall, libHtml, bindLib, active, board, flush: leaveAnswer };
 })();

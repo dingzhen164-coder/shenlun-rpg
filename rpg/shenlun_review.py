@@ -240,6 +240,7 @@ def record(g,q,res,answer,submission):
     for x in res['points']:
         lines+=['### '+x['name'],'材料依据：'+x['material_quote'],'你的原句：'+(x['evidence'] or '未体现'),x['hit']+'：'+x['reason'],'修改建议：'+x['suggestion'],'']
     for x in res['dimensions']:lines+=['## '+x['name'],str(x['level'])+'/4档',x['reason'],x.get('improvement',''),'']
+    if 'answer_seconds' in res:lines+=['## 作答用时','%d分%d秒' % (res['answer_seconds']//60,res['answer_seconds']%60),'']
     lines+=['## 专项检查']+[x['name']+' · '+x['status']+'：'+str(x.get('reason','')) for x in res['checks']]
     lines+=['','## 原句修改建议']
     if res['revisions']:

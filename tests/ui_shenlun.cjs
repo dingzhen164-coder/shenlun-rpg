@@ -25,7 +25,20 @@ async function main(){
  await page.locator('#slBack').click();await page.locator('#slFilterRegion').selectOption('国考');await page.locator('.sl-paper summary').filter({hasText:'2025自编下载验证卷'}).click();await page.locator('[data-slq]').click();
  assert.ok((await page.locator('.sl-paragraph-note').textContent()).includes('不代表原文段落'));assert.ok(await page.locator('.sl-material-text p').count()>1);
  assert.equal(await page.locator('.sl-material-text').textContent(),'社区走访居民，收集办事需求。部门共享资料，减少重复提交。'+'居民提出新的需求。部门持续改进服务！！'.repeat(25));await screenshots('reading');
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'sl-result.json'),JSON.stringify({passed:true,screenshots:16,checks:['下载入口','手动录入','筛选','隐藏参考答案','草稿保存/重开','首次批改','二稿同标准对比','历史重开','桌面平板明暗']},null,2));console.log('SHENLUN-UI-OK');
+ await page.locator('#slBack').click();await page.locator('#slFilterRegion').selectOption('自编');await page.locator('.sl-paper summary').filter({hasText:'2026手动自编报告'}).click();await page.locator('[data-slq]').click();
+ await page.locator('[data-card="expand"]').click();await page.locator('.sl-card-ink').scrollIntoViewIfNeeded();const bounds=await page.locator('.sl-card-ink').boundingBox();
+ await page.mouse.move(bounds.x+bounds.width*.1,bounds.y+bounds.height*.25);await page.mouse.down();await page.mouse.move(bounds.x+bounds.width*.15,bounds.y+bounds.height*.32,{steps:10});await page.mouse.up();
+ await page.locator('[data-card="undo"]').click();await page.locator('[data-card="redo"]').click();await page.locator('[data-card="expand"]').click();await page.locator('#slDraftSave').click();
+ await page.locator('#slSubmit').click();await page.locator('#slRes').filter({hasText:'先识别并核对'}).waitFor();await page.locator('#slRecognize').click();await page.locator('#slOcrStatus').filter({hasText:'请核对'}).waitFor();
+ assert.equal(await page.locator('#slAns').inputValue(),'走访居民了解需求，推动部门共享资料。');await page.locator('#slConfirmText').click();await page.locator('#slOcrStatus').filter({hasText:'已确认'}).waitFor();
+ await page.locator('#slClockPause').click();assert.equal(await page.locator('#slClockPause').textContent(),'继续计时');await page.locator('#slClockPause').click();await screenshots('handwriting');
+ await page.locator('#slSubmit').click();await page.locator('.sl-review-total').filter({hasText:'20/20'}).waitFor();await page.locator('#slRes').filter({hasText:'作答用时'}).waitFor();
+ await page.locator('#slBack').click();await page.locator('.sl-paper summary').filter({hasText:'2026手动自编报告'}).click();await page.locator('[data-slq]').click();
+ await page.locator('#slRecognize').click();await page.locator('#slOcrStatus').filter({hasText:'请核对'}).waitFor();
+ await page.locator('#slBack').click();await page.locator('#nav [data-view="settings"]').click();await page.locator('#scheduleStart').waitFor({state:'attached'});
+ const start=page.locator('#scheduleStart');if(await start.evaluate(el=>{const d=el.closest('details');return d&&!d.open;}))await start.evaluate(el=>{el.closest('details').open=true;});
+ const dates=await page.evaluate(()=>({start:document.querySelector('#scheduleStart').value,exam:document.querySelector('#scheduleExam').value}));await page.locator('#scheduleSave').click();await page.locator('#scheduleStart').waitFor({state:'attached'});assert.equal(await page.locator('#scheduleStart').inputValue(),dates.start);
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'sl-result.json'),JSON.stringify({passed:true,screenshots:20,checks:['下载入口','手动录入','筛选','隐藏参考答案','草稿保存/重开','首次批改','二稿同标准对比','历史重开','桌面平板明暗']},null,2));console.log('SHENLUN-UI-OK');
  }finally{if(browser)await browser.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
