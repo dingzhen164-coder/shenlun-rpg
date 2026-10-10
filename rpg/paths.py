@@ -205,6 +205,9 @@ class Paths:
         if shen:
             from .career import upgrade_defaults
             upgrade_defaults(self)
+            guide = self.train / "批改方法.md"
+            if not guide.exists():
+                guide.write_text((self.defaults_dir / "批改方法.md").read_text(encoding="utf-8"), encoding="utf-8")
         # 程序自带的功法（图形推理.md = 图推 24 诀；资料分析.md = 题型识别 + 公式速算）：库里还没有时复制一份草稿，已有的绝不覆盖。
         # （defaults/骨架/ 里的其他文件如 论证逻辑.md 由 scripts/update-local.ps1 按需替换，这里不自动复制。）
         for name in (() if shen else AUTO_SKELETONS):

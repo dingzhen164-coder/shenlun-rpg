@@ -68,11 +68,12 @@ import json
 import mimetypes
 import re
 import traceback
+import threading
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -512,6 +513,86 @@ def _sl(fn, *a, **kw):
         raise ApiError(str(e))
 
 
+def _sl_bank_paths():
+    with open_game(save=False) as g:
+        if g.subject != "申论" or not g.paths.vault:
+            raise ApiError("完整真题只在已配置申论库的申论科目中使用")
+        return g.paths
+
+
+def _sl_bank(fn, *args):
+    try:
+        return fn(_sl_bank_paths(), *args)
+    except (shenlun_bank.BankError, shenlun_review.ReviewError) as e:
+        raise ApiError(str(e))
+
+
+def shenlun_papers(body):
+    return {"papers": _sl_bank(shenlun_bank.listing)}
+
+
+def shenlun_bank_import(body):
+    return _sl_bank(shenlun_bank.import_packages, body.get("papers"))
+
+
+def shenlun_bank_source(body):
+    return _sl_bank(shenlun_bank.source_start if body.get("start") else shenlun_bank.source_status)
+
+
+def shenlun_answer(body):
+    if body.get("save"):
+        result = _sl_bank(shenlun_bank.answer_save, body)
+        shenlun.touch()
+        return result
+    return _sl_bank(shenlun_bank.answer_get, body.get("qid"))
+
+
+def shenlun_history(body):
+    return {"history": _sl_bank(shenlun_review.history, body.get("qid"))}
+
+
+_REVIEW_LOCK = threading.Lock()
+_REVIEW_KEYS = {}
+
+
+def shenlun_comprehensive(body):
+    qid, answer = str(body.get("qid") or ""), str(body.get("answer") or "")
+    sid = str(body.get("submission_id") or "")
+    if not re.fullmatch(r"[0-9a-f]{32}", sid):
+        raise ApiError("交卷编号不正确")
+    p = _sl_bank_paths()
+    try:
+        shenlun_bank._safe(qid)
+    except shenlun_bank.BankError as e:
+        raise ApiError(str(e))
+    with _REVIEW_LOCK:
+        lock = _REVIEW_KEYS.setdefault((str(p.train), qid), threading.Lock())
+    with lock:
+        saved = p.reviews / "综合" / shenlun_bank._safe(qid) / (sid + ".json")
+        if saved.exists():
+            old = json.loads(saved.read_text(encoding="utf-8"))
+            if old["answer"] != answer:
+                raise ApiError("交卷编号已用于另一份答案，请重新交卷")
+            with open_game() as g:
+                return shenlun_review.record(g, shenlun_bank.question(p, qid, reveal=True), old["result"], answer, sid)
+        before = _sl_bank(shenlun_bank.answer_get, qid)
+        if body.get("revision") != before["revision"] or answer != before["text"]:
+            raise ApiError("先保存当前答案再交卷，旧页面不能覆盖新答案")
+        with open_game(save=False) as g:
+            rules = g.rules
+        try:
+            q, result = shenlun_review.grade(p, qid, answer, rules, lambda msgs: ai.chat_json(msgs, max_tokens=6000))
+        except (shenlun_bank.BankError, shenlun_review.ReviewError) as e:
+            raise ApiError(str(e))
+        with open_game() as g:
+            if str(g.paths.train) != str(p.train):
+                raise ApiError("批改期间已切换库，请回到原库重新交卷")
+            now = shenlun_bank.answer_get(p, qid)
+            if now["revision"] != before["revision"]:
+                raise ApiError("批改期间答案已修改；本次未计分，请提交最新稿")
+            return shenlun_review.record(g, q, result, answer, sid)
+
+
 def shenlun_questions(body):
     with open_game(save=False) as g:
         return {"questions": shenlun.list_questions(g.paths), "recent": list(reversed(g.state.get("grades", [])[-10:]))}
@@ -519,6 +600,13 @@ def shenlun_questions(body):
 
 def shenlun_question(body):
     with open_game(save=False) as g:
+        if str(body.get("qid") or "").startswith("slq-"):
+            try:
+                if g.subject != "申论":
+                    raise ApiError("完整申论题库仅在申论科目使用")
+                return dict(shenlun_bank.question(g.paths, body["qid"]), complete_bank=True)
+            except shenlun_bank.BankError as e:
+                raise ApiError(str(e))
         return _sl(shenlun.question, g.paths, str(body.get("qid") or ""))
 
 
@@ -825,6 +913,12 @@ ROUTES = {
     ("POST", "/api/theme"): theme_set,
     ("GET", "/api/subject"): subject_get,
     ("POST", "/api/subject"): subject_set,
+    ("GET", "/api/shenlun/papers"): shenlun_papers,
+    ("POST", "/api/shenlun/bank_import"): shenlun_bank_import,
+    ("POST", "/api/shenlun/bank_source"): shenlun_bank_source,
+    ("POST", "/api/shenlun/answer"): shenlun_answer,
+    ("POST", "/api/shenlun/history"): shenlun_history,
+    ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
     ("GET", "/api/shenlun/questions"): shenlun_questions,
     ("POST", "/api/shenlun/question"): shenlun_question,
     ("POST", "/api/shenlun/finalize"): shenlun_finalize,
