@@ -144,7 +144,7 @@
   }
 
   function active() {
-    return VIEW === "train" && HALL === "shizhan" && S.page === "answer" && document.visibilityState === "visible" && Date.now() - S.lastKey < 120000;
+    return !S.busy && !B.ocrBusy && (!S.q?.complete_bank || B.clockOn) && VIEW === "train" && HALL === "shizhan" && S.page === "answer" && document.visibilityState === "visible" && Date.now() - S.lastKey < 120000;
   }
   function board() { return S.q ? S.q.type : ""; }
 
