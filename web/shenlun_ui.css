@@ -27,6 +27,7 @@ body.guantu button:hover:not(:disabled) { border-color:var(--accent2); backgroun
 body.guantu button.primary { background:#284c65; border:1px solid #284c65; color:#fff; box-shadow:0 2px 4px rgba(30,55,70,.1); }
 body.guantu button.primary:hover:not(:disabled) { background:#1b3c54; border-color:#1b3c54; filter:none; }
 body.guantu button.ghost { background:transparent; color:var(--accent2); }
+html body.guantu .sl-marks-tools button[aria-pressed="true"],html body.guantu .sl-marks-tools button[aria-pressed="true"]:hover { background:#284c65; border-color:#284c65; color:#fff; }
 body.guantu button.small { font-size:12px; padding:7px 11px; }
 body.guantu input,body.guantu select,body.guantu textarea { border-radius:5px; background:var(--panel); padding:10px 12px; font-size:14px; }
 body.guantu :is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--accent2); outline-offset:3px; }
@@ -34,7 +35,8 @@ body.guantu input:focus,body.guantu textarea:focus,body.guantu select:focus { bo
 body.guantu .tag { border:1px solid var(--line); background:var(--panel2); border-radius:3px; padding:2px 7px; margin-left:0; font-size:11px; line-height:1.6; color:var(--muted); }
 body.guantu .tag.ok { color:var(--green); background:color-mix(in srgb,var(--green) 9%,var(--panel)); border-color:color-mix(in srgb,var(--green) 23%,var(--line)); }
 body.guantu .tag.cur { color:var(--accent); background:color-mix(in srgb,var(--accent) 7%,var(--panel)); border-color:color-mix(in srgb,var(--accent) 22%,var(--line)); }
-body.guantu .tag.half,body.guantu .tag.bad { color:var(--orange); background:color-mix(in srgb,var(--orange) 8%,var(--panel)); }
+body.guantu .tag.half { color:var(--orange); background:color-mix(in srgb,var(--orange) 8%,var(--panel)); }
+body.guantu .tag.bad { color:var(--red); background:color-mix(in srgb,var(--red) 8%,var(--panel)); }
 body.guantu .toast { border-radius:7px; box-shadow:0 7px 30px rgba(18,37,51,.15); padding:14px 18px; }
 body.guantu #banner .warn { border-radius:6px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); color:var(--muted); font-size:12px; padding:10px 16px; }
 /* 左侧导航与一致的线图标。主体始终为实色，个人背景不会干扰导航。 */

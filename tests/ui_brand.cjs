@@ -32,7 +32,9 @@ async function main(){
     assert.ok(await page.evaluate(src=>new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im.naturalWidth>1000);im.onerror=()=>resolve(false);im.src=src;}),base+'/assets/shenlun/'+asset+'.webp'));
    }
    for(const view of ['home','train','notes','contest','tianji','skeleton','log']){
-    await page.locator('#nav [data-view="'+view+'"]').click();await page.locator('.sl-ui-masthead').waitFor();
+    await page.locator('#nav [data-view="'+view+'"]').click();
+    const title={home:'办公室',train:'办理中心',notes:'公务手账',contest:'年度考核',tianji:'时政简报',skeleton:'档案室',log:'政绩录'}[view];
+    await page.waitForFunction(title=>document.querySelector('.sl-ui-masthead h1')?.textContent===title,title);
     assert.equal(await page.locator('#nav .sl-ui-icon').count(),8);
     for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){
      await page.setViewportSize({width,height});
