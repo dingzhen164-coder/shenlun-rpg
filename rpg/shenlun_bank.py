@@ -86,7 +86,7 @@ def normalize(raw, origin='用户导入'):
     for i, m in enumerate(raw.get('materials') or []):
         if not isinstance(m, dict):
             raise BankError('材料格式不正确')
-        body = str(m.get('text') or '').strip()
+        body = text(m.get('text'))
         if body:
             mats.append({'id': str(m.get('id') or i+1), 'label': str(m.get('label') or '材料%d' % (i+1)), 'text': body})
     if len({m['id'] for m in mats})!=len(mats):
@@ -175,7 +175,7 @@ def question(p,qid, reveal=False):
         for q in paper['questions']:
             if q['qid']==qid:
                 d=dict(q, paper_id=paper['id'],paper_title=paper['title'],source=paper['source'],edition=paper['edition'])
-                d['materials']=[m for m in paper['materials'] if not q['material_ids'] or m['id'] in q['material_ids']]
+                d['materials']=[dict(m,text=text(m['text'])) for m in paper['materials'] if not q['material_ids'] or m['id'] in q['material_ids']]
                 d['complete']=bool(d['materials']) and d['total']>0
                 if not reveal:
                     d.pop('references',None); d.pop('analysis',None)
@@ -221,7 +221,7 @@ def import_sqlite(p, dbfile, matfile):
         db.row_factory=md.row_factory=sqlite3.Row
         for row in db.execute("SELECT * FROM papers WHERE subjectName IN ('公务员·申论','申论') ORDER BY id"):
             r=dict(row)
-            mats=[{'id':str(m['idx']),'label':m['title'] or '材料%s'%m['idx'],'text':unicodedata.normalize('NFKC',m['text'] or '').translate(str.maketrans('⺠⻄⻋⻓⻔⻩⻰⻥⻦⻨⻢⻘⻅⻉','民西车长门黄龙鱼鸟麦马青见贝'))} for m in md.execute('SELECT * FROM materials WHERE paperId=? ORDER BY idx',(r['id'],))]
+            mats=[{'id':str(m['idx']),'label':m['title'] or '材料%s'%m['idx'],'text':unicodedata.normalize('NFKC',text(m['text'])).translate(str.maketrans('⺠⻄⻋⻓⻔⻩⻰⻥⻦⻨⻢⻘⻅⻉','民西车长门黄龙鱼鸟麦马青见贝'))} for m in md.execute('SELECT * FROM materials WHERE paperId=? ORDER BY idx',(r['id'],))]
             qs=[]
             for qrow in db.execute('SELECT * FROM questions WHERE paperId=? ORDER BY id',(r['id'],)):
                 q=dict(qrow); stem=text(q['content'] or q.get('contentHtml'))
