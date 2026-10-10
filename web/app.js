@@ -196,7 +196,7 @@ function banner() {
 
 async function render() {
   const v = $("#view");
-  document.documentElement.classList.remove("in-chat");
+  document.documentElement.classList.remove("in-chat", "in-sl-exam");
   document.documentElement.classList.toggle("in-notes", VIEW === "notes");
   try {
     if (VIEW === "home") { await refresh(); v.innerHTML = views.home(); bindHome(); }
@@ -1048,6 +1048,9 @@ async function hubHtml() {
 
 // 申论：办理（便笺、脉络图）+ 实操（作答，按采分点批改，web/shenlun.js）
 async function slHubHtml() {
+  const focused=HALL==='shizhan'&&window.SHENLUN?.focused();
+  document.documentElement.classList.toggle('in-sl-exam',!!focused);
+  if(focused)return SHENLUN.hallHtml();
   const gates = `<div class="hall-gates">
     <div class="gate ${HALL === 'xiulian' ? 'on' : ''}" data-hall="xiulian"><div class="gate-cloud"></div><div class="gate-icon">📝</div>
       <div class="gate-name">办 理</div><div class="gate-sub">${esc(W('yj'))}复习 · 脉络图</div><div class="gate-stat">${esc(W('yj_review'))} · ${esc(W('yj_rule'))} · 脉络图</div></div>

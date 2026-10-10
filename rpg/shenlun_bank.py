@@ -176,6 +176,7 @@ def question(p,qid, reveal=False):
             if q['qid']==qid:
                 d=dict(q, paper_id=paper['id'],paper_title=paper['title'],source=paper['source'],edition=paper['edition'])
                 d['materials']=[dict(m,text=text(m['text'])) for m in paper['materials'] if not q['material_ids'] or m['id'] in q['material_ids']]
+                d['material_mark_keys']=[hashlib.sha256((str(m['id'])+'\n'+m['text']).encode('utf-8')).hexdigest() for m in d['materials']]
                 d['complete']=bool(d['materials']) and d['total']>0
                 if not reveal:
                     d.pop('references',None); d.pop('analysis',None)
@@ -205,12 +206,13 @@ def _answer_save(p,body):
         raise BankError('答案已在另一处更新，请保留当前文字，再重新打开题目')
     value=str(body.get('text') or '')
     if len(value)>30000: raise BankError('答案太长')
-    from . import shenlun_handwriting as hw
+    from . import shenlun_handwriting as hw, shenlun_materials as marks
+    annotations=marks.validate(body['material_marks']) if 'material_marks' in body else old.get('material_marks',{})
     c=hw.card(body['card']) if 'card' in body else old.get('card',hw.card(None))
     confirmed=old.get('confirmed_card_hash','') if c==old.get('card',hw.card(None)) else ''
     if body.get('confirm_handwriting'):confirmed=hw.digest(c)
     d=dict(old,qid=qid,text=value,revision=old['revision']+1,seconds=old['seconds'],
-           card=c,confirmed_card_hash=confirmed,updated=dt.datetime.now().isoformat(timespec='seconds'))
+           material_marks=annotations,card=c,confirmed_card_hash=confirmed,updated=dt.datetime.now().isoformat(timespec='seconds'))
     _write(answer_file(p,qid),d)
     return d
 

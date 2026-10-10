@@ -114,11 +114,11 @@
       try {
         S.q = await post("/api/shenlun/question", { qid });
         const d = await post("/api/shenlun/answer", { qid });
-        S.draftText = d.text; S.draftFor = qid; B.revision = d.revision; B.seconds = d.seconds;B.card=d.card||{pages:[]};B.confirm=!!d.confirmed_card_hash;B.clockSession=uid();B.clockOn=true;
+        S.draftText = d.text; S.draftFor = qid; B.revision = d.revision; B.seconds = d.seconds;B.card=d.card||{pages:[]};B.marks=d.material_marks||{};B.confirm=!!d.confirmed_card_hash;B.clockSession=uid();B.clockOn=true;
         B.history = (await post("/api/shenlun/history", { qid })).history; B.dirty = false; B.seq = 0;
         const local = localDraft(qid);
-        B.recovery = local && (local.text !== d.text || JSON.stringify(local.card)!==JSON.stringify(d.card)) ? local : null;
-        if (B.recovery && local.revision === d.revision) { S.draftText = local.text;B.card=local.card||B.card;B.confirm=false; B.dirty = true; }
+        B.recovery = local && (local.text !== d.text || JSON.stringify(local.card)!==JSON.stringify(d.card) || JSON.stringify(local.material_marks||{})!==JSON.stringify(d.material_marks||{})) ? local : null;
+        if (B.recovery && local.revision === d.revision) { S.draftText = local.text;B.card=local.card||B.card;B.marks=local.material_marks||B.marks;B.confirm=false; B.dirty = true; }
       } catch (e) { showError(e); return; }
     }
     HALL = "shizhan"; S.page = "answer";
@@ -223,9 +223,9 @@
   }
 
   // 完整真题：题干材料与作答分开，参考资料只在批改后展示。
-  const B = { papers: [], region: '', year: '', type: '', search: '', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null, card: {pages:[]}, confirm: false, clockSession: '', clockOn: true, clockTimer: null, cardView: null, ocrBusy:false, clockStamp:0 };
+  const B = { papers: [], region: '', year: '', type: '', search: '', page: 0, dirty: false, seq: 0, revision: 0, seconds: 0, saving: null, timer: null, history: [], recovery: null, card: {pages:[]}, marks:{}, marksView:null, confirm: false, clockSession: '', clockOn: true, clockTimer: null, cardView: null, ocrBusy:false, clockStamp:0 };
   const localDraft = qid => { try { return JSON.parse(localStorage.getItem('sl.draft.' + qid) || 'null'); } catch (_) { return null; } };
-  const keepDraft = () => { try { localStorage.setItem('sl.draft.' + S.qid, JSON.stringify({ text: S.draftText, card:B.card, revision: B.revision, updated: Date.now() })); } catch (_) {} };
+  const keepDraft = () => { try { localStorage.setItem('sl.draft.' + S.qid, JSON.stringify({ text: S.draftText, card:B.card, material_marks:B.marks, revision: B.revision, updated: Date.now() })); } catch (_) {} };
   const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, '0')).join('');
   async function listHtml() {
     const full = await bankHtml(false);
@@ -292,16 +292,16 @@
   }
   function fullAnswerHtml() {
     const q=S.q;
-    return `<div class="card"><div class="row"><button class="ghost small" id="slBack">← 回题库</button><span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span></div><p class="sl-stem big">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'〔原库材料ID：$1〕').replace(/\n/g,'<br>')}</p>${q.stem.includes('[materialid]')?'<p class="small warn">来源库的材料ID不是下方材料序号；下方保留整卷资料，请先按题干内容核对本题对应材料。</p>':''}${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div>
+    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← 回题库</button><span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span></div><div class="sl-task-scroll"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'〔原库材料ID：$1〕').replace(/\n/g,'<br>')}</p>${q.stem.includes('[materialid]')?'<p class="small warn">来源库的材料ID不是下方材料序号；下方保留整卷资料，请先按题干内容核对本题对应材料。</p>':''}${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
-      <div class="sl-full-grid"><section class="card sl-materials"><h3>给定资料 <small>交卷前不显示参考答案</small></h3>${q.materials.map(m=>`<article><h4>${esc(m.label)}</h4>${materialHtml(m.text)}</article>`).join('')||'<p class="muted">尚未录入材料</p>'}</section>
+      <div class="sl-full-grid"><section class="card sl-materials"><div class="sl-material-toolbar"><h3>给定资料</h3>${SL_MATERIALS.toolbar()}</div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
       <section class="card sl-writing"><div class="row"><h3>我的作答</h3><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button></div>
       ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}<div class="row sl-exam-clock"><b id="slElapsed">作答用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button></div>${SL_CARD.html(q)}
       <details class="sl-transcription" open><summary>识别文字核对 / 打字作答</summary><textarea id="slAns" class="sl-ta" spellcheck="false" placeholder="手写识别结果在这里核对；也可直接打字作答。"></textarea><button class="ghost small" id="slConfirmText">确认文字并保存</button><span id="slOcrStatus" class="small muted"></span></details>
       <div class="row"><span class="small muted" id="slCnt"></span><span class="spacer"></span><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div>
       <p class="small muted">材料、题干和本次答案会发给设置中的AI。先建立材料评分标准，再按含义判断；失败不计分，草稿保留。</p>
       ${B.history.length?`<details><summary>历史作答与批改（${B.history.length}稿）</summary>${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</details>`:''}</section></div>
-      <section id="slRes">${S.result?comprehensiveHtml(S.result):'<div class="card muted">交卷后显示材料证据、原句点评、专项检查与修改建议。</div>'}</section>`;
+      <section id="slRes">${S.result?comprehensiveHtml(S.result):''}</section>`;
   }
   function comprehensiveHtml(r) {
     const points=r.points.map(x=>`<div class="sl-pt ${x.hit}"><div class="row"><b>${esc(x.name)}</b><span class="tag">${HIT[x.hit][0]}</span><span class="spacer"></span><span>${x.earned}/${x.score}</span></div><p class="sl-point-action">${x.hit==='full'?'核心含义已覆盖，保持。':esc(x.suggestion||x.reason||'补充该核心含义。')}</p><details class="sl-point-detail"><summary>查看材料与作答证据</summary><p class="small"><b>材料依据：</b>${esc(x.material_quote)}</p><blockquote class="sl-ev"><b>你的原句：</b>${esc(x.evidence||'未体现')}</blockquote><p class="small">${esc(x.reason)}</p></details></div>`).join('');
@@ -320,7 +320,7 @@
       while(B.dirty&&S.q?.complete_bank){
         const qid=S.qid,text=S.draftText,seq=B.seq,revision=B.revision;
         saveLabel('正在保存……');
-        try{const d=await post('/api/shenlun/answer',{save:true,qid,text,revision,card:B.card,confirm_handwriting:B.confirm});B.revision=d.revision;B.seconds=d.seconds;
+        try{const d=await post('/api/shenlun/answer',{save:true,qid,text,revision,card:B.card,material_marks:B.marks,confirm_handwriting:B.confirm});B.revision=d.revision;B.seconds=d.seconds;
           if(B.seq===seq){B.dirty=false;try{localStorage.removeItem('sl.draft.'+qid);}catch(_){}}else keepDraft();
           saveLabel('已保存');
         }catch(e){saveLabel('保存失败，点击“保存”重试');toast(e.message);return false;}
@@ -328,12 +328,13 @@
     })();
     try{return await B.saving;}finally{B.saving=null;}
   }
-  async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
+  async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}B.marksView?.destroy();if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
   async function clockTick(active){if(!S.q?.complete_bank)return;const qid=S.qid;try{const d=await post('/api/shenlun/card/clock',{qid,session:B.clockSession,active});if(qid!==S.qid)return;B.seconds=d.seconds;B.clockStamp=Date.now();const el=document.getElementById('slElapsed');if(el)el.textContent='作答用时 '+String(Math.floor(d.seconds/60)).padStart(2,'0')+':'+String(d.seconds%60).padStart(2,'0');}catch(e){B.clockOn=false;toast(e.message);}}
   function bindFullAnswer(root,ta) {
     ta.value=S.draftText||'';
     const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
+    B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);});
     root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};
     clearInterval(B.clockTimer);S.lastKey=Date.now();clockTick(true);let ticks=0;B.clockTimer=setInterval(()=>{if(!root.isConnected){clearInterval(B.clockTimer);return;}const active=B.clockOn&&!S.busy&&!B.ocrBusy&&!document.hidden&&Date.now()-S.lastKey<120000;if(++ticks%10===0)clockTick(active);const seconds=B.seconds+(active&&B.clockStamp?Math.min(10,Math.floor((Date.now()-B.clockStamp)/1000)):0);root.querySelector('#slElapsed').textContent='作答用时 '+String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');},1000);
     root.querySelector('.sl-materials').onpointerdown=()=>{S.lastKey=Date.now();};
@@ -342,7 +343,7 @@
     const count=()=>{const n=[...ta.value.replace(/\s/g,'')].length;root.querySelector('#slCnt').textContent=n+'字'+(S.q.words?' / '+S.q.words:'');};
     ta.oninput=()=>{B.confirm=false;S.lastKey=Date.now();S.draftText=ta.value;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);if(Date.now()-S.lastPing>15000){S.lastPing=Date.now();post('/api/shenlun/active').catch(()=>{});}};count();
     root.querySelector('#slDraftSave').onclick=flushDraft;
-    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
+    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>ta.oninput());B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
     root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);});
     root.querySelector('#slSubmit').onclick=async()=>{if(S.busy||!ta.value.trim())return;S.busy=true;const btn=root.querySelector('#slSubmit');btn.disabled=true;ta.disabled=true;
       try{await clockTick(false);if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');btn.textContent='建立标准并阅卷中……';root.querySelector('#slRes').innerHTML='<div class="card thinking">领导正在核对题干、材料与作答证据……</div>';
@@ -353,5 +354,5 @@
   }
   document.addEventListener('visibilitychange',()=>{if(document.getElementById('slElapsed'))clockTick(!document.hidden&&B.clockOn&&!S.busy&&!B.ocrBusy);});
   addEventListener('beforeunload',e=>{if(B.dirty){keepDraft();e.preventDefault();e.returnValue='';}});
-  window.SHENLUN = { hallStat, hallHtml, bindHall, libHtml, bindLib, active, board, flush: leaveAnswer };
+  window.SHENLUN = { focused:()=>S.page==='answer'&&!!S.q?.complete_bank, hallStat, hallHtml, bindHall, libHtml, bindLib, active, board, flush: leaveAnswer };
 })();
