@@ -30,7 +30,15 @@ async function main() {
     await page.locator('[data-fetch-cat="科技"]').check();
     for (const cb of await page.locator('[data-fetch-src]').all()) await cb.uncheck();
     await page.locator('[data-fetch-src="本地测试源"]').check();
-    await page.screenshot({ path: path.join(out, 'fetch-desktop-light.png'), fullPage: true });
+    for (const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]) {
+      await page.setViewportSize({width,height});
+      for (const theme of ['light','dark']) {
+        await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);
+        await page.screenshot({path:path.join(out,`fetch-${name}-${theme}.png`),fullPage:true});
+        for (const label of await page.locator('.ar-fetch-options label').all()) assert.ok((await label.boundingBox()).height < 35, '抓取选项文字不应挤成多行');
+      }
+    }
+    await page.setViewportSize({width:1280,height:860}); await page.evaluate(()=>document.documentElement.dataset.theme='light');
     const sent = page.waitForRequest(r => r.url().endsWith('/api/articles/crawl') && r.method() === 'POST');
     await page.locator('#arFetchStart').click(); const payload = (await sent).postDataJSON();
     assert.equal(payload.count, 2); assert.equal(payload.range, '6m'); assert.deepEqual(payload.categories, ['科技']); assert.deepEqual(payload.sources, ['本地测试源']);
@@ -69,7 +77,9 @@ async function main() {
       await page.setViewportSize({width,height});
       for (const theme of ['light','dark']) {
         await page.evaluate(t => { localStorage.setItem('xrpg-theme',t); document.documentElement.dataset.theme=t; dispatchEvent(new Event('resize')); }, theme);
+        await page.locator('#ntPages').evaluate(el=>el.scrollTop=0);
         await page.screenshot({path:path.join(out,`read-${name}-${theme}.png`),fullPage:true});
+        assert.ok(await page.locator('#notesRoot').evaluate(el=>el.querySelector('.nt-book').getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom+1), '阅读本子不能溢出并遮住精读');
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1), '页面不能横向溢出');
         const canvases = await page.locator('.nt-page').first().evaluate(el=>({w:el.clientWidth,ink:el.querySelector('.nt-ink').style.width})); assert.ok(canvases.w>0);
       }
@@ -81,7 +91,7 @@ async function main() {
     // 强制旧版本写入必须失败，新笔迹及正文仍在。
     const saved = await book(); const stale = await page.request.post(base+'/api/notes/save',{data:{...saved,revision:saved.revision-1,text:'过期内容'}});
     assert.ok((await stale.json()).error); assert.equal((await book()).text,saved.text);
-    assert.deepEqual(errors, []); fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({passed:true,screenshots:7,checks:['合计抓取/条件记忆','钢笔/荧光笔','撤销重做','手指翻页不写字','自动保存/重开','精读收起/全屏','PDF导出','电脑平板明暗主题','公务手账接续','过期版本拒绝']},null,2));
+    assert.deepEqual(errors, []); fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({passed:true,screenshots:9,checks:['合计抓取/条件记忆','钢笔/荧光笔','撤销重做','手指翻页不写字','自动保存/重开','精读收起/全屏','PDF导出','电脑平板明暗主题','公务手账接续','过期版本拒绝']},null,2));
     console.log('ARTICLE-UI-OK');
   } finally { if (browser) await browser.close(); server.kill(); }
 }

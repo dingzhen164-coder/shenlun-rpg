@@ -1,3 +1,3 @@
-"""程序版本。改这里的数字并推到 main，GitHub 会自动打包一个新的 exe 发到 Releases（见 .github/workflows/build-exe.yml）"""
+"""程序版本。开发分支验证电脑/平板构建，合并main后发布Windows、Mac和安卓更新包。"""
 VERSION = "2.4.0"
 REPO = "dingzhen164-coder/shenlun-rpg"

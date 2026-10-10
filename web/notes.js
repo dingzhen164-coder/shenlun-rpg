@@ -187,7 +187,7 @@
   }
   function bookHtml() {
     const sel = (v, t) => `<option value="${v}" ${NB.paper === v ? "selected" : ""}>${t}</option>`;
-    return `<div class="nt-book">
+    return `<div class="nt-book ${NB.article ? "nt-article" : ""}">
       <div class="nt-bar">
         <input class="nt-title" id="ntTitle" value="${esc(NB.title)}" maxlength="60" title="${NB.pdf ? "批注本的名字（导出的 PDF 也用这个名字）" : "本子名字（导出的 PDF 也用这个名字）"}">
         ${NB.pdf || NB.article ? "" : `<select id="ntPaper" title="纸">${sel("lines", "横线纸")}${sel("grid", "方格纸")}${sel("blank", "白纸")}</select>`}

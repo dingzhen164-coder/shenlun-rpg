@@ -1954,13 +1954,18 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .ar-fetch input[type="number"] { width: 88px; }
 .ar-fetch fieldset { border: 1px solid var(--line); border-radius: var(--radius); margin: 12px 0; padding: 12px; }
 .ar-fetch-options { display: flex; flex-wrap: wrap; gap: 12px 20px; }
-.ar-fetch-options label { display: flex; align-items: center; gap: 6px; }
+.ar-fetch-options label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ar-fetch-options input[type="checkbox"] { width: auto; flex: 0 0 auto; }
 .ar-annotate { grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr); }
 .ar-annotate #arBook { min-width: 0; }
 .ar-side-closed { grid-template-columns: minmax(0, 1fr); }
 .ar-side-closed > .ar-side { display: none; }
 .ar-notebook { min-height: 420px; }
 .ar-notebook .nt-bar { gap: 6px; flex-wrap: wrap; }
+.nt-book.nt-article { min-height: 0; }
+.nt-article .nt-pages { min-height: 0; }
+.nt-article .nt-foot { flex: 0 0 auto; }
+.ar-rhead .ghost, .ar-notebook .ghost { color: var(--text); }
 .ar-notebook .nt-title { flex: 1 1 180px; }
 .ar-typed textarea { width: 100%; min-height: 90px; max-height: 180px; margin-top: 8px; resize: vertical; }
 .ar-notebook .nt-pages { overscroll-behavior: contain; }

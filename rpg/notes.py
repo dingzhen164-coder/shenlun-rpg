@@ -219,7 +219,8 @@ EXPORT_DIR = ("手札", "导出")
 def export_pdf(paths, nid, images):
     """网页把每页（纸 + 笔迹）画成图片传上来 → 拼成 A4 的 PDF，存到 训练/手札/导出/<标题>.pdf（同名覆盖）"""
     d = get(paths, nid)
-    pics = [_png(x) for x in (images or [])][:200]
+    # 文章原文最多200页，文字心得另附页，不能被普通手账的200页上限截掉。
+    pics = [_png(x) for x in (images or [])][:(250 if d.get("article") else 200)]
     if not pics:
         raise NotesError("这本手札还是空的，没有可以导出的页")
     try:
