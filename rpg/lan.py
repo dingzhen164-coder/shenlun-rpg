@@ -96,7 +96,7 @@ def status(port, listening_lan):
 
 
 LOGIN_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>行测修仙传 · 入山门</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>公考模拟器 · 连接验证</title>
 <style>
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#14302b,#050a09 70%);
     font-family:"STKaiti","KaiTi","楷体",serif;color:#e8dcc0}

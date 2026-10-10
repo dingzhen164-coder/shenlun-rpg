@@ -17,7 +17,7 @@ DEFAULT_SUBJECT = "申论"
 SUBJECTS = {
     "行测": {
         "id": "xingce",
-        "brand": "行测修仙传",
+        "brand": "行测",
         "themes": ["修仙", "玄幻"],
         "default_theme": "修仙",
         "defaults_dir": "",          # defaults/ 根目录
@@ -26,7 +26,7 @@ SUBJECTS = {
     },
     "申论": {
         "id": "shenlun",
-        "brand": "申论官途",
+        "brand": "申论",
         "themes": ["官场"],
         "default_theme": "官场",
         "defaults_dir": "申论",       # defaults/申论/

@@ -176,7 +176,7 @@ def sl(text, web=False):
 
 def web(path, raw, subject):
     """静态文件：申论科目下换措辞（.js / .html），其余原样返回。raw 是 bytes"""
-    if subject != "申论" or "vendor/" in str(path).replace("\\", "/") or not str(path).endswith((".js", ".html", ".webmanifest")):
+    if subject != "申论" or "vendor/" in str(path).replace("\\", "/") or not str(path).endswith((".js", ".html")):
         return raw
     key = (str(path), subject, hash(raw))
     if key not in _cache:

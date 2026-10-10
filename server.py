@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-申论官途 · 行测修仙传 · 启动入口。
+公考模拟器 · 启动入口。
 
     python server.py              # 启动并自动打开浏览器（Mac 用 python3）
     python server.py --port 9000  # 换端口
@@ -94,14 +94,14 @@ def start_server(port=8765, lan_mode=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="申论官途 · 行测修仙传 训练网页")
+    ap = argparse.ArgumentParser(description="公考模拟器 训练网页")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-browser", action="store_true")
     ap.add_argument("--lan", action="store_true", help="让同一 Wi-Fi 下的手机、平板也能打开（要输访问口令）")
     a = ap.parse_args()
     prepare()
     srv, url = start_server(a.port, True if a.lan else None)
-    print(f"\n申论官途 · 行测修仙传 已启动：{url}\n关掉这个窗口就会退出。")
+    print(f"\n公考模拟器 已启动：{url}\n关掉这个窗口就会退出。")
     if not a.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

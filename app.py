@@ -3,11 +3,11 @@
 """
 申论官途 · 桌面版入口（打包成 exe 用的就是这个文件）。
 
-    双击 申论官途.exe        → 在自己的窗口里打开（不开浏览器）；关掉窗口 = 退出程序
+    双击 公考模拟器.exe        → 在自己的窗口里打开（不开浏览器）；关掉窗口 = 退出程序
     python app.py              → 源码版也能这样开（需要 pip install pywebview；没装就用浏览器打开）
 
 窗口是 pywebview（Windows 上用系统自带的 Edge WebView2）。打不开窗口时自动改用浏览器。
-exe 还兼一个小用途：拆模考 PDF 时，程序用 `申论官途.exe --run-script 脚本.py 参数` 去跑拆分脚本（exe 里带着 pymupdf）。
+exe 还兼一个小用途：拆模考 PDF 时，程序用 `公考模拟器.exe --run-script 脚本.py 参数` 去跑拆分脚本（exe 里带着 pymupdf）。
 """
 import os
 import runpy
@@ -56,8 +56,8 @@ def main():
     server.prepare()
     srv, url = server.start_server()
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    from rpg.version import VERSION
-    print(f"申论官途 {VERSION} 已启动：{url}")
+    from rpg.version import VERSION, APP_NAME
+    print(f"{APP_NAME} {VERSION} 已启动：{url}")
     try:
         import webview
     except Exception:
@@ -70,7 +70,7 @@ def main():
     try:
         data = Path.home() / ".shenlun-rpg" / "webview"     # 窗口里的本机设置（对话框大小、音乐……）存这里，重开还在
         data.mkdir(parents=True, exist_ok=True)
-        webview.create_window("申论官途 · 行测修仙传", url, width=1440, height=920, min_size=(900, 600), text_select=True)
+        webview.create_window(APP_NAME, url, width=1440, height=920, min_size=(900, 600), text_select=True)
         webview.start(private_mode=False, storage_path=str(data))
     except Exception:
         traceback.print_exc()
