@@ -117,10 +117,11 @@ class CompleteTest(unittest.TestCase):
             c.execute('CREATE TABLE questions(id,questionId,paperId,content,contentHtml,answer,analysis)')
             c.execute('INSERT INTO questions VALUES(1,12,1,?,?,?,?)',('写一份报告。（本题20分，250字以内）','','','自编解析'));c.commit()
         with closing(sqlite3.connect(md)) as c:
-            c.execute('CREATE TABLE materials(paperId,idx,title,text)');c.execute('INSERT INTO materials VALUES(1,1,?,?)',('材料1','社区走访居民。'));c.commit()
+            c.execute('CREATE TABLE materials(paperId,idx,title,text)');c.execute('INSERT INTO materials VALUES(1,1,?,?)',('材料1','社区⾛访居⺠。'));c.commit()
         result=bank.import_sqlite(self.p,db,md);self.assertEqual(result['added'],1)
         q=next(p['questions'][0] for p in bank.listing(self.p) if p['title']=='2025自编卷')
         self.assertEqual((q['complete'],q['total'],q['words']),(True,20,250))
+        self.assertEqual(bank.question(self.p,q['qid'])['materials'][0]['text'],'社区走访居民。')
         self.assertEqual(bank.import_sqlite(self.p,db,md)['skipped'],1)
 
 if __name__=='__main__':unittest.main()

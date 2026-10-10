@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import threading
 import urllib.request
+import unicodedata
 from pathlib import Path
 from contextlib import closing
 from . import net
@@ -220,7 +221,7 @@ def import_sqlite(p, dbfile, matfile):
         db.row_factory=md.row_factory=sqlite3.Row
         for row in db.execute("SELECT * FROM papers WHERE subjectName IN ('公务员·申论','申论') ORDER BY id"):
             r=dict(row)
-            mats=[{'id':str(m['idx']),'label':m['title'] or '材料%s'%m['idx'],'text':m['text']} for m in md.execute('SELECT * FROM materials WHERE paperId=? ORDER BY idx',(r['id'],))]
+            mats=[{'id':str(m['idx']),'label':m['title'] or '材料%s'%m['idx'],'text':unicodedata.normalize('NFKC',m['text'] or '').translate(str.maketrans('⺠⻄⻋⻓⻔⻩⻰⻥⻦⻨⻢⻘⻅⻉','民西车长门黄龙鱼鸟麦马青见贝'))} for m in md.execute('SELECT * FROM materials WHERE paperId=? ORDER BY idx',(r['id'],))]
             qs=[]
             for qrow in db.execute('SELECT * FROM questions WHERE paperId=? ORDER BY id',(r['id'],)):
                 q=dict(qrow); stem=text(q['content'] or q.get('contentHtml'))
