@@ -24,7 +24,7 @@ def main():
         paths.save_settings({'subject':'申论','vaults':{'申论':str(v)}})
         p=paths.Paths(v,'申论');p.ensure_train_dir();ai.chat_json=fake
         def source_start(p):
-            result=bank.import_packages(p,dict(PACKAGE,title='2025自编下载验证卷',region='国考'))
+            result=bank.import_packages(p,dict(PACKAGE,title='2025自编下载验证卷',region='国考',materials=[{'id':'1','text':PACKAGE['materials'][0]['text']+'居民提出新的需求。部门持续改进服务！！'*25}]))
             bank.JOBS[str(p.train)]={'running':False,'message':'录入完成','progress':100,'result':result}
             return bank.source_status(p)
         bank.source_start=source_start

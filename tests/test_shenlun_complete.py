@@ -124,4 +124,54 @@ class CompleteTest(unittest.TestCase):
         self.assertEqual(bank.question(self.p,q['qid'])['materials'][0]['text'],'社区走访居民。')
         self.assertEqual(bank.import_sqlite(self.p,db,md)['skipped'],1)
 
+    def test_combined_revision_budget_and_ambiguity(self):
+        rows=[{'quote':'甲甲','rewrite':'甲甲甲甲'},{'quote':'乙乙','rewrite':'乙乙乙乙'}]
+        with self.assertRaisesRegex(review.ReviewError,'超过6字'):
+            review.revision_plan(rows,'甲甲乙乙',6)
+        self.assertEqual(review.revision_plan(rows,'甲甲乙乙',8),8)
+        with self.assertRaisesRegex(review.ReviewError,'出现多次'):
+            review.revision_plan([{'quote':'甲','rewrite':'乙'}],'甲甲',10)
+        with self.assertRaisesRegex(review.ReviewError,'出现多次'):
+            review.revision_plan([{'quote':'甲甲','rewrite':'乙'}],'甲甲甲',10)
+        with self.assertRaisesRegex(review.ReviewError,'重叠'):
+            review.revision_plan([{'quote':'甲乙','rewrite':'甲'},{'quote':'乙丙','rewrite':'丙'}],'甲乙丙',10)
+        self.assertEqual(review.revision_plan([{'quote':'甲甲','rewrite':'甲'}],'甲甲乙乙',3),3)
+        self.assertEqual(review.revision_plan([],'甲甲乙乙',3),4)
+
+    def test_overlong_advice_retries_and_program_counts(self):
+        def bounded(msgs,**kwargs):
+            d=self.fake(msgs)
+            if 'dimensions' in d:
+                d['checks'].append({'name':'字数限制','status':'通过','quote':'','reason':'约1字'})
+                d['revisions'][0]['rewrite']='甲'*301 if len(msgs)==2 else ANSWER
+            return d
+        with api.open_game(save=False) as g:q,r=review.grade(self.p,self.qid,ANSWER,g.rules,bounded)
+        self.assertEqual(len(self.calls),3)
+        self.assertEqual(r['revision_words'],len(ANSWER));self.assertTrue(r['revision_verified'])
+        checks=[x for x in r['checks'] if '字数' in x['name']]
+        self.assertEqual(len(checks),1);self.assertIn('程序计数%d字'%len(ANSWER),checks[0]['reason'])
+
+    def test_old_standard_archived_only_after_success(self):
+        with api.open_game(save=False) as g:
+            q=bank.question(self.p,self.qid,True);old=review.standard(self.p,q,g.rules,self.fake)
+            old.pop('method_version');old['method']='申论证据批改 v1'
+            f=self.p.rubrics/'综合'/(self.qid+'.json');bank._write(f,old)
+            def bad(msgs):return {'task':'错误引用','points':[{'name':'核心','material_quote':'虚构材料'}]}
+            with self.assertRaises(review.ReviewError):review.standard(self.p,q,g.rules,bad)
+            self.assertEqual(json.loads(f.read_text(encoding='utf-8')),old)
+            new=review.standard(self.p,q,g.rules,self.fake)
+        self.assertEqual(new['method_version'],2)
+        backups=list((f.parent/'历史标准').glob('*.json'));self.assertEqual(len(backups),1)
+        self.assertEqual(json.loads(backups[0].read_text(encoding='utf-8')),old)
+
+    def test_material_paragraphs_and_html_old_files(self):
+        raw=copy.deepcopy(PACKAGE);raw['title']='段落测试';raw['materials'][0]['text']='<p>第一段。</p><p>第二段。</p>'
+        bank.import_packages(self.p,raw)
+        qid=next(p['questions'][0]['qid'] for p in bank.listing(self.p) if p['title']=='段落测试')
+        q=bank.question(self.p,qid);self.assertEqual(q['materials'][0]['text'],'第一段。\n第二段。')
+        f=bank.folder(self.p)/(q['paper_id']+'.json');data=json.loads(f.read_text(encoding='utf-8'))
+        data['materials'][0]['text']='<p>旧第一段。</p><p>旧第二段。</p>';bank._write(f,data)
+        self.assertEqual(bank.question(self.p,qid)['materials'][0]['text'],'旧第一段。\n旧第二段。')
+        self.assertEqual(json.loads(f.read_text(encoding='utf-8'))['materials'][0]['text'],data['materials'][0]['text'])
+
 if __name__=='__main__':unittest.main()

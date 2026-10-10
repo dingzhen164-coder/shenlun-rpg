@@ -2008,3 +2008,9 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .brand { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .app-brand-icon { width: 30px; height: 30px; border-radius: 7px; flex: none; object-fit: contain; }
 .app-subject { font-family: inherit; font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+
+/* 申论材料保留段落，证据按需展开，避免反馈长屏堆叠。 */
+.sl-material-text p { text-indent: 2em; margin: 0 0 .8em; overflow-wrap: anywhere; }
+.sl-materials .sl-paragraph-note { text-indent: 0; }
+.sl-point-action { margin: 6px 0; }
+.sl-point-detail summary { color: var(--muted); font-size: .9em; }
