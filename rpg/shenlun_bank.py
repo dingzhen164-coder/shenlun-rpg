@@ -205,12 +205,12 @@ def _answer_save(p,body):
         raise BankError('答案已在另一处更新，请保留当前文字，再重新打开题目')
     value=str(body.get('text') or '')
     if len(value)>30000: raise BankError('答案太长')
-    d={'qid':qid,'text':value,'revision':old['revision']+1,'seconds':old['seconds'],
-       'updated':dt.datetime.now().isoformat(timespec='seconds')}
-    # 用两次真实编辑之间的服务端时间记录有效用时，长时间离开不计。
-    if old.get('updated') and value!=old['text']:
-        elapsed=(dt.datetime.now()-dt.datetime.fromisoformat(old['updated'])).total_seconds()
-        if 0<elapsed<=120: d['seconds']+=round(elapsed)
+    from . import shenlun_handwriting as hw
+    c=hw.card(body['card']) if 'card' in body else old.get('card',hw.card(None))
+    confirmed=old.get('confirmed_card_hash','') if c==old.get('card',hw.card(None)) else ''
+    if body.get('confirm_handwriting'):confirmed=hw.digest(c)
+    d=dict(old,qid=qid,text=value,revision=old['revision']+1,seconds=old['seconds'],
+           card=c,confirmed_card_hash=confirmed,updated=dt.datetime.now().isoformat(timespec='seconds'))
     _write(answer_file(p,qid),d)
     return d
 

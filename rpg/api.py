@@ -579,6 +579,10 @@ def shenlun_comprehensive(body):
         before = _sl_bank(shenlun_bank.answer_get, qid)
         if body.get("revision") != before["revision"] or answer != before["text"]:
             raise ApiError("先保存当前答案再交卷，旧页面不能覆盖新答案")
+        from . import shenlun_handwriting as hw
+        c=before.get('card') or hw.card(None)
+        if hw.has_ink(c) and before.get('confirmed_card_hash')!=hw.digest(c):
+            raise ApiError('先识别并核对手写文字，再确认用于批改')
         with open_game(save=False) as g:
             rules = g.rules
         try:
@@ -591,6 +595,7 @@ def shenlun_comprehensive(body):
             now = shenlun_bank.answer_get(p, qid)
             if now["revision"] != before["revision"]:
                 raise ApiError("批改期间答案已修改；本次未计分，请提交最新稿")
+            result.update(answer_card=before.get('card'),answer_seconds=before.get('seconds',0))
             return shenlun_review.record(g, q, result, answer, sid)
 
 
@@ -827,6 +832,23 @@ def _save_info(subject):
     return {"has": True, "date": dt.date.fromtimestamp(f.stat().st_mtime).isoformat()}
 
 
+def schedule_settings(body):
+    from . import study_schedule
+    with open_game() as g:
+        try:return study_schedule.save(g,body) if body.get('save') else study_schedule.view(g)
+        except ValueError as e:raise ApiError(str(e))
+
+
+def shenlun_card_clock(body):
+    from . import shenlun_handwriting
+    return _sl_bank(shenlun_handwriting.clock,body)
+
+
+def shenlun_card_recognize(body):
+    from . import shenlun_handwriting
+    return _sl_bank(shenlun_handwriting.recognize,body)
+
+
 def settings_get(body):
     s = load_settings()
     a = ai.settings()
@@ -918,6 +940,9 @@ ROUTES = {
     ("POST", "/api/shenlun/bank_import"): shenlun_bank_import,
     ("POST", "/api/shenlun/bank_source"): shenlun_bank_source,
     ("POST", "/api/shenlun/answer"): shenlun_answer,
+    ("POST", "/api/shenlun/card/clock"): shenlun_card_clock,
+    ("POST", "/api/shenlun/card/recognize"): shenlun_card_recognize,
+    ("POST", "/api/study/schedule"): schedule_settings,
     ("POST", "/api/shenlun/history"): shenlun_history,
     ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
     ("GET", "/api/shenlun/questions"): shenlun_questions,

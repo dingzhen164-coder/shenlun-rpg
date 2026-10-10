@@ -45,6 +45,8 @@ class Game:
         self.t = self.today.isoformat()
         self.rng = rng or random.Random()
         self.subject = getattr(paths, "subject", "行测")     # 行测 / 申论（rpg/subjects.py）：决定题库、批改等功能是否启用
+        from . import study_schedule
+        study_schedule.install(self)
         self._skel = {}
         self._acc = {}
         self.career = None
@@ -214,7 +216,7 @@ class Game:
     def ideal_total(self):
         """到目标日的理想修为（道行从起始分数涨到目标分数所需的修为）"""
         r = self.rules
-        days = max(30, (r.date("目标日") - r.date("开始日期")).days)
+        days = max(1, (r.date("目标日") - r.date("开始日期")).days)
         return r.num("每日理想经验") * days
 
     def curve(self):
