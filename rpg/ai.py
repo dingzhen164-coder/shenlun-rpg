@@ -14,6 +14,7 @@ import re
 import urllib.error
 import urllib.request
 
+from . import net
 from .paths import load_settings
 
 DEFAULT_BASE = "https://api.deepseek.com"
@@ -69,7 +70,7 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + s["api_key"]},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with net.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "ignore")[:300]
