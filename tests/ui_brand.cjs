@@ -8,16 +8,22 @@ async function main(){
  const base=await new Promise((resolve,reject)=>{let t='';const timer=setTimeout(()=>reject(Error(logs)),20000);server.stdout.on('data',b=>{t+=b;const m=t.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});server.on('exit',c=>{clearTimeout(timer);reject(Error('server '+c+logs));});});
  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);
+ async function settings(){
+  await settings();
+  const button=page.locator('[data-subject="行测"]');await button.waitFor({state:'attached'});
+  if(await button.evaluate(el=>{const d=el.closest('details');return d&&!d.open;}))await page.locator('details').filter({has:button}).locator('summary').first().click();
+  await button.waitFor({state:'visible'});
+ }
  for(const subject of ['申论','行测']){
-  if(subject==='行测'){await page.locator('#nav [data-view="settings"]').click();await page.locator('[data-subject="行测"]').click();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='行测');}
-  await page.locator('#nav [data-view="settings"]').click();
+  if(subject==='行测'){await settings();await page.locator('[data-subject="行测"]').click();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='行测');}
+  await settings();
   await page.waitForFunction(()=>document.querySelector('.app-brand-icon')?.complete&&document.querySelector('.app-brand-icon')?.naturalWidth===192);
   assert.equal(await page.title(),'公考模拟器 · '+subject);assert.equal(await page.locator('.brand span').textContent(),'公考模拟器');assert.equal(await page.locator('.app-subject').textContent(),subject);
   assert.deepEqual(await page.locator('[data-subject]').allTextContents(),['行测','申论']);
   const response=await page.request.get(base+'/manifest.webmanifest'),manifest=await response.json();assert.equal(manifest.name,'公考模拟器');assert.equal(manifest.short_name,'公考模拟器');assert.ok(manifest.description.includes('行测与申论'));
   for(const icon of manifest.icons)assert.equal((await page.request.get(base+'/'+icon.src)).status(),200);
   assert.ok((await page.locator('body').textContent()).includes('gongkao-simulator-mac.zip')===false,'源码运行不显示Mac专用提示');
-  for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,`brand-${subject==='申论'?'shenlun':'xingce'}-${name}-${theme}.png`),fullPage:true});}}
+  for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,`brand-${subject==='申论'?'shenlun':'xingce'}-${name}-${theme}.png`),fullPage:false});}}
  }
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:8,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗']},null,2));console.log('BRAND-UI-OK');
  }finally{if(browser)await browser.close();server.kill();}
