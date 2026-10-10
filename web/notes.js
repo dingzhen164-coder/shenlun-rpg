@@ -748,6 +748,7 @@
     const r = await api("/api/articles/notebook", { id });
     const book = await api("/api/notes/get", { id: r.id });
     if (!el.isConnected) return;
+    if (r.archived) toast("已改为紧凑排版；原有笔迹完整保存在公务手账的「旧版批注」中。");
     EMBED = true; NB = book; READ = null; dirty = false; undo = []; redo = [];
     el.innerHTML = '<div class="notes ar-notebook" id="notesRoot"><section class="nt-main" id="ntMain"></section></div>';
     fit(); paintMain();
@@ -768,6 +769,17 @@
     if (line) out.push(line); return out;
   }
   function drawArticle(x, a, lines) {
+    if (a.layout >= 2) {
+      x.fillStyle = "#24363d"; x.font = 'bold 26px "Microsoft YaHei", sans-serif';
+      textLines(a.title, 64).slice(0, 3).forEach((t, i) => x.fillText(t, 60, 55 + i * 30));
+      x.font = '17px "Microsoft YaHei", sans-serif'; x.fillText(a.source + " · " + a.date, 60, 139);
+      x.strokeStyle = "#d6d4ca"; x.lineWidth = 1; x.beginPath(); x.moveTo(60, 156); x.lineTo(940, 156); x.stroke();
+      x.fillStyle = "#222222"; x.font = '22px "Microsoft YaHei", sans-serif';
+      lines.forEach((t, i) => x.fillText(t, 60, 194 + i * 34));
+      x.strokeStyle = "#d6d4ca"; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(790, 175); x.lineTo(790, 1200); x.moveTo(60, 1230); x.lineTo(940, 1230); x.stroke(); x.setLineDash([]);
+      x.fillStyle = "#777777"; x.font = '16px "Microsoft YaHei", sans-serif'; x.fillText("旁批", 820, 194); x.fillText("心得 / 仿写 / 金句运用", 60, 1260);
+      return;
+    }
     x.fillStyle = "#24363d"; x.font = 'bold 28px "Microsoft YaHei", sans-serif';
     textLines(a.title, 60).slice(0, 3).forEach((t, i) => x.fillText(t, 60, 65 + i * 38));
     x.font = '20px "Microsoft YaHei", sans-serif'; x.fillText(a.source + " · " + a.date, 60, 190);

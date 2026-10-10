@@ -13,7 +13,8 @@ import re
 def persona_system(p):
     from . import themes
     world = themes.get(getattr(p, "theme", themes.DEFAULT_THEME))["world"]
-    return (f"你是「{p['导师名']}」。人设：{p['导师人设']}\n{world}\n"
+    gender = "领导的性别设定为女性，旧人设里的男性代词以此为准，提及自己或其他领导时用女性称谓和她；不改变学员的性别。\n" if getattr(p, "theme", "") == "官场" else ""
+    return (gender + f"你是「{p['导师名']}」。人设：{p['导师人设']}\n{world}\n"
             f"你称呼学员为「{p['称呼']}」。吐槽尺度：{p['吐槽尺度']}。"
             "无论尺度如何：只调侃学习行为，绝不人身攻击、不贬低能力、不说脏话；"
             "学员提到生病、家里有事、工作忙、情绪低落等真实困难时，不吐槽，先关心。回答一律用简体中文，简短有个性，不要每句都用同一个口癖。")

@@ -24,7 +24,8 @@ async function main() {
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
     page.on('dialog', d => d.accept());
     await page.goto(base); await page.locator('#nav [data-view="tianji"]').click();
-    await page.locator('[data-tab="article"]').click(); await page.locator('#arCrawl').click();
+    assert.equal(await page.locator('[data-tab="month"], [data-tab="topic"], #tjImport').count(), 0, '申论移除两个时政板块');
+    await page.locator('#arCrawl').click();
     await page.locator('[data-count="15"]').click(); assert.equal(await page.locator('#arFetchCount').inputValue(), '15');
     await page.locator('#arFetchCount').fill('2'); await page.locator('#arFetchRange').selectOption('6m');
     await page.locator('[data-fetch-cat="科技"]').check();
@@ -49,6 +50,7 @@ async function main() {
     await page.mouse.move(rect.x + 70, rect.y + 150); await page.mouse.down(); await page.mouse.move(rect.x + 260, rect.y + 180, { steps: 12 }); await page.mouse.up();
     await page.evaluate(() => NOTES.save());
     async function book() { const r = await page.request.post(base + '/api/notes/get', { data: { id: 'article-abcd1234' } }); return r.json(); }
+    assert.ok((await book()).pages.length <= 2, '千字文章最多两页');
     assert.equal((await book()).pages[0].strokes.length, 1);
     await page.locator('[data-act="undo"]').click(); await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 0);
     await page.locator('[data-act="redo"]').click(); await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 1);

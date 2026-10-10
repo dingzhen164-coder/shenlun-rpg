@@ -60,7 +60,7 @@ def _parse(text):
 def _leader(val):
     parts = [p.strip() for p in val.split("|")]
     out = {"name": parts[0] if parts else "", "title": parts[1] if len(parts) > 1 else "", "rank": parts[2] if len(parts) > 2 else "",
-           "short": "", "call": "", "note": ""}
+           "short": "", "call": "", "note": "", "gender": "女"}
     for p in parts[3:]:
         k, _, v = p.replace("：", ":").partition(":")
         k, v = k.strip(), v.strip()
@@ -125,6 +125,26 @@ def persona_patch(info):
         return None
     lvl = f"{ld['title']}" + (f"，{ld['rank']}" if ld["rank"] else "")
     me = f"{info['unit']}的{info['post']}（{info['level']}）"
-    text = (f"你是学员的直属领导{ld['name']}，{lvl}；学员现在是{me}。{ld['note']}"
+    text = (f"你是学员的女性直属领导{ld['name']}，{lvl}；学员现在是{me}。{ld['note']}"
             f"此刻的背景：{info['story']}说话要符合你的职务和职级：用你这个层次的领导会用的口吻，称呼学员为「{ld['call'] or '同志'}」。")
     return {"导师名": ld["short"], "称呼": ld["call"] or "同志", "导师人设": text}
+
+
+def upgrade_defaults(paths):
+    """只升级旧版官方默认姓名，不覆盖用户改过的领导名、性格、岗位；原文保留一次备份。"""
+    f = getattr(paths, "career", None)
+    if not f or not f.is_file():
+        return
+    old = _read(f)
+    names = {'周国梁': '周静宜', '陈建国': '陈知微', '林海平': '林清岚', '秦文远': '秦书瑶', '韩明德': '韩明慧', '沈清和': '沈清妍'}
+    names["首长"] = "顾清宁"
+    new = old
+    for before, after in names.items():
+        new = re.sub(r"^(领导[:：]\s*)" + re.escape(before) + r"(?=\s*\|)", lambda m: m.group(1) + after, new, flags=re.M)
+    if new != old:
+        bak = f.with_name("职务履历.女性设定前.md")
+        if not bak.exists():
+            bak.write_text(old, encoding="utf-8")
+        tmp = f.with_suffix(".tmp")
+        tmp.write_text(new, encoding="utf-8")
+        tmp.replace(f)

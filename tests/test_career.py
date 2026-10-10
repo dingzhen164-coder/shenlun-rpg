@@ -79,7 +79,7 @@ class CareerEngineTest(unittest.TestCase):
         self.assertEqual(info["big_name"], "乡镇政府")
         self.assertEqual(g.persona["导师名"], "周书记")
         d = g.dashboard()
-        self.assertEqual(d["career"]["leader"]["name"], "周国梁")
+        self.assertEqual(d["career"]["leader"]["name"], "周静宜")
         self.assertEqual(d["career"]["level"], "副科级")
 
     def test_tutor_changes_with_stage(self):

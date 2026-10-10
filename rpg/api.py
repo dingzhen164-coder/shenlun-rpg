@@ -1229,6 +1229,8 @@ def poster_save(body):
 # ---------------------------------------------------------------- 🔮 天机简报（见 rpg/tianji.py、web/tianji.js）
 def _tj(fn, *a, save=True):
     with open_game(save=save) as g:
+        if g.subject == "申论":
+            raise ApiError("申论已取消月半时政和专题时政，请使用每日文章")
         if not g.paths.vault:
             raise ApiError("还没找到行测库")
         try:
@@ -1284,6 +1286,8 @@ def tj_cards(body):
 def tj_ask(body):
     """🧙 问师傅：question 空 = 总结这一条怎么记（尤其红字）；否则就这一条提问。可以追问（history）"""
     with open_game(save=False) as g:
+        if g.subject == "申论":
+            raise ApiError("申论已取消月半时政和专题时政，请使用每日文章")
         if not g.paths.vault:
             raise ApiError("还没找到行测库")
         try:
@@ -1304,6 +1308,8 @@ def tj_ask(body):
 
 def tj_pdf(body):
     with open_game(save=False) as g:
+        if g.subject == "申论":
+            raise ApiError("申论已取消月半时政和专题时政，请使用每日文章")
         rel = str(body.get("path") or "")
     return {"url": "/notes-file?p=%s&t=%s" % (quote(rel), export_token(rel))}
 

@@ -202,6 +202,9 @@ class Paths:
                 upgraded.append(name)
             with open(dst, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(src.read_text(encoding="utf-8"))
+        if shen:
+            from .career import upgrade_defaults
+            upgrade_defaults(self)
         # 程序自带的功法（图形推理.md = 图推 24 诀；资料分析.md = 题型识别 + 公式速算）：库里还没有时复制一份草稿，已有的绝不覆盖。
         # （defaults/骨架/ 里的其他文件如 论证逻辑.md 由 scripts/update-local.ps1 按需替换，这里不自动复制。）
         for name in (() if shen else AUTO_SKELETONS):
