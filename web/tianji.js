@@ -137,7 +137,7 @@
   function bindHub() {
     if (TAB === "article" && isSl() && window.ARTICLES) ARTICLES.mount(ROOT.querySelector("#arRoot"));
     const v = ROOT;
-    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = () => { if (window.ARTICLES) ARTICLES.close(); TAB = a.dataset.tab; store.set("tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
+    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = async () => { if (window.ARTICLES && !(await ARTICLES.close())) return; TAB = a.dataset.tab; store.set("tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
     const file = v.querySelector("#tjFile");
     v.querySelectorAll("#tjImport, [data-import]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); file.click(); }));
     file.onchange = () => importFiles([...file.files]);

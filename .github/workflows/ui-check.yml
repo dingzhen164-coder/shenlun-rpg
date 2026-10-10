@@ -1,0 +1,34 @@
+# 用户要求的电脑/平板、明暗主题实测；截图供开发者合并前检查。
+name: article-ui-check
+on:
+  push:
+    branches: [main, claude/dazzling-fermat-0n9kbc]
+    paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  article-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test tools
+        run: |
+          pip install pymupdf
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Real article interactions and screenshots
+        run: node tests/ui_articles.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: article-ui-screenshots
+          path: ui-artifacts/
+          retention-days: 7

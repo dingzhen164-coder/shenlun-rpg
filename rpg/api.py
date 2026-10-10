@@ -1334,7 +1334,12 @@ def ar_mark(body):
 
 
 def ar_crawl(body):
-    return _ar(articles.start_crawl, save=False)
+    return _ar(articles.start_crawl, body, save=False)
+
+
+def ar_notebook(body):
+    from . import article_notes
+    return _ar(lambda g: article_notes.open_book(g.paths, str(body.get("id") or "")), save=False)
 
 
 def ar_import_url(body):
@@ -1423,7 +1428,7 @@ for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
 ROUTES[("GET", "/api/articles")] = ar_list
 for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import_url", ar_import_url), ("source", ar_source),
-               ("category", ar_category), ("delete", ar_delete), ("cards", ar_cards), ("jd", ar_jd)):
+               ("category", ar_category), ("delete", ar_delete), ("cards", ar_cards), ("jd", ar_jd), ("notebook", ar_notebook)):
     ROUTES[("POST", "/api/articles/" + _n)] = _f
 ROUTES[("POST", "/api/poster/save")] = poster_save
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),

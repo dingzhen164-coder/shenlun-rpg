@@ -15,6 +15,7 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let BOOKS = [], INFO = { vision: false, ai: false };
   let TAB = "books";          // 左栏：books 手札 / library 调阅
+  let EMBED = false;
   let NB = null;              // 打开的本子 {id, title, paper, pages, text, compiled}
   let READ = null;            // 阅读栏里的笔记 {path, name, text, images}
   let FILES = null, FQ = "";  // 库里的 md、搜索
@@ -31,6 +32,8 @@
 
   // ---------------------------------------------------------------- 页面
   async function render(v) {
+    if (!(await flush())) return;
+    EMBED = false;
     try {
       const r = await api("/api/notes");
       BOOKS = r.notebooks; INFO = r;
@@ -47,12 +50,12 @@
     if (el) el.style.height = Math.max(420, innerHeight - el.getBoundingClientRect().top - 12) + "px";
   }
   addEventListener("resize", () => {
-    if (VIEW === "notes" && document.getElementById("notesRoot")) { const keep = NB ? curPos() : null; fit(); if (NB) { sizePages(); restorePos(keep); } }
+    if ((VIEW === "notes" || EMBED) && document.getElementById("notesRoot")) { const keep = NB ? curPos() : null; fit(); if (NB) { sizePages(); restorePos(keep); } }
   });
 
   function side() {
     const books = BOOKS.map((b) => `<button class="nt-item ${NB && NB.id === b.id ? "on" : ""}" data-nb="${esc(b.id)}">
-        <span class="nt-del" data-del="${esc(b.id)}" title="${b.pdf ? "删除这本批注（原 PDF 不动）" : "删除这本手札"}">🗑</span><b>${b.pdf ? "📕 " : ""}${esc(b.title)}</b><small>${esc(b.updated.slice(5, 16))} · ${b.pages} 页</small></button>`).join("");
+        <span class="nt-del" data-del="${esc(b.id)}" title="${b.pdf ? "删除这本批注（原 PDF 不动）" : "删除这本手札"}">🗑</span><b>${b.article ? "📰 " : b.pdf ? "📕 " : ""}${esc(b.title)}</b><small>${esc(b.updated.slice(5, 16))} · ${b.pages} 页</small></button>`).join("");
     if (SIDE_MIN) return `<aside class="nt-side min"><button class="nt-sidebtn" id="ntSideOpen" title="展开左栏">»</button>
         <button class="nt-sidebtn ${TAB === "books" ? "on" : ""}" data-ntab="books" title="手札">📓</button>
         <button class="nt-sidebtn ${TAB === "library" ? "on" : ""}" data-ntab="library" title="调阅">📚</button></aside>`;
@@ -184,10 +187,10 @@
   }
   function bookHtml() {
     const sel = (v, t) => `<option value="${v}" ${NB.paper === v ? "selected" : ""}>${t}</option>`;
-    return `<div class="nt-book">
+    return `<div class="nt-book ${NB.article ? "nt-article" : ""}">
       <div class="nt-bar">
         <input class="nt-title" id="ntTitle" value="${esc(NB.title)}" maxlength="60" title="${NB.pdf ? "批注本的名字（导出的 PDF 也用这个名字）" : "本子名字（导出的 PDF 也用这个名字）"}">
-        ${NB.pdf ? "" : `<select id="ntPaper" title="纸">${sel("lines", "横线纸")}${sel("grid", "方格纸")}${sel("blank", "白纸")}</select>`}
+        ${NB.pdf || NB.article ? "" : `<select id="ntPaper" title="纸">${sel("lines", "横线纸")}${sel("grid", "方格纸")}${sel("blank", "白纸")}</select>`}
         <span class="nt-jump" title="${NB.pdf ? esc(NB.pdf) + " · " : ""}输入页码回车跳过去">${NB.pdf ? "📕" : "📄"} 第<input id="ntJump" type="number" min="1" max="${NB.pages.length}" value="1" inputmode="numeric">/ <span id="ntTotal">${NB.pages.length}</span> 页</span>
         <span class="nt-tools">
           ${COLORS.map((c) => `<button class="nt-dot ${tool.t === "pen" && tool.c === c ? "on" : ""}" data-col="${c}" style="--c:${c}" title="笔"></button>`).join("")}
@@ -199,13 +202,15 @@
           ${touchDev() ? `<button data-act="finger" class="${FINGER === "draw" ? "on" : ""}" title="手指写字（关掉 = 手指只翻页，笔写字）">☝</button>` : ""}
         </span>
         <span class="spacer"></span>
+        ${NB.article ? '<button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存状态，点击可重试保存">已保存 · 公务手账</button>' : ""}
         <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : "📄 导出 PDF"}</button>
         <button class="ghost small nt-fullbtn" id="ntFull" title="全屏写（再点一次退出）">${fullIcon(isFull())}</button>
         <button class="ghost small" id="ntClose" title="收起本子（已自动保存）">✕</button>
       </div>
       ${NB.pdf_missing ? `<div class="warn">原来的 PDF（${esc(NB.pdf)}）不见了，可能挪走或改了名；笔迹还在，底图显示不出来。</div>` : ""}
       <div class="nt-pages" id="ntPages">${NB.pages.map((_, i) => pageHtml(i)).join("")}
-        ${NB.pdf ? "" : '<button class="ghost nt-addpage" id="ntAdd">＋ 加一页</button>'}</div>
+        ${NB.pdf || NB.article ? "" : '<button class="ghost nt-addpage" id="ntAdd">＋ 加一页</button>'}</div>
+      ${NB.article ? `<details class="nt-foot ar-typed"><summary>✍ 文字心得（自动保存到公务手账）</summary><textarea id="ntArticleText" maxlength="20000" placeholder="记下观点、金句的用法或自己的思考…">${esc(NB.text)}</textarea></details>` : ""}
       </div>`;
   }
   // 全屏图标用画的（有的平板字体里没有 ⛶ 这类符号，会显示成空框）
@@ -285,9 +290,12 @@
       const jp = document.getElementById("ntJump"); if (jp) jp.max = NB.pages.length;
       queueSave();
     };
+    if ($$("ntArticleText")) $$("ntArticleText").oninput = () => { NB.text = $$("ntArticleText").value; lastWrite = Date.now(); queueSave(); };
+    if (EMBED) { $$("ntClose").hidden = true; $$("ntTitle").title = "文章批注本，自动保存在公务手账"; }
     $$("ntClose").onclick = async () => { if (await flush()) { setFull(false); NB = null; repaintSide(); paintMain(); } };
     $$("ntFull").onclick = () => setFull(!isFull());
     $$("ntPdf").onclick = exportPdf;
+    if ($$("ntSaveStatus")) $$("ntSaveStatus").onclick = flush;
     document.querySelectorAll(".nt-tools [data-col]").forEach((b) => (b.onclick = () => { tool = { t: "pen", c: b.dataset.col, w: tool.t === "pen" ? tool.w : WIDTHS[1] }; syncTools(); }));
     document.querySelectorAll(".nt-tools [data-w]").forEach((b) => (b.onclick = () => { if (tool.t === "er") tool.t = "pen"; tool.w = Number(b.dataset.w); syncTools(); }));
     document.querySelectorAll(".nt-tools [data-tool]").forEach((b) => (b.onclick = () => { tool.t = tool.t === b.dataset.tool ? "pen" : b.dataset.tool; syncTools(); }));
@@ -345,11 +353,12 @@
       if (IO) IO.observe(pg);
     });
   }
-  function drawPaper(c) {
+  function drawPaper(c, i = Number(c.closest?.("[data-pg]")?.dataset.pg || 0)) {
     const x = c.getContext("2d"), k = c.width / PW;
     x.setTransform(k, 0, 0, k, 0, 0);
     x.fillStyle = "#fffdf6"; x.fillRect(0, 0, PW, PH);
     x.lineWidth = 1.2;
+    if (NB.article) { drawArticle(x, NB.article, NB.pages[i]?.article_lines || []); return; }
     if (NB.paper === "lines") {
       x.strokeStyle = "rgba(70, 120, 190, .22)";
       for (let y = 120; y < PH - 40; y += 46) { x.beginPath(); x.moveTo(40, y); x.lineTo(PW - 40, y); x.stroke(); }
@@ -516,7 +525,7 @@
     undo.push(u); repaint(u.page); syncTools(); queueSave();
   }
   document.addEventListener("keydown", (e) => {
-    if (VIEW !== "notes" || !NB || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
+    if ((VIEW !== "notes" && !EMBED) || !NB || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
     const k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === "z" && !e.shiftKey) { doUndo(); e.preventDefault(); }
     else if ((e.ctrlKey || e.metaKey) && (k === "y" || (k === "z" && e.shiftKey))) { doRedo(); e.preventDefault(); }
@@ -526,29 +535,33 @@
   let ver = 0, saving = null;      // ver：每改一次加一；存的时候又写了新笔画，存完还要再存（以前会把存盘途中写的几笔当成已存，丢掉）
   function queueSave() {
     dirty = true; ver++;
+    saveStatus("待保存…");
     clearTimeout(saveT);
     saveT = setTimeout(flush, 1200);
   }
+  function saveStatus(text) { const b = document.getElementById("ntSaveStatus"); if (b) b.textContent = text; }
   async function flush() {
     clearTimeout(saveT);
     if (saving) { await saving; }
     if (!NB || !dirty) return true;
     const v0 = ver, book = NB;
-    const body = JSON.stringify({ id: book.id, title: book.title, paper: book.paper, pages: book.pages, text: book.text });
+    saveStatus("保存中…");
+    const body = JSON.stringify({ id: book.id, title: book.title, paper: book.paper, pages: book.pages, text: book.text, revision: book.revision });
     let done;
     saving = new Promise((r) => (done = r));
     try {
       const r = await fetch("/api/notes/save", { method: "POST", headers: { "Content-Type": "application/json" }, body }).then((x) => x.json());
       if (r.error) throw new Error(r.error);
+      if (r.revision != null) book.revision = r.revision;
       saving = null; done();
       const b = BOOKS.find((x) => x.id === book.id);
       if (b && (b.title !== r.title || b.pages !== book.pages.length)) { b.title = r.title; b.pages = book.pages.length; repaintSide(); }
       if (NB === book && ver !== v0) return flush();       // 存的这会儿又写了：接着存，直到存上最新的
-      if (NB === book) dirty = false;
+      if (NB === book) { dirty = false; saveStatus("已保存 · 公务手账"); }
       return true;
-    } catch (e) { saving = null; done(); showError(e); return false; }
+    } catch (e) { saving = null; done(); saveStatus("保存失败 · 点此重试"); showError(e); return false; }
   }
-  addEventListener("beforeunload", () => { if (NB && dirty) navigator.sendBeacon?.("/api/notes/save", new Blob([JSON.stringify({ id: NB.id, title: NB.title, paper: NB.paper, pages: NB.pages, text: NB.text })], { type: "application/json" })); });
+  addEventListener("beforeunload", () => { if (NB && dirty) navigator.sendBeacon?.("/api/notes/save", new Blob([JSON.stringify({ id: NB.id, title: NB.title, paper: NB.paper, pages: NB.pages, text: NB.text, revision: NB.revision })], { type: "application/json" })); });
 
   // ---------------------------------------------------------------- 📄 导出 PDF
   // 每页画成图片（纸的横线 / 方格 + 笔迹，橡皮擦掉的地方露出纸），末尾没写字的空白页不要
@@ -556,10 +569,11 @@
     const K = 1.6, out = [];
     let last = -1;
     NB.pages.forEach((pg, i) => { if (pg.strokes.some((s) => s.t !== "er")) last = i; });
+    if (NB.article) last = NB.pages.length - 1;
     for (let i = 0; i <= last; i++) {
       const c = document.createElement("canvas");
       c.width = PW * K; c.height = PH * K;
-      drawPaper(c);
+      drawPaper(c, i);
       const ink = document.createElement("canvas");
       ink.width = PW * K; ink.height = PH * K;
       const ix = ink.getContext("2d");
@@ -569,6 +583,16 @@
       x.setTransform(1, 0, 0, 1, 0, 0);
       x.drawImage(ink, 0, 0);
       out.push(c.toDataURL("image/jpeg", 0.88));
+    }
+    if (NB.article && NB.text.trim()) {
+      const lines = textLines(NB.text, 42);
+      for (let i = 0; i < lines.length; i += 20) {
+        const c = document.createElement("canvas"); c.width = PW * K; c.height = PH * K;
+        const x = c.getContext("2d"); x.scale(K, K); x.fillStyle = "#fffdf6"; x.fillRect(0, 0, PW, PH);
+        x.fillStyle = "#222222"; x.font = '32px "Microsoft YaHei", sans-serif'; x.fillText("文章心得 · " + NB.article.title.slice(0, 20), 65, 100);
+        lines.slice(i, i + 20).forEach((t, n) => x.fillText(t, 65, 200 + n * 54));
+        out.push(c.toDataURL("image/jpeg", 0.88));
+      }
     }
     return out;
   }
@@ -717,6 +741,41 @@
   }
 
   // 正在记笔记：开着本子、页面看得见、1 分钟内写过字 → 返回本子编号（心跳带上，服务器再核对最近真的存过笔迹）
-  const writingId = () => (VIEW === "notes" && NB && document.visibilityState === "visible" && (inking || Date.now() - lastWrite <= 60000) ? NB.id : "");
-  window.NOTES = { openPdfLater: (p) => { PENDING = p; }, writingId, lastId: () => (NB ? NB.id : ""), save: () => flush(), render, flush: () => { setFull(false); return flush(); }, mdRender, isFull, exitFull: () => setFull(false) };
+  const writingId = () => ((VIEW === "notes" || (EMBED && VIEW === "tianji")) && document.getElementById("ntPages") && NB && document.visibilityState === "visible" && (inking || Date.now() - lastWrite <= 60000) ? NB.id : "");
+  // 每日文章内直接复用同一套纸张、工具、自动保存，存档也是同一本。
+  async function mountArticle(el, id) {
+    if (!(await flush())) throw new Error("上一本手账未保存，请先重试保存");
+    const r = await api("/api/articles/notebook", { id });
+    const book = await api("/api/notes/get", { id: r.id });
+    if (!el.isConnected) return;
+    EMBED = true; NB = book; READ = null; dirty = false; undo = []; redo = [];
+    el.innerHTML = '<div class="notes ar-notebook" id="notesRoot"><section class="nt-main" id="ntMain"></section></div>';
+    fit(); paintMain();
+  }
+  async function leaveArticle() {
+    if (!EMBED) return true;
+    if (!(await flush())) return false;
+    savePos(); setFull(false); EMBED = false; stopFling(); if (IO) IO.disconnect();
+    return true;
+  }
+  function textLines(text, columns) {
+    const out = []; let line = "", n = 0;
+    for (const ch of text) {
+      const w = /[^\x00-\xff]/.test(ch) ? 2 : 1;
+      if (ch === "\n" || n + w > columns) { out.push(line); line = ""; n = 0; }
+      if (ch !== "\n") { line += ch; n += w; }
+    }
+    if (line) out.push(line); return out;
+  }
+  function drawArticle(x, a, lines) {
+    x.fillStyle = "#24363d"; x.font = 'bold 28px "Microsoft YaHei", sans-serif';
+    textLines(a.title, 60).slice(0, 3).forEach((t, i) => x.fillText(t, 60, 65 + i * 38));
+    x.font = '20px "Microsoft YaHei", sans-serif'; x.fillText(a.source + " · " + a.date, 60, 190);
+    x.strokeStyle = "#d6d4ca"; x.lineWidth = 1; x.beginPath(); x.moveTo(60, 212); x.lineTo(940, 212); x.stroke();
+    x.fillStyle = "#222222"; x.font = '32px "Microsoft YaHei", sans-serif';
+    lines.forEach((t, i) => x.fillText(t, 60, 275 + i * 48));
+    x.strokeStyle = "#d6d4ca"; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(790, 235); x.lineTo(790, 1120); x.moveTo(60, 1150); x.lineTo(940, 1150); x.stroke(); x.setLineDash([]);
+    x.fillStyle = "#777777"; x.font = '18px "Microsoft YaHei", sans-serif'; x.fillText("旁批", 820, 260); x.fillText("心得 / 仿写 / 金句运用", 60, 1185);
+  }
+  window.NOTES = { mountArticle, leaveArticle, embedded: () => EMBED, openPdfLater: (p) => { PENDING = p; }, writingId, lastId: () => (NB ? NB.id : ""), save: () => flush(), render, flush: () => { setFull(false); return flush(); }, mdRender, isFull, exitFull: () => setFull(false) };
 })();
