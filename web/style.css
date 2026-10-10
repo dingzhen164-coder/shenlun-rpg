@@ -1947,6 +1947,25 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .ar-mat { margin: 4px 0; line-height: 1.7; }
 .ar-jd-foot { margin-top: 12px; gap: 8px; flex-wrap: wrap; align-items: center; }
 @media (max-width: 900px) { .ar-cols { grid-template-columns: 1fr; } .ar-side { position: static; max-height: none; } .ar-list { grid-template-columns: 1fr; } }
+
+/* 每日文章：抓取前选条件；原文纸张和公务手账使用相同坐标。 */
+.ar-fetch { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.ar-fetch h3 { margin-top: 0; }
+.ar-fetch input[type="number"] { width: 88px; }
+.ar-fetch fieldset { border: 1px solid var(--line); border-radius: var(--radius); margin: 12px 0; padding: 12px; }
+.ar-fetch-options { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+.ar-fetch-options label { display: flex; align-items: center; gap: 6px; }
+.ar-annotate { grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr); }
+.ar-annotate #arBook { min-width: 0; }
+.ar-side-closed { grid-template-columns: minmax(0, 1fr); }
+.ar-side-closed > .ar-side { display: none; }
+.ar-notebook { min-height: 420px; }
+.ar-notebook .nt-bar { gap: 6px; flex-wrap: wrap; }
+.ar-notebook .nt-title { flex: 1 1 180px; }
+.ar-typed textarea { width: 100%; min-height: 90px; max-height: 180px; margin-top: 8px; resize: vertical; }
+.ar-notebook .nt-pages { overscroll-behavior: contain; }
+.ar-save-status { color: var(--faint); font-size: 12px; }
+@media (max-width: 900px) { .ar-annotate { grid-template-columns: minmax(0, 1fr); } }
 .ar-rhead select, .ar-src-add select { width: auto; }
 .ar-rhead .spacer { flex: 1; }
 .ar-rhead a.btn { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }

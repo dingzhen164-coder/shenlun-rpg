@@ -55,7 +55,8 @@ def listing(paths):
         except (OSError, ValueError):
             continue
         out.append({"id": d.get("id") or f.stem, "title": d.get("title") or f.stem, "updated": d.get("updated", ""),
-                    "pages": len(d.get("pages") or []), "compiled": d.get("compiled", ""), "pdf": d.get("pdf", "")})
+                    "pages": len(d.get("pages") or []), "compiled": d.get("compiled", ""), "pdf": d.get("pdf", ""),
+                    "article": bool(d.get("article"))})
     return sorted(out, key=lambda x: x["updated"], reverse=True)
 
 
@@ -98,6 +99,8 @@ def save(paths, body):
     nid = body.get("id") or (dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-%03d" % (int(time.time() * 1000) % 1000))
     f = _file(paths, nid)
     old = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+    if old.get("article") and body.get("revision") != old.get("revision", 0):
+        raise NotesError("文章批注本已在另一处更新，请重新打开后再写；本次内容尚未保存")
     d = {"id": nid,
          "title": (str(body.get("title") or "").strip() or old.get("title") or dt.datetime.now().strftime("手札 %m-%d %H:%M"))[:60],
          "paper": body.get("paper") if body.get("paper") in PAPERS else old.get("paper", "lines"),
@@ -105,6 +108,14 @@ def save(paths, body):
          "text": str(body["text"])[:20000] if "text" in body else old.get("text", ""),
          "compiled": old.get("compiled", ""),
          "updated": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    if old.get("article"):
+        d["article"], d["paper"] = old["article"], "article"
+        olds = old["pages"]
+        pages = d["pages"][:len(olds)] + [{"strokes": []} for _ in range(len(olds) - len(d["pages"]))]
+        for pg, original in zip(pages, olds):
+            pg["article_lines"] = original["article_lines"]
+        d["pages"] = pages
+        d["revision"] = old.get("revision", 0) + 1
     if old.get("pdf"):                     # PDF 批注本：页数、每页高度跟着 PDF 走，网页改不了
         d["pdf"], d["paper"] = old["pdf"], "pdf"
         olds = old.get("pages") or []
@@ -118,7 +129,7 @@ def save(paths, body):
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     tmp.replace(f)
-    return {"id": nid, "title": d["title"], "updated": d["updated"]}
+    return {"id": nid, "title": d["title"], "updated": d["updated"], "revision": d.get("revision")}
 
 
 def delete(paths, nid):

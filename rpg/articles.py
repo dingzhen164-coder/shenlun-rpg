@@ -50,6 +50,8 @@ SOURCES = [
 ]
 CUSTOM_PAT = r"/\d{4}[-/]?\d{2}[-/]?\d{2}/|c\d{5,}|/\d{6,}\.html?"
 PER_SOURCE = 10          # 一个来源一次最多新抓几篇
+MAX_LIST_PAGES = 20      # 历史列表检索有界，避免网站循环链接拖住任务
+MAX_CANDIDATES = 300
 MIN_BODY = 200           # 正文少于这么多字就不当文章
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
 JOB = {"running": False, "log": [], "added": 0, "done": 0, "total": 0, "t": 0}
@@ -183,12 +185,19 @@ def parse_article(page_html, url):
     if sum(len(x) for x in paras) < MIN_BODY or not title:
         raise ArticleError("没取到正文")
     date = ""
-    for src in (p.meta.get("publishdate"), p.meta.get("pubdate"), p.meta.get("article:published_time"), url):
-        m = re.search(r"(20\d{2})[-/年]?(\d{1,2})[-/月]?(\d{1,2})", src or "")
+    for src in (p.meta.get("publishdate"), p.meta.get("pubdate"), p.meta.get("article:published_time"),
+                p.meta.get("date"), p.meta.get("dc.date"), url):
+        # 人民网 /n1/2026/1001/ 及紧凑日期必须按两位月份拆，不能把 10 月拆成 1 月。
+        m = re.search(r"(20\d{2})[-/年]?(\d{2})[-/月]?(\d{2})(?!\d)", src or "")
+        if not m:
+            m = re.search(r"(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})(?!\d)", src or "")
         if m:
-            date = "%s-%02d-%02d" % (m.group(1), int(m.group(2)), int(m.group(3)))
-            break
-    return {"title": title[:80], "date": date or dt.date.today().isoformat(), "paras": paras}
+            try:
+                date = dt.date(*map(int, m.groups())).isoformat()
+                break
+            except ValueError:
+                continue
+    return {"title": title[:80], "date": date or dt.date.today().isoformat(), "date_known": bool(date), "paras": paras}
 
 
 def guess_category(title, default=""):
@@ -440,66 +449,171 @@ def import_url(paths, url, source="手动导入", cat="", fetcher=None):
     return {"id": iid, "new": True, "title": art["title"]}
 
 
-def crawl(paths, srcs, fetcher=None, per=PER_SOURCE):
-    """同步抓：对每个来源取列表页 → 新链接逐篇存。返回每个来源的结果。后台线程和测试都走这里"""
+def crawl_options(body=None, today=None):
+    """抓取条件：所有来源合计 count 篇，分类多选，range=7d/1m/6m/all（旧接口兼容）。"""
+    body = body or {}
+    today = today or dt.date.today()
+    count = body.get("count", 10)
+    if isinstance(count, bool) or not str(count).isdigit() or not 1 <= int(count) <= 100:
+        raise ArticleError("抓取数量要填 1–100 的整数")
+    cats = body.get("categories", [])
+    if not isinstance(cats, list) or any(c not in CATEGORIES for c in cats):
+        raise ArticleError("请选择有效的文章分类")
+    period = body.get("range", "7d")
+    if period not in ("7d", "1m", "6m", "all"):
+        raise ArticleError("请选择近七日、近一个月或近半年")
+    if period == "7d":
+        since = today - dt.timedelta(days=6)
+    elif period in ("1m", "6m"):
+        import calendar
+        month = today.year * 12 + today.month - 1 - (1 if period == "1m" else 6)
+        year, m = divmod(month, 12)
+        m += 1
+        since = dt.date(year, m, min(today.day, calendar.monthrange(year, m)[1]))
+    else:
+        since = None
+    names = body.get("sources")
+    if names is not None and (not isinstance(names, list) or any(not isinstance(n, str) for n in names)):
+        raise ArticleError("来源选项格式不对")
+    return {"count": int(count), "categories": list(dict.fromkeys(cats)), "range": period,
+            "since": since.isoformat() if since else "", "until": today.isoformat(), "sources": names}
+
+
+def history_links(page_html, base, article_pat):
+    """只沿同站的翻页 / 历史栏目链接走，排除正文链接和无关站点，不猜造网站网址。"""
+    page = _Page()
+    page.feed(page_html)
+    root = urllib.parse.urlsplit(base)
+    out = []
+    for href, label in page.links:
+        url = urllib.parse.urljoin(base, href.strip()).split("#")[0]
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme not in ("http", "https") or parsed.netloc != root.netloc or re.search(article_pat, url):
+            continue
+        text = _text(label)
+        is_nav = bool(re.search(r"下一页|下页|往期|历史|更多|上一页", text)) or text.isdigit()
+        is_page = bool(re.search(r"(?:index|list|page)[_-]?\d+|[?&](?:page|p)=\d+", parsed.path + "?" + parsed.query, re.I))
+        if (is_nav or is_page) and url != base and url not in out:
+            out.append(url)
+    return out
+
+
+def crawl(paths, srcs, fetcher=None, per=PER_SOURCE, options=None):
+    """同步抓取。新条件按总数限额；兼容旧调用的每来源上限。历史列表最多20页，正文最多300篇。"""
     fetcher = fetcher or fetch
     have = known_ids(paths)
-    res = []
+    res, candidates, seen_urls = [], [], set()
+    deadline = time.monotonic() + 180
+    # 先收集列表候选再按日期新到旧处理，避免某个来源独占合计额度。
     for src in srcs:
-        r = {"name": src["name"], "added": 0, "skipped": 0, "failed": 0, "error": ""}
+        source_cap = max(1, MAX_CANDIDATES // max(1, len(srcs)))
+        source_count = 0
+        r = {"name": src["name"], "added": 0, "skipped": 0, "filtered": 0, "unknown_date": 0,
+             "failed": 0, "error": "", "lists": 0}
         res.append(r)
-        try:
-            links = find_links(fetcher(src["url"]), src["url"], src["pat"])
-        except Exception as e:
-            r["error"] = "列表页打不开（%s）" % (str(e)[:60] or e.__class__.__name__)
-            _log("⚠ %s：%s" % (src["name"], r["error"]))
-            with LOCK:
-                JOB["done"] += 1
-            continue
-        if not links:
-            r["error"] = "列表页里没找到文章链接（网站可能改版了）"
-            _log("⚠ %s：%s" % (src["name"], r["error"]))
-            with LOCK:
-                JOB["done"] += 1
-            continue
-        for url, _t in links:
-            if r["added"] >= per:
-                break
-            iid = aid(url)
-            if iid in have:
-                r["skipped"] += 1
+        queue, seen_pages = [src["url"]], set()
+        cap = MAX_LIST_PAGES if options else 1
+        while queue and len(seen_pages) < cap and len(candidates) < MAX_CANDIDATES and time.monotonic() < deadline and source_count < source_cap:
+            page_url = queue.pop(0)
+            if page_url in seen_pages:
                 continue
+            seen_pages.add(page_url)
             try:
-                art = parse_article(fetcher(url), url)
-            except Exception:
-                r["failed"] += 1
+                page = fetcher(page_url)
+                r["lists"] += 1
+                links = find_links(page, page_url, src["pat"])
+            except Exception as e:
+                if page_url == src["url"]:
+                    r["error"] = "列表页打不开（%s）" % (str(e)[:60] or e.__class__.__name__)
                 continue
-            art.update(id=iid, source=src["name"], url=url, category=guess_category(art["title"], src.get("cat") or ""))
+            for url, title in links:
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                if aid(url) in have:
+                    r["skipped"] += 1
+                elif len(candidates) < MAX_CANDIDATES and source_count < source_cap:
+                    candidates.append((src, r, url, title))
+                    source_count += 1
+            if options:
+                queue.extend(u for u in history_links(page, page_url, src["pat"]) if u not in seen_pages and u not in queue)
+        if not r["error"] and not any(c[0] is src for c in candidates) and not r["skipped"]:
+            r["error"] = "列表页里没找到文章链接（网站可能改版了）"
+        with LOCK:
+            JOB["done"] += 1
+    matches = []
+    for src, r, url, title in candidates:
+        if time.monotonic() >= deadline:
+            _log("达到本次3分钟检索时限，保存已找到的匹配文章。")
+            break
+        if not options and r["added"] >= per:
+            continue
+        try:
+            art = parse_article(fetcher(url), url)
+        except Exception:
+            r["failed"] += 1
+            continue
+        # 标题关键词优先于来源的默认分类，避免某站全部文章被贴成党政治理。
+        category = guess_category(art["title"])
+        if category in ("其他", "社论评论") and src.get("cat"):
+            category = src["cat"]
+        art.update(id=aid(url), source=src["name"], url=url, category=category)
+        if options:
+            if options["since"] and not art["date_known"]:
+                r["unknown_date"] += 1
+                continue
+            if not options["since"] <= art["date"] <= options["until"] or (options["categories"] and category not in options["categories"]):
+                r["filtered"] += 1
+                continue
+            matches.append((art, r))
+        else:
             save_article(paths, art)
-            have.add(iid)
+            have.add(art["id"])
             r["added"] += 1
             with LOCK:
                 JOB["added"] += 1
-        _log("✓ %s：新增 %d 篇%s" % (src["name"], r["added"], "（%d 篇没取到正文）" % r["failed"] if r["failed"] else ""))
-        with LOCK:
-            JOB["done"] += 1
+    if options:
+        matches.sort(key=lambda x: x[0]["date"], reverse=True)
+        for art, r in matches[:options["count"]]:
+            save_article(paths, art)
+            r["added"] += 1
+            with LOCK:
+                JOB["added"] += 1
+    for r in res:
+        if r["error"]:
+            _log("⚠ %s：%s" % (r["name"], r["error"]))
+        else:
+            _log("✓ %s：新增 %d 篇，查阅 %d 个列表（筛掉 %d 篇、日期不明 %d 篇、正文失败 %d 篇）" %
+                 (r["name"], r["added"], r["lists"], r["filtered"], r["unknown_date"], r["failed"]))
+    if options:
+        added = sum(r["added"] for r in res)
+        _log("本次新增 %d / %d 篇%s。历史范围受网站可访问列表限制，最多查20页 / 300篇候选。" %
+             (added, options["count"], "，可访问内容中符合条件的新文章不足" if added < options["count"] else ""))
     return res
 
 
-def start_crawl(g):
+def start_crawl(g, body=None):
+    # 空的旧调用保留旧行为；新版界面总会传明确条件。
+    options = crawl_options(body) if body else None
     srcs = [x for x in sources(g) if x["on"]]
+    if options and options["sources"] is not None:
+        known = {x["name"] for x in sources(g)}
+        if any(n not in known for n in options["sources"]):
+            raise ArticleError("没有这个来源")
+        srcs = [x for x in sources(g) if x["name"] in options["sources"]]
     if not srcs:
-        raise ArticleError("没有打开的来源，先在“来源”里打开几个")
+        raise ArticleError("请至少选择一个抓取来源")
     with LOCK:
-        if JOB["running"] and time.time() - JOB["t"] < 600:
+        # 不按超时强开第二个任务，旧线程仍可能在写文件。
+        if JOB["running"]:
             return {"started": False}
         JOB.update(running=True, log=[], added=0, done=0, total=len(srcs), t=time.time())
     paths = g.paths
 
     def run():
         try:
-            crawl(paths, srcs)
-        except Exception as e:                      # 任何意外都别让“正在抓取”卡住
+            crawl(paths, srcs, options=options)
+        except Exception as e:
             _log("⚠ 抓取中断：%s" % e)
         finally:
             with LOCK:

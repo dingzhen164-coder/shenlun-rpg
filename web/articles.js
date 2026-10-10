@@ -10,7 +10,9 @@
   };
   let ROOT = null, DATA = null, POLL = null;
   let F = { src: store.get("src", ""), cat: store.get("cat", ""), st: store.get("st", ""), q: "" };
-  let CUR = null, JDING = false, SRC_OPEN = false, lastAct = 0;
+  let CUR = null, JDING = false, SRC_OPEN = false, CRAWL_OPEN = false, lastAct = 0, readerVer = 0;
+  let FETCH = { count: Number(store.get("count", "10")), range: store.get("range", "7d"), categories: [], sources: null };
+  try { FETCH.categories = JSON.parse(store.get("fetchCats", "[]")); FETCH.sources = JSON.parse(store.get("fetchSources", "null")); } catch (_) {}
   const act = () => (lastAct = Date.now());
   ["click", "scroll", "keydown", "touchstart"].forEach((e) => addEventListener(e, () => { if (CUR) act(); }, { passive: true, capture: true }));
 
@@ -58,6 +60,7 @@
         <div class="ar-chips"><span class="faint small">来源</span>${chips("src", [["", "全部", I.length], ...srcNames.map((n) => [n, n, I.filter((a) => a.source === n).length])], F.src)}</div>
         <div class="ar-chips"><span class="faint small">分类</span>${chips("cat", [["", "全部", null], ...cats.map((c) => [c, c, I.filter((a) => a.category === c).length])], F.cat)}</div>
         <div class="ar-chips"><span class="faint small">状态</span>${chips("st", [["", "全部"], ["unread", "未读"], ["read", "已读"], ["star", "★ 收藏"], ["jd", "已精读"]], F.st)}</div>
+        <div id="arFetchBox" ${CRAWL_OPEN ? "" : "hidden"}>${fetchHtml()}</div>
         <div id="arSrcBox" ${SRC_OPEN ? "" : "hidden"}>${srcHtml()}</div></div>
       ${shown.length ? `<div class="ar-list">${shown.map(card).join("")}</div>` :
         `<div class="card ar-empty"><div class="ar-empty-ico">📅</div><h3>${I.length ? "没有符合筛选的文章" : "还没有文章"}</h3>
@@ -71,6 +74,15 @@
       <div class="ar-item-m"><span class="tag">${esc(a.source)}</span><span class="tag">${esc(a.category)}</span><span class="faint small">${esc(a.date)} · ${a.chars} 字</span>
         ${a.read ? `<span class="faint small">✓ 已读</span>` : `<span class="ar-new small">未读</span>`}${a.jd ? `<span class="ar-jd small">精读</span>` : ""}</div>
       <div class="ar-item-l muted small">${esc(a.lead)}</div></a>`;
+  }
+  function fetchHtml() {
+    const names = FETCH.sources === null ? DATA.sources.filter((s) => s.on).map((s) => s.name) : FETCH.sources;
+    return `<section class="ar-fetch"><h3>抓取设置</h3><div class="row"><label>合计抓取 <input id="arFetchCount" type="number" min="1" max="100" value="${esc(FETCH.count)}"> 篇</label>
+      ${[5,10,15,30].map((n) => `<button class="ghost small" data-count="${n}">${n}篇</button>`).join("")}
+      <label>发布时间 <select id="arFetchRange">${[["7d","近七日"],["1m","近一个月"],["6m","近半年"]].map(([v,n]) => `<option value="${v}" ${v === FETCH.range ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+      <fieldset><legend>文章分类（可多选，不选表示全部）</legend><div class="ar-fetch-options">${DATA.categories.map((c) => `<label><input type="checkbox" data-fetch-cat="${esc(c)}" ${FETCH.categories.includes(c) ? "checked" : ""}>${esc(c)}</label>`).join("")}</div></fieldset>
+      <fieldset><legend>抓取来源</legend><div class="ar-fetch-options">${DATA.sources.map((s) => `<label><input type="checkbox" data-fetch-src="${esc(s.name)}" ${names.includes(s.name) ? "checked" : ""}>${esc(s.name)}</label>`).join("")}</div></fieldset>
+      <div class="row"><span class="muted small">按发布日期筛选、优先较新文章；重复文章不计入数量。历史内容取决于网站提供的列表，不足时显示实际篇数。</span><span class="spacer"></span><button class="primary" id="arFetchStart" ${DATA.job?.running ? "disabled" : ""}>开始抓取</button></div></section>`;
   }
   function srcHtml() {
     const S = DATA.sources;
@@ -87,8 +99,23 @@
     const q = R.querySelector("#arQ");
     q.oninput = () => { F.q = q.value; const pos = q.selectionStart; list(); const n = ROOT.querySelector("#arQ"); n.focus(); n.setSelectionRange(pos, pos); };
     R.querySelectorAll("[data-open]").forEach((a) => (a.onclick = () => open(a.dataset.open)));
-    R.querySelector("#arCrawl").onclick = async () => {
-      try { const r = await api("/api/articles/crawl", {}); if (!r.started) toast("上一次抓取还在进行"); await load(); list(); poll(); } catch (e) { showError(e); }
+    R.querySelector("#arCrawl").onclick = () => { CRAWL_OPEN = !CRAWL_OPEN; R.querySelector("#arFetchBox").hidden = !CRAWL_OPEN; };
+    R.querySelector("#arFetchCount").onchange = (e) => { FETCH.count = Number(e.target.value); store.set("count", FETCH.count); };
+    R.querySelector("#arFetchRange").onchange = (e) => { FETCH.range = e.target.value; store.set("range", FETCH.range); };
+    R.querySelectorAll("[data-fetch-cat]").forEach((b) => (b.onchange = () => {
+      FETCH.categories = [...R.querySelectorAll("[data-fetch-cat]:checked")].map((x) => x.dataset.fetchCat); store.set("fetchCats", JSON.stringify(FETCH.categories));
+    }));
+    R.querySelectorAll("[data-fetch-src]").forEach((b) => (b.onchange = () => {
+      FETCH.sources = [...R.querySelectorAll("[data-fetch-src]:checked")].map((x) => x.dataset.fetchSrc); store.set("fetchSources", JSON.stringify(FETCH.sources));
+    }));
+    R.querySelectorAll("[data-count]").forEach((b) => (b.onclick = () => { FETCH.count = Number(b.dataset.count); store.set("count", FETCH.count); R.querySelector("#arFetchCount").value = FETCH.count; }));
+    R.querySelector("#arFetchStart").onclick = async () => {
+      FETCH.count = Number(R.querySelector("#arFetchCount").value);
+      FETCH.sources = [...R.querySelectorAll("[data-fetch-src]:checked")].map((x) => x.dataset.fetchSrc);
+      if (!Number.isInteger(FETCH.count) || FETCH.count < 1 || FETCH.count > 100) return toast("请填写1–100的整数篇数");
+      if (!FETCH.sources.length) return toast("请至少选择一个来源");
+      store.set("count", FETCH.count); store.set("fetchSources", JSON.stringify(FETCH.sources));
+      try { const r = await api("/api/articles/crawl", FETCH); if (!r.started) toast("上一次抓取还在进行"); CRAWL_OPEN = false; await load(); list(); poll(); } catch (e) { showError(e); }
     };
     R.querySelector("#arUrl").onclick = async () => {
       const url = prompt("粘贴文章链接（http 开头）：");
@@ -107,9 +134,10 @@
 
   // ---------------------------------------------------------------- 阅读 + 精读
   async function open(id) {
+    if (!(await NOTES.leaveArticle())) return;
     try { CUR = await api("/api/articles/get", { id }); act(); reader(); window.scrollTo(0, 0); } catch (e) { showError(e); }
   }
-  function close() { CUR = null; JDING = false; if (ROOT && ROOT.isConnected) mount(ROOT); }
+  async function close() { if (!(await NOTES.leaveArticle())) return false; readerVer++; CUR = null; JDING = false; if (ROOT && ROOT.isConnected) await mount(ROOT); return true; }
   function jdHtml(jd) {
     if (!jd) return `<div class="muted small">让 AI 把这篇文章提炼成：主旨、观点、论证脉络、可背的金句、可用素材、适合练的题型。金句保证是原文里真有的句子。结果会存下来，不重复花钱。</div>
       <button class="primary" id="arJd" ${JDING ? "disabled" : ""}>${JDING ? "精读中…" : "🔍 一键精读"}</button>`;
@@ -124,26 +152,32 @@
       <div class="row ar-jd-foot"><button class="small" id="arCard" ${jd.carded ? "disabled" : ""}>${jd.carded ? "✓ 已刻成玉简" : "🧧 金句 / 素材刻成玉简"}</button>
         <button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
   }
-  function reader() {
-    const a = CUR;
+  async function reader() {
+    if (!(await NOTES.leaveArticle())) return;
+    const a = CUR, version = ++readerVer;
+    if (!a || !ROOT?.isConnected) return;
     ROOT.innerHTML = `<div class="ar-read">
       <div class="card ar-rhead"><button class="ghost" id="arBack">← 返回文章列表</button><span class="spacer"></span>
         <select id="arCat">${DATA.categories.map((c) => `<option ${c === a.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         <button class="ghost small" id="arStar">${a.star ? "★ 已收藏" : "☆ 收藏"}</button>
         ${a.url ? `<a class="ghost small btn" href="${esc(a.url)}" target="_blank" rel="noopener">🌐 原网页</a>` : ""}
-        <button class="ghost small" id="arDel">🗑</button></div>
-      <div class="ar-cols"><article class="card ar-art"><h2>${esc(a.title)}</h2>
-        <div class="ar-item-m"><span class="tag">${esc(a.source)}</span><span class="faint small">${esc(a.date)}</span></div>
-        ${a.paras.map((p) => `<p>${esc(p)}</p>`).join("")}</article>
+        <button class="ghost small" id="arSideToggle">展开 / 收起精读</button>
+        <button class="ghost small" id="arLedger">📓 公务手账</button><button class="ghost small" id="arDel">🗑</button></div>
+      <div class="ar-cols ar-annotate ${store.get("side", "open") === "closed" ? "ar-side-closed" : ""}"><article id="arBook"><div class="card">正在打开文章批注本…</div></article>
         <aside class="card ar-side" id="arSide">${jdHtml(a.jd)}</aside></div></div>`;
     bindReader();
+    const el = ROOT.querySelector("#arBook");
+    try { await NOTES.mountArticle(el, a.id); }
+    catch (e) { if (version === readerVer && el.isConnected) el.innerHTML = `<div class="card ar-art"><p class="warn">批注本未打开：${esc(e.message)}。返回列表重试；已保存的笔迹仍在公务手账。</p><h2>${esc(a.title)}</h2>${a.paras.map((p) => `<p>${esc(p)}</p>`).join("")}</div>`; }
   }
   function bindReader() {
     const R = ROOT, a = CUR;
     R.querySelector("#arBack").onclick = close;
+    R.querySelector("#arLedger").onclick = () => go("notes");
+    R.querySelector("#arSideToggle").onclick = () => { const cols = R.querySelector(".ar-cols"); const closed = cols.classList.toggle("ar-side-closed"); store.set("side", closed ? "closed" : "open"); dispatchEvent(new Event("resize")); };
     R.querySelector("#arStar").onclick = async () => { a.star = !a.star; await api("/api/articles/mark", { id: a.id, star: a.star }); reader(); };
     R.querySelector("#arCat").onchange = async (e) => { try { await api("/api/articles/category", { id: a.id, category: e.target.value }); a.category = e.target.value; } catch (x) { showError(x); } };
-    R.querySelector("#arDel").onclick = async () => { if (!confirm("删掉这篇文章（连精读一起）？")) return; try { await api("/api/articles/delete", { id: a.id }); CUR = null; mount(ROOT); } catch (e) { showError(e); } };
+    R.querySelector("#arDel").onclick = async () => { if (!confirm("删掉这篇文章（连精读一起）？公务手账里的批注本会保留。")) return; try { if (!(await NOTES.leaveArticle())) return; await api("/api/articles/delete", { id: a.id }); CUR = null; mount(ROOT); } catch (e) { showError(e); } };
     bindSide();
   }
   function bindSide() {

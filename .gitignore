@@ -4,3 +4,8 @@ __pycache__/
 .DS_Store
 *.pdf
 dist/
+
+# 浏览器验证的临时依赖、截图与导出
+/ui-artifacts/
+/node_modules/
+/package-lock.json
