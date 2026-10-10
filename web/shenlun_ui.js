@@ -10,12 +10,24 @@
   }
   function heading(view){
     const [title,description]=pages[view]||pages.home;
-    return `<section class="sl-ui-masthead ${view==='skeleton'?'sl-ui-archive':''}"><div class="sl-ui-heading-copy"><div class="sl-ui-eyebrow">公考模拟器 <span>/</span> 申论工作台</div><h1>${title}</h1><p>${description}</p></div><div class="sl-ui-heading-seal" aria-hidden="true">申<br>论</div><div class="sl-ui-heading-rule" aria-hidden="true"></div></section>`;
+    return `<section class="sl-ui-masthead ${view==='skeleton'?'sl-ui-archive':''}"><div class="sl-ui-heading-copy"><div class="sl-ui-eyebrow">公考模拟器 <span>/</span> 申论工作台</div><div class="sl-ui-title-row"><h1>${title}</h1><div class="sl-ui-section-tabs"></div></div><p>${description}</p></div><div class="sl-ui-heading-seal" aria-hidden="true">申<br>论</div><div class="sl-ui-heading-rule" aria-hidden="true"></div></section>`;
   }
   function mount(view){
     const root=document.getElementById('view');
     if(!document.body.classList.contains('guantu')||document.documentElement.classList.contains('in-sl-exam')||document.documentElement.classList.contains('in-chat'))return;
     if(!root.querySelector('.sl-ui-masthead'))root.insertAdjacentHTML('afterbegin',heading(view));
+    // 移动原入口节点，保留原事件与状态；手账重绘左栏时重新接入台头。
+    const slot=root.querySelector('.sl-ui-section-tabs');
+    const selector={train:'.hall-gates',notes:'.nt-side .nt-tabs',skeleton:'.lib-head .lib-tabs'}[view];
+    const tabs=selector&&root.querySelector(selector);
+    if(tabs){
+      const fold=tabs.querySelector('#ntSideMin');if(fold)tabs.closest('.nt-side').prepend(fold);
+      slot.replaceChildren(tabs);
+      tabs.setAttribute('aria-label',pages[view][0]+'分类');
+      tabs.querySelectorAll('[data-hall]').forEach(b=>{b.setAttribute('role','button');b.tabIndex=0;b.setAttribute('aria-pressed',String(b.classList.contains('on')));b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click();}};});
+      tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.classList.contains('on'))));
+      const head=root.querySelector('.lib-head');if(head&&!head.querySelector('.lib-tabs'))head.remove();
+    }
   }
   window.SL_UI={chrome,heading,mount,icon};
 })();
