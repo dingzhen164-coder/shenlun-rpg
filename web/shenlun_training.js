@@ -1,0 +1,54 @@
+/* 申论实操只选训练，真题管理在档案室。主题辅助分类与手动标签由后端持久保存。
+ * 套卷按真实题号切换，SHENLUN.open先保存当前草稿；不另造题目/成绩/题库副本。 */
+(() => {
+  const types=['归纳概括','综合分析','提出对策','贯彻执行','大作文'];
+  const T={mode:'type',type:'',topic:'',region:'',year:'',paper:'',page:0};
+  try{const saved=JSON.parse(localStorage.getItem('sl.training.filters')||'{}');for(const k of Object.keys(T))if(typeof saved[k]===typeof T[k])T[k]=saved[k];}catch(_){}
+  let papers=[],session=null;
+  const remember=()=>{try{localStorage.setItem('sl.training.filters',JSON.stringify(T));}catch(_){}};
+  const redraw=()=>{remember();renderTrain();};
+  const select=(id,values,value,label)=>`<label class="small">${label}<select id="${id}"><option value="">全部${label}</option>${values.map(v=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
+  const folder=(text,sub)=>`<span class="sl-folder-art" aria-hidden="true"><i class="sl-file-leaf leaf-back"></i><i class="sl-file-leaf leaf-front"></i><i class="sl-file-cover"></i><em>申论</em></span><span><b>${esc(text)}</b><small>${esc(sub)}</small></span>`;
+  const matches=p=>(!T.region||p.region===T.region)&&(!T.year||p.year===T.year);
+  async function html(){
+    const d=await api('/api/shenlun/papers');papers=d.papers;
+    const topics=[...new Set([...d.topics,...papers.flatMap(p=>p.topics),...papers.flatMap(p=>p.questions.flatMap(q=>q.topics))])].sort();
+    let candidates=papers.filter(matches),body='';
+    if(T.mode==='paper'){
+      candidates=candidates.filter(p=>!T.topic||p.topics.includes(T.topic));
+      const chosen=candidates.find(p=>p.id===T.paper);
+      body=`<section class="card sl-training-selection"><h3>选择办理卷宗</h3><label>套卷<select id="slTrainPaper"><option value="">请选择一套试卷</option>${candidates.map(p=>`<option value="${esc(p.id)}" ${p.id===T.paper?'selected':''}>${esc(p.title)} · ${p.questions.length}题</option>`).join('')}</select></label>
+      ${chosen?`<div class="sl-dossier-summary"><div class="sl-dossier-stamp">训练卷</div><h3>${esc(chosen.title)}</h3><p>${esc(chosen.region)} · ${esc(chosen.year)} · ${chosen.questions.length}题 · 总分${chosen.questions.reduce((n,q)=>n+q.total,0)}分</p><div class="row">${chosen.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><p class="small muted">套卷保留全部题目，按题号前后切换；每题草稿、用时和批改分别保存。</p><label class="small">起始题号<select id="slTrainStartNo">${chosen.questions.map((q,i)=>`<option value="${i}">第${q.no}题 · ${esc(q.type)}${q.complete?'':'（资料待补全）'}</option>`).join('')}</select></label><button class="primary" id="slStartPaper">领卷 · 开始套卷训练</button></div>`:'<div class="sl-training-blank">选择套卷后，查看题号目录并开始训练。</div>'}</section>`;
+    }else{
+      const all=candidates.flatMap(p=>p.questions.map(q=>({...q,paper_title:p.title,region:p.region,year:p.year}))).filter(q=>!T.topic||q.topics.includes(T.topic));
+      const questions=all.filter(q=>q.type===T.type),pages=Math.ceil(questions.length/12);T.page=Math.min(T.page,Math.max(0,pages-1));
+      body=`<div class="sl-training-types">${types.map((type,i)=>`<button class="sl-training-folder ${T.type===type?'selected':''}" data-sltrain-type="${type}" aria-pressed="${T.type===type}">${folder(type,all.filter(q=>q.type===type).length+'道可选题')}<span class="sl-folder-number">专项 / 0${i+1}</span></button>`).join('')}</div>
+      <section class="card sl-training-selection"><div class="row"><h3>${T.type?esc(T.type)+' · 待办训练':'选择一项题型'}</h3><span class="spacer"></span><span class="small muted">${T.type?questions.length+'道匹配题目':''}</span></div>${!T.type?'<div class="sl-training-blank">先选上方题型，再领取一道训练题。</div>':!questions.length?'<div class="sl-training-blank">该组合暂没有题目，可调整主题、地区或年份；真题在档案室统一录入。</div>':questions.slice(T.page*12,T.page*12+12).map(q=>`<article class="sl-training-item"><div class="row"><span class="tag">${esc(q.region)} · ${esc(q.year)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b></div><p>${esc(q.stem)}</p><div class="row">${q.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<small class="muted">${esc(q.topic_scope)} · ${q.total}分${q.words?' · '+q.words+'字':''}${q.complete?'':' · 资料待补全'}</small><span class="spacer"></span><button class="primary small" data-sltrain-q="${esc(q.qid)}">领取训练</button></div></article>`).join('')+`<div class="row"><button id="slTrainPrev" ${T.page?'':'disabled'}>上一页</button><span>第${T.page+1}/${pages}页</span><button id="slTrainNext" ${T.page<pages-1?'':'disabled'}>下一页</button></div>`}</section>`;
+    }
+    return `<div class="sl-training"><header class="card sl-dossier-header"><div><span class="sl-dossier-kicker">申论 · 训练办理台</span><h2>实操训练</h2><p>按题型专项办理，或领取整套卷宗。选好训练范围，再进入材料与作答工作区。</p></div><button class="ghost small" id="slTrainingArchive">前往档案室题库 →</button></header><nav class="sl-training-modes" aria-label="训练方式"><button class="${T.mode==='type'?'selected':''}" data-sltrain-mode="type">题型专项</button><button class="${T.mode==='paper'?'selected':''}" data-sltrain-mode="paper">套卷训练</button></nav><section class="card sl-training-filters">${select('slTrainTopic',topics,T.topic,'主题')}${select('slTrainRegion',[...new Set(papers.map(p=>p.region))].sort(),T.region,'地区')}${select('slTrainYear',[...new Set(papers.map(p=>p.year))].sort().reverse(),T.year,'年份')}<button class="ghost small" id="slTrainReset">清空筛选</button><p class="small muted">主题按关键词辅助整理，可在档案室校正；标注“整卷主题”的题使用整卷范围，不等于已确认本题主题。</p></section>${body}<footer class="small muted">真题录入、完整目录与采分点管理，统一在「档案室 → 题库 · 采分点」。</footer></div>`;
+  }
+  function bind(root,open){
+    root.querySelectorAll('[data-sltrain-mode]').forEach(b=>b.onclick=()=>{T.mode=b.dataset.sltrainMode;T.page=0;redraw();});
+    root.querySelectorAll('[data-sltrain-type]').forEach(b=>b.onclick=()=>{T.type=b.dataset.sltrainType;T.page=0;redraw();});
+    for(const [id,k] of [['slTrainTopic','topic'],['slTrainRegion','region'],['slTrainYear','year'],['slTrainPaper','paper']]){const el=root.querySelector('#'+id);if(el)el.onchange=()=>{T[k]=el.value;T.page=0;redraw();};}
+    const archive=root.querySelector('#slTrainingArchive');if(archive)archive.onclick=()=>{LIB.tab='bank';go('skeleton');};
+    const reset=root.querySelector('#slTrainReset');if(reset)reset.onclick=()=>{T.topic=T.region=T.year='';T.page=0;redraw();};
+    const prev=root.querySelector('#slTrainPrev'),next=root.querySelector('#slTrainNext');if(prev)prev.onclick=()=>{T.page--;redraw();};if(next)next.onclick=()=>{T.page++;redraw();};
+    root.querySelectorAll('[data-sltrain-q]').forEach(b=>b.onclick=()=>{session=null;open(b.dataset.sltrainQ,true);});
+    const start=root.querySelector('#slStartPaper');if(start)start.onclick=()=>{const p=papers.find(p=>p.id===T.paper);if(!p)return;session={id:p.id,title:p.title,questions:p.questions};const i=Number(root.querySelector('#slTrainStartNo').value);open(p.questions[i].qid,true);};
+  }
+  function navigation(qid){const i=session?.questions.findIndex(q=>q.qid===qid)??-1;if(i<0)return '';return `<span class="tag sl-suite-progress">套卷 · ${i+1}/${session.questions.length}</span><button class="ghost small" id="slSuitePrev" ${i?'':'disabled'}>上一题</button><button class="ghost small" id="slSuiteNext" ${i<session.questions.length-1?'':'disabled'}>下一题</button>`;}
+  function bindNavigation(root,qid,open){if(!session)return;const i=session.questions.findIndex(q=>q.qid===qid);for(const [id,delta] of [['slSuitePrev',-1],['slSuiteNext',1]]){const b=root.querySelector('#'+id);if(b)b.onclick=()=>{const q=session.questions[i+delta];if(q)open(q.qid,true);};}}
+  function bindTopics(root,papers){root.querySelectorAll('[data-sl-topic-edit]').forEach(button=>button.onclick=async()=>{
+    try{
+      const data=await api('/api/shenlun/topics',{}),id=button.dataset.slTopicEdit;
+      const item=papers.find(p=>p.id===id)||papers.flatMap(p=>p.questions).find(q=>q.qid===id);
+      const current=data.labels[id]||item.topics.filter(t=>t!=='待标注');
+      const values=[...new Set(['农村','科技','基层治理','经济发展','生态环保','民生保障','文化教育','法治建设',...current])];
+      const modal=document.getElementById('modal');modal.innerHTML=`<section class="card sl-topic-dialog" role="dialog" aria-modal="true" aria-label="标注主题"><h3>卷宗主题标注</h3><p class="small muted">只保存分类标签，题干、资料、答案与评分标准不变。未选择主题则标为待标注。</p><div class="sl-topic-checks">${values.map(t=>`<label><input type="checkbox" value="${esc(t)}" ${current.includes(t)?'checked':''}>${esc(t)}</label>`).join('')}</div><label class="small">补充主题（逗号分隔）<input id="slTopicCustom" placeholder="如：乡村旅游，数字政务"></label><p id="slTopicMessage" class="small warn"></p><div class="row"><button class="primary" id="slTopicSave">保存标注</button><button class="ghost" id="slTopicAuto">恢复自动分类</button><button class="ghost" id="slTopicCancel">取消</button></div></section>`;modal.classList.remove('hidden');
+      const save=async automatic=>{const b=modal.querySelector('#slTopicSave');b.disabled=true;try{const values=[...modal.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value);values.push(...modal.querySelector('#slTopicCustom').value.split(/[,，]/).map(x=>x.trim()).filter(Boolean));await api('/api/shenlun/topics',{save:true,id,revision:data.revision,topics:[...new Set(values)],automatic});modal.classList.add('hidden');toast('主题分类已保存');await render();}catch(e){modal.querySelector('#slTopicMessage').textContent=e.message;b.disabled=false;}};
+      modal.querySelector('#slTopicSave').onclick=()=>save(false);modal.querySelector('#slTopicAuto').onclick=()=>save(true);modal.querySelector('#slTopicCancel').onclick=()=>modal.classList.add('hidden');
+    }catch(e){showError(e);}
+  });}
+  window.SL_TRAINING={html,bind,navigation,bindNavigation,bindTopics,clearSession(){session=null;}};
+})();
