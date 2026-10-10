@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 打包平板 App：bash android/build.sh → android/build/shenlun-guantu.apk
+# 打包平板 App：bash android/build.sh → android/build/gongkao-simulator.apk
 # 不用 Gradle，直接用 Android SDK 的 aapt2 / d8 / apksigner（GitHub 的 ubuntu 机器上自带 SDK）。
 # 版本号跟 rpg/version.py 走；签名用 android/xiuxian.keystore（同一把钥匙签，平板上才能直接覆盖升级）。
 set -euo pipefail
@@ -32,6 +32,6 @@ cp build/base.apk build/unsigned.apk
 (cd build/dex && zip -q -j ../unsigned.apk classes.dex)
 "$BT/zipalign" -f -p 4 build/unsigned.apk build/aligned.apk
 "$BT/apksigner" sign --ks xiuxian.keystore --ks-pass pass:xiuxian2026 --ks-key-alias xiuxian \
-  --out build/shenlun-guantu.apk build/aligned.apk
-"$BT/apksigner" verify build/shenlun-guantu.apk
-ls -l build/shenlun-guantu.apk
+  --out build/gongkao-simulator.apk build/aligned.apk
+"$BT/apksigner" verify build/gongkao-simulator.apk
+ls -l build/gongkao-simulator.apk

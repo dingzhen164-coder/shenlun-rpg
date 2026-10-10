@@ -198,7 +198,7 @@ class DeviceTest(unittest.TestCase):
     def test_web_files(self):
         r, data = self.req("GET", "/manifest.webmanifest")
         self.assertEqual(r.status, 200)
-        self.assertEqual(json.loads(data)["short_name"], "修仙传")
+        self.assertEqual(json.loads(data)["short_name"], "公考模拟器")
         r, _ = self.req("GET", "/device.js")
         self.assertEqual(r.status, 200)
 

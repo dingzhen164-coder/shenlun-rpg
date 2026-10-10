@@ -159,8 +159,8 @@ function applyTheme() {
   document.body.classList.remove("xiuxian", "xuanhuan", "guantu");
   document.body.classList.add({ 修仙: "xiuxian", 玄幻: "xuanhuan", 官场: "guantu" }[DASH.theme.name] || "xiuxian");
   document.documentElement.classList.toggle("theme-gc", DASH.theme.name === "官场");   // 官场风格的页面底色（style.css 末尾）
-  $(".brand").textContent = W("brand");
-  document.title = W("brand").replace(/^\S+\s/, "");
+  $(".brand").innerHTML = `<img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>${esc(DASH.app_name || "公考模拟器")}</span><small class="app-subject">${esc(DASH.subject || "")}</small>`;
+  document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
   document.querySelectorAll("#nav a").forEach((a) => (a.textContent = W("nav." + a.dataset.view)));
 }
 

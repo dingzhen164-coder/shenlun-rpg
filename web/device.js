@@ -40,7 +40,7 @@
           <button class="ghost" id="appReset">换一台电脑 / 重新寻找洞府</button></div>`
       : !local
       ? `<div class="card dev-card"><h3>📱 手机 / 平板</h3>
-          ${android ? `<p><b>推荐装「行测修仙传」平板 App：</b>全屏打开，没有浏览器的地址栏、工具栏，自动找到电脑。
+          ${android ? `<p><b>推荐装「公考模拟器」平板 App：</b>全屏打开，没有浏览器的地址栏、工具栏，自动找到电脑。
             <a class="btn-link" href="${APK}" target="_blank" rel="noopener">⬇ 下载安装包（APK）</a></p>
             <p class="small muted">下载后点开安装；如果提示“禁止安装未知来源应用”，按提示允许浏览器安装一次。
             暂时不装的话，点顶栏的 ⛶ 也能全屏。</p>`
@@ -73,7 +73,7 @@
     const verCard = `<div class="card dev-card"><h3>🆕 版本与更新 <small>当前 ${esc(ver.version)}（${kind}）</small></h3>
       <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><button id="updCheck">检查更新</button><span id="updMsg" class="small muted"></span></div>
       <div id="updBox"></div>
-      <p class="small faint" style="margin-top:6px">${ver.frozen && mac ? "Mac App：有新版本时点「到 GitHub 下载」，下载 xingce-xiuxian-mac.zip，解压后把新的「行测修仙传」拖进「应用程序」替换旧的（存档、题库都在库里，不受影响）。"
+      <p class="small faint" style="margin-top:6px">${ver.frozen && mac ? "Mac App：有新版本时点「到 GitHub 下载」，下载 gongkao-simulator-mac.zip，退出旧程序后把「公考模拟器.app」拖进「应用程序」，再从这个新App启动（存档、题库都在库里，不受影响）。"
         : ver.frozen ? "exe 版：有新版本时点「更新并重启」，自动下载、替换、重开（存档、题库都在库里，不受影响）。"
         : "源码版：照旧用压缩包更新；也可以到 GitHub 的 Releases 下载 exe 版，放进 训练/程序/ 双击就能用。"}</p>${logHtml}</div>`;
     return (local || lan ? lanCard : "") + (local ? verCard : logHtml ? `<div class="card dev-card"><h3>🆕 版本 <small>${esc(ver.version)}</small></h3>${logHtml}</div>` : "");

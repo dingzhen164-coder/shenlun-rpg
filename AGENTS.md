@@ -1,6 +1,6 @@
 # 给 AI / 开发者的说明
 
-本项目是“申论官途 · 行测修仙传”（2.0.0 起一个程序两个科目）：本地运行的公考训练网页（Python 标准库后端 + 原生 JS 前端），配合用户的 Obsidian 申论库使用。
+本项目是“公考模拟器”（2.0.0 起一个程序两个科目）：本地运行的公考训练网页（Python 标准库后端 + 原生 JS 前端），配合用户的 Obsidian 申论库使用。
 代码以行测版 [xingce-rpg](https://github.com/dingzhen164-coder/xingce-rpg) 3.3.0 为底座，加上申论采分点批改和“官场”风格；设置里一键切换科目（`rpg/subjects.py`）。行测仓库不再单独更新。
 
 **先读 [CLAUDE.md](CLAUDE.md)（长期规矩：流程、口令、版本号、汇报格式），再读 [DESIGN.md](DESIGN.md)**（决策、分层、数据格式、判分规则都在里面）。当前进度见 DESIGN.md 第 10 节。

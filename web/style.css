@@ -2003,3 +2003,8 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
   .sl-materials { max-height: 460px; }
   .sl-bank-head .row { flex-wrap: wrap; }
 }
+
+/* 两科统一品牌，科目仍在标题旁区分。 */
+.brand { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.app-brand-icon { width: 30px; height: 30px; border-radius: 7px; flex: none; object-fit: contain; }
+.app-subject { font-family: inherit; font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }

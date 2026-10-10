@@ -127,7 +127,8 @@ def dashboard(body):
         paths_mod.UPGRADED.clear()
         notices = list(paths_mod.NOTICES)
         paths_mod.NOTICES.clear()
-        d.update(plan=plan, persona=_persona_view(g), events=tutor.enrich(g, ev), first_today=first_today,
+        from .version import APP_NAME
+        d.update(app_name=APP_NAME, plan=plan, persona=_persona_view(g), events=tutor.enrich(g, ev), first_today=first_today,
                  greet_pending=bool(not cached and tutor.enabled(g)), upgraded=upgraded, notices=notices,
                  vault=str(g.paths.vault) if g.paths.vault else None, ai=ai.available(),
                  subject=g.subject, subjects=[{"name": n, "brand": subjects.SUBJECTS[n]["brand"]} for n in subjects.NAMES],

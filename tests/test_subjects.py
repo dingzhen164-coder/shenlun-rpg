@@ -190,7 +190,7 @@ class SubjectTest(unittest.TestCase):
             api.theme_set({"theme": "玄幻"})                  # 申论只有官场
         d = api.dashboard({})
         self.assertEqual((d["subject"], d["features"]["grading"], d["theme"]["name"], d["tower"]), ("申论", True, "官场", None))
-        self.assertEqual(d["theme"]["terms"]["brand"], "🏛 申论官途")
+        self.assertEqual(d["theme"]["terms"]["brand"], "公考模拟器")
 
     def test_settings_vault_per_subject(self):
         os.environ["SHENLUN_SUBJECT"] = "申论"

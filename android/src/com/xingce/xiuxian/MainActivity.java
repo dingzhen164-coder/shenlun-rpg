@@ -42,7 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 申论官途 · 行测修仙传 · 平板 App。
+ * 公考模拟器 · 平板 App。
  * 电脑上的本程序开了局域网模式后，这个 App 在同一个 Wi-Fi 里找到它（或手动输地址），全屏打开——没有浏览器的地址栏、工具栏。
  * 记住上次的地址，下次直接进；连不上就回到「寻找洞府」页。数据仍然只在电脑上。
  */

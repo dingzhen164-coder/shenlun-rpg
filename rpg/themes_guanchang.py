@@ -2,6 +2,7 @@
 官场风格（申论官途）的名词表：职级、专长、关卡、导师世界观、界面文字。和 themes.py 里的修仙 / 玄幻同一套键。
 themes.py 末尾把它并进 THEMES；没有写到的键（只有行测用的题库、试炼塔等说法）回退到修仙那一套。
 """
+from .version import APP_NAME
 
 PILLS = {"归纳概括": "提炼补课券", "综合分析": "研判补课券", "提出对策": "对策补课券",
          "贯彻执行": "公文补课券", "大作文": "文章补课券"}
@@ -35,7 +36,7 @@ THEME = {
         'yj_rule': '便笺夹规矩', 'yj_new': '新便笺', 'yj_learn': '记忆中', 'yj_due': '待复习', 'yj_unit': '张',
         'yj_r1': '再看', 'yj_r2': '模糊', 'yj_r3': '清楚', 'yj_r4': '牢记', 'yj_done': '今日便笺已过完',
         'yj_leech': '顽固', 'yj_show': '显示答案',
-        "brand": "🏛 申论官途", "nav.home": "🏛 办公室", "nav.train": "📝 办理", "nav.notes": "📒 公务手账", "nav.contest": "📊 年度考核",
+        "brand": APP_NAME, "nav.home": "🏛 办公室", "nav.train": "📝 办理", "nav.notes": "📒 公务手账", "nav.contest": "📊 年度考核",
         "nav.tianji": "📰 时政简报", "nav.skeleton": "🗄 档案室",
         "nav.wrong": "📌 整改录", "nav.pill": "⏱ 补课室", "nav.log": "📈 政绩录", "nav.settings": "⚙ 设置",
         "minutes": "今日办理", "lecture": "听课", "lecture_title": "听课 · 学习记录", "study": "办理",

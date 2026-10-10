@@ -10,6 +10,7 @@
     五分一个大境界：初期 2 分、中期 2 分、后期 1 分（如筑基 60–61 初期、62–63 中期、64 后期）。
     进入 60/65/70/75/80/85 这些大境界需要渡劫（分数线在 规则.md 的“渡劫分数线”）。
 """
+from .version import APP_NAME
 
 # (起始分, 结束分(不含), 类型)：mortal 凡人 / layers 每分一层 / stages 初中后 / single 不再细分
 BANDS = [(50, 51, "mortal"), (51, 60, "layers"), (60, 65, "stages"), (65, 70, "stages"),
@@ -90,7 +91,7 @@ THEMES = {
             'bank_no_wrong': '心魔残影已清，继续稳固道基。',
             'bank_unit': '关',
             'bank_record': '收录心魔残影',
-            "brand": "☯ 行测修仙传", "nav.home": "🏯 洞府", "nav.train": "🧘 修炼", "nav.notes": "🪶 手札", "nav.contest": "⚔ 宗门大比", "nav.tianji": "🔮 天机简报", "nav.skeleton": "📜 藏经阁",
+            "brand": APP_NAME, "nav.home": "🏯 洞府", "nav.train": "🧘 修炼", "nav.notes": "🪶 手札", "nav.contest": "⚔ 宗门大比", "nav.tianji": "🔮 天机简报", "nav.skeleton": "📜 藏经阁",
             "nav.wrong": "👹 心魔录", "nav.pill": "⚗ 丹房", "nav.log": "📖 修仙录", "nav.settings": "⚙ 设置",
             "minutes": "今日修炼", "lecture": "听道", "lecture_title": "听道 · 闻法记", "study": "修炼",
             "lecture_hint": "在别处听高人讲法（看网课）的时辰，也是修行。听完来此记一笔，与修炼合计每日功行。",
@@ -154,7 +155,7 @@ THEMES = {
             'bank_no_wrong': '魔物残影已清，继续精进战技。',
             'bank_unit': '关',
             'bank_record': '收录魔物残影',
-            "brand": "⚔ 行测魔法学院", "nav.home": "🏕 营地", "nav.train": "⚔ 冒险", "nav.notes": "📓 魔法手记", "nav.contest": "🏆 竞技场", "nav.tianji": "🔮 星象密报", "nav.skeleton": "📕 咒文书",
+            "brand": APP_NAME, "nav.home": "🏕 营地", "nav.train": "⚔ 冒险", "nav.notes": "📓 魔法手记", "nav.contest": "🏆 竞技场", "nav.tianji": "🔮 星象密报", "nav.skeleton": "📕 咒文书",
             "nav.wrong": "👾 魔物图鉴", "nav.pill": "⚗ 炼金室", "nav.log": "📖 编年史", "nav.settings": "⚙ 设置",
             "minutes": "今日修炼", "lecture": "听讲", "lecture_title": "听讲 · 课堂笔记", "study": "修炼",
             "lecture_hint": "在别处旁听导师讲课（看网课）的时间也算修行。听完来此登记，与修炼合计每日学时。",
