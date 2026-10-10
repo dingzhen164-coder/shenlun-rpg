@@ -2050,9 +2050,8 @@ html.in-sl-exam .sl-writing { overflow:auto; padding:12px; }
 html.in-sl-exam #slRes:empty { display:none; }
 html.in-sl-exam #slRes { margin-top:16px; }
 @media(max-width:900px) {
-  html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr); height:auto; min-height:0; }
-  html.in-sl-exam .sl-materials { height:48dvh; min-height:320px; }
-  html.in-sl-exam .sl-writing { height:65dvh; min-height:430px; }
+  html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,.45fr) minmax(0,.55fr); }
+  html.in-sl-exam .sl-materials, html.in-sl-exam .sl-writing { height:100%; min-height:0; }
 }
 
 html.in-sl-exam .sl-writing.sl-card-expanded { height:auto; }
