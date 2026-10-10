@@ -439,6 +439,7 @@ const views = {
       <div class="hero-main">
         <div class="hero-name">${esc(p.id)}<small>「${esc(p.call)}」</small></div>
         <div class="realm-name">${esc(R.name)}${R.bottleneck ? ` <span class="tag cur">${esc(W("bottleneck"))}</span>` : ""}</div>
+        ${d.career ? careerHtml(d.career) : ""}
         <div class="hero-title">第 ${d.lap} 个${esc(W("lap"))} · ${d.batch.index ? `第 ${d.batch.index}/${d.batch.count} ${esc(W("batch"))}：${d.batch.boards.map(esc).join("、")}` : "本轮已圆满"}</div>
         <div class="row small muted" style="margin-top:8px"><span>${barLabel}</span><span class="spacer"></span><span>累计 ${d.xp}</span></div>
         ${bar(R.frac, R.ready ? "full" : "")}
@@ -1021,6 +1022,13 @@ function setsHtml(books) {
 // ------------------------------------------------------------ 修炼殿：两扇门（修炼 / 实战），没在做功课时显示
 let HALL = 'xiulian';            // xiulian 修炼（自选功法练习）| shizhan 实战（真题试炼，原试炼塔）
 let XL_BOARD = '';               // 修炼殿里选中的板块
+// 申论：当前单位、领导职务层次、直属领导（数据见 rpg/career.py，文件 训练/职务履历.md）
+function careerHtml(C) {
+  const L = C.leader;
+  return `<div class="hero-unit small">${esc(C.unit)} · ${esc(C.level)}</div>
+    ${L ? `<div class="hero-leader small">直属领导：<b>${esc(L.name)}</b>（${esc(L.title)}${L.rank ? " · " + esc(L.rank) : ""}）</div>` : ""}
+    ${C.story ? `<details class="fold career-story"><summary>📖 这一段的背景</summary><p class="small muted">${esc(C.story)}</p></details>` : ""}`;
+}
 async function hubHtml() {
   if (isSL()) return slHubHtml();
   const d = DASH || {};

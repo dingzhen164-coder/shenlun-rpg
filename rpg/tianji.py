@@ -538,7 +538,7 @@ def mark(g, kind, iid, body):
         ok = bool(q.get("answer")) and choice == q["answer"]
         pr["quiz"][str(q["key"])] = {"a": choice, "ok": ok, "d": g.t, "n": (old or {}).get("n", 0) + 1}
         if not old:                       # 每道题第一次作答发修为（再练不发）
-            ev = g._award(g.rules.xp("实战答对") if ok else g.rules.xp("实战答错"), "bank", "政治理论", "tianji:%s:%s" % (iid, q["key"]), ok,
+            ev = g._award(g.rules.xp("实战答对") if ok else g.rules.xp("实战答错"), "bank", g.news_board(), "tianji:%s:%s" % (iid, q["key"]), ok,
                           "天机简报 · %s 第%s题" % (data["title"], q["no"]))
     if body.get("reset"):
         part = body["reset"]
@@ -566,7 +566,7 @@ def delete(g, kind, iid):
 
 
 def forgot_cards(g, kind, iid):
-    """消化清单里没记住的空 → 玉简（填空），放进 政治理论::天机简报 简匣；一个空一枚，已经做过的不重复"""
+    """消化清单里没记住的空 → 玉简（填空），放进 <本科目的时政模块>::天机简报 简匣（行测 = 政治理论，申论 = 综合分析）；一个空一枚，已经做过的不重复"""
     from . import cards
     data = load(g.paths, kind, iid)
     pr = progress_of(g, kind, iid)
@@ -587,8 +587,9 @@ def forgot_cards(g, kind, iid):
             made.add(key)
     if not items:
         return {"added": 0}
-    r = cards.add_many(g, "政治理论::天机简报", items)
+    r = cards.add_many(g, "%s::天机简报" % g.news_board(), items)
     pr["carded"] = sorted(made)
+    r["deck"] = "%s › 天机简报" % g.news_board()
     return r
 
 

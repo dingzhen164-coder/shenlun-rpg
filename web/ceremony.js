@@ -126,7 +126,17 @@
   }
 
   // 境界提升：大境界（含渡劫）配大段文案；小境界一句
+  // 申论：晋升 / 小职级提升 = 一份任免通知（职务、职级、单位、直属领导、这一段的背景）
+  function appointment(e) {
+    const C = e.career, L = C.leader;
+    const stats = [[["综合评价", `${e.score} 分`], ["领导职务层次", C.level]]];
+    if (C.rank) stats[0].push(["职级", C.rank]);
+    if (L) stats.push([["直属领导", `${L.name}（${L.title}${L.rank ? " · " + L.rank : ""}）`]]);
+    const head = e.tribulation ? "经组织考察，你通过了晋升考核。" : "经研究，同意你的岗位调整。";
+    return show({ title: C.level, subtitle: `${C.unit} · ${C.post}`, text: `${head}${C.story || ""}`, stats, tone: e.tribulation ? "gold" : "jade" });
+  }
   function realm(e) {
+    if (e.career && isGC()) return appointment(e);
     const big = stageOf(e.big_name || e.name);
     const major = !!e.major;
     const gc = isGC(), RT = gc ? REALM_TEXT_GC : REALM_TEXT, MN = gc ? MINOR_GC : MINOR;

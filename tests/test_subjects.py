@@ -237,6 +237,13 @@ class SubjectTest(unittest.TestCase):
             srv.shutdown()
             srv.server_close()
 
+    def test_guanchang_page_color_does_not_cover_background_image(self):
+        """回归：申论的页面底色规则优先级高过“选了背景图时 body 透明”，背景图就看不见了（2.2.2 修）"""
+        css = (paths.WEB_DIR / "style.css").read_text(encoding="utf-8")
+        self.assertIn("html.theme-gc body.has-bg { background: transparent; }", css)
+        self.assertLess(css.index("html.theme-gc, html.theme-gc body { background: var(--bg); }"),
+                        css.index("html.theme-gc body.has-bg { background: transparent; }"))
+
     # ---------------------------------------------------------- 措辞改写
     def test_wording_only_in_shenlun_web_files(self):
         raw = "每日修炼 · 斩心魔 · 玉简 · 行测板块".encode("utf-8")

@@ -25,6 +25,7 @@
 | 科目表（库路径、风格、功能开关）、当前科目 | `rpg/subjects.py`；设置里切换 `/api/subject` |
 | 找库、本机设置、每个科目的默认文件 | `rpg/paths.py`（`find_vault(subject)`、`Paths(vault, subject)`、`load_settings`） |
 | 规则键、规则别名（申论官场叫法 → 标准键）、默认分批 / 题型 | `rpg/config.py`（改规则要同步 `defaults/规则.md` 和 `defaults/申论/规则.md`；有测试检查申论文件的键都认识） |
+| 申论的仕途（单位、岗位、职级、背景、直属领导；导师随阶段切换）：数据 `defaults/申论/职务履历.md`（用户的在 `训练/职务履历.md`），解析与取值 `rpg/career.py`，引擎接入 `engine.realm_label / career_info / _apply_career` |
 | 风格名词（修仙 / 玄幻 / 官场）、职级、专长名 | `rpg/themes.py`、`rpg/themes_guanchang.py` |
 | 申论科目下网页和提示词里的措辞改写 | `rpg/wording.py`（`MAP`、`WEB_EXTRA`；只改程序写的字，不改用户内容） |
 | 游戏规则逻辑（政绩、职级、打卡、周例会、批改成绩计入）| `rpg/engine.py`（`on_grade`、`_grade_accuracy`） |

@@ -149,6 +149,7 @@ class Paths:
         self.rules = self.train / "规则.md" if vault else None
         self.persona = self.train / "角色设定.md" if vault else None
         self.lines = self.train / "台词库.md" if vault else None
+        self.career = self.train / "职务履历.md" if vault else None   # 申论：各阶段的单位、岗位、职级、领导（rpg/career.py）
         self.rubrics = self.train / "采分点" if vault else None      # 申论：每题一个采分点文件
         self.materials = self.train / "资料" if vault else None      # 申论：导入的真题解析文档
         self.reviews = self.train / "作答" if vault else None        # 申论：每次批改的复盘
@@ -187,7 +188,7 @@ class Paths:
             with open(quotes, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write((self.defaults_dir / "语录.md").read_text(encoding="utf-8"))
         upgraded = []
-        for name in (("规则.md", "角色设定.md", "台词库.md") if shen else ("规则.md", "角色设定.md", "台词库.md", "台词库·玄幻.md")):
+        for name in (("规则.md", "角色设定.md", "台词库.md", "职务履历.md") if shen else ("规则.md", "角色设定.md", "台词库.md", "台词库·玄幻.md")):
             dst = self.train / name
             src = self.defaults_dir / name
             if dst.exists():
