@@ -58,6 +58,20 @@ class StudyCardTest(unittest.TestCase):
         self.assertEqual(tick(510)['seconds'],25)
         self.save(card=CARD);self.assertEqual(bank.answer_get(self.p,self.qid)['seconds'],25)
         self.assertEqual(tick(999)['seconds'],25)
+    def test_material_marks_independent_confirmed_answer_and_validation(self):
+        marks={'a'*64:{'width':800,'height':300,'strokes':[{'tool':'pen','width':3,'points':[[10,20],[40,50]]}]}}
+        d=self.save(card=CARD,confirm_handwriting=True,material_marks=marks)
+        confirmed=d['confirmed_card_hash']
+        changed=copy.deepcopy(marks);changed['a'*64]['strokes'][0]['tool']='highlight'
+        d=self.save(material_marks=changed)
+        self.assertEqual(d['material_marks'],changed);self.assertEqual(d['confirmed_card_hash'],confirmed)
+        self.assertEqual(self.save()['material_marks'],changed)
+        for bad in [None,{'wrong':marks['a'*64]},dict(marks,**{'b'*64:{'width':801,'height':300,'strokes':[]}})]:
+            with self.assertRaises(bank.BankError):self.save(material_marks=bad)
+        changed['a'*64]['strokes'][0]['points'][0][1]=float('nan')
+        with self.assertRaises(bank.BankError):self.save(material_marks=changed)
+        self.assertEqual(bank.answer_get(self.p,self.qid)['material_marks'],d['material_marks'])
+
     def test_ocr_transcription_and_stale_result(self):
         d=self.save(card=CARD)
         png=b'\x89PNG\r\n\x1a\n'+b'\0'*8+(1040).to_bytes(4,'big')+(560).to_bytes(4,'big')

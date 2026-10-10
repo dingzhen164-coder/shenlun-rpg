@@ -2027,3 +2027,32 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .sl-card-expanded { position: fixed; z-index: 2000; inset: 12px; overflow-y: auto; margin: 0; background: var(--panel); }
 .sl-card-expanded .sl-card-tools { position: sticky; top: 0; z-index: 1; padding: 8px 0; background: var(--panel); }
 .sl-card-expanded .sl-card-paper { max-width: 1040px; margin: 10px auto; }
+
+/* 2.6.1：申论专注作答，材料与答题卡占满窗口。 */
+html.in-sl-exam .topbar, html.in-sl-exam #banner, html.in-sl-exam #quoteLayer { display: none !important; }
+html.in-sl-exam main { max-width: none; width:100%; margin:0; padding:10px; box-sizing:border-box; }
+html.in-sl-exam .sl-exam-heading { position:sticky; top:0; z-index:15; margin:0 0 10px; padding:10px 16px; background:var(--panel); }
+.sl-exam-heading .sl-task-scroll { max-height:100px; overflow:auto; }
+.sl-exam-heading .sl-stem { margin:8px 0; font-size:16px; line-height:1.65; }
+html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); margin:0; gap:12px; height:calc(100dvh - 172px); min-height:420px; }
+html.in-sl-exam .sl-materials, html.in-sl-exam .sl-writing { min-width:0; max-height:none; height:100%; box-sizing:border-box; margin:0; background:var(--panel); }
+html.in-sl-exam .sl-materials { display:flex; flex-direction:column; overflow:hidden; padding:12px; }
+html.in-sl-exam .sl-writing { overflow:auto; padding:12px; }
+.sl-material-toolbar { flex-shrink:0; border-bottom:1px solid var(--line); padding-bottom:8px; }
+.sl-material-toolbar h3 { margin:0 0 8px; }
+.sl-marks-tools { flex-wrap:wrap; gap:6px; }
+.sl-marks-tools button[aria-pressed="true"] { background:var(--accent); color:var(--bg); }
+.sl-material-scroll { flex:1; min-height:0; overflow:auto; padding:0 12px; overscroll-behavior:contain; }
+.sl-sheet-window { position:relative; }
+.sl-material-sheet { position:relative; width:800px; box-sizing:border-box; padding:18px 24px; transform-origin:top left; font:20px/1.8 sans-serif; }
+.sl-material-sheet .sl-material-text p { font-size:20px; line-height:36px; text-indent:40px; margin:0 0 16px; }
+.sl-material-ink { position:absolute; left:0; top:0; width:800px; touch-action:none; pointer-events:none; }
+html.in-sl-exam #slRes:empty { display:none; }
+html.in-sl-exam #slRes { margin-top:16px; }
+@media(max-width:900px) {
+  html.in-sl-exam .sl-full-grid { grid-template-columns:minmax(0,1fr); height:auto; min-height:0; }
+  html.in-sl-exam .sl-materials { height:48dvh; min-height:320px; }
+  html.in-sl-exam .sl-writing { height:65dvh; min-height:430px; }
+}
+
+html.in-sl-exam .sl-writing.sl-card-expanded { height:auto; }
