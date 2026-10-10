@@ -96,3 +96,5 @@ vX.Y.Z 已推送
 - 平板 App 沿用行测的包名 `com.xingce.xiuxian` 和签名钥匙 `android/xiuxian.keystore`，别改（改了已装的平板就不能覆盖升级）；局域网探测名 `xingce-rpg`（`rpg/lan.py` 的 ping）也别改。
 - `scripts/update-local.ps1`（PowerShell 更新命令）保留作为源码版 / 备用更新方式。
 - 注意 `.gitignore` 只忽略根目录的 `/data/`，`rpg/data/` 里的文件（更新记录等）必须提交。
+
+- 2.4.1 起，申论的所有领导默认都是女性；名字、人设、头像与台词须符合女性设定，第三人称用“她”。

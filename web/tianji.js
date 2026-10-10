@@ -129,6 +129,13 @@
   async function load() { LIST = await api("/api/tianji"); }
   async function render(v) {
     ROOT = v;
+    if (isSl()) {
+      CUR = null; TAB = "article";
+      v.innerHTML = '<div class="tj-hub"><div class="card tj-head"><h2>📅 每日文章</h2><span class="muted small">阅读、勾画与公务手账</span></div><div id="arRoot"></div></div>';
+      ARTICLES.mount(v.querySelector("#arRoot"));
+      return;
+    }
+    if (TAB === "article") TAB = store.get("xingce.tab", "month");
     if (CUR) return renderIssue();
     try { await load(); } catch (e) { showError(e); LIST = { month: [], topic: [] }; }
     v.innerHTML = hubHtml();
@@ -137,7 +144,7 @@
   function bindHub() {
     if (TAB === "article" && isSl() && window.ARTICLES) ARTICLES.mount(ROOT.querySelector("#arRoot"));
     const v = ROOT;
-    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = async () => { if (window.ARTICLES && !(await ARTICLES.close())) return; TAB = a.dataset.tab; store.set("tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
+    v.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = async () => { if (window.ARTICLES && !(await ARTICLES.close())) return; TAB = a.dataset.tab; store.set("tab", TAB); store.set("xingce.tab", TAB); v.innerHTML = hubHtml(); bindHub(); }));
     const file = v.querySelector("#tjFile");
     v.querySelectorAll("#tjImport, [data-import]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); file.click(); }));
     file.onchange = () => importFiles([...file.files]);
@@ -149,6 +156,7 @@
     hub.ondrop = (e) => { e.preventDefault(); drop.hidden = true; importFiles([...e.dataTransfer.files].filter((f) => /\.pdf$/i.test(f.name) || f.type === "application/pdf")); };
   }
   async function importFiles(files) {
+    if (isSl()) return;
     if (!files.length) return;
     for (const f of files) {
       const t = document.createElement("div");
@@ -167,6 +175,7 @@
 
   // ---------------------------------------------------------------- 一期
   async function open(kind, id, mode) {
+    if (isSl()) return;
     try {
       const r = await api("/api/tianji/get", { kind, id });
       CUR = Object.assign({ kind, id }, r);
