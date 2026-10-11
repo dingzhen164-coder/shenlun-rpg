@@ -1,9 +1,9 @@
 /* 行测法阵只在鼠标开启时出现；fixed透明图层不截获点击与触摸。 */
-body.xc-spirit-cursor,body.xc-spirit-cursor :is(a,button,summary,[role=button],[data-hall]) { cursor:var(--xc-pointer,auto); }
-body.xc-spirit-cursor :is(input,textarea,[contenteditable=true]) { cursor:text; }
-body.xc-spirit-cursor select { cursor:default; }
-body.xc-spirit-cursor :is(canvas,.nt-pages,.sl-material-sheet,.sl-writing-overlay) { cursor:auto; }
-body.xc-spirit-cursor :disabled { cursor:not-allowed; }
+body.xc-custom-pointer,body.xc-custom-pointer :is(a,button,summary,[role=button],[data-hall]) { cursor:var(--xc-pointer,auto); }
+body.xc-custom-pointer :is(input,textarea,[contenteditable=true]) { cursor:text; }
+body.xc-custom-pointer select { cursor:default; }
+body.xc-custom-pointer :is(canvas,.nt-pages,.sl-material-sheet,.sl-writing-overlay) { cursor:auto; }
+body.xc-custom-pointer :disabled { cursor:not-allowed; }
 .xc-cursor-effects { position:fixed; inset:0; z-index:100000; pointer-events:none; overflow:hidden; }
 .xc-cursor-effects * { pointer-events:none; }
 .xc-cursor-trail { position:absolute; height:2px; border-radius:3px; transform-origin:left center; background:linear-gradient(90deg,transparent,#23e1f6); box-shadow:0 0 5px #1fc8e7; animation:xc-trail-fade .4s ease-out forwards; }
