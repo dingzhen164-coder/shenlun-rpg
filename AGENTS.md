@@ -14,7 +14,7 @@
 5. 结构：`rpg/`（后端）、`web/`（前端）、`defaults/`（首次启动写进库里的默认规则和台词；申论的在 `defaults/申论/`）。**科目差异靠 `rpg/subjects.py` 的科目表和 `Game.subject`**：申论专有代码放 `rpg/shenlun*.py`、`web/shenlun.js`、`web/contest_sl.js`；行测专有（题库、试炼塔、成语录、模考）在申论下用 `g.subject` 判断后跳过，网页用 `DASH.features` / `isSL()` 隐藏。两个科目共用一套**标准规则键**（行测叫法），申论规则文件的官场叫法在 `config.ALIASES_SHENLUN` 翻回标准键；风格名词在 `rpg/themes.py`（修仙、玄幻）和 `rpg/themes_guanchang.py`（官场）。
 6. 不要提交真题原文、参考答案、粉笔库数据；不要复制 GPL 项目（shenlun-review-pro）的代码或文本。
 7. 中文注释，风格与 xingce-rpg 一致；新增模块在文件顶部写清“做什么、数据格式、谁调用它”。
-8. 改完运行 `python -m unittest discover -s tests -v`；改了规则或数据结构，同步更新 DESIGN.md。
+8. 日常开发做相关快速检查并推送开发分支；用户要求统一验证发布时，运行 `python -m unittest discover -s tests -v`、浏览器与三端验证。改了规则或数据结构，同步更新 DESIGN.md。
 9. 每次升版本改 `rpg/version.py`，并在 `rpg/data/changelog.md` 顶部写一节（有测试检查两者一致）。
 10. 批量替换脚本先断言“只匹配一次”；新增 CSS 类名先搜有没有冲突；涉及界面要截图自查（见 CLAUDE.md 第 3 节）。
 

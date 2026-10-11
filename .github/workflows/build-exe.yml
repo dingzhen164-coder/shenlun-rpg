@@ -1,14 +1,14 @@
 # 改 rpg/version.py 的版本号推到 main → 在 Windows 上打包 公考模拟器.exe、在 Linux 上打包平板 App gongkao-simulator.apk、
 # 在 Mac 上打包 公考模拟器.app（Apple 芯片，gongkao-simulator-mac.zip），
 # 一起发到 Releases（tag v<版本>）。一个程序里有两个科目（申论官途 / 行测修仙传）。
-# 推开发分支时也会跑一遍测试和打包来验证，但只有 main 才发 Release。
+# 普通开发分支只积累代码；validate/**在用户要求统一验证时运行测试/三端构建，仅main发布Release。
 # 平板 App 沿用行测时的包名 com.xingce.xiuxian 和签名钥匙（android/xiuxian.keystore），已装的平板才能直接覆盖升级。
 # 程序里「设置 → 🆕 版本与更新 → 检查更新」读的就是这里发的 Release
 name: build-exe
 
 on:
   push:
-    branches: [main, claude/dazzling-fermat-0n9kbc]
+    branches: [main, 'validate/**']
     paths: [rpg/version.py, .github/workflows/build-exe.yml]
   workflow_dispatch:
 
