@@ -163,6 +163,7 @@ function applyTheme() {
   document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
   document.querySelectorAll("#nav a").forEach((a) => (a.textContent = W("nav." + a.dataset.view)));
   if(isSL())window.SL_UI?.chrome();
+  window.SL_CURSOR?.sync();
 }
 
 async function refresh() {
@@ -552,7 +553,7 @@ const views = {
     const cp = chatPrefs();
     const schedule=await api('/api/study/schedule',{});
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return (await DEVICE.html()) + AMB.settingsHtml() + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
+    return (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():'') + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
       <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
         <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
       <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
@@ -1511,6 +1512,7 @@ function bindSettings() {
     $("#cResetR").onclick = () => { $("#cwR").value = CHAT_DEF.w; $("#chR").value = CHAT_DEF.h; $("#csideR").checked = CHAT_DEF.side; $("#cfR").value = CHAT_DEF.fs; upd(); };
   }
   AMB.bindSettings(showError);
+  window.SL_CURSOR?.bind();
   document.querySelectorAll("button[data-subject]").forEach((b) => (b.onclick = async () => {
     if (b.dataset.subject === DASH.subject) return;
     try { await api("/api/subject", { subject: b.dataset.subject }); location.reload(); } catch (e) { showError(e); }
