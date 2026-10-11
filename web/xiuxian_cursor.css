@@ -1,0 +1,18 @@
+/* 行测法阵只在鼠标开启时出现；fixed透明图层不截获点击与触摸。 */
+body.xc-spirit-cursor,body.xc-spirit-cursor :is(a,button,summary,[role=button],[data-hall]) { cursor:var(--xc-pointer,auto); }
+body.xc-spirit-cursor :is(input,textarea,[contenteditable=true]) { cursor:text; }
+body.xc-spirit-cursor select { cursor:default; }
+body.xc-spirit-cursor :is(canvas,.nt-pages,.sl-material-sheet,.sl-writing-overlay) { cursor:auto; }
+body.xc-spirit-cursor :disabled { cursor:not-allowed; }
+.xc-cursor-effects { position:fixed; inset:0; z-index:100000; pointer-events:none; overflow:hidden; }
+.xc-cursor-effects * { pointer-events:none; }
+.xc-cursor-trail { position:absolute; height:2px; border-radius:3px; transform-origin:left center; background:linear-gradient(90deg,transparent,#23e1f6); box-shadow:0 0 5px #1fc8e7; animation:xc-trail-fade .4s ease-out forwards; }
+.xc-cursor-array { position:absolute; transform:translate(-50%,-50%); animation:xc-array-fade var(--xc-duration) ease-out forwards; }
+.xc-cursor-array img { position:absolute; inset:0; width:100%; height:100%; filter:brightness(1.3) drop-shadow(0 0 4px #22d7ee); }
+.xc-array-inner { animation:xc-array-inner var(--xc-duration) ease-out forwards; }
+.xc-array-outer { animation:xc-array-outer var(--xc-duration) ease-out forwards; }
+@keyframes xc-trail-fade { from { opacity:.7; } to { opacity:0; } }
+@keyframes xc-array-fade { 0% { opacity:0; scale:.3; } 20% { opacity:1; scale:1; } 70% { opacity:.65; } 100% { opacity:0; scale:1.15; } }
+@keyframes xc-array-inner { from { rotate:0deg; } to { rotate:90deg; } }
+@keyframes xc-array-outer { from { rotate:0deg; } to { rotate:-35deg; } }
+@media(prefers-reduced-motion:reduce) { .xc-cursor-effects { display:none; } }

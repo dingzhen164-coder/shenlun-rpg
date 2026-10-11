@@ -1751,3 +1751,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._handle("POST")
 
+
+# 本机导入鼠标素材；仅读文件内容，不执行插件、不写入用户库。
+def cursor_import(body):
+    from .cursor_assets import read_pack
+    return read_pack(body)
+
+
+ROUTES[("POST", "/api/cursor/import")] = cursor_import
