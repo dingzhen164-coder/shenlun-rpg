@@ -27,6 +27,26 @@ async function main(){
   for(const icon of manifest.icons)assert.equal((await page.request.get(base+'/'+icon.src)).status(),200);
   assert.ok((await page.locator('body').textContent()).includes('gongkao-simulator-mac.zip')===false,'源码运行不显示Mac专用提示');
   if(subject==='申论'){
+   assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('sl-office-cursor')));
+   const cursorToggle=page.locator('#slCursorToggle');
+   await cursorToggle.evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
+   for(const theme of ['light','dark']){
+    await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+    await page.locator('.sl-ui-masthead h1').click();await page.locator('.sl-cursor-stamp').waitFor();
+    await page.locator('.sl-cursor-stamp').evaluate(el=>el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;}));
+    assert.equal(await page.locator('.sl-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');
+    await page.screenshot({path:path.join(out,`sl-cursor-desktop-${theme}.png`),animations:'allow'});
+    await page.evaluate(()=>SL_CURSOR.sync());
+   }
+   await page.evaluate(()=>document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0})));
+   assert.equal(await page.locator('.sl-cursor-stamp').count(),0);
+   await page.evaluate(()=>document.querySelector('.sl-ui-masthead h1').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0})));
+   assert.equal(await page.locator('.sl-cursor-stamp').count(),0);
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.sl-ui-masthead h1').click();assert.equal(await page.locator('.sl-cursor-stamp').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
+   await cursorToggle.uncheck();assert.ok(await page.locator('body').evaluate(el=>!el.classList.contains('sl-office-cursor')));
+   await page.reload();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='申论');
+   assert.ok(await page.locator('body').evaluate(el=>!el.classList.contains('sl-office-cursor')));await settings();
+   await page.locator('#slCursorToggle').evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});await page.locator('#slCursorToggle').check();
    for(const asset of ['hall','archive','night']){
     const response=await page.request.get(base+'/assets/shenlun/'+asset+'.webp');assert.equal(response.status(),200);
     assert.ok(await page.evaluate(src=>new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im.naturalWidth>1000);im.onerror=()=>resolve(false);im.src=src;}),base+'/assets/shenlun/'+asset+'.webp'));
@@ -60,7 +80,7 @@ async function main(){
   }
   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,`brand-${subject==='申论'?'shenlun':'xingce'}-${name}-${theme}.png`),fullPage:false});}}
  }
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:36,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗','申论七页整体视觉','内置背景离线解码','导航避让']},null,2));console.log('BRAND-UI-OK');
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:38,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗','申论七页整体视觉','内置背景离线解码','导航避让','公文鼠标点击透传/触摸避让/输入避让/减少动画/开关重启']},null,2));console.log('BRAND-UI-OK');
  }finally{if(browser)await browser.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

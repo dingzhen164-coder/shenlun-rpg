@@ -411,3 +411,7 @@ web/assets/shenlun/{hall,archive,night}.webp是本轮生成的原创背景转编
 ## 20. 台头分类导航（2.8.1）
 
 SL_UI.mount将办理hall-gates、手账nt-tabs及档案lib-tabs原节点移至标题后方的sl-ui-section-tabs，保留事件/选择状态；不复制入口，不改用户正文。手账首次插入及左栏重绘后接入台头；收起按钮留在左栏，收起状态仍可从台头调阅并展开。布局在窄屏换行，键盘Enter/Space可操作办理入口，明暗共用蓝底金色选中。作答/对话专注模式继续跳过台头；行测保持原布局，数据结构不变。
+
+## 21. 公文批示鼠标（2.8.2）
+
+shenlun_cursor.js/css是原创矢量钢笔指针和短暂CSS墨迹/朱红阅章，不使用第三方Mod素材。SL_CURSOR由applyTheme同步，仅guantu及any-pointer:fine启用；localStorage sl-office-cursor记本机开关，默认开。pointer事件passive旁观，只有mouse左键触发，输入/画布/材料手写区/禁用控件不产生点击章，减少动画不产生特效。图层aria-hidden、pointer-events:none，最多20节点，650ms清除，blur/pagehide/leave清空；不写训练数据/笔迹、不影响评分。

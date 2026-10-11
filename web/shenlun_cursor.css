@@ -1,0 +1,14 @@
+/* 原创钢笔矢量指针，32px以内；热点为左下笔尖。图层只展示，不接收任何事件。 */
+body.sl-office-cursor,body.sl-office-cursor :is(a,button,summary,[role=button],[data-hall]) { cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M5 27L8 17 23 2 29 8 14 23z' fill='%23fff9e8' stroke='%23233e52' stroke-width='1.3'/%3E%3Cpath d='M8 17L14 23 24 13 18 7z' fill='%23233e52'/%3E%3Cpath d='M18 7L24 13M8 17L5 27 14 23M5 27L11 21' fill='none' stroke='%23bd9d66' stroke-width='1.3'/%3E%3Ccircle cx='11' cy='21' r='1.1' fill='%23a52e33'/%3E%3C/svg%3E") 5 27,auto; }
+body.sl-office-cursor :is(input,textarea,[contenteditable=true]) { cursor:text; }
+body.sl-office-cursor select { cursor:default; }
+body.sl-office-cursor :is(canvas,.nt-pages,.sl-material-sheet,.sl-writing-overlay) { cursor:auto; }
+body.sl-office-cursor :disabled { cursor:not-allowed; }
+.sl-cursor-effects { position:fixed; inset:0; z-index:100000; pointer-events:none; overflow:hidden; }
+.sl-cursor-effects * { pointer-events:none; position:absolute; }
+.sl-cursor-ink { height:1.5px; background:#496176; border-radius:2px; transform-origin:left center; animation:sl-cursor-ink-fade .4s ease-out forwards; }
+html[data-theme=dark] .sl-cursor-ink { background:#c5b286; }
+.sl-cursor-stamp { width:40px; height:40px; display:grid; place-items:center; border:3px double #b23b40; border-radius:3px; color:#b23b40; background:rgba(255,248,231,.8); font:700 25px/1 STSong,SimSun,serif; transform:translate(-50%,-50%) rotate(-12deg); box-shadow:0 0 0 6px rgba(178,59,64,.06); animation:sl-cursor-stamp-fade .6s ease-out forwards; }
+@keyframes sl-cursor-ink-fade { from { opacity:.4; } to { opacity:0; } }
+@keyframes sl-cursor-stamp-fade { 0% { opacity:0; scale:.7; } 20% { opacity:.85; scale:1; } 65% { opacity:.5; } 100% { opacity:0; scale:1.06; } }
+@media(prefers-reduced-motion:reduce) { .sl-cursor-effects { display:none; } }
