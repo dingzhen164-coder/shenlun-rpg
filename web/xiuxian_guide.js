@@ -41,6 +41,13 @@
     panel.innerHTML = `<img class="xc-guide-panel-portrait" src="${portrait}" alt=""><div class="xc-guide-paper"><div class="xc-guide-dialogue-head"><b>清禾师尊 <small>沈清禾</small></b><button data-xc-guide="close" aria-label="收起师尊对话">×</button></div><p class="xc-guide-spoken" aria-hidden="true"></p><p class="xc-guide-sr" aria-live="polite"></p><button class="xc-guide-reveal" data-xc-guide="reveal">立即显示全文</button>${options()}<div class="xc-guide-followup"></div></div>`;
     document.body.appendChild(panel); speak(greeting(data)); panel.querySelector('[data-xc-guide="close"]').focus();
   }
+  function show(text, controls) {
+    if (data?.subject !== '行测') return;
+    if (!panel) open();
+    panel.querySelector('.xc-guide-options').hidden = true;
+    panel.querySelector('.xc-guide-followup').innerHTML = controls;
+    speak(text);
+  }
   function mount(d, view, handlers) {
     data = d; actions = handlers; close();
     document.getElementById('xcGuideAvatar')?.remove();
@@ -65,5 +72,5 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel) { close(true); e.preventDefault(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) reveal(); });
-  window.XC_GUIDE = { homeHtml, mount, close, greeting, nextTask };
+  window.XC_GUIDE = { homeHtml, mount, close, greeting, nextTask, show };
 })();

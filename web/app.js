@@ -440,7 +440,7 @@ const views = {
     const retreat = d.retreat ? `<div class="card retreat row"><b>🧘 ${esc(W("retreat"))}中：${esc(d.retreat.board)}</b> <span id="retreatLeft" class="muted"></span>
         <span class="spacer"></span><button class="small" id="retreatEnd">${esc(W("retreat_end"))}</button></div>` : "";
     return `
-    ${!isSL() && window.XC_GUIDE ? XC_GUIDE.homeHtml(d) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
+    ${!isSL() && window.XC_GUIDE ? (window.XC_SECT ? XC_SECT.homeHtml(d) : XC_GUIDE.homeHtml(d)) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
     ${retreat}
     <div class="card hero">
       <div class="avatar">${avatar}</div>
@@ -904,6 +904,20 @@ function bindHome() {
 }
 
 function mountGuide() {
+  window.XC_SECT?.mount(DASH, {
+    guide: () => document.querySelector('[data-xc-guide="open"]')?.click(),
+    study: () => { HALL = "xiulian"; go("train"); },
+    library: () => go("skeleton"),
+    tower: () => { HALL = "shizhan"; go("train"); },
+    wrong: () => {
+      const task = DASH?.plan?.tasks?.find(t => t.type === "wrong" && !t.done);
+      if (task) startTask({ task_id: task.id }); else go("log");
+    },
+    contest: () => go("contest"),
+    schedule: () => go("settings"),
+    saveStory: chapter => api("/api/sect/story", { chapter }),
+    refresh: () => render(), error: showError,
+  });
   window.XC_GUIDE?.mount(DASH, VIEW, {
     teach: () => go("skeleton"),
     study: () => {
