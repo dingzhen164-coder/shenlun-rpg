@@ -81,6 +81,7 @@ async function main(){
   if(subject==='行测'){
    await page.locator('#nav [data-view="home"]').click();await page.locator('.xc-sect-scene').waitFor();
    await page.waitForFunction(()=>document.querySelector('.xc-sect-master img')?.naturalWidth===1024);
+   await page.waitForFunction(()=>document.querySelector('.xc-sect-map-image')?.naturalWidth===1672);
    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280],['phone',390,844]]){
     await page.setViewportSize({width,height});
     for(const theme of ['light','dark']){
@@ -88,6 +89,7 @@ async function main(){
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
      await page.locator('.xc-sect-master').click();await page.locator('.xc-guide-dialogue').waitFor();
      await page.locator('[data-xc-guide="reveal"]').click();
+     assert.ok(await page.locator('.xc-guide-bust').evaluate(el=>el.scrollHeight>el.clientHeight),'上半身框裁去下半身');
      assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
      await page.screenshot({path:path.join(out,`xc-guide-${name}-${theme}.png`),animations:'disabled'});
      await page.keyboard.press('Escape');assert.equal(await page.locator('.xc-guide-dialogue').count(),0);
@@ -104,6 +106,15 @@ async function main(){
    await page.reload();await page.locator('.xc-sect-scene').waitFor();
    await page.locator('[data-xc-sect="story"]').click();assert.ok((await page.locator('[data-xc-chapter="arrival"]').textContent()).includes('已读'));
    await page.keyboard.press('Escape');
+   await page.locator('[data-xc-sect="study"]').click();
+   for(const room of ['yan','shu','li','zi','chang']){
+    await page.locator(`.xc-guide-dialogue [data-xc-room="${room}"]`).click();
+    await page.waitForFunction(()=>document.querySelector('.xc-guide-dialogue .xc-sect-room-image')?.naturalWidth===1672);
+    assert.equal(await page.locator(`.xc-guide-dialogue [data-xc-room="${room}"]`).getAttribute('aria-pressed'),'true');
+   }
+   await page.locator('[data-xc-sect="enter"]').click();await page.locator('.xc-sect-chamber').waitFor();
+   assert.ok((await page.locator('.xc-sect-room-image').getAttribute('src')).endsWith('chang.webp'));
+   await page.locator('#nav [data-view="home"]').click();await page.locator('.xc-sect-scene').waitFor();
    await page.locator('[data-xc-sect="tower"]').click();await page.locator('#xcGuideAvatar').waitFor();
    assert.equal(await page.evaluate(()=>HALL),'shizhan');
    await page.setViewportSize({width:1280,height:860});await settings();

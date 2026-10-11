@@ -1083,7 +1083,7 @@ async function hubHtml() {
     <div class="gate ${HALL === 'shizhan' ? 'on' : ''}" data-hall="shizhan"><div class="gate-cloud"></div><div class="gate-icon">⚔</div>
       <div class="gate-name">实 战</div><div class="gate-sub">试炼塔 · 真题成套</div><div class="gate-stat">${tower ? (tower.summit ? '百层已登顶' : `正在攀登第 ${tower.current} 层`) : '真题试炼'}</div></div></div>`;
   const body = HALL === 'shizhan' ? await shizhanHtml() : await xiulianHtml();
-  return gates + `<div class="hall-body">${body}</div>`;
+  return (HALL === "xiulian" && window.XC_SECT ? XC_SECT.chamberHtml() : "") + gates + `<div class="hall-body">${body}</div>`;
 }
 
 // 申论：办理（便笺、脉络图）+ 实操（作答，按采分点批改，web/shenlun.js）

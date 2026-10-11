@@ -16,3 +16,12 @@ html.drawing .xc-guide-avatar,html.in-notes .xc-guide-avatar,body.guantu .xc-gui
 html[data-theme="dark"] .xc-guide-scene{background:linear-gradient(130deg,#263c36,#3c5147);color:#eee5cc}html[data-theme="dark"] .xc-guide-eyebrow{color:#c6d8c3}html[data-theme="dark"] .xc-guide-home-dialogue{background:#263f35;color:#ece6d4}
 @media(max-width:650px){.xc-guide-scene{grid-template-columns:34% 1fr;min-height:390px}.xc-guide-intro{padding:20px 12px 12px 2px}.xc-guide-intro h2{font-size:24px;letter-spacing:3px}.xc-guide-eyebrow{letter-spacing:1px;font-size:10px}.xc-guide-intro>p{font-size:12px;margin-bottom:12px}.xc-guide-options{gap:6px}.xc-guide-options button{padding:9px 7px;min-height:58px}.xc-guide-options b{font-size:13px;letter-spacing:0}.xc-guide-options small{font-size:10px}.xc-guide-home-dialogue{grid-column:1 / 3;margin:0 12px 12px;padding:12px}.xc-guide-portrait{grid-row:1}.xc-guide-dialogue{grid-template-columns:85px minmax(0,1fr);width:calc(100vw - 16px)}.xc-guide-paper{padding:14px}.xc-guide-panel-portrait{max-height:220px}.xc-guide-spoken{font-size:14px}.xc-guide-dialogue-head{font-size:17px}.xc-guide-dialogue-head small{display:none}}
 @media(prefers-reduced-motion:reduce){.xc-guide-portrait img{transition:none}}
+/* 2.8.6：上半身框只裁显示区域，原立绘与透明度不改。 */
+.xc-guide-dialogue{grid-template-columns:260px minmax(0,1fr);width:min(1080px,calc(100vw - 28px))}
+.xc-guide-bust{height:270px;overflow:hidden;align-self:end;position:relative;border-radius:140px 140px 12px 12px;background:radial-gradient(ellipse at 50% 55%,#dce5cd88,transparent 70%);filter:drop-shadow(0 2px 6px #1b302f55);pointer-events:none}
+.xc-guide-bust .xc-guide-panel-portrait{position:absolute;width:130%;max-height:none;height:auto;left:-15%;top:0;object-fit:unset;filter:none}
+.xc-guide-paper{border-radius:4px 14px 14px 4px;background:linear-gradient(115deg,#ede6cf,#faf4df 60%,#e9dfbf);border-color:#477866;box-shadow:inset 0 0 18px #b4a37433,0 8px 45px #10291f66}
+@media(max-width:650px){.xc-guide-dialogue{grid-template-columns:105px minmax(0,1fr);width:calc(100vw - 16px)}.xc-guide-bust{height:135px}.xc-guide-bust .xc-guide-panel-portrait{width:150%;left:-25%;top:0}.xc-guide-paper{padding:14px}.xc-guide-spoken{min-height:70px}}
+@media(max-height:560px){.xc-guide-dialogue{grid-template-columns:150px minmax(0,1fr)}.xc-guide-bust{height:160px}}
+
+.xc-guide-bust{background-image:linear-gradient(#e4ecdc55,#c9d7bb33),url("assets/sect/bamboo.webp");background-size:cover;background-position:center}
