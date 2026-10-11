@@ -134,7 +134,20 @@ def dashboard(body):
                  subject=g.subject, subjects=[{"name": n, "brand": subjects.SUBJECTS[n]["brand"]} for n in subjects.NAMES],
                  features=subjects.SUBJECTS[g.subject]["features"],
                  other_device=g.store.heartbeat(), conflicts=g.store.conflicts())
+        from . import sect_story
+        d["sect"] = sect_story.view(g, d)
         return d
+
+
+def sect_story_read(body):
+    from . import sect_story
+    with open_game() as g:
+        d = g.dashboard()
+        d["plan"] = g.plan()
+        try:
+            return sect_story.mark_read(g, d, body.get("chapter"))
+        except ValueError as e:
+            raise ApiError(str(e))
 
 
 def tutor_greet(body):
@@ -943,6 +956,7 @@ def settings_test(body):
 
 ROUTES = {
     ("GET", "/api/dashboard"): dashboard,
+    ("POST", "/api/sect/story"): sect_story_read,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
     ("POST", "/api/theme"): theme_set,
     ("GET", "/api/subject"): subject_get,

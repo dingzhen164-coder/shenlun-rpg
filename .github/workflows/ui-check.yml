@@ -1,8 +1,8 @@
-# 用户要求的电脑/平板、明暗主题实测；截图供开发者合并前检查。
+# 批次统一验证：validate/**检查电脑/平板、明暗主题；普通开发推送和合并后不重复跑。
 name: article-ui-check
 on:
   push:
-    branches: [main, claude/dazzling-fermat-0n9kbc]
+    branches: ['validate/**']
     paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml']
   workflow_dispatch:
 permissions:
@@ -24,6 +24,10 @@ jobs:
           pip install pymupdf
           npm install --no-save playwright
           npx playwright install --with-deps chromium
+      - name: Sect and mentor quick regressions
+        run: |
+          node tests/test_guide.cjs
+          node tests/test_sect.cjs
       - name: Real article interactions and screenshots
         run: node tests/ui_articles.cjs
       - name: Real shenlun exam interactions and screenshots

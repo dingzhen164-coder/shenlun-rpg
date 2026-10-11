@@ -421,3 +421,27 @@ shenlun_cursor.js/css是原创矢量钢笔指针和短暂CSS墨迹/朱红阅章�
 xiuxian_cursor.js/css限xiuxian/xuanhuan+any-pointer:fine；默认原创SVG，参照用户提供WikiCursor金色指针/青蓝双层法阵意象重写网页事件，未复制DLL代码。localStorage xc-spirit-cursor={enabled,pointer,trail,click,size,duration}范围校验，xc-spirit-assets={pointer,inner,outer}为本机data:image/png;base64，未导入时用内置SVG。触摸、输入、画布、禁用控件、减少动画避让；passive事件和pointer-events:none图层，最多32节点，定时清除、blur/leave/pagehide清空，不计学习成绩。
 
 POST /api/cursor/import {zip:base64} → 三张PNG data URLs。cursor_assets.py仅内存读取≤2MB ZIP中的一个WikiCursor.dll，限制解压大小/资源数/PNG尺寸和CRC，识别32×32指针及两张方形法阵。不解压到文件系统、不执行DLL、不修改用户库；失败不覆盖旧素材。原包未提供分发授权，因此第三方图像只由用户本机导入，不提交GitHub/不随公开Release分发。
+
+## 23. 批量开发与统一发布（2026-10-11）
+
+用户明确改为每个需求完成先推开发分支，累计多个小版本后等明确发布指令再集中验证。普通开发推送不触发完整CI；validate/<version>-<sha>快照分支触发浏览器及三端开发验证，全部通过后合并main正式构建发布。UI已在同一代码快照验证，main不重复跑浏览器。保留workflow_dispatch作为手动入口；所有发布步骤继续仅在main执行。未发布中间版本属于开发记录，最终版本说明汇总本批改动，未改安装包时不提高当前客户端版本。
+
+## 24. 清禾师尊交互（2.8.4 开发记录）
+
+xiuxian_guide.js/css 只在行测挂载。沈清禾为引导师尊，不覆盖用户角色设定中的授业导师；闲谈使用内置台词，深入请教沿用原 chat 会话和实际导师名。主页立绘与四入口，对话纸笺逐字显示，立即显示/减少动画/切后台一次显示全文；导航和训练渲染清理计时器与对话。Escape/安卓返回先收起对话，恢复入口焦点；非模态纸笺不锁页面输入。首页无自动新 AI 请求。
+
+只读 dashboard.plan.tasks/redo，开始修炼选择首个未完成且非cards:all功课（卡片由修炼殿原入口处理），无待办进入修炼殿；复盘使用当天未完成wrong任务，无该任务去修仙录查看错题；不凭空建任务、猜弱点或计奖励。答题只留小头像，草稿/手札隐藏入口；申论不挂载。用户确认的透明PNG仅转为WebP压缩随程序离线分发，不改立绘；无需迁移存档。
+
+## 25. 青衡宗地图与故事（2.8.5 开发记录）
+
+sect_story.py由dashboard在已有面板计算后调用，新增sect={name,chapters,remaining,unread}。章节arrival/five_paths/tower/assembly/departure分别依据入宗、有效学习记录、题库首题、模考记录、考试前30天且有学习记录解锁；初始化items空状态不算学习。解锁和已读单独存在原存档sect_story={schema:1,unlocked:[id],read:[id]}，只补字段，原子保存/备份沿用Store；不修改经验、成绩、任务与存档schema，不引入独立文件同步冲突。解锁单向保留，阅读可以重播；POST /api/sect/story {chapter:id}校验科目和解锁条件，已读幂等，申论拒绝。跳过本章记已读；Esc只是关闭，不记已读。
+
+xiuxian_sect.js/css在行测首页显示原生SVG山水与七处建筑按钮；地图连接原路由，五脉对应言语/数量/判断/资料/常识，不改用户板块名称。桌面地图/窄屏建筑目录，键盘可用、减少动画关闭悬浮过渡；不自动播放剧情、不阻塞学习。宗门纪事借XC_GUIDE.show纸笺展示章节/分段/跳过与重读，阅读成功刷新面板；错误保留当前阅读并可重试。现有用户根据已有学习成果解锁，首次入门仍可自选阅读。申论页面与手写界面保持原样。
+
+场景外观不绑定学习状态，后续可以替换建筑或背景素材；本版没有洞府收藏、十层事件或同门功能。时间线沿用已有study_schedule.exam，不计算新的备考奖励。
+
+## 26. 上传场景与半身立绘（2.8.6 开发记录）
+
+web/assets/sect中map来自用户2026-10-12上传的山水地图/sect-court-v1.png；bamboo/yan/shu/li/zi/chang来自洞府图片包，原尺寸只转WebP离线分发，素材来源映射见同目录README。原ZIP和参考游戏截图不提交仓库。主地图保持原图比例、建筑位置牌签，窄屏目录叠加地图；无素材时保留SVG兜底。
+
+XC_GUIDE对话增加xc-guide-bust裁显示区域，原立绘不重新绘制或改透明度；桌面/手机/短横屏分别控制半身框，手写和训练仍默认仅小头像。bamboo用于清禾静室半身框背景。XC_SECT.chamberHtml显示五脉洞府；点击修炼殿先查看五脉，再进入原训练流程。场景选择localStorage xc-sect-room枚举yan/shu/li/zi/chang，仅本机喜好，不改变学习任务或实际板块。训练待机页复用洞府台头，真正答题页面不加入背景图；材料与笔迹、申论界面保持原样。
