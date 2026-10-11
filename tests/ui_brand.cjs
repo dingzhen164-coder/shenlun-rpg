@@ -79,6 +79,26 @@ async function main(){
    await page.setViewportSize({width:1280,height:860});await settings();
   }
   if(subject==='行测'){
+   await page.locator('#nav [data-view="home"]').click();await page.locator('.xc-guide-scene').waitFor();
+   await page.waitForFunction(()=>document.querySelector('.xc-guide-portrait img')?.naturalWidth===1024);
+   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280],['phone',390,844]]){
+    await page.setViewportSize({width,height});
+    for(const theme of ['light','dark']){
+     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+     await page.locator('.xc-guide-portrait').click();await page.locator('.xc-guide-dialogue').waitFor();
+     await page.locator('[data-xc-guide="reveal"]').click();
+     assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
+     await page.screenshot({path:path.join(out,`xc-guide-${name}-${theme}.png`),animations:'disabled'});
+     await page.keyboard.press('Escape');assert.equal(await page.locator('.xc-guide-dialogue').count(),0);
+    }
+   }
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.xc-guide-portrait').click();
+   assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
+   await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();await page.locator('#xcGuideAvatar').waitFor();
+   assert.equal(await page.locator('.xc-guide-scene').count(),0);
+   await page.setViewportSize({width:1280,height:860});await settings();
    assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('sl-office-cursor')));
    for(const file of ['pointer','inner','outer'])assert.equal((await page.request.get(base+'/assets/xiuxian-cursor/'+file+'.svg')).status(),200);
    await page.locator('#xcSize').evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
