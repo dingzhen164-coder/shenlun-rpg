@@ -1,5 +1,5 @@
 /* 真浏览器切换两科、检查统一标题/图标及安装清单，电脑平板明暗截图。 */
-const {chromium}=require('playwright'),{spawn}=require('node:child_process');
+const {chromium}=require('playwright'),{spawn,execFileSync}=require('node:child_process');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 async function main(){
  const out=path.resolve('ui-artifacts');fs.mkdirSync(out,{recursive:true});
@@ -78,9 +78,28 @@ async function main(){
    }
    await page.setViewportSize({width:1280,height:860});await settings();
   }
+  if(subject==='行测'){
+   assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('sl-office-cursor')));
+   for(const file of ['pointer','inner','outer'])assert.equal((await page.request.get(base+'/assets/xiuxian-cursor/'+file+'.svg')).status(),200);
+   await page.locator('#xcSize').evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
+   async function arrayShot(name){await page.locator('#view .card h3').first().click();await page.locator('.xc-cursor-array').waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('.xc-cursor-array img')].every(im=>im.complete&&im.naturalWidth>50));await page.locator('.xc-cursor-array').evaluate(el=>{for(const n of [el,...el.children])n.getAnimations().forEach(a=>{a.pause();a.currentTime=220;});});assert.equal(await page.locator('.xc-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');await page.screenshot({path:path.join(out,name+'.png'),animations:'allow'});await page.evaluate(()=>XC_CURSOR.sync());}
+   await page.locator('[data-xc-pref="pointer"]').uncheck();assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('xc-custom-pointer')));await page.locator('[data-xc-pref="pointer"]').check();
+   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-cursor-${name}-${theme}`);}}
+   await page.setViewportSize({width:1280,height:860});
+   await page.locator('[data-xc-pref="click"]').uncheck();await page.locator('.brand').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.locator('[data-xc-pref="click"]').check();
+   await page.evaluate(()=>{for(const [id,value] of [['xcSize','180'],['xcTime','1100']]){const b=document.getElementById(id);b.value=value;b.dispatchEvent(new Event('input',{bubbles:true}));}});
+   await page.evaluate(()=>{document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0}));document.querySelector('.brand').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0}));});assert.equal(await page.locator('.xc-cursor-array').count(),0);
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.brand').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
+   const zip=execFileSync(process.env.PYTHON||'python',['-c',"import sys;sys.path.insert(0,'tests');from test_cursor_assets import pack;sys.stdout.buffer.write(pack())"]);
+   await page.locator('#xcZip').setInputFiles({name:'cursor.zip',mimeType:'application/zip',buffer:zip});await page.waitForFunction(()=>document.querySelector('#xcAssetStatus')?.textContent==='已使用本机Mod素材');
+   for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-imported-desktop-${theme}`);}
+   await page.locator('[data-xc-pref="enabled"]').uncheck();await page.reload();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='行测');assert.ok(await page.locator('body').evaluate(el=>!el.classList.contains('xc-spirit-cursor')));await settings();
+   assert.equal(await page.locator('#xcAssetStatus').textContent(),'已使用本机Mod素材');await page.locator('#xcBuiltin').evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});await page.locator('#xcBuiltin').click();await page.locator('[data-xc-pref="enabled"]').check();
+   assert.equal(await page.locator('#xcSize').inputValue(),'180');assert.equal(await page.locator('#xcTime').inputValue(),'1100');
+  }
   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>{document.documentElement.dataset.theme=t;window.scrollTo(0,0);},theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,`brand-${subject==='申论'?'shenlun':'xingce'}-${name}-${theme}.png`),fullPage:false});}}
  }
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:38,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗','申论七页整体视觉','内置背景离线解码','导航避让','公文鼠标点击透传/触摸避让/输入避让/减少动画/开关重启']},null,2));console.log('BRAND-UI-OK');
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'brand-result.json'),JSON.stringify({passed:true,screenshots:44,checks:['两科切换','统一标题与科目标识','图标解码及清单链接','两科安装清单统一','电脑平板明暗','申论七页整体视觉','内置背景离线解码','导航避让','公文鼠标点击透传/触摸避让/输入避让/减少动画/开关重启','行测法阵明暗/本机ZIP导入解码/重启/关闭/恢复内置/两科隔离']},null,2));console.log('BRAND-UI-OK');
  }finally{if(browser)await browser.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

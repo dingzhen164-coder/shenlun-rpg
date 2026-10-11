@@ -415,3 +415,9 @@ SL_UI.mount将办理hall-gates、手账nt-tabs及档案lib-tabs原节点移至�
 ## 21. 公文批示鼠标（2.8.2）
 
 shenlun_cursor.js/css是原创矢量钢笔指针和短暂CSS墨迹/朱红阅章，不使用第三方Mod素材。SL_CURSOR由applyTheme同步，仅guantu及any-pointer:fine启用；localStorage sl-office-cursor记本机开关，默认开。pointer事件passive旁观，只有mouse左键触发，输入/画布/材料手写区/禁用控件不产生点击章，减少动画不产生特效。图层aria-hidden、pointer-events:none，最多20节点，650ms清除，blur/pagehide/leave清空；不写训练数据/笔迹、不影响评分。
+
+## 22. 行测灵光法阵与本机素材（2.8.3）
+
+xiuxian_cursor.js/css限xiuxian/xuanhuan+any-pointer:fine；默认原创SVG，参照用户提供WikiCursor金色指针/青蓝双层法阵意象重写网页事件，未复制DLL代码。localStorage xc-spirit-cursor={enabled,pointer,trail,click,size,duration}范围校验，xc-spirit-assets={pointer,inner,outer}为本机data:image/png;base64，未导入时用内置SVG。触摸、输入、画布、禁用控件、减少动画避让；passive事件和pointer-events:none图层，最多32节点，定时清除、blur/leave/pagehide清空，不计学习成绩。
+
+POST /api/cursor/import {zip:base64} → 三张PNG data URLs。cursor_assets.py仅内存读取≤2MB ZIP中的一个WikiCursor.dll，限制解压大小/资源数/PNG尺寸和CRC，识别32×32指针及两张方形法阵。不解压到文件系统、不执行DLL、不修改用户库；失败不覆盖旧素材。原包未提供分发授权，因此第三方图像只由用户本机导入，不提交GitHub/不随公开Release分发。
