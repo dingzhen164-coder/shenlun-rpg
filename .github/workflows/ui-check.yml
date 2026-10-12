@@ -35,6 +35,10 @@ jobs:
         run: node tests/ui_shenlun.cjs
       - name: Shared brand and two subject screenshots
         run: node tests/ui_brand.cjs
+      - name: Layout check (both subjects, desktop/tablet × light/dark; screenshots only on problems)
+        run: |
+          node tests/ui_layout_check.cjs --subject=申论
+          node tests/ui_layout_check.cjs --subject=行测
       - uses: actions/upload-artifact@v4
         if: always()
         with:
