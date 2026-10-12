@@ -51,8 +51,8 @@ let browser, page;
   await page.waitForTimeout(450);assert.equal(await page.locator('.narrative-dialog').count(),0);await page.unroute('**/api/narrative');
   await page.evaluate(()=>go('home'));await page.locator('[data-narrative="catalogue"]').first().waitFor();
   // 自定义地点在刷新后仍保留。
-  await page.evaluate(()=>go('settings'));await page.locator('[data-portal-x]').waitFor();
-  await page.locator('[data-portal-x]').fill('24');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();
+  await page.evaluate(()=>go('settings'));await page.locator('[data-portal-x]').waitFor({state:'attached'});await page.locator('[data-portal-x]').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});
+  await page.locator('[data-portal-selected]').selectOption('dwelling');await page.locator('[data-portal-x]').fill('24');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();
   await page.reload();await page.locator('[data-narrative="catalogue"]').first().waitFor();
   const layout=await page.evaluate(()=>JSON.parse(localStorage.getItem('scene-layout:'+DASH_REF().narrative.world.replace('office','guantu'))));
   assert.equal(layout.desktop.dwelling.x,24);

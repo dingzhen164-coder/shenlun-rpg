@@ -51,7 +51,7 @@ class JourneyTest(unittest.TestCase):
             journey.record(clone, 'card', token='second')
             end = self.act(clone, 'deliver', 'main:review')
             self.assertEqual(end['stage'], 2)
-            self.assertEqual(len(end['collection']), 3)
+            self.assertEqual(len(end['collection']), 4)
             self.assertNotEqual(initial['text'], end['text'])
             self.act(clone, 'place', 'main:study:reward', slot='desk')
             self.act(clone, 'place', 'main:ornament', slot='shelf')

@@ -6,7 +6,7 @@ async function main(){
  const server=spawn(process.env.PYTHON||'python',['tests/ui_brand_server.py'],{env:{...process.env,PYTHONIOENCODING:'utf-8'}});let logs='',browser;server.stderr.on('data',b=>logs+=b);
  try{
  const base=await new Promise((resolve,reject)=>{let t='';const timer=setTimeout(()=>reject(Error(logs)),20000);server.stdout.on('data',b=>{t+=b;const m=t.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});server.on('exit',c=>{clearTimeout(timer);reject(Error('server '+c+logs));});});
- browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);
  async function settings(){
   await page.locator('#nav [data-view="settings"]').click();
@@ -45,8 +45,8 @@ async function main(){
    await cursorToggle.evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
    for(const theme of ['light','dark']){
     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-    await page.locator('.sl-ui-masthead h1').click();await page.locator('.sl-cursor-stamp').waitFor();
-    await page.locator('.sl-cursor-stamp').evaluate(el=>el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;}));
+    await page.locator('.sl-ui-masthead h1').click();await page.locator('.sl-cursor-stamp').first().waitFor();
+    await page.locator('.sl-cursor-stamp').first().evaluate(el=>el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;}));
     assert.equal(await page.locator('.sl-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');
     await page.screenshot({path:path.join(out,`sl-cursor-desktop-${theme}.png`),animations:'allow'});
     await page.evaluate(()=>SL_CURSOR.sync());
@@ -110,7 +110,7 @@ async function main(){
    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.xc-guide-portrait').click();
    assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
    await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
-   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();await page.locator('#xcGuideAvatar').waitFor();
+   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();await page.locator('#xcGuideAvatar').waitFor();await page.locator('.xc-guide-scene').waitFor({state:'detached'});
    assert.equal(await page.locator('.xc-guide-scene').count(),0);
    await page.locator('#nav [data-view="dwelling"]').click();await page.locator('.xc-guide-scene').waitFor();
    await page.locator('#nav [data-view="home"]').click();await page.locator('.portal-world').waitFor();

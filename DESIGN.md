@@ -487,3 +487,14 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 针对性检查：tests/test_journey.py覆盖旧档/伪造、CAS、完整循环、幂等、撤销、跨日、Store重启、真实卡片/正式批改/题库复练；tests/test_journey_dom.cjs在隔离临时库真实HTTP接口上覆盖三主题按钮、撤销、冲突、陈列与恢复。运行命令为python -m unittest discover -s tests -p test_journey.py、node tests/test_journey_dom.cjs（公考分别追加--subject=行测、--subject=申论；jsdom仅开发依赖）。相关旧用例需隔离Path.home、本机settings和AI环境变量，避免读入开发机器配置。
 
 本轮Python相关回归：法考72项（8项因缺少可选PDF依赖跳过），公考61项；三主题真实API+DOM、原Ink/地点检查通过。在可用内置浏览器临时库实际完成三主题领取/原卡片复习/交付/收藏与刷新，补验第一批续读、跳过、重读；申论新增面板检查1280×860及800×1280明/暗均无横向溢出。标准Playwright浏览器驱动在本环境仍启动失败（SIGABRT/SIGTRAP），不把替代浏览器检查或jsdom称为ui_layout_check通过；发布前须在可用驱动环境补齐原全量布局/交互/草稿等待检查与三端验证。版本、更新记录、发布请求及工作流不改；P07—P10未实现，先由用户试用P05循环，再扩展。
+
+
+## 3.0第三批：同伴与阶段世界（P07—P10）
+
+- `themes.WORLD_PROFILES`保存三个主题各自阶段、区域和两位原创同伴的文案；`peer_method`、`peer_review`为稳定支线ID。人物选择写入已有`narrative`模块，首读记录保留`choice_id`，重读不覆盖首次反馈。熟悉程度仅表示是否交谈，没有好感经验。
+- `world_progress={schema:1,worlds:{世界ID:{unlocked:{阶段ID:{date,reason}}}}}`；`arrival/foundation/restored/assembly/departure`依次由首次进入、首段学习交付、复习交付、原模考录分、真实学习且进入考前日程触发。世界ID分别为`mage/xingce/office`。每次读取核验新来源并沿用原Store原子落盘，已解锁永久保留。
+- 考前窗口读`规则.md`中的`世界考前提醒天数`（默认30）；旧规则缺项读取默认值，不覆盖用户规则。日程从原学习计划/目标日读取，调日期不回收收藏或阶段。区域链接指向原骨架、日志、模考界面；其他原学习入口始终开放。
+- 主线完成懒补`main:title`称号；同伴支线已读且首段真实学习已交付才获得`peer_method:keepsake`或`peer_review:keepsake`。纪念记录人物、日期、原因与原任务proof，重播、刷新与旧档升级幂等。
+- 未支持的模块schema和损坏记录保留并提示；学习成绩、经验、学时与题库不迁移到剧情模块。三主题独立，原行测五章及阅读记录保留。
+- P07评估后采用原生CSS云雾、灯火与短暂人物/交付演出：当前仅两个装饰层，Phaser画布和循环没有必要。装饰不拦截点击，无后台计时器；页面隐藏暂停，系统减少动画、节省流量和本机减少动画设置提供静态显示。动画只在场景显示，训练页面等待渲染后撤去场景。
+- 验收：`test_world.py`覆盖来源、跨主题、时间线、重读和旧档；`ui_world.cjs`使用临时库与真实卡片UI完成交付/陈列/阶段导航和触控减少动画；`ui_narrative.cjs`验收续读、CAS、草稿与异步离页；发布前全量Python、全部页面布局和三端构建。

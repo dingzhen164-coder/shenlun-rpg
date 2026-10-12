@@ -9,7 +9,7 @@
   function homeHtml(d) {
     if(!d)return '';
     const j=d.journey,display=j&&!j.error?Object.values(j.placements).map(id=>j.collection.find(c=>c.id===id)).filter(Boolean):[];
-    return `<div class="narrative-entry"><button data-narrative="person">与${esc(d.profile.character)}交谈</button><button data-narrative="catalogue">${esc(d.profile.title)}${d.unread?` · ${d.unread}段未读`:''}</button><button data-narrative="catalogue">任务与收藏</button></div>${display.length?`<div class="journey-display" aria-label="个人空间陈列">${display.map(c=>`<span>${esc(c.title)}</span>`).join('')}</div>`:''}`;
+    return `<div class="narrative-entry"><button data-narrative="person">与${esc(d.profile.character)}交谈</button><button data-narrative="catalogue">${esc(d.profile.title)}${d.unread?` · ${d.unread}段未读`:''}</button><button data-narrative="catalogue">任务与收藏</button><button data-narrative="catalogue">阶段与同伴</button></div>${d.world_progress&&!d.world_progress.error?`<p class="narrative-phase">${esc(d.world_progress.title)} · ${esc(d.world_progress.phase)}</p>`:''}${display.length?`<div class="journey-display" aria-label="个人空间陈列">${display.map(c=>`<span>${esc(c.title)}</span>`).join('')}</div>`:''}`;
   }
   function mount(d,view,h) {dashboard=d;handlers=h;if(!['home','dwelling'].includes(view))close();}
   function close() {
@@ -29,11 +29,21 @@ dialog.close();dialog.remove();dialog=null;
     return `<details class="narrative-memory"><summary>人物记忆 · ${data.memories.length}件真实记录</summary>${data.memories.length?data.memories.map(m=>`<p>${esc(m.text)}<small>${esc(m.date)} · ${esc(m.source)}</small></p>`).join(''):'<p>还没有学习事件。可以直接开始学习。</p>'}</details>`;
   }
   function catalogue() {
-    const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open]')||[]).map(e=>e.className);
+    const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open],.world-progress[open],.narrative-companions[open]')||[]).map(e=>e.className);
     const top=dialog?.scrollTop||0;
-    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${journeyHtml()}<div class="narrative-chapters">${data.chapters.map(c=>`<div><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button>${data.world==='xingce'?'<button data-narrative="legacy">原五章宗门纪事</button>':''}</div>${memoriesHtml()}`);
+    if(data.guide_profile)data.profile=data.guide_profile;
+    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${data.justDelivered?'<p class="narrative-feedback" role="status">成果已交付，人物纪念已记入收藏册。</p>':''}${journeyHtml()}${worldHtml()}${companionsHtml()}<div class="narrative-chapters">${data.chapters.filter(c=>!c.character).map(c=>`<div><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button>${data.world==='xingce'?'<button data-narrative="legacy">原五章宗门纪事</button>':''}</div>${memoriesHtml()}`);
     expanded.forEach(name=>dialog.querySelector('.'+name)?.setAttribute('open',''));
     dialog.scrollTop=top;
+  }
+  function worldHtml() {
+    const w=data.world_progress;if(!w)return '';
+    if(w.error)return `<p class="journey-warning" role="alert">${esc(w.error)}；原学习功能照常可用。</p>`;
+    return `<details class="world-progress"><summary>${esc(w.title)} · ${esc(w.phase)}</summary><p>${esc(w.note)}</p>${w.exam?`<p>考试日程：${esc(w.exam)}${w.remaining!==null?` · ${w.remaining>=0?'距考试 '+w.remaining+' 天':'已过 '+(-w.remaining)+' 天'}`:''}</p>`:''}<div class="world-regions">${w.regions.map(r=>`<article><b>${esc(r.title)}</b><small>${r.unlocked?'已开放':'等待阶段记录'} · ${esc(r.reason)}</small><button data-world-go="${esc(r.id)}" ${r.unlocked?'':'disabled'}>前往</button></article>`).join('')}</div><ul>${w.milestones.map(m=>`<li>${esc(m.title)}：${m.unlocked?esc(m.date+' · '+m.reason):'尚未开放'}</li>`).join('')}</ul></details>`;
+  }
+  function companionsHtml() {
+    if(!data.companions?.length)return '';
+    return `<details class="narrative-companions"><summary>同伴与支线 · ${data.companions.length}位</summary><p>熟悉来自已经发生的交谈，没有每日好感打卡；纪念需已读支线与首段真实学习交付。</p>${data.companions.map(p=>{const c=data.chapters.find(c=>c.character===p.id);return `<article><h3>${esc(p.name)} <small>${esc(p.role)}</small></h3><p>${esc(p.intro)}</p><p>${esc(p.feedback)}</p><small>${esc(p.familiar)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'继续交谈 / 重读':c.unlocked?'交谈':'先留下学习记录'}</button></article>`;}).join('')}</details>`;
   }
   function journeyHtml() {
     const j=data.journey;if(!j)return '';
@@ -53,7 +63,7 @@ dialog.close();dialog.remove();dialog=null;
       const result=action==='refresh'?(await handlers.api('/api/narrative')).journey:await handlers.api('/api/journey',body);
       if(token!==epoch||!dialog)return;
       data.journey=result;if(dashboard?.narrative)dashboard.narrative.journey=result;
-      delete data.scene;pending=false;catalogue();
+      delete data.scene;data.justDelivered=action==='deliver';pending=false;catalogue();
       if(action!=='refresh')handlers.updated?.();
     } catch(e){if(token===epoch)failure(e);}
     finally{pending=false;}
@@ -126,6 +136,11 @@ dialog.close();dialog.remove();dialog=null;
     }
   }
   document.addEventListener('click',e=>{
+    const region=e.target.closest('[data-world-go]');
+    if(region&&dialog&&!pending&&!region.disabled){
+      const target=data.world_progress?.regions.find(r=>r.id===region.dataset.worldGo&&r.unlocked);
+      if(target){close();handlers.route?.(target.view);}return;
+    }
     const journey=e.target.closest('[data-journey-claim],[data-journey-deliver],[data-journey-place],[data-journey-start],[data-journey-refresh]');
     if(journey&&!journey.disabled&&dialog&&!pending){
       if(journey.hasAttribute('data-journey-start')){
@@ -145,7 +160,7 @@ dialog.close();dialog.remove();dialog=null;
     if(button.dataset.narrativeChoice)return command('choose',null,button.dataset.narrativeChoice);
     const action=button.dataset.narrative;
     if(['finish','skip','replay'].includes(action))return command(action);
-    if(action==='back'){delete data.scene;return catalogue();}
+    if(action==='back'){delete data.scene;delete data.justDelivered;return catalogue();}
     if(['study','review','tutor','legacy'].includes(action)){close();handlers?.[action]?.();}
   });
   document.addEventListener('change',e=>{

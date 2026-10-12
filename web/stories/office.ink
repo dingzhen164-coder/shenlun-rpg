@@ -51,3 +51,39 @@ VAR boss = false
 === study_echo_end ===
 大厅的钟声响起。她把工作簿交还给你：“准备好了，就从眼前的一项办理开始。”工作纪事可以随时重读。
 -> END
+=== peer_method_start ===
+工作台上留着一张便笺。你想先梳理材料要点，还是先独立写一份答案？
+这是内置同伴对话，选择只影响后续台词与纪念；正式学习仍使用原功能。
++ [先梳理与回忆] # choice:method
+  -> peer_method_method
++ [先独立练习] # choice:practice
+  -> peer_method_practice
+=== peer_method_method ===
+许知宁留出要点栏：“先看材料中的依据与范围，再决定如何表达；不要补造材料事实。”
++ [记下这个方向] # choice:continue
+  -> peer_method_end
+=== peer_method_practice ===
+许知宁整理好空白答题纸：“独立作答后提交原正式批改；草稿与剧情都不能替代评分。”
++ [带着问题去学习] # choice:continue
+  -> peer_method_end
+=== peer_method_end ===
+这次交谈已经记下。学习入口随时开放；交付首段真实学习成果后，已读支线可留下同伴纪念。
+-> END
+=== peer_review_start ===
+林悦把复盘页留在卷宗旁。你想先复习一张便笺，还是重新整理后再正式作答？
+这是内置同伴对话，选择只影响后续台词与纪念；正式学习仍使用原功能。
++ [先梳理与回忆] # choice:method
+  -> peer_review_method
++ [先独立练习] # choice:practice
+  -> peer_review_practice
+=== peer_review_method ===
+林悦翻开便笺夹：“先独立回忆，再核对背面，按实际记忆情况评分。”
++ [记下这个方向] # choice:continue
+  -> peer_review_end
+=== peer_review_practice ===
+林悦留出修订页：“根据已有材料和批改反馈修改，再提交正式批改；原评分标准不变。”
++ [带着问题去学习] # choice:continue
+  -> peer_review_end
+=== peer_review_end ===
+这次交谈已经记下。学习入口随时开放；交付首段真实学习成果后，已读支线可留下同伴纪念。
+-> END

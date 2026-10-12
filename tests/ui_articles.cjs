@@ -18,7 +18,7 @@ async function main() {
       server.stdout.on('data', b => { text += b.toString(); const m = text.match(/UI-READY (http:\/\/\S+)/); if (m) { clearTimeout(timeout); resolve(m[1]); } });
       server.on('exit', code => { clearTimeout(timeout); reject(new Error('测试服务退出 ' + code + ': ' + logs)); });
     });
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, executablePath:process.env.CHROMIUM_PATH||undefined });
     const errors = [];
     const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
     const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));

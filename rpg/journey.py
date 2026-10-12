@@ -167,6 +167,29 @@ def view(g, dashboard):
         if task['task']:
             task['task']['title'] = _task_label(g, task['task'])
     stage = 2 if st['tasks'].get('main:review', {}).get('status') == 'delivered' else 1 if tasks[0]['status'] == 'delivered' else 0
+    # 旧3.0第二批存档懒补称号；同伴纪念需已读支线与真实学习交付双重条件。
+    p = themes.WORLD_PROFILES[wid]
+    rewards = []
+    if stage == 2:
+        rewards.append(('main:title', p['honor'], p['finish'], '完成首条学习故事', st['tasks']['main:review'], _profile(g, dashboard)['character']))
+    raw = g.state.get('narrative')
+    worlds = raw.get('worlds') if isinstance(raw, dict) and raw.get('schema') == 1 else {}
+    saved_world = worlds.get(wid) if isinstance(worlds, dict) else {}
+    chapters = saved_world.get('chapters', {}) if isinstance(saved_world, dict) else {}
+    if not isinstance(chapters, dict):
+        chapters = {}
+    for person in p['companions']:
+        saved = chapters.get(person['id'], {})
+        if stage >= 1 and isinstance(saved, dict) and saved.get('read'):
+            history = saved.get('record') or saved.get('trail') or []
+            direction = next((x.get('choice_id', x.get('choice')) for x in history if isinstance(x, dict) and x.get('choice_id', x.get('choice')) in ('method', 'practice')), '') if isinstance(history, list) else ''
+            text = person.get('echo_' + direction, person['greeting'])
+            rewards.append((person['id'] + ':keepsake', person['keepsake'], text, '同伴交谈与真实学习交付', st['tasks']['main:study'], person['name']))
+    for ident, title, text, reason, task, author in rewards:
+        if ident not in st['collection']:
+            st['collection'][ident] = {'title': title, 'text': text, 'author': author,
+                'date': g.today.isoformat(), 'reason': reason, 'proof': task['proof']['id'], 'slot': 'wall'}
+            st['revision'] += 1
     return {'world': wid, 'revision': st['revision'], 'title': names['title'], 'stage': stage,
             'text': names[('intro', 'echo', 'end')[stage]], 'tasks': tasks,
             'collection': [dict(id=k, **copy.deepcopy(v)) for k, v in st['collection'].items()],

@@ -185,7 +185,7 @@ function configurePortal() {
     {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
     {id:'settings',label:'宗门设置',view:'settings',x:89,y:30},
   ];
-  SCENE_PORTAL.configure({id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='guide')XC_GUIDE.open();
     else if(p.view==='story')XC_SECT.openStory();
     else go(p.view);
@@ -252,6 +252,7 @@ function mountNarrative() {
     api, error: showError,
     task: t => t.type === "cards" ? (go("train").then(() => CARDS.review(""))) : startTask({task_id:t.id}),
     updated: () => refresh(),
+    route: view => ["train","skeleton","log","contest"].includes(view) && go(view),
     study: () => go('train'), review: () => go('log'),
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
     legacy: () => window.XC_SECT?.openStory(),

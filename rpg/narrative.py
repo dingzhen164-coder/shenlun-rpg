@@ -74,6 +74,16 @@ def _state(g):
                 or len(entry['trail']) > 64 or any(not isinstance(x, dict) or not isinstance(x.get('node'), str)
                                                   or not isinstance(x.get('choice'), str) for x in entry['trail'])):
             raise ValueError('纪事章节记录损坏，请保留原存档并从备份核对')
+    for entry in current['chapters'].values():
+        record = entry.get('record', [])
+        if (not isinstance(record, list) or len(record) > 64
+                or any(not isinstance(x, dict) or not isinstance(x.get('choice'), str)
+                       or not isinstance(x.get('lines'), list) or any(not isinstance(line, str) for line in x['lines'])
+                       for x in record)):
+            raise ValueError('对话记录损坏，原记录已保留')
+    if any(not isinstance(v, dict) or any(not isinstance(v.get(k), str) for k in ('date', 'text', 'source'))
+           for v in current['memories'].values()):
+        raise ValueError('人物记忆损坏，原记录已保留')
     return current
 
 
@@ -117,12 +127,24 @@ def view(g, dashboard):
         chapters.append({'id': c['id'], 'title': c['title'], 'unlocked': unlocked,
                          'condition': '已有有效学习记录' if c['condition'] == 'learned' else '随时可读',
                          'read': bool(saved.get('read')), 'skipped': bool(saved.get('skipped')),
-                         'started': bool(saved.get('trail'))})
+                         'started': bool(saved.get('trail')), 'character': c.get('character', '')})
     profile = _profile(g, dashboard)
     if fs['learned']:
         profile['greeting'] = profile['echo']
-    from . import journey
-    return {'journey': journey.safe_view(g, dashboard), 'world': wid, 'revision': state['revision'], 'version': DEFINITIONS[wid]['version'],
+    companions = []
+    for person in themes.WORLD_PROFILES[wid]['companions']:
+        p = copy.deepcopy(person)
+        saved = state['chapters'].get(p['id'], {})
+        history = saved.get('record') or saved.get('trail') or []
+        direction = next((x.get('choice_id', x['choice']) for x in history if x.get('choice_id', x['choice']) in ('method', 'practice')), '')
+        p['feedback'] = p.get('echo_' + direction, p['greeting'])
+        p['read'] = bool(saved.get('read'))
+        p['familiar'] = '已交谈 · 依据对话记录' if p['read'] else '初次相遇'
+        companions.append(p)
+    from . import journey, world
+    j = journey.safe_view(g, dashboard)
+    return {'journey': j, 'world_progress': world.safe_view(g, dashboard, j, fs['learned']),
+            'companions': companions, 'guide_profile': profile, 'world': wid, 'revision': state['revision'], 'version': DEFINITIONS[wid]['version'],
             'profile': profile, 'facts': fs, 'chapters': chapters,
             'memories': list(memories.values()),
             'unread': sum(c['unlocked'] and not c['read'] for c in chapters)}
@@ -138,6 +160,10 @@ def _scene(g, dashboard, cid):
     if node not in c['nodes']:
         raise ValueError('纪事节点已更新，请重读本章；原阅读记录仍保留')
     n = c['nodes'][node]
+    if c.get('character'):
+        person = next(p for p in out['companions'] if p['id'] == c['character'])
+        out['profile'] = dict(out['guide_profile'], character=person['name'], role=person['role'],
+                              intro=person['intro'], greeting=person['feedback'], mark=person['mark'], portrait='')
     choices = [x for x in n['choices'] if not x.get('when') or out['facts'].get(x['when'])]
     trail = saved.get('trail', [])
     transcript = []
@@ -146,7 +172,7 @@ def _scene(g, dashboard, cid):
         if not old: continue
         selected = next((v for v in old['choices'] if v['id'] == step['choice']), None)
         if selected:
-            transcript.append({'lines': old['lines'], 'choice': selected['text']})
+            transcript.append({'lines': old['lines'], 'choice': selected['text'], 'choice_id': selected['id']})
     out['scene'] = {'chapter': cid, 'title': c['title'], 'node': node, 'lines': n['lines'],
                     'choices': choices, 'end': node == c['end'], 'read': saved['read'],
                     'transcript': transcript, 'record': saved.get('record', [])}
@@ -192,7 +218,7 @@ def act(g, dashboard, body):
             saved['record'] = _scene(g, dashboard, cid)['scene']['transcript']
         saved.update(node=c['end'], read=True, skipped=action == 'skip')
         # 原接口仍能看到映射的已读章节；只更新已读，不删原五章。
-        if world_id(g) == 'xingce':
+        if world_id(g) == 'xingce' and cid in ('prologue', 'study_echo'):
             oldid = {'prologue': 'arrival', 'study_echo': 'five_paths'}[cid]
             legacy = g.state.setdefault('sect_story', {'schema': 1, 'unlocked': [], 'read': []})
             for key in ('unlocked', 'read'):

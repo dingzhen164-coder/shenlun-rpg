@@ -43,13 +43,13 @@ async function until(fn){for(let n=0;n<300;n++){if(fn())return;await tick();}thr
   card=(await api('/api/cards/next',{})).card;await api('/api/cards/answer',{key:card.key,rating:4});
   await assert.rejects(()=>api('/api/journey',{world,action:'deliver',id:'main:review',revision:stale.revision}),/另一窗口/);
   await fresh();await until(()=>q('[data-journey-deliver="main:review"]'));click('[data-journey-deliver="main:review"]');
-  await until(()=>q('.journey-collection summary').textContent.includes('3件'));
+  await until(()=>q('.journey-collection summary').textContent.includes('4件'));
   q('.journey-collection').open=true;click('[data-journey-place="main:study:reward"]');
   await until(()=>q('[data-journey-place=""][data-journey-slot="desk"]'));
   assert.equal(q('.journey-collection').open,true);
   click('[data-journey-place="main:ornament"]');await until(()=>q('[data-journey-place=""][data-journey-slot="shelf"]'));
   click('[data-narrative="close"]');await mount();assert.match(q('.journey-display').textContent,/法典|卷宗|竹卷/);
-  await open();assert.equal((await get()).stage,2);assert.equal((await get()).collection.length,3);
+  await open();assert.equal((await get()).stage,2);assert.equal((await get()).collection.length,4);
   // 陈列/剧情操作不额外授予学习经验。原卡片的评分经验保留。
   const xp=(await api('/api/dashboard')).xp;click('[data-journey-place=""][data-journey-slot="desk"]');
   await until(()=>!q('[data-journey-place=""][data-journey-slot="desk"]'));

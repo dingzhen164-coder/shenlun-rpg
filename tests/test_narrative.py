@@ -89,7 +89,8 @@ class NarrativeTest(unittest.TestCase):
         legacy={'schema':1,'unlocked':['arrival','five_paths','tower'], 'read':['arrival','five_paths','tower']}
         g=self.game('xingce',sect_story=copy.deepcopy(legacy))
         r=narrative.view(g,{})
-        self.assertTrue(all(c['read'] for c in r['chapters']))
+        self.assertTrue(all(c['read'] for c in r['chapters'][:2]))
+        self.assertTrue(all(not c['read'] for c in r['chapters'][2:]))
         self.assertEqual(g.state['sect_story'],legacy)
         self.command(g,'replay');self.command(g,'skip')
         self.assertEqual(g.state['sect_story'],legacy)

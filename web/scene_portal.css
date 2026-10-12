@@ -13,3 +13,9 @@ body.guantu.portal-home #view{padding:0;width:100%;margin:0;max-width:none}
 .portal-world>.portal-stage{position:relative;inset:auto;min-height:350px}
 .portal-world .portal-place{top:clamp(44px,var(--py),calc(100% - 44px))}
 @media(max-width:650px){.portal-world>.portal-caption{margin:12px 12px 0;max-width:calc(100% - 24px)}}
+
+/* P07动态仅用CSS，不创建游戏循环；装饰不接收事件，隐藏/低流量/减少动画时静止。 */
+.portal-atmosphere{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}.portal-cloud{position:absolute;width:45%;height:16%;left:3%;top:13%;border-radius:50%;background:linear-gradient(90deg,transparent,#eef7dc24,transparent);animation:portal-drift 18s ease-in-out infinite alternate;will-change:transform}.portal-glow{position:absolute;width:24%;height:33%;right:15%;bottom:8%;border-radius:50%;background:radial-gradient(ellipse,#e5b75536,transparent 70%);animation:portal-lamp 5s ease-in-out infinite alternate}.portal-guantu .portal-cloud{display:none}.portal-guantu .portal-glow{background:radial-gradient(ellipse,#f3d08f30,transparent 70%)}.portal-stage[data-world-stage="0"] .portal-glow{opacity:.3}.portal-stage[data-world-stage="2"] .portal-glow{width:40%}.portal-motion{pointer-events:auto;font:inherit;font-size:12px;margin-top:8px;padding:8px 12px;min-height:42px;color:#fff2d0;background:#183f36;border:1px solid #c5b378;border-radius:5px}.portal-caption .narrative-phase{margin-top:8px}.portal-place{max-width:calc(100% - 20px)}.portal-place>b{max-width:100%;box-sizing:border-box;white-space:normal;overflow-wrap:anywhere}
+@keyframes portal-drift{from{transform:translateX(0)}to{transform:translateX(35%)}}@keyframes portal-lamp{from{opacity:.4}to{opacity:.85}}
+[data-motion="reduced"] .portal-atmosphere *{animation:none;will-change:auto}[data-motion="paused"] .portal-atmosphere *{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){.portal-atmosphere *{animation:none;will-change:auto}}
