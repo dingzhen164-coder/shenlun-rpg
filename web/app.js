@@ -120,6 +120,7 @@ function realmUp(e) {
 
 // ------------------------------------------------------------ 导航 / 风格
 async function go(view) {
+  window.NARRATIVE?.close();
   if (window.SHENLUN && !(await SHENLUN.flush())) return;
   if (window.NOTES && NOTES.embedded() && !(await NOTES.leaveArticle())) return;
   if (VIEW === "notes" && view !== "notes" && window.NOTES && !(await NOTES.flush())) return;
@@ -134,6 +135,7 @@ async function go(view) {
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回洞府；返回 false 表示没得退了
 window.xcBack = () => {
+  if (window.NARRATIVE?.close()) return true;
   if (window.XC_GUIDE?.close(true)) return true;
   const click = (sel) => { const b = document.querySelector(sel); if (b) b.click(); return !!b; };
   if (click(".img-zoom") || click(".cer-ok") || click(".st-btn")) return true;
@@ -183,7 +185,7 @@ function configurePortal() {
     {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
     {id:'settings',label:'宗门设置',view:'settings',x:89,y:30},
   ];
-  SCENE_PORTAL.configure({id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',places},p=>{
+  SCENE_PORTAL.configure({id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='guide')XC_GUIDE.open();
     else if(p.view==='story')XC_SECT.openStory();
     else go(p.view);
@@ -239,8 +241,23 @@ async function render() {
     else if (VIEW === "settings") { await refresh(); await AMB.load(); v.innerHTML = await views.settings(); bindSettings(); }
     if(isSL())window.SL_UI?.mount(VIEW);
     mountGuide();
+    mountNarrative();
     SCENE_PORTAL.mount(VIEW);
   } catch (e) { showError(e); }
+}
+
+// 纪事入口仅在全景/个人空间出现；真实训练仍使用原任务与AI会话。
+function mountNarrative() {
+  window.NARRATIVE?.mount(DASH, VIEW, {
+    api, error: showError,
+    study: () => go('train'), review: () => go('log'),
+    tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
+    legacy: () => window.XC_SECT?.openStory(),
+  });
+  if (VIEW === 'dwelling' && DASH?.narrative) {
+    const el = document.createElement('section'); el.className = 'card narrative-dwelling';
+    el.innerHTML = NARRATIVE.homeHtml(DASH.narrative); document.getElementById('view').prepend(el);
+  }
 }
 
 // ------------------------------------------------------------ 小组件
@@ -1016,6 +1033,7 @@ function fitChat() {
 }
 window.addEventListener("resize", () => { if ($(".train")) fitChat(); });
 async function renderTrain() {
+  window.NARRATIVE?.close();
   if (VIEW !== "train") return;
   const html = await views.train().catch((e) => { showError(e); return ''; });
   if (VIEW !== "train") return;

@@ -1,0 +1,312 @@
+{
+  "xingce": {
+    "version": 1,
+    "chapters": [
+      {
+        "id": "prologue",
+        "title": "山门前的选择",
+        "condition": "always",
+        "start": "prologue_start",
+        "end": "prologue_end",
+        "nodes": {
+          "prologue_start": {
+            "lines": [
+              "青衡宗山门重开。沈清禾在竹下等你，将一卷竹简放在石案上。",
+              "先明理，再举例，最后以真题验之。你愿从何处开始？"
+            ],
+            "choices": [
+              {
+                "id": "understand",
+                "text": "我想先梳理方法",
+                "target": "prologue_understand"
+              },
+              {
+                "id": "practice",
+                "text": "我想先试着作答",
+                "target": "prologue_practice"
+              },
+              {
+                "id": "recorded",
+                "text": "聊聊已有的学习记录",
+                "target": "prologue_recorded",
+                "when": "learned"
+              }
+            ]
+          },
+          "prologue_understand": {
+            "lines": [
+              "清禾把竹简展开：“先选一门功法，用自己的话讲清思路，再举一例。藏经阁与修炼殿会保留你原来的进度。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "记下这个方向",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_practice": {
+            "lines": [
+              "清禾轻叩竹卷：“一道题做错，也会留下真实记录。层数看历练，正确率看成效；先弄清失误，再走下一程。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "带着问题去练习",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_recorded": {
+            "lines": [
+              "你已留下真实修行记录。慢一些无妨，重要的是知道每一步为何如此。"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "继续前行",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_end": {
+            "lines": [
+              "山风拂过竹叶。你把今日的方向记在心中，沿着石阶走向修炼殿。宗门纪事可以随时重读。"
+            ],
+            "choices": []
+          }
+        }
+      },
+      {
+        "id": "study_echo",
+        "title": "竹下回望",
+        "condition": "learned",
+        "start": "study_echo_start",
+        "end": "study_echo_end",
+        "nodes": {
+          "study_echo_start": {
+            "lines": [
+              "你已留下真实修行记录。慢一些无妨，重要的是知道每一步为何如此。",
+              "这段对话因已有学习记录开放；阅读与选项不会改变成绩或学习时长。"
+            ],
+            "choices": [
+              {
+                "id": "understand",
+                "text": "我想先梳理方法",
+                "target": "study_echo_understand"
+              },
+              {
+                "id": "practice",
+                "text": "我想先试着作答",
+                "target": "study_echo_practice"
+              },
+              {
+                "id": "recorded",
+                "text": "聊聊已有的学习记录",
+                "target": "study_echo_recorded",
+                "when": "learned"
+              }
+            ]
+          },
+          "study_echo_understand": {
+            "lines": [
+              "清禾把竹简展开：“先选一门功法，用自己的话讲清思路，再举一例。藏经阁与修炼殿会保留你原来的进度。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "记下这个方向",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_practice": {
+            "lines": [
+              "清禾轻叩竹卷：“一道题做错，也会留下真实记录。层数看历练，正确率看成效；先弄清失误，再走下一程。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "带着问题去练习",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_recorded": {
+            "lines": [
+              "你已留下真实修行记录。慢一些无妨，重要的是知道每一步为何如此。"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "继续前行",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_end": {
+            "lines": [
+              "山风拂过竹叶。你把今日的方向记在心中，沿着石阶走向修炼殿。宗门纪事可以随时重读。"
+            ],
+            "choices": []
+          }
+        }
+      }
+    ]
+  },
+  "office": {
+    "version": 1,
+    "chapters": [
+      {
+        "id": "prologue",
+        "title": "报到后的第一席话",
+        "condition": "always",
+        "start": "prologue_start",
+        "end": "prologue_end",
+        "nodes": {
+          "prologue_start": {
+            "lines": [
+              "政务大厅的晨光落在案卷上。直属领导抬头，示意你在桌前坐下。",
+              "欢迎回到政务大厅。先读材料，把问题与依据理清，再动笔。你想先了解什么？"
+            ],
+            "choices": [
+              {
+                "id": "understand",
+                "text": "我想先梳理方法",
+                "target": "prologue_understand"
+              },
+              {
+                "id": "practice",
+                "text": "我想先试着作答",
+                "target": "prologue_practice"
+              },
+              {
+                "id": "recorded",
+                "text": "聊聊已有的学习记录",
+                "target": "prologue_recorded",
+                "when": "learned"
+              }
+            ]
+          },
+          "prologue_understand": {
+            "lines": [
+              "她翻开工作簿：“先读题干的对象、范围与要求。把材料中的核心含义归并清楚，再进入办理中心按题型练习。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "记下这个方向",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_practice": {
+            "lines": [
+              "她递来一张空白答题卡：“先独立作答，再看批示。字数、材料批注与笔迹继续由原作答页保存，不必急着看参考。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "带着问题去练习",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_recorded": {
+            "lines": [
+              "你已经留下学习记录。回看材料、要点和自己的表达，再确定下一步安排。"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "继续前行",
+                "target": "prologue_end"
+              }
+            ]
+          },
+          "prologue_end": {
+            "lines": [
+              "大厅的钟声响起。她把工作簿交还给你：“准备好了，就从眼前的一项办理开始。”工作纪事可以随时重读。"
+            ],
+            "choices": []
+          }
+        }
+      },
+      {
+        "id": "study_echo",
+        "title": "工作簿上的一页",
+        "condition": "learned",
+        "start": "study_echo_start",
+        "end": "study_echo_end",
+        "nodes": {
+          "study_echo_start": {
+            "lines": [
+              "你已经留下学习记录。回看材料、要点和自己的表达，再确定下一步安排。",
+              "这段对话因已有学习记录开放；阅读与选项不会改变成绩或学习时长。"
+            ],
+            "choices": [
+              {
+                "id": "understand",
+                "text": "我想先梳理方法",
+                "target": "study_echo_understand"
+              },
+              {
+                "id": "practice",
+                "text": "我想先试着作答",
+                "target": "study_echo_practice"
+              },
+              {
+                "id": "recorded",
+                "text": "聊聊已有的学习记录",
+                "target": "study_echo_recorded",
+                "when": "learned"
+              }
+            ]
+          },
+          "study_echo_understand": {
+            "lines": [
+              "她翻开工作簿：“先读题干的对象、范围与要求。把材料中的核心含义归并清楚，再进入办理中心按题型练习。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "记下这个方向",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_practice": {
+            "lines": [
+              "她递来一张空白答题卡：“先独立作答，再看批示。字数、材料批注与笔迹继续由原作答页保存，不必急着看参考。”"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "带着问题去练习",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_recorded": {
+            "lines": [
+              "你已经留下学习记录。回看材料、要点和自己的表达，再确定下一步安排。"
+            ],
+            "choices": [
+              {
+                "id": "continue",
+                "text": "继续前行",
+                "target": "study_echo_end"
+              }
+            ]
+          },
+          "study_echo_end": {
+            "lines": [
+              "大厅的钟声响起。她把工作簿交还给你：“准备好了，就从眼前的一项办理开始。”工作纪事可以随时重读。"
+            ],
+            "choices": []
+          }
+        }
+      }
+    ]
+  }
+}

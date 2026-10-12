@@ -31,6 +31,7 @@
   // 老一些的平板浏览器内核不认 color-mix()：打个记号，style.css 末尾给这些地方换成普通颜色（不然圆框、底色整个不画）
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
 <link rel="stylesheet" href="scene_portal.css">
+<link rel="stylesheet" href="narrative.css">
 </head>
 <body class="xiuxian">
 <div id="bgLayer"></div>
@@ -74,6 +75,8 @@
 <script src="shenlun_training.js"></script>
 <script src="shenlun.js"></script>
 <script src="scene_portal.js"></script>
+<script src="vendor/inkjs/ink.js"></script>
+<script src="narrative.js"></script>
 <script src="app.js"></script>
 <script src="contest.js"></script>
 <script src="contest_sl.js"></script>

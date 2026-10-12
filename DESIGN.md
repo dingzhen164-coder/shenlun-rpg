@@ -453,3 +453,20 @@ XC_GUIDE对话增加xc-guide-bust裁显示区域，原立绘不重新绘制或�
 scene_portal.js/css为可复用地图和编辑器；app.js配置id=xingce/guantu、title/image/places并注入原go入口。每科本机localStorage scene-layout:<id>={desktop:{地点:{x,y}},narrow:{地点:{x,y}}}，百分比有限数值5—95，未知地点忽略、缺失/损坏回退默认。宽高比>=1.15选电脑横屏，否则竖屏。设置内拖动（pointer捕获，touch-action仅编辑按钮）/方向键/百分比坐标选点；取消拖动回滚，保存失败提示且保留当前调整。重置只重置当前方向，撤销载入最后保存布局；显式保存，不写训练文件，无迁移与奖励影响。设备和科目相互独立。
 
 法师成长记在独立fakao-rpg/dev复用同一模块和编辑规则，魔法学院为原创矢量全景，原首页进入营地；各应用独立存储域与id=mage，不改变法考八科、题库核验、端口或配置目录。此模块不是共享服务，两仓库独立离线运行。
+
+
+## 3.0 第一批：人物与离线纪事（P01—P03 开发记录，2026-10-12）
+
+保留现有scene_portal全景、个人空间与地点编辑。home全景台头、dwelling个人空间增加人物/纪事按钮，其他页面不挂载；进入训练、导航离页、Esc或安卓返回时收起对话。法考离开魔法手记先等待NOTES.flush，保存失败留在原页，避免切页时漏存草稿。
+
+故事定义为rpg/data/narrative.json；人物名词在themes.NARRATIVE_PROFILES。申论人物读取当前career.leader（女性直属领导），不重写用户人设；行测沈清禾是引导师尊，具体授业仍用原导师。两仓库分别分发其主题故事，没有共享服务、共享题库或共享存档。立绘有现成素材或用户导师头像就使用；缺素材显示主题印记，不伪造未提供的表情图。
+
+inkjs固定2.4.0（MIT），web/vendor/inkjs原样保留运行时与许可，本地加载，不使用CDN。tools/compile_narrative.cjs从定义生成web/stories/<world>.ink及编译JSON；Node与编译器仅开发时使用，用户无需安装。每个章节、节点、选项使用稳定字符串ID，节点对应Ink knot；Ink变量learned/tower/boss只取服务端facts，选项与目标同服务端定义逐一回归检查。恢复以服务端稳定节点定位Ink；不把引擎内部数组位置或可伪造的浏览器状态作为学习事实。
+
+存档新增narrative={schema:1,worlds:{世界id:{revision,chapters:{章节id:{node,trail:[{node,choice}],read,skipped,record,unlocked}},memories:{事件id:{date,text,source}}}}。GET /api/narrative展示人物与章节；POST /api/narrative携world/chapter/action及修改用的revision/node，action=open/choose/finish/skip/replay。Store锁、原子保存与每日备份沿用，不写训练目录之外的用户文件。修改前核验科目、章节、选项、当前节点和CAS版本；冲突拒绝且不覆盖。服务端不接受前端自报learned、分数、奖励或任意状态JSON。没有学习库不能保存剧情。未知schema/损坏章节不清空；dashboard给出提示并保留正常学习功能。
+
+每主题两段原创短分支：入门章随时可读；回望章由真实任务/项目掌握、有效秒数、正式题库作答或批改事件开放。初始化空项目和总经验不是学习证据。已解锁保持；人物只记三类必要摘要及来源，不复制题干、答案、作答全文或密钥。旧sect_story五章及原入口保留，arrival/five_paths已读映射到新prologue/study_echo；新章阅读同步回原已读集合，不删除旧记录。关闭只收起；跳过记已读，从头重读不重置已读/首次对话记录，不改经验、成绩、学时或原任务。
+
+对话纸笺提供人物介绍、分支选项、当前选择记录、首次阅读记录、人物记忆、继续/跳过/重读、简短模式与原学习/复盘/AI请教入口。静态呈现，无自动弹出、逐字强制等待或后台AI请求；简短模式仅本机显示偏好，进度存原存档。异步操作串行、epoch防止离页后迟到回包再次弹窗；可关闭正在保存的对话，已接受的选择仍由服务端保存。未知更新节点提供保留已读的重读入口。
+
+本轮检查：Python相关单元、旧宗门回归、Ink全部节点/条件/跳转、地点存储检查、真实临时库API+jsdom交互均通过。jsdom是开发依赖，不进入客户端，不能替代浏览器像素/触控验证。新增tests/ui_narrative.cjs覆盖浏览器续读、冲突、返回、简短模式、布局和草稿保存契约。当前环境浏览器启动失败（SIGTRAP），ui_layout_check与浏览器交互/截图尚未完成，必须在可用浏览器环境补验。本轮不运行无关全量测试或三端发布；P04—P10尚未实现。

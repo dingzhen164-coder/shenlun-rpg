@@ -232,3 +232,7 @@ def realm_name(theme, score_int):
 def realm_of_gate(theme, gate):
     return get(theme)["realms"][band_of(gate, theme)[0]]
 
+
+
+# 3.0人物与纪事的风格名词；申论人物名由实际职务履历覆盖。
+NARRATIVE_PROFILES = {'xingce': {'title': '宗门纪事', 'character': '沈清禾', 'role': '引导师尊', 'mark': '竹', 'portrait': 'assets/guide/shen-qinghe.webp', 'intro': '青衡宗引导师尊。陪你梳理修行路线，具体授业仍由你设定的导师负责。', 'greeting': '先明理，再举例，最后以真题验之。你愿从何处开始？', 'study': '今天的功课', 'review': '照心台', 'room': '洞府', 'echo': '你已留下真实修行记录。慢一些无妨，重要的是知道每一步为何如此。'}, 'office': {'title': '工作纪事', 'character': '直属领导', 'role': '工作引导', 'mark': '章', 'portrait': '', 'intro': '当前阶段的女性直属领导。依据你的真实办理与学习记录提供建议，具体批改沿用原有评分标准。', 'greeting': '欢迎回到政务大厅。先读材料，把问题与依据理清，再动笔。你想先了解什么？', 'study': '今天的办理', 'review': '政绩复盘', 'room': '办公室', 'echo': '你已经留下学习记录。回看材料、要点和自己的表达，再确定下一步安排。'}}
