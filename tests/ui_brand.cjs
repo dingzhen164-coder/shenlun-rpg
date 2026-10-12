@@ -9,7 +9,7 @@ async function main(){
  browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);
  async function settings(){
-  await page.locator('#nav [data-view="settings"]').click();
+  await page.evaluate(()=>go('settings'));
   const button=page.locator('[data-subject="行测"]');await button.waitFor({state:'attached'});
   if(await button.evaluate(el=>{const d=el.closest('details');return d&&!d.open;}))await page.locator('details').filter({has:button}).locator('summary').first().click();
   await button.waitFor({state:'visible'});
@@ -26,14 +26,14 @@ async function main(){
   const response=await page.request.get(base+'/manifest.webmanifest'),manifest=await response.json();assert.equal(manifest.name,'公考模拟器');assert.equal(manifest.short_name,'公考模拟器');assert.ok(manifest.description.includes('行测与申论'));
   for(const icon of manifest.icons)assert.equal((await page.request.get(base+'/'+icon.src)).status(),200);
   assert.ok((await page.locator('body').textContent()).includes('gongkao-simulator-mac.zip')===false,'源码运行不显示Mac专用提示');
-  await page.locator('#nav [data-view="home"]').click();await page.locator('.portal-world').waitFor();
+  await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
   assert.equal(await page.locator('.hero').count(),0,'全景首页没有原进度面板');
   await page.setViewportSize({width:1280,height:860});
   await page.locator('[data-portal-go="dwelling"]').click();await page.locator('.hero').waitFor();
   await settings();await page.locator('.portal-settings').evaluate(el=>{if(el.tagName==='DETAILS')el.open=true;});
   await page.locator('[data-portal-device]').selectOption('desktop');await page.locator('[data-portal-selected]').selectOption('dwelling');
   await page.locator('[data-portal-x]').fill('37');await page.locator('[data-portal-x]').press('Tab');await page.locator('[data-portal-save]').click();
-  await page.locator('#nav [data-view="home"]').click();await page.locator('.portal-world').waitFor();
+  await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
   assert.equal(await page.locator('[data-portal-go="dwelling"]').evaluate(el=>el.style.getPropertyValue('--px')),'37%');
   await page.reload();await page.locator('.portal-world').waitFor();
   assert.equal(await page.locator('[data-portal-go="dwelling"]').evaluate(el=>el.style.getPropertyValue('--px')),'37%');
@@ -65,7 +65,7 @@ async function main(){
     assert.ok(await page.evaluate(src=>new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im.naturalWidth>1000);im.onerror=()=>resolve(false);im.src=src;}),base+'/assets/shenlun/'+asset+'.webp'));
    }
    for(const view of ['dwelling','train','notes','contest','tianji','skeleton','log']){
-    await page.locator('#nav [data-view="'+view+'"]').click();
+    await page.evaluate(v=>go(v),view);
     const title={dwelling:'办公室',train:'办理中心',notes:'公务手账',contest:'年度考核',tianji:'时政简报',skeleton:'档案室',log:'政绩录'}[view];
     await page.waitForFunction(title=>document.querySelector('.sl-ui-masthead h1')?.textContent===title,title);
     if(view==='train')assert.equal(await page.locator('.sl-ui-masthead [data-hall]').count(),2);
@@ -92,7 +92,7 @@ async function main(){
    await page.setViewportSize({width:1280,height:860});await settings();
   }
   if(subject==='行测'){
-   await page.locator('#nav [data-view="dwelling"]').click();await page.locator('.xc-guide-scene').waitFor();
+   await page.evaluate(()=>go('dwelling'));await page.locator('.xc-guide-scene').waitFor();
    await page.waitForFunction(()=>document.querySelector('.xc-guide-portrait img')?.naturalWidth===1024);
    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280],['phone',390,844]]){
     await page.setViewportSize({width,height});
@@ -112,8 +112,8 @@ async function main(){
    await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
    await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();await page.locator('#xcGuideAvatar').waitFor();await page.locator('.xc-guide-scene').waitFor({state:'detached'});
    assert.equal(await page.locator('.xc-guide-scene').count(),0);
-   await page.locator('#nav [data-view="dwelling"]').click();await page.locator('.xc-guide-scene').waitFor();
-   await page.locator('#nav [data-view="home"]').click();await page.locator('.portal-world').waitFor();
+   await page.evaluate(()=>go('dwelling'));await page.locator('.xc-guide-scene').waitFor();
+   await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="story"]').click();await page.locator('[data-xc-chapter="arrival"]').click();
    await page.locator('[data-xc-story="skip"]').click();await page.waitForFunction(()=>!document.querySelector('.xc-guide-dialogue'));
    await page.reload();await page.locator('.portal-world').waitFor();
@@ -126,7 +126,7 @@ async function main(){
     assert.equal(await page.locator(`[data-xc-room="${room}"]`).getAttribute('aria-pressed'),'true');
    }
    assert.ok((await page.locator('.xc-sect-room-image').getAttribute('src')).endsWith('chang.webp'));
-   await page.locator('#nav [data-view="home"]').click();await page.locator('.portal-world').waitFor();
+   await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="bank"]').click();await page.locator('#xcGuideAvatar').waitFor();
    assert.equal(await page.evaluate(()=>HALL),'shizhan');
    await page.setViewportSize({width:1280,height:860});await settings();
@@ -137,10 +137,10 @@ async function main(){
    await page.locator('[data-xc-pref="pointer"]').uncheck();assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('xc-custom-pointer')));await page.locator('[data-xc-pref="pointer"]').check();
    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-cursor-${name}-${theme}`);}}
    await page.setViewportSize({width:1280,height:860});
-   await page.locator('[data-xc-pref="click"]').uncheck();await page.locator('.brand').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.locator('[data-xc-pref="click"]').check();
+   await page.locator('[data-xc-pref="click"]').uncheck();await page.locator('.shortcut-settings h3').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.locator('[data-xc-pref="click"]').check();
    await page.evaluate(()=>{for(const [id,value] of [['xcSize','180'],['xcTime','1100']]){const b=document.getElementById(id);b.value=value;b.dispatchEvent(new Event('input',{bubbles:true}));}});
-   await page.evaluate(()=>{document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0}));document.querySelector('.brand').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0}));});assert.equal(await page.locator('.xc-cursor-array').count(),0);
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.brand').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.evaluate(()=>{document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0}));document.querySelector('.shortcut-settings h3').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0}));});assert.equal(await page.locator('.xc-cursor-array').count(),0);
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.shortcut-settings h3').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
    const zip=execFileSync(process.env.PYTHON||'python',['-c',"import sys;sys.path.insert(0,'tests');from test_cursor_assets import pack;sys.stdout.buffer.write(pack())"]);
    await page.locator('#xcZip').setInputFiles({name:'cursor.zip',mimeType:'application/zip',buffer:zip});await page.waitForFunction(()=>document.querySelector('#xcAssetStatus')?.textContent==='已使用本机Mod素材');
    for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-imported-desktop-${theme}`);}

@@ -130,8 +130,9 @@ async function go(view) {
   VIEW = view;
   if (window.DRAW) setTimeout(() => DRAW.refresh(), 0);
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
-  render();
+  return render();
 }
+window.MAP_NAVIGATION?.configure({go, current:()=>VIEW, room:()=>W("nav.home").replace(/^\S+\s/, ""), error:showError});
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回洞府；返回 false 表示没得退了
 window.xcBack = () => {
@@ -177,16 +178,17 @@ function configurePortal() {
     {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'办理中心',view:'train',x:48,y:38},
     {id:'skeleton',label:'档案室',view:'skeleton',x:75,y:42},{id:'notes',label:'公务手账',view:'notes',x:68,y:73},
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'时政简报',view:'tianji',x:16,y:79},
-    {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'settings',label:'系统设置',view:'settings',x:88,y:31},
+    {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
     {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'五脉修炼殿',view:'train',x:46,y:38},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:76,y:34},{id:'bank',label:'试炼塔',view:'bank',x:87,y:57},
     {id:'log',label:'照心台',view:'log',x:64,y:76},{id:'contest',label:'演武场',view:'contest',x:33,y:77},
     {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
-    {id:'settings',label:'宗门设置',view:'settings',x:89,y:30},
+    {id:'notes',label:'修行手札',view:'notes',x:89,y:30},{id:'journal',label:'人物纪事与委托',view:'journal',x:34,y:18},
   ];
   SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
-    if(p.view==='guide')XC_GUIDE.open();
+    if(p.view==='journal')NARRATIVE.open();
+    else if(p.view==='guide')XC_GUIDE.open();
     else if(p.view==='story')XC_SECT.openStory();
     else go(p.view);
   });
@@ -223,6 +225,7 @@ function banner() {
 }
 
 async function render() {
+  window.MAP_NAVIGATION?.beforeRender();
   document.body.classList.remove("portal-home");
   const v = $("#view");
   document.documentElement.classList.remove("in-chat", "in-sl-exam");
@@ -243,6 +246,7 @@ async function render() {
     mountGuide();
     mountNarrative();
     SCENE_PORTAL.mount(VIEW);
+    window.MAP_NAVIGATION?.mount(VIEW);
   } catch (e) { showError(e); }
 }
 
@@ -601,7 +605,7 @@ const views = {
     const cp = chatPrefs();
     const schedule=await api('/api/study/schedule',{});
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return SCENE_PORTAL.settingsHtml() + (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
+    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
       <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
         <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
       <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
@@ -1570,7 +1574,7 @@ function bindLog() {
 function foldCards(root) {
   root.querySelectorAll(":scope > .card, :scope > div > .card").forEach((c) => {
     const h = c.firstElementChild;
-    if (!h || h.tagName !== "H3" || !c.querySelector("input, select, textarea") || c.closest("details")) return;
+    if (c.classList.contains("shortcut-settings") || !h || h.tagName !== "H3" || !c.querySelector("input, select, textarea") || c.closest("details")) return;
     const d = document.createElement("details");
     d.className = c.className + " card-fold";
     if (c.id) d.id = c.id;

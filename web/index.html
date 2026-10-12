@@ -32,11 +32,12 @@
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
 <link rel="stylesheet" href="scene_portal.css">
 <link rel="stylesheet" href="narrative.css">
+<link rel="stylesheet" href="map_navigation.css">
 </head>
 <body class="xiuxian">
 <div id="bgLayer"></div>
 <div id="quoteLayer"></div>
-<header class="topbar">
+<header class="topbar" hidden aria-hidden="true" inert>
   <div class="brand"><img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>公考模拟器</span></div>
   <nav id="nav">
     <a data-view="home" class="active">洞府</a>
@@ -77,6 +78,7 @@
 <script src="scene_portal.js"></script>
 <script src="vendor/inkjs/ink.js"></script>
 <script src="narrative.js"></script>
+<script src="map_navigation.js"></script>
 <script src="app.js"></script>
 <script src="contest.js"></script>
 <script src="contest_sl.js"></script>

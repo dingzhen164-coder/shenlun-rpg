@@ -101,9 +101,7 @@ function inspect() {
       for (const v of [...new Set(views)]) {
         if (only && !only.includes(v)) continue;
         errors.length = 0;
-        const link = page.locator(`#nav a[data-view="${v}"]`).first();
-        if (!(await link.isVisible())) continue;                      // 隐藏的入口不查
-        await link.click();
+        await page.evaluate(v => go(v), v); // 地图/快捷键导航由ui_map_navigation实点验收；这里判页面布局。
         await page.waitForTimeout(1200);
         await page.evaluate(() => document.querySelectorAll('.cer-ok').forEach((b) => b.click()));
         const problems = [...errors, ...(await page.evaluate(inspect))];
