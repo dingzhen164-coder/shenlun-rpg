@@ -28,6 +28,7 @@ jobs:
         run: |
           node tests/test_guide.cjs
           node tests/test_sect.cjs
+          node tests/test_scene_portal.cjs
       - name: Real article interactions and screenshots
         run: node tests/ui_articles.cjs
       - name: Real shenlun exam interactions and screenshots

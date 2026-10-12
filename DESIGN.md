@@ -445,3 +445,11 @@ xiuxian_sect.js/css在行测首页显示原生SVG山水与七处建筑按钮；�
 web/assets/sect中map来自用户2026-10-12上传的山水地图/sect-court-v1.png；bamboo/yan/shu/li/zi/chang来自洞府图片包，原尺寸只转WebP离线分发，素材来源映射见同目录README。原ZIP和参考游戏截图不提交仓库。主地图保持原图比例、建筑位置牌签，窄屏目录叠加地图；无素材时保留SVG兜底。
 
 XC_GUIDE对话增加xc-guide-bust裁显示区域，原立绘不重新绘制或改透明度；桌面/手机/短横屏分别控制半身框，手写和训练仍默认仅小头像。bamboo用于清禾静室半身框背景。XC_SECT.chamberHtml显示五脉洞府；点击修炼殿先查看五脉，再进入原训练流程。场景选择localStorage xc-sect-room枚举yan/shu/li/zi/chang，仅本机喜好，不改变学习任务或实际板块。训练待机页复用洞府台头，真正答题页面不加入背景图；材料与笔迹、申论界面保持原样。
+
+## 27. 场景首页与地点排布（2.8.7 开发记录）
+
+默认VIEW=home只显示全景地点；原views.home函数与bindHome保持在dwelling路由，行测洞府、申论办公室。顶栏有独立场景入口与原首页入口，返回键先回场景。行测使用青衡宗map.webp，申论使用现有hall.webp；SL_UI对home跳过工作台台头，dwelling仍使用办公室台头。原学习/笔记/计时/存档接口不变。
+
+scene_portal.js/css为可复用地图和编辑器；app.js配置id=xingce/guantu、title/image/places并注入原go入口。每科本机localStorage scene-layout:<id>={desktop:{地点:{x,y}},narrow:{地点:{x,y}}}，百分比有限数值5—95，未知地点忽略、缺失/损坏回退默认。宽高比>=1.15选电脑横屏，否则竖屏。设置内拖动（pointer捕获，touch-action仅编辑按钮）/方向键/百分比坐标选点；取消拖动回滚，保存失败提示且保留当前调整。重置只重置当前方向，撤销载入最后保存布局；显式保存，不写训练文件，无迁移与奖励影响。设备和科目相互独立。
+
+法师成长记在独立fakao-rpg/dev复用同一模块和编辑规则，魔法学院为原创矢量全景，原首页进入营地；各应用独立存储域与id=mage，不改变法考八科、题库核验、端口或配置目录。此模块不是共享服务，两仓库独立离线运行。

@@ -63,5 +63,5 @@
     if(control.dataset.xcStory==='prev'){page=Math.max(0,page-1);showPage();}
     if(control.dataset.xcStory==='next'){if(page+1===current.lines.length)finish();else{page++;showPage();}}
   });
-  window.XC_SECT={homeHtml,mount,chamberHtml};
+  window.XC_SECT={homeHtml,mount,chamberHtml,openStory:catalogue};
 })();
