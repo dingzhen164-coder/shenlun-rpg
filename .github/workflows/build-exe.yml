@@ -157,3 +157,4 @@ jobs:
         run: |
           V=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' rpg/version.py)
           gh release upload "v$V" gongkao-simulator-mac.zip --clobber
+# 3.0.0独立验证快照；不向Release上传。

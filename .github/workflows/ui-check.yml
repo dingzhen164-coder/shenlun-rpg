@@ -54,3 +54,4 @@ jobs:
           name: article-ui-screenshots
           path: ui-artifacts/
           retention-days: 7
+# 3.0.0独立验证快照；不向Release上传。
