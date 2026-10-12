@@ -64,11 +64,11 @@ async function main(){
     const response=await page.request.get(base+'/assets/shenlun/'+asset+'.webp');assert.equal(response.status(),200);
     assert.ok(await page.evaluate(src=>new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im.naturalWidth>1000);im.onerror=()=>resolve(false);im.src=src;}),base+'/assets/shenlun/'+asset+'.webp'));
    }
-   for(const view of ['dwelling','train','notes','contest','tianji','skeleton','log']){
+   for(const view of ['dwelling','train','bank','notes','contest','tianji','skeleton','log']){
     await page.evaluate(v=>go(v),view);
-    const title={dwelling:'办公室',train:'办理中心',notes:'公务手账',contest:'年度考核',tianji:'时政简报',skeleton:'档案室',log:'政绩录'}[view];
+    const title={dwelling:'办公室',train:'知识办理中心',bank:'实操训练中心',notes:'公务手账',contest:'年度考核',tianji:'天机台',skeleton:'档案室',log:'政绩录'}[view];
     await page.waitForFunction(title=>document.querySelector('.sl-ui-masthead h1')?.textContent===title,title);
-    if(view==='train')assert.equal(await page.locator('.sl-ui-masthead [data-hall]').count(),2);
+    if(view==='train'||view==='bank')assert.equal(await page.locator('[data-hall]').count(),0);
     if(view==='skeleton')assert.equal(await page.locator('.sl-ui-masthead [data-libtab]').count(),3);
     if(view==='notes'){
      assert.equal(await page.locator('.sl-ui-masthead [data-ntab]').count(),2);

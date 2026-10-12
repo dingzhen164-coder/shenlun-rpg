@@ -97,7 +97,8 @@ function inspect() {
       await page.goto(base + '/');
       await page.waitForTimeout(1500);
       await page.evaluate(() => document.querySelectorAll('.cer-ok').forEach((b) => b.click()));   // 首次进入的大典画面先关掉
-      const views = await page.$$eval('#nav a[data-view]', (as) => as.filter((a) => a.offsetParent !== null || true).map((a) => a.dataset.view));
+      const listed = await page.$$eval('#nav a[data-view]', (as) => as.filter((a) => a.offsetParent !== null || true).map((a) => a.dataset.view));
+      const views=only||[...new Set([...listed,"bank","tianji"])];
       for (const v of [...new Set(views)]) {
         if (only && !only.includes(v)) continue;
         errors.length = 0;

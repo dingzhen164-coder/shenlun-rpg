@@ -1,5 +1,15 @@
 # DESIGN · 申论官途（申论 RPG）
 
+## 3.0.2开发批次：独立入口、名称和状态信息
+
+- 首页仍无导航菜单和宗门信息卡，增加左右角常驻状态牌。train=知识修炼/办理，bank=试炼/申论实操；移除双门页签和bank→train重定向。TRAIN_ROUTE只标记当前原训练会话所属页面，切到另一板块不显示该会话，返回仍可继续；原试炼存档/评分与申论草稿均不变。申论作答、计时、重绘路由同步改bank。
+- 三主题tianji地图地点统一显示天机台，连接原简报/文章模块，无新增下载或AI调用。
+- scene-layout:<场景>向后兼容加入names:{稳定地点ID:显示名称}，仅已知ID、去控制字符/首尾空格、最多24字；空值使用默认。位置横竖屏独立，名称共用。文本通过转义/DOM textContent渲染；显式保存失败不覆盖已有存储，撤销重新读取。地图、NAV页面名及状态地点显示使用同一名称来源，不修改真实题库板块。首页百分比定位基于状态牌下方的可用区域；旧坐标ID保留。
+- study_status.view(g)只读返回start/exam/day/remaining/average_minutes，day=起始日至今日含首尾，未开始为0；平均值使用区间内seconds/60+lectures，除以含未学习日的日历天数，避免practice/selfstudy重复统计。dashboard及heartbeat返回此对象。realm.next_xp=ceil(xp_at(下一小境界分数))，最高境界为null；HUD显示state.xp/next_xp，区别于原into/need的本境界相对进度。突破与经验引擎不变。
+- study_hud.js在#view外维护常驻DOM，原updatePill/心跳更新今日值、累计经验、境界与平均值。左右状态牌、地图入口、聊天/便笺/脉络图全屏和申论作答避让；不恢复顶栏菜单，不改变键盘设置。
+- 验证：新ui_status_navigation.cjs检查三主题独立实点、真实自编试炼会话归属、心跳实时条、改名保存/刷新/恢复/转义、所有页面常驻HUD及电脑/平板/手机边界；旧布局检查支持only指定真实bank/tianji页面，不再漏检。完整三端发布留到明确发布指令。
+
+
 > 状态：**方案阶段**（尚无代码）。这份文档是 M1 开工前的蓝图，定了之后再改要同步更新这里。
 > 姊妹项目：[xingce-rpg](https://github.com/dingzhen164-coder/xingce-rpg)（行测修仙传）。本项目沿用它的底座，并为日后合并预留结构。
 

@@ -291,6 +291,7 @@ class Game:
                 "gate_realm": self.gate_label(gate) if gate else "",
                 "overflow": int(xp - self.xp_at(gate)) if gate else 0,
                 "into": into, "need": need, "frac": frac, "next": nxt,
+                "next_xp": int(math.ceil(self.xp_at(b))) if b > s_int else None,
                 "target": self.rules.num("目标分数"), "max_score": self.rules.num("最高分数")}
 
     def _stages_between(self, start, avail):
@@ -1707,6 +1708,7 @@ class Game:
     # ================================================================ 面板
     def dashboard(self):
         from . import question_bank
+        from . import study_status
         info = self.realm_info()
         run, bonus = self.streak()
         cur = self.current_batch()
@@ -1739,7 +1741,7 @@ class Game:
             "subject": self.subject,
             "today": self.t, "theme": {"name": self.theme, "terms": self.th["terms"],
                                        "levels": self.level_names(), "face": self.th["tutor_face"]},
-            "realm": info, "xp": self.state["xp"],
+            "realm": info, "xp": self.state["xp"], "study_status": study_status.view(self),
             "streak": {"days": run, "bonus": bonus}, "dao": {"value": dao, "label": self.dao_label(dao)},
             "ideal": self.ideal(), "lap": self.state["lap"],
             "batch": {"index": (cur + 1) if cur is not None else None,

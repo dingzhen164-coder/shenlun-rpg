@@ -8,7 +8,7 @@
   const S = { page: "list", qid: "", q: null, result: null, busy: false, lastKey: 0, lastPing: 0, stat: "", qs: null };
   const HIT = { full: ["落实", "ok"], half: ["部分落实", "half"], none: ["未落实", "none"] };
   const post = (url, body) => api(url, body || {});
-  const rerender = () => (VIEW === "train" ? renderTrain() : render());
+  const rerender = () => (VIEW === "bank" ? renderTrain() : render());
 
   // ---------------------------------------------------------------- 办理殿 · 实操
   function hallStat() { return S.stat || "作答批改"; }
@@ -101,7 +101,7 @@
       } catch (e) { showError(e); return; }
     }
     HALL = "shizhan"; S.page = "answer";
-    await (VIEW === "train" ? renderTrain() : go("train"));
+    await (VIEW === "bank" ? renderTrain() : go("bank"));
     } finally {S.opening=false;}
   }
 
@@ -124,7 +124,7 @@
   }
 
   function active() {
-    return !S.busy && !B.ocrBusy && (!S.q?.complete_bank || B.clockOn) && VIEW === "train" && HALL === "shizhan" && S.page === "answer" && document.visibilityState === "visible" && Date.now() - S.lastKey < 120000;
+    return !S.busy && !B.ocrBusy && (!S.q?.complete_bank || B.clockOn) && VIEW === "bank" && HALL === "shizhan" && S.page === "answer" && document.visibilityState === "visible" && Date.now() - S.lastKey < 120000;
   }
   function board() { return S.q ? S.q.type : ""; }
 

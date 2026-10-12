@@ -18,7 +18,7 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.loca
  for(const id of ids){await home();await page.locator(`[data-portal-go="${id}"]`).click();
   if(id==='journal'){await page.locator('.narrative-dialog').waitFor();await page.keyboard.press('Escape');await page.locator('.narrative-dialog').waitFor({state:'detached'});assert.equal(await page.evaluate(()=>VIEW),'home');}
   else if(id==='guide'||id==='story'){await page.locator('.xc-guide-dialogue').waitFor();await page.keyboard.press('Escape');await page.locator('.xc-guide-dialogue').waitFor({state:'detached'});}
-  else{await view(id==='bank'?'train':id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('[data-map-home]').isVisible(),true);}
+  else{await view(id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('[data-map-home]').isVisible(),true);}
  }
  await home();await page.keyboard.press('Tab');await view('dwelling');await page.keyboard.press('Tab');await view('home');
  await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>VIEW),'home');

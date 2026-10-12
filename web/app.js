@@ -24,7 +24,7 @@ let VIEW = "home";
 const T = { session: null, title: "", msgs: [], input: { mode: "none" }, busy: false, finished: false, battle: null };
 const W = (k) => DASH?.theme?.terms?.[k] ?? k;   // 当前风格的说法
 const isSL = () => DASH?.subject === "申论";   // 当前科目是申论（行测的题库、试炼塔、成语录等不显示）
-const NAV = (k) => W("nav." + k).replace(/^\S+\s/, "");  // 去掉图标的页面名
+const NAV = (k) => (k !== "home" && window.SCENE_PORTAL?.title(k)) || W("nav." + k).replace(/^\S+\s/, "");  // 去掉图标的页面名
 
 async function api(path, body) {
   const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
@@ -128,6 +128,8 @@ async function go(view) {
   if (window.CARDS && CARDS.isOpen()) CARDS.close();
   if (window.MINDMAP && MINDMAP.isOpen()) MINDMAP.close();
   VIEW = view;
+  if (view === "train" || view === "bank") HALL = view === "bank" ? "shizhan" : "xiulian";
+  window.STUDY_HUD?.mount(DASH, VIEW);
   if (window.DRAW) setTimeout(() => DRAW.refresh(), 0);
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   return render();
@@ -175,16 +177,18 @@ function applyTheme() {
 function configurePortal() {
   const official=isSL();
   const places=official?[
-    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'办理中心',view:'train',x:48,y:38},
+    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'知识办理中心',view:'train',x:48,y:38},
+    {id:'bank',label:'实操训练中心',view:'bank',x:48,y:60},
     {id:'skeleton',label:'档案室',view:'skeleton',x:75,y:42},{id:'notes',label:'公务手账',view:'notes',x:68,y:73},
-    {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'时政简报',view:'tianji',x:16,y:79},
+    {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
     {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'五脉修炼殿',view:'train',x:46,y:38},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:76,y:34},{id:'bank',label:'试炼塔',view:'bank',x:87,y:57},
     {id:'log',label:'照心台',view:'log',x:64,y:76},{id:'contest',label:'演武场',view:'contest',x:33,y:77},
     {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
-    {id:'notes',label:'修行手札',view:'notes',x:89,y:30},{id:'journal',label:'人物纪事与委托',view:'journal',x:34,y:18},
+    {id:'notes',label:'修行手札',view:'notes',x:89,y:30},
+    {id:'tianji',label:'天机台',view:'tianji',x:15,y:30},{id:'journal',label:'人物纪事与委托',view:'journal',x:34,y:18},
   ];
   SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
@@ -211,6 +215,7 @@ function updatePill() {
   const m = DASH.minutes;
   $("#todayPill").textContent = `${W("today_word") === "today_word" ? "🕯 今日功行" : W("today_word")} ${m.today} / ${m.goal} 分钟（${W("study")} ${m.study ?? m.today} · ${W("lecture")} ${m.lecture ?? 0}）` + (m.today >= m.goal ? " ✦" : "");
   updateStudyDot();
+  window.STUDY_HUD?.mount(DASH, VIEW);
 }
 function banner() {
   const w = [];
@@ -238,7 +243,7 @@ async function render() {
     else if (VIEW === "tianji") { if (!DASH) await refresh(); await TIANJI.render(v); }
     else if (VIEW === "notes") { if (!DASH) await refresh(); await NOTES.render(v); }
     else if (VIEW === "skeleton") { if (!DASH) await refresh(); v.innerHTML = await views.skeleton(); bindSkeleton(); }
-    else if (VIEW === "bank") { HALL = 'shizhan'; return go('train'); }   // 试炼塔并进了修炼殿
+    else if (VIEW === "bank") { if (!DASH) await refresh(); v.innerHTML = await views.train(); bindTrain(); }
     else if (VIEW === "wrong" || VIEW === "pill") { VIEW = "log"; return go("log"); }   // 心魔录、丹房在 3.0 去掉了
     else if (VIEW === "log") { await refresh(); v.innerHTML = views.log(); bindLog(); }
     else if (VIEW === "settings") { await refresh(); await AMB.load(); v.innerHTML = await views.settings(); bindSettings(); }
@@ -368,7 +373,7 @@ function zoomImg(src) {
 // 草稿笔记按题存（web/draw.js）：做题 / 复盘时是屏幕上这道题，别的页面按页面
 window.DRAW_KEY = () => {
   if (window.CARDS && CARDS.drawKey()) return CARDS.drawKey();      // 温简：每张卡一份草稿
-  if (VIEW === "train" && T.session) for (let i = T.msgs.length - 1; i >= 0; i--) if (T.msgs[i].qkey) return T.msgs[i].qkey;
+  if (VIEW === TRAIN_ROUTE && T.session) for (let i = T.msgs.length - 1; i >= 0; i--) if (T.msgs[i].qkey) return T.msgs[i].qkey;
   return "page:" + VIEW;
 };
 // 资料分析 / 一拖五：左边材料上的笔记按这段材料存（同一组几道题共用）；材料收起时不算
@@ -525,7 +530,7 @@ const views = {
 
   async train() {
     const tasks = DASH?.plan?.tasks || [];
-    const idle = () => !T.session && !T.msgs.length && !T.busy;
+    const idle = () => TRAIN_ROUTE !== VIEW || (!T.session && !T.msgs.length && !T.busy);
     if (idle()) {
       const hub = await hubHtml();
       if (idle()) return hub;   // 殿里的数据还没载完就点了功课：以功课对话框为准，不能被殿覆盖
@@ -543,10 +548,10 @@ const views = {
         <div class="row" style="margin-top:8px"><span class="spacer"></span>
         <button class="ghost" data-act="${["bank", "bank_review"].includes(T_TYPE) ? "bank_pause" : "skip"}">${["bank", "bank_review"].includes(T_TYPE) ? "保存并暂停" : "跳过"}</button><button class="primary" id="send">提交</button></div>`;
     else if (inp.mode === "buttons") composer = `<div class="row">${inp.buttons.map((b) => `<button class="${b.id === "skip" ? "ghost" : "primary"}" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
-    else if (T.finished && T_TYPE === "mock_review") composer = `<div class="row"><button class="primary" id="backContest">回${esc(NAV("contest"))}</button><button class="ghost" id="backHome">回修炼殿</button></div>`;
-    else if (T.finished) composer = `<div class="row"><button class="primary" id="nextTask">下一项功课</button><button class="ghost" id="backHome">回修炼殿</button></div>`;
+    else if (T.finished && T_TYPE === "mock_review") composer = `<div class="row"><button class="primary" id="backContest">回${esc(NAV("contest"))}</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
+    else if (T.finished) composer = `<div class="row"><button class="primary" id="nextTask">下一项功课</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
     return `<div class="train">
-      <div class="card"><h3>📜 师尊荐课</h3>${tasks.map(taskRow).join("")}<button class="ghost small" id="toHall" style="margin-top:8px">↩ 回修炼殿</button></div>
+      <div class="card"><h3>📜 师尊荐课</h3>${tasks.map(taskRow).join("")}<button class="ghost small" id="toHall" style="margin-top:8px">↩ 回当前训练板块</button></div>
       <div class="card chat ${MAT_OPEN && currentMaterial() ? "with-mat" : ""}">${sessionHead()}${materialPane()}<div class="msgs" id="msgs">${T.msgs.map(msgHtml).join("")}</div>
         <div class="composer">${composer}</div></div></div>`;
   },
@@ -957,7 +962,7 @@ function mountGuide() {
     guide: () => document.querySelector('[data-xc-guide="open"]')?.click(),
     study: () => { HALL = "xiulian"; go("train"); },
     library: () => go("skeleton"),
-    tower: () => { HALL = "shizhan"; go("train"); },
+    tower: () => { go("bank"); },
     wrong: () => {
       const task = DASH?.plan?.tasks?.find(t => t.type === "wrong" && !t.done);
       if (task) startTask({ task_id: task.id }); else go("log");
@@ -987,7 +992,8 @@ async function startTask(body) {
   window.XC_GUIDE?.close();
   SESSION_SNAP = window.SETTLE ? SETTLE.snap() : null;
   Object.assign(T, { session: null, title: "准备中…", msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
-  go("train");
+  TRAIN_ROUTE = ["bank", "bank_review"].includes(body.task?.type) ? "bank" : "train";
+  await go(TRAIN_ROUTE);
   try { applyResp(await api("/api/session/start", body)); }
   catch (e) { T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); T.finished = true; }
   renderTrain();
@@ -1008,7 +1014,7 @@ function applyResp(r) {
     const kind = window.SETTLE && SETTLE.kindOf(r.type || T_TYPE), before = SESSION_SNAP, title = r.title || T.title, battle = r.battle;
     SESSION_SNAP = null;
     refresh().then(() => {
-      if (VIEW === "train") renderTrain();
+      if (VIEW === TRAIN_ROUTE) renderTrain();
       if (kind && before) SETTLE.show({ kind, title, before,
         lines: battle && battle.correct != null && battle.total ? [`破关 ${battle.correct}/${battle.total}`, `正确率 ${Math.round(battle.correct / battle.total * 100)}%`] : [] });
     });
@@ -1041,9 +1047,9 @@ function fitChat() {
 window.addEventListener("resize", () => { if ($(".train")) fitChat(); });
 async function renderTrain() {
   window.NARRATIVE?.close();
-  if (VIEW !== "train") return;
+  if (!["train", "bank"].includes(VIEW)) return;
   const html = await views.train().catch((e) => { showError(e); return ''; });
-  if (VIEW !== "train") return;
+  if (!["train", "bank"].includes(VIEW)) return;
   $("#view").innerHTML = html;
   bindTrain();
   if(isSL())window.SL_UI?.mount(VIEW);
@@ -1055,7 +1061,7 @@ async function renderTrain() {
 }
 function bindTrain() {
   fitChat();
-  if (!T.session && !T.msgs.length && !T.busy) return bindHub();
+  if (TRAIN_ROUTE !== VIEW || (!T.session && !T.msgs.length && !T.busy)) return bindHub();
   bindTaskClicks($("#view"));
   bindPins();
   const at = $("#askToggle");
@@ -1073,7 +1079,7 @@ function bindTrain() {
   };
   const th = $("#toHall");
   if (th) th.onclick = () => {
-    if (T.session && !T.finished && !confirm("这项功课还没结束，先回修炼殿吗？（试炼的进度会保存，其他功课需要重新开始）")) return;
+    if (T.session && !T.finished && !confirm("这项功课还没结束，先回当前训练板块吗？（试炼的进度会保存，其他功课需要重新开始）")) return;
     Object.assign(T, { session: null, msgs: [], battle: null }); clearInterval(TIMER); renderTrain();
   };
   const bh = $("#backHome"); if (bh) bh.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); renderTrain(); };
@@ -1113,7 +1119,8 @@ function setsHtml(books) {
         <details><summary class="small">选择其他${b.paper ? '卷子' : '套'}</summary>${grid(b)}</details></div>`;
     }).join('')}</div>`;
 }
-// ------------------------------------------------------------ 修炼殿：两扇门（修炼 / 实战），没在做功课时显示
+// ------------------------------------------------------------ 修炼殿：两个独立页面（修炼 / 实战），没在做功课时显示
+let TRAIN_ROUTE = "train";       // 当前训练会话所属页面，进入另一个独立板块时不展示它
 let HALL = 'xiulian';            // xiulian 修炼（自选功法练习）| shizhan 实战（真题试炼，原试炼塔）
 let XL_BOARD = '';               // 修炼殿里选中的板块
 // 申论：当前单位、领导职务层次、直属领导（数据见 rpg/career.py，文件 训练/职务履历.md）
@@ -1124,30 +1131,15 @@ function careerHtml(C) {
     ${C.story ? `<details class="fold career-story"><summary>📖 这一段的背景</summary><p class="small muted">${esc(C.story)}</p></details>` : ""}`;
 }
 async function hubHtml() {
-  if (isSL()) return slHubHtml();
-  const d = DASH || {};
-  const tower = d.tower;
-  const gates = `<div class="hall-gates">
-    <div class="gate ${HALL === 'xiulian' ? 'on' : ''}" data-hall="xiulian"><div class="gate-cloud"></div><div class="gate-icon">🧘</div>
-      <div class="gate-name">修 炼</div><div class="gate-sub">${esc(W('yj'))}温习 · 灵脉图</div><div class="gate-stat">${esc(W('yj_review'))} · 简匣规矩 · 灵脉图</div></div>
-    <div class="gate ${HALL === 'shizhan' ? 'on' : ''}" data-hall="shizhan"><div class="gate-cloud"></div><div class="gate-icon">⚔</div>
-      <div class="gate-name">实 战</div><div class="gate-sub">试炼塔 · 真题成套</div><div class="gate-stat">${tower ? (tower.summit ? '百层已登顶' : `正在攀登第 ${tower.current} 层`) : '真题试炼'}</div></div></div>`;
-  const body = HALL === 'shizhan' ? await shizhanHtml() : await xiulianHtml();
-  return (HALL === "xiulian" && window.XC_SECT ? XC_SECT.chamberHtml() : "") + gates + `<div class="hall-body">${body}</div>`;
-}
-
-// 申论：办理（便笺、脉络图）+ 实操（作答，按采分点批改，web/shenlun.js）
-async function slHubHtml() {
-  const focused=HALL==='shizhan'&&window.SHENLUN?.focused();
-  document.documentElement.classList.toggle('in-sl-exam',!!focused);
-  if(focused)return SHENLUN.hallHtml();
-  const gates = `<div class="hall-gates">
-    <div class="gate ${HALL === 'xiulian' ? 'on' : ''}" data-hall="xiulian"><div class="gate-cloud"></div><div class="gate-icon">${SL_UI.icon('notes')}</div>
-      <div class="gate-name">知识办理</div><div class="gate-sub">${esc(W('yj'))}复习 · 脉络图</div><div class="gate-stat">${esc(W('yj_review'))} · ${esc(W('yj_rule'))} · 脉络图</div></div>
-    <div class="gate ${HALL === 'shizhan' ? 'on' : ''}" data-hall="shizhan"><div class="gate-cloud"></div><div class="gate-icon">${SL_UI.icon('train')}</div>
-      <div class="gate-name">实操训练</div><div class="gate-sub">作答 · 采分点批改</div><div class="gate-stat">${window.SHENLUN ? esc(SHENLUN.hallStat()) : '作答批改'}</div></div></div>`;
-  const body = HALL === 'shizhan' && window.SHENLUN ? await SHENLUN.hallHtml() : await xiulianHtml();
-  return gates + `<div class="hall-body">${body}</div>`;
+  if (VIEW === 'bank') {
+    if (typeof isSL === 'function' && isSL()) {
+      const focused=!!window.SHENLUN?.focused();
+      document.documentElement.classList.toggle('in-sl-exam',focused);
+      return window.SHENLUN ? SHENLUN.hallHtml() : '';
+    }
+    return `<section class="hall-body" data-hall-page="bank">${await shizhanHtml()}</section>`;
+  }
+  return `<section class="hall-body" data-hall-page="train">${(window.XC_SECT ? XC_SECT.chamberHtml() : "") + await xiulianHtml()}</section>`;
 }
 
 // 修炼：上面是玉简（照 Anki 的记忆卡片，web/cards.js），下面斩心魔（模考错题）
@@ -1214,7 +1206,6 @@ function pagodaHtml(t, done, wrong, acc) {
 }
 
 function bindHub() {
-  document.querySelectorAll('[data-hall]').forEach(g => g.onclick = () => { HALL = g.dataset.hall; renderTrain(); });
   document.querySelectorAll('[data-xlboard]').forEach(a => a.onclick = () => { XL_BOARD = a.dataset.xlboard; renderTrain(); });
   document.querySelectorAll('[data-xlwrong]').forEach(b => b.onclick = () =>
     startTask({ task: { type: 'wrong', board: b.dataset.xlwrong, target: '', title: `👹 ${W('kill')} · ${b.dataset.xlwrong}` } }));
@@ -1574,7 +1565,7 @@ function bindLog() {
 function foldCards(root) {
   root.querySelectorAll(":scope > .card, :scope > div > .card").forEach((c) => {
     const h = c.firstElementChild;
-    if (c.classList.contains("shortcut-settings") || !h || h.tagName !== "H3" || !c.querySelector("input, select, textarea") || c.closest("details")) return;
+    if (c.classList.contains("shortcut-settings") || c.classList.contains("portal-settings") || !h || h.tagName !== "H3" || !c.querySelector("input, select, textarea") || c.closest("details")) return;
     const d = document.createElement("details");
     d.className = c.className + " card-fold";
     if (c.id) d.id = c.id;
@@ -1664,7 +1655,7 @@ let lastActive = Date.now();
 let T_TYPE = "";
 ["mousemove", "keydown", "click", "scroll", "input"].forEach((ev) => addEventListener(ev, () => (lastActive = Date.now()), { passive: true }));
 function studyingNow() {
-  return VIEW === "train" && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
+  return VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
     && (T.busy || Date.now() - lastActive < 120000);
 }
 // 在 🪶 手札里写字也算复习：按秒累计“1 分钟内写过字”的时间，心跳时连同本子编号一起报（服务器核对这本最近真的存过笔迹）
@@ -1701,7 +1692,7 @@ setInterval(async () => {
     if (nid && sec) await NOTES.save();          // 先把刚写的存上，服务器才认得“最近写过”
     const r = await api("/api/heartbeat", { seconds: sec, session: on ? T.session : null, notes: nid || null,
       cards: carding || null, cards_board: carding ? CARDS.board() : null, tianji: tj || null, answering: sl || null });
-    if (DASH) { DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
+    if (DASH) { Object.assign(DASH, {xp:r.xp, realm:r.realm, study_status:r.study_status, today:r.today}); DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
     handleEvents(r.events);
     if (DASH?.retreat && !r.retreat_on && VIEW === "dwelling") render();
   } catch (e) { /* 程序关了就不提示 */ }

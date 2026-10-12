@@ -558,7 +558,9 @@ def heartbeat(body):
         else:
             ev = []
         studying = studying or noting or carding or answer or bool(tj)
-        return {"events": ev, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
+        from . import study_status
+        return {"events": ev, "xp": g.state["xp"], "realm": g.realm_info(), "study_status": study_status.view(g),
+                "today": g.t, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
                 "rest": g.resting(), "retreat_on": bool(g.state.get("retreat"))}
 
 
