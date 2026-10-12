@@ -120,6 +120,7 @@ function realmUp(e) {
 
 // ------------------------------------------------------------ 导航 / 风格
 async function go(view) {
+  window.NARRATIVE?.close();
   if (window.SHENLUN && !(await SHENLUN.flush())) return;
   if (window.NOTES && NOTES.embedded() && !(await NOTES.leaveArticle())) return;
   if (VIEW === "notes" && view !== "notes" && window.NOTES && !(await NOTES.flush())) return;
@@ -134,6 +135,7 @@ async function go(view) {
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回洞府；返回 false 表示没得退了
 window.xcBack = () => {
+  if (window.NARRATIVE?.close()) return true;
   if (window.XC_GUIDE?.close(true)) return true;
   const click = (sel) => { const b = document.querySelector(sel); if (b) b.click(); return !!b; };
   if (click(".img-zoom") || click(".cer-ok") || click(".st-btn")) return true;
@@ -162,10 +164,32 @@ function applyTheme() {
   document.documentElement.classList.toggle("theme-gc", DASH.theme.name === "官场");   // 官场风格的页面底色（style.css 末尾）
   $(".brand").innerHTML = `<img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>${esc(DASH.app_name || "公考模拟器")}</span><small class="app-subject">${esc(DASH.subject || "")}</small>`;
   document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
-  document.querySelectorAll("#nav a").forEach((a) => (a.textContent = W("nav." + a.dataset.view)));
+  configurePortal();
+  document.querySelectorAll("#nav a").forEach((a) => (a.textContent = a.dataset.view === "home" ? (isSL()?"🏛 政务大厅":"🏯 青衡宗") : a.dataset.view === "dwelling" ? W("nav.home") : W("nav." + a.dataset.view)));
   if(isSL())window.SL_UI?.chrome();
   window.SL_CURSOR?.sync();
   window.XC_CURSOR?.sync();
+}
+
+function configurePortal() {
+  const official=isSL();
+  const places=official?[
+    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'办理中心',view:'train',x:48,y:38},
+    {id:'skeleton',label:'档案室',view:'skeleton',x:75,y:42},{id:'notes',label:'公务手账',view:'notes',x:68,y:73},
+    {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'时政简报',view:'tianji',x:16,y:79},
+    {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'settings',label:'系统设置',view:'settings',x:88,y:31},
+  ]:[
+    {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'五脉修炼殿',view:'train',x:46,y:38},
+    {id:'skeleton',label:'藏经阁',view:'skeleton',x:76,y:34},{id:'bank',label:'试炼塔',view:'bank',x:87,y:57},
+    {id:'log',label:'照心台',view:'log',x:64,y:76},{id:'contest',label:'演武场',view:'contest',x:33,y:77},
+    {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
+    {id:'settings',label:'宗门设置',view:'settings',x:89,y:30},
+  ];
+  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+    if(p.view==='guide')XC_GUIDE.open();
+    else if(p.view==='story')XC_SECT.openStory();
+    else go(p.view);
+  });
 }
 
 async function refresh() {
@@ -177,7 +201,7 @@ async function refresh() {
     handleEvents(DASH.events);
     updatePill();
     banner();
-    if (DASH.first_today && DASH.greeting && VIEW !== "home") npcToast(DASH.greeting);
+    if (DASH.first_today && DASH.greeting && VIEW !== "home" && VIEW !== "dwelling") npcToast(DASH.greeting);
   } catch (e) { showError(e); }
 }
 function updatePill() {
@@ -199,11 +223,13 @@ function banner() {
 }
 
 async function render() {
+  document.body.classList.remove("portal-home");
   const v = $("#view");
   document.documentElement.classList.remove("in-chat", "in-sl-exam");
   document.documentElement.classList.toggle("in-notes", VIEW === "notes");
   try {
-    if (VIEW === "home") { await refresh(); v.innerHTML = views.home(); bindHome(); }
+    if (VIEW === "home") { await refresh(); v.innerHTML = SCENE_PORTAL.homeHtml(); }
+    else if (VIEW === "dwelling") { await refresh(); v.innerHTML = views.home(); bindHome(); }
     else if (VIEW === "train") { if (!DASH) await refresh(); v.innerHTML = await views.train(); bindTrain(); }
     else if (VIEW === "contest") { if (!DASH) await refresh(); await (isSL() ? CONTEST_SL : CONTEST).render(v); }
     else if (VIEW === "tianji") { if (!DASH) await refresh(); await TIANJI.render(v); }
@@ -215,7 +241,26 @@ async function render() {
     else if (VIEW === "settings") { await refresh(); await AMB.load(); v.innerHTML = await views.settings(); bindSettings(); }
     if(isSL())window.SL_UI?.mount(VIEW);
     mountGuide();
+    mountNarrative();
+    SCENE_PORTAL.mount(VIEW);
   } catch (e) { showError(e); }
+}
+
+// 纪事入口仅在全景/个人空间出现；真实训练仍使用原任务与AI会话。
+function mountNarrative() {
+  window.NARRATIVE?.mount(DASH, VIEW, {
+    api, error: showError,
+    task: t => t.type === "cards" ? (go("train").then(() => CARDS.review(""))) : startTask({task_id:t.id}),
+    updated: () => refresh(),
+    route: view => ["train","skeleton","log","contest"].includes(view) && go(view),
+    study: () => go('train'), review: () => go('log'),
+    tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
+    legacy: () => window.XC_SECT?.openStory(),
+  });
+  if (VIEW === 'dwelling' && DASH?.narrative) {
+    const el = document.createElement('section'); el.className = 'card narrative-dwelling';
+    el.innerHTML = NARRATIVE.homeHtml(DASH.narrative); document.getElementById('view').prepend(el);
+  }
 }
 
 // ------------------------------------------------------------ 小组件
@@ -440,7 +485,7 @@ const views = {
     const retreat = d.retreat ? `<div class="card retreat row"><b>🧘 ${esc(W("retreat"))}中：${esc(d.retreat.board)}</b> <span id="retreatLeft" class="muted"></span>
         <span class="spacer"></span><button class="small" id="retreatEnd">${esc(W("retreat_end"))}</button></div>` : "";
     return `
-    ${!isSL() && window.XC_GUIDE ? (window.XC_SECT ? XC_SECT.homeHtml(d) : XC_GUIDE.homeHtml(d)) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
+    ${!isSL() && window.XC_GUIDE ? XC_GUIDE.homeHtml(d) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
     ${retreat}
     <div class="card hero">
       <div class="avatar">${avatar}</div>
@@ -556,7 +601,7 @@ const views = {
     const cp = chatPrefs();
     const schedule=await api('/api/study/schedule',{});
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
+    return SCENE_PORTAL.settingsHtml() + (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
       <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
         <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
       <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
@@ -991,6 +1036,7 @@ function fitChat() {
 }
 window.addEventListener("resize", () => { if ($(".train")) fitChat(); });
 async function renderTrain() {
+  window.NARRATIVE?.close();
   if (VIEW !== "train") return;
   const html = await views.train().catch((e) => { showError(e); return ''; });
   if (VIEW !== "train") return;
@@ -1537,6 +1583,7 @@ function foldCards(root) {
   });
 }
 function bindSettings() {
+  SCENE_PORTAL.mount("settings");
   foldCards($("#view"));
   DEVICE.bind();
   const saveChat = (p) => { try { localStorage.setItem("chatLayout", JSON.stringify(p)); } catch {} };
@@ -1652,7 +1699,7 @@ setInterval(async () => {
       cards: carding || null, cards_board: carding ? CARDS.board() : null, tianji: tj || null, answering: sl || null });
     if (DASH) { DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
     handleEvents(r.events);
-    if (DASH?.retreat && !r.retreat_on && VIEW === "home") render();
+    if (DASH?.retreat && !r.retreat_on && VIEW === "dwelling") render();
   } catch (e) { /* 程序关了就不提示 */ }
 }, BEAT * 1000);
 setInterval(updateStudyDot, 5000);

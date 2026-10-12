@@ -30,6 +30,8 @@
   document.documentElement.dataset.theme = m; document.documentElement.style.colorScheme = m;
   // 老一些的平板浏览器内核不认 color-mix()：打个记号，style.css 末尾给这些地方换成普通颜色（不然圆框、底色整个不画）
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
+<link rel="stylesheet" href="scene_portal.css">
+<link rel="stylesheet" href="narrative.css">
 </head>
 <body class="xiuxian">
 <div id="bgLayer"></div>
@@ -38,6 +40,7 @@
   <div class="brand"><img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>公考模拟器</span></div>
   <nav id="nav">
     <a data-view="home" class="active">洞府</a>
+    <a data-view="dwelling">洞府</a>
     <a data-view="train">修炼</a>
     <a data-view="notes">手札</a>
     <a data-view="contest">宗门大比</a>
@@ -71,6 +74,9 @@
 <script src="xiuxian_sect.js"></script>
 <script src="shenlun_training.js"></script>
 <script src="shenlun.js"></script>
+<script src="scene_portal.js"></script>
+<script src="vendor/inkjs/ink.js"></script>
+<script src="narrative.js"></script>
 <script src="app.js"></script>
 <script src="contest.js"></script>
 <script src="contest_sl.js"></script>

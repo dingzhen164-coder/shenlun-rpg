@@ -8,7 +8,7 @@ async function main(){
  let logs='',browser;server.stderr.on('data',b=>logs+=b);
  try{
  const base=await new Promise((resolve,reject)=>{let t='';const timeout=setTimeout(()=>reject(Error(logs)),20000);server.stdout.on('data',b=>{t+=b;const m=t.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timeout);resolve(m[1]);}});server.on('exit',code=>{clearTimeout(timeout);reject(Error('server '+code+logs));});});
- browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1280,height:860}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+ browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:860}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  await page.goto(base);await page.locator('#nav [data-view="skeleton"]').click();await page.locator('[data-libtab="bank"]').click();
  await page.locator('#slSourceStart').click();await page.locator('#slSourceStatus').filter({hasText:'录入完成'}).waitFor();await page.locator('#slBankRefresh').click();await page.locator('.sl-paper').first().waitFor();
  await page.locator('.sl-bank-input summary').filter({hasText:'手动录入'}).click();

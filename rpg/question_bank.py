@@ -436,6 +436,9 @@ def record(g, run, answer, reasoning="", method_ok=None, feedback=""):
     ev = g._award(g.rules.xp('实战答对') if result['ok'] else g.rules.xp('实战答错'),
                   'bank', q['board'], q['key'], result['ok'],
                   '%s · %s 第%s关' % (g.T('bank'), q['board'], q['id'])) if first else []
+    from . import journey
+    journey.record(g, "bank_review" if run["mode"] != "new" else "bank", q["board"], q["key"],
+                   "bank:%s:%s" % (run["token"], run["pos"]))
     progress = tower(g)
     if first and progress['cleared'] > before_floor:
         msg = '🗼 已完成 %s 道新题，登上试炼塔第 %s 层！' % (progress['completed'], progress['cleared'])

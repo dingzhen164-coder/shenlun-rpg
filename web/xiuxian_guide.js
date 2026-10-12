@@ -72,5 +72,5 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel) { close(true); e.preventDefault(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) reveal(); });
-  window.XC_GUIDE = { homeHtml, mount, close, greeting, nextTask, show };
+  window.XC_GUIDE = { homeHtml, mount, close, greeting, nextTask, show, open };
 })();
