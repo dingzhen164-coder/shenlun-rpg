@@ -518,6 +518,8 @@ def answer(g, key, rating, secs=0, now=None):
     c["today"]["secs"] += min(int(secs), 600)
     c["today"]["n"] += 1
     LAST_ANSWER["t"] = time.time()
+    from . import journey
+    c["undo"][-1]["journey_event"] = journey.record(g, "card", n["deck"].split("::", 1)[0], key)
     return award(g, XP[rating], n["deck"]) + ([{"kind": "info", "msg": "这枚玉简已经忘了 %d 次，标成「顽固」：换个角度重新理解一下，或者在藏简阁里改写它。" % new["lapses"]}]
                                                if new.get("leech") and not (old or {}).get("leech") else [])
 
@@ -538,6 +540,8 @@ def undo(g):
     c["today"]["secs"] = max(0, c["today"]["secs"] - u["secs"])
     c["today"]["n"] = max(0, c["today"]["n"] - 1)
     award(g, -u["xp"], u["deck"])
+    from . import journey
+    journey.revoke(g, u.get("journey_event"))
     return u["key"]
 
 

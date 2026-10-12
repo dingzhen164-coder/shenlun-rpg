@@ -8,7 +8,8 @@
   let dashboard,handlers,data,dialog,epoch=0,pending=false,focusBack,brief=false;
   function homeHtml(d) {
     if(!d)return '';
-    return `<div class="narrative-entry"><button data-narrative="person">与${esc(d.profile.character)}交谈</button><button data-narrative="catalogue">${esc(d.profile.title)}${d.unread?` · ${d.unread}段未读`:''}</button></div>`;
+    const j=d.journey,display=j&&!j.error?Object.values(j.placements).map(id=>j.collection.find(c=>c.id===id)).filter(Boolean):[];
+    return `<div class="narrative-entry"><button data-narrative="person">与${esc(d.profile.character)}交谈</button><button data-narrative="catalogue">${esc(d.profile.title)}${d.unread?` · ${d.unread}段未读`:''}</button><button data-narrative="catalogue">任务与收藏</button></div>${display.length?`<div class="journey-display" aria-label="个人空间陈列">${display.map(c=>`<span>${esc(c.title)}</span>`).join('')}</div>`:''}`;
   }
   function mount(d,view,h) {dashboard=d;handlers=h;if(!['home','dwelling'].includes(view))close();}
   function close() {
@@ -28,7 +29,34 @@ dialog.close();dialog.remove();dialog=null;
     return `<details class="narrative-memory"><summary>人物记忆 · ${data.memories.length}件真实记录</summary>${data.memories.length?data.memories.map(m=>`<p>${esc(m.text)}<small>${esc(m.date)} · ${esc(m.source)}</small></p>`).join(''):'<p>还没有学习事件。可以直接开始学习。</p>'}</details>`;
   }
   function catalogue() {
-    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p><div class="narrative-chapters">${data.chapters.map(c=>`<div><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button>${data.world==='xingce'?'<button data-narrative="legacy">原五章宗门纪事</button>':''}</div>${memoriesHtml()}`);
+    const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open]')||[]).map(e=>e.className);
+    const top=dialog?.scrollTop||0;
+    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${journeyHtml()}<div class="narrative-chapters">${data.chapters.map(c=>`<div><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button>${data.world==='xingce'?'<button data-narrative="legacy">原五章宗门纪事</button>':''}</div>${memoriesHtml()}`);
+    expanded.forEach(name=>dialog.querySelector('.'+name)?.setAttribute('open',''));
+    dialog.scrollTop=top;
+  }
+  function journeyHtml() {
+    const j=data.journey;if(!j)return '';
+    if(j.error)return `<p class="journey-warning" role="alert">${esc(j.error)}；学习功能照常可用。</p>`;
+    const statuses={available:'可领取',active:'进行中',completed:'已核验 · 待交付',delivered:'已交付'};
+    const slots={desk:'案头',shelf:'书架',wall:'纪念墙'};
+    const criterion=data.world==='office'?'一次正式批改或卡片复习':'一次正式题库作答、卡片复习或原训练评阅';
+    return `<section class="journey-panel" aria-label="学习任务与收藏"><h3>${esc(j.title)}</h3><p>${esc(j.text)}</p><small>领取后完成${esc(criterion)}，再回来交付。第二段需要一次新的复习、复练或正式批改。今日委托以原功课整项完成为准；未完成的每日委托次日到期，主线可跨日继续。收藏只作纪念，不增加成绩或学时。</small><div class="journey-tasks">${j.tasks.map(t=>`<article class="journey-task"><b>${esc(t.title)}</b><small>${!t.unlocked?'先交付上一段':esc(statuses[t.status])}${t.task.title?' · '+esc(t.task.title):''}</small>${t.proof.source?`<small>依据：${esc(t.proof.source)} · ${esc(t.proof.date)}</small>`:''}<div class="journey-buttons">${t.unlocked&&t.status==='available'?`<button data-journey-claim="${esc(t.id)}" data-journey-task="${esc(t.task.id||'')}" data-journey-approach="study">领取${t.kind==='study'?' · 课程研习':''}</button>${t.kind==='study'?`<button data-journey-claim="${esc(t.id)}" data-journey-approach="practice">领取 · 以题检验</button>`:''}`:''}${t.status==='active'?`<button data-journey-start="${esc(t.id)}">去学习</button>`:''}${t.status==='completed'?`<button data-journey-deliver="${esc(t.id)}">交付成果</button>`:''}</div></article>`).join('')}</div><details class="journey-collection"><summary>收藏册 · ${j.collection.length}件</summary>${j.collection.map(c=>`<article><h4>${esc(c.title)}</h4><p>${esc(c.text)}</p><small>${esc(c.date)} · ${esc(c.reason)} · ${esc(c.author)}</small><button data-journey-place="${esc(c.id)}" data-journey-slot="${esc(c.slot)}">陈列在${slots[c.slot]}</button></article>`).join('')||'<p>还没有收藏。先领取一段学习任务。</p>'}</details><details class="journey-space"><summary>${esc(data.profile.room)}陈列</summary>${Object.entries(slots).map(([slot,title])=>{const id=j.placements[slot],c=j.collection.find(c=>c.id===id);return `<p>${title}：${c?esc(c.title):'尚未陈列'}${c?` <button data-journey-place="" data-journey-slot="${slot}">收起</button>`:''}</p>`;}).join('')}</details><button data-journey-refresh>刷新学习状态</button></section>`;
+  }
+  async function journeyCommand(action,button) {
+    if(pending||!dialog)return;
+    const token=epoch;pending=true;
+    try {
+      const j=data.journey;
+      const body={world:data.world,revision:j.revision,action,id:button.dataset['journey'+({claim:'Claim',deliver:'Deliver',place:'Place'}[action])],
+                  task_id:button.dataset.journeyTask,approach:button.dataset.journeyApproach,slot:button.dataset.journeySlot};
+      const result=action==='refresh'?(await handlers.api('/api/narrative')).journey:await handlers.api('/api/journey',body);
+      if(token!==epoch||!dialog)return;
+      data.journey=result;if(dashboard?.narrative)dashboard.narrative.journey=result;
+      delete data.scene;pending=false;catalogue();
+      if(action!=='refresh')handlers.updated?.();
+    } catch(e){if(token===epoch)failure(e);}
+    finally{pending=false;}
   }
   async function compiled(world) {
     if(!cache.has(world)){
@@ -98,6 +126,16 @@ dialog.close();dialog.remove();dialog=null;
     }
   }
   document.addEventListener('click',e=>{
+    const journey=e.target.closest('[data-journey-claim],[data-journey-deliver],[data-journey-place],[data-journey-start],[data-journey-refresh]');
+    if(journey&&!journey.disabled&&dialog&&!pending){
+      if(journey.hasAttribute('data-journey-start')){
+        const task=data.journey.tasks.find(t=>t.id===journey.dataset.journeyStart);close();
+        if(task?.task.id)handlers.task?.(task.task);else handlers.study?.();
+        return;
+      }
+      const action=journey.hasAttribute('data-journey-claim')?'claim':journey.hasAttribute('data-journey-deliver')?'deliver':journey.hasAttribute('data-journey-place')?'place':'refresh';
+      return journeyCommand(action,journey);
+    }
     const button=e.target.closest('[data-narrative],[data-narrative-chapter],[data-narrative-choice],[data-narrative-restart]');if(!button||button.disabled)return;
     if(button.dataset.narrative==='close')return close();
     if(button.dataset.narrative==='person'||button.dataset.narrative==='catalogue')return open();

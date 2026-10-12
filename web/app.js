@@ -250,6 +250,8 @@ async function render() {
 function mountNarrative() {
   window.NARRATIVE?.mount(DASH, VIEW, {
     api, error: showError,
+    task: t => t.type === "cards" ? (go("train").then(() => CARDS.review(""))) : startTask({task_id:t.id}),
+    updated: () => refresh(),
     study: () => go('train'), review: () => go('log'),
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
     legacy: () => window.XC_SECT?.openStory(),

@@ -121,7 +121,8 @@ def view(g, dashboard):
     profile = _profile(g, dashboard)
     if fs['learned']:
         profile['greeting'] = profile['echo']
-    return {'world': wid, 'revision': state['revision'], 'version': DEFINITIONS[wid]['version'],
+    from . import journey
+    return {'journey': journey.safe_view(g, dashboard), 'world': wid, 'revision': state['revision'], 'version': DEFINITIONS[wid]['version'],
             'profile': profile, 'facts': fs, 'chapters': chapters,
             'memories': list(memories.values()),
             'unread': sum(c['unlocked'] and not c['read'] for c in chapters)}

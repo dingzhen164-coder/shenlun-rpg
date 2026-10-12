@@ -959,6 +959,9 @@ class Game:
                                      "type": typ, "board": board, "item": item, "ok": ok,
                                      "xp": gain, "note": note})
         ev = [{"kind": "xp", "v": gain, "msg": note}] if gain else []
+        if typ in TRAIN_TYPES or typ == "grade":
+            from . import journey
+            journey.record(self, typ, board, item)
         if typ in TRAIN_TYPES:
             ev += self._qi_check(ok)
             if ok and typ in ("wrong", "feynman", "apply", "grade") and self.rng.random() < self.rules.num("顿悟概率"):

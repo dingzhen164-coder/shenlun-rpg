@@ -3,6 +3,8 @@
 import os
 import sys
 import tempfile
+os.environ.pop('DEEPSEEK_API_KEY', None)
+os.environ.pop('SHENLUN_AI_BASE_URL', None)
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -27,6 +29,13 @@ def main():
             vaults[s] = str(v)
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
+        if '--journey-fixture' in sys.argv:
+            # 第二批交互用自编卡片，不连接AI、不读取真实题库。
+            from rpg import cards
+            with api.open_game() as g:
+                deck = next(iter(g.boards))
+                cards.add(g, dict(deck=deck, type='问答', front='自编练习：解释一个方法的适用条件。', back='先说明条件，再用自己的话举例。'))
+                cards.add(g, dict(deck=deck, type='问答', front='自编练习二：用自己的话举例。', back='说明条件与边界。'))
         srv = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
         api.RUNTIME.update(port=srv.server_port, lan=False)
         print('UI-READY http://127.0.0.1:%d' % srv.server_port, flush=True)

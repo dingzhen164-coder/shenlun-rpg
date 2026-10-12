@@ -6,3 +6,10 @@ body.guantu.portal-home #view{padding:0;width:100%;margin:0;max-width:none}
 @media(prefers-reduced-motion:reduce){.portal-place{transition:none}}
 
 .portal-stage-editor[data-profile="desktop"]{aspect-ratio:16/9}
+
+/* 台头与地点各占一行，竖屏的首排地点不能遮住人物/纪事按钮。 */
+.portal-world{display:grid;grid-template-rows:auto minmax(350px,1fr);height:auto;min-height:calc(100dvh - var(--portal-top,80px))}
+.portal-world>.portal-caption{position:relative;top:auto;left:auto;justify-self:start;margin:18px 24px 0;max-width:calc(100% - 48px);box-sizing:border-box}
+.portal-world>.portal-stage{position:relative;inset:auto;min-height:350px}
+.portal-world .portal-place{top:clamp(44px,var(--py),calc(100% - 44px))}
+@media(max-width:650px){.portal-world>.portal-caption{margin:12px 12px 0;max-width:calc(100% - 24px)}}

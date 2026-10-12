@@ -180,6 +180,19 @@ def narrative_action(body):
             raise ApiError(str(e))
 
 
+def journey_action(body):
+    from . import journey
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError("请先选择学习库，再保存委托与收藏")
+        d = g.dashboard()
+        d["persona"] = _persona_view(g)
+        try:
+            return journey.act(g, d, body)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
 def tutor_greet(body):
     """网页加载完主页后再调：AI 生成今天的开场问候（慢，所以不放在 dashboard 里）"""
     with open_game() as g:
@@ -987,6 +1000,7 @@ def settings_test(body):
 ROUTES = {
     ("GET", "/api/narrative"): narrative_view,
     ("POST", "/api/narrative"): narrative_action,
+    ("POST", "/api/journey"): journey_action,
     ("GET", "/api/dashboard"): dashboard,
     ("POST", "/api/sect/story"): sect_story_read,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
