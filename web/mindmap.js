@@ -10,6 +10,7 @@
   const LAYOUTS = [["logicalStructure", "逻辑结构（向右）"], ["mindMap", "思维导图（两边）"], ["organizationStructure", "组织结构（向下）"],
     ["catalogOrganization", "目录组织"], ["timeline", "时间轴"], ["fishbone", "鱼骨图"]];
   let LIST = null, CUR = null, mm = null, saveT = null, dirty = false, libP = null;
+  let opening = false, openSeq = 0, fitT = null;
 
   function loadLib() {
     if (window.simpleMindMap) return Promise.resolve();
@@ -28,8 +29,10 @@
   // 富文本插件（节点文字放在 foreignObject 里）在有的内核上量错高度，字只显示半截：去掉它，节点文字用普通 SVG 文字
   const M = () => {
     const Mind = window.simpleMindMap.default || window.simpleMindMap;
-    const k = (Mind.pluginList || []).findIndex((p) => p.instanceName === "richText");
-    if (k >= 0) Mind.pluginList.splice(k, 1);
+    // 本界面用拖动/缩放，没有自定义滚动条；无需启动其后台尺寸测量插件。
+    // 该插件销毁时未取消延迟rbox任务，快速退出后会测量已移除的SVG。
+    for (let i=(Mind.pluginList||[]).length-1;i>=0;i--)
+      if (["richText","scrollbar"].includes(Mind.pluginList[i].instanceName)) Mind.pluginList.splice(i,1);
     return Mind;
   };
   // 以前（或别处）存的富文本节点 "<p>增长</p>" → 纯文字
@@ -57,11 +60,12 @@
     return `<svg viewBox="0 0 100 100" class="ln-svg"><circle cx="50" cy="50" r="46" class="ln-ring"/><circle cx="50" cy="50" r="38" class="ln-ring2"/>
       ${rays}<circle cx="50" cy="50" r="7" class="ln-core"/></svg>`;
   }
-  async function hubHtml() {
+  async function hubHtml(boards) {
     try { LIST = await api("/api/mindmap"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
+    const shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
     return `<div class="card ln-hall"><div class="row"><h3 style="margin:0">🌿 灵脉图</h3>
         <span class="small muted">每个板块的知识脉络（思维导图）：自己画、或导入 XMind / Markdown，点阵盘打开</span></div>
-      <div class="ln-grid">${LIST.boards.map((b, i) => {
+      <div class="ln-grid">${shown.map((b, i) => {
         const n = b.maps.reduce((a, m) => a + m.nodes, 0);
         return `<div class="ln-slot" data-ln="${esc(b.board)}"><div class="ln-disk ${b.maps.length ? "lit" : ""}" style="--h:${HUES[i % HUES.length]};--d:${(i % 6) * 0.7}s">${disk(i)}</div>
           <div class="ln-name">${esc(b.board)}</div><div class="ln-cap">${b.maps.length ? `${b.maps.length} 幅 · ${n} 节` : "未绘"}</div></div>`;
@@ -100,11 +104,14 @@
     return s;
   }
   async function open(board, name) {
+    const seq=++openSeq; opening=true;
     const s = stage();
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回修炼殿</button><b class="yj-top-title">🌿 灵脉图 · ${esc(board)}</b></div><div class="yj-wait">展开灵脉…</div>`;
     document.getElementById("lnBack").onclick = close;
     let d;
-    try { [d] = await Promise.all([api("/api/mindmap/get", { board, name }), loadLib()]); } catch (e) { showError(e); return close(); }
+    try { [d] = await Promise.all([api("/api/mindmap/get", { board, name }), loadLib()]); } catch (e) { if(seq===openSeq){showError(e);return close();}return; }
+    if(seq!==openSeq||!s.isConnected)return;
+    opening=false;
     CUR = { board, name: d.name };
     const data = d.data || {};
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">← 回修炼殿</button>
@@ -138,7 +145,7 @@
       });
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
     } catch (e) { showError(e); return; }
-    if (!data.view) setTimeout(() => { try { mm.view.fit(); } catch (_) {} }, 100);
+    if (!data.view) fitT=setTimeout(() => { if(seq!==openSeq)return;try { mm.view.fit(); } catch (_) {} }, 100);
     mm.on("data_change", queueSave);
     mm.on("view_data_change", queueSave);
     const cmd = {
@@ -180,6 +187,7 @@
     } catch (e) { dirty = true; showError(e); }
   }
   async function close() {
+    ++openSeq; opening=false;clearTimeout(fitT);
     await flush();
     try { if (mm) mm.destroy(); } catch (_) {}
     mm = null; CUR = null;
@@ -226,5 +234,5 @@
   }
   addEventListener("beforeunload", () => { if (dirty && mm && CUR) navigator.sendBeacon?.("/api/mindmap/save", new Blob([JSON.stringify({ board: CUR.board, name: CUR.name, data: mm.getData(true) })], { type: "application/json" })); });
 
-  window.MINDMAP = { hubHtml, bindHub, open, close, isOpen: () => !!CUR };
+  window.MINDMAP = { hubHtml, bindHub, open, close, isOpen: () => opening || !!CUR };
 })();

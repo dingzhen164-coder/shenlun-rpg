@@ -1,4 +1,4 @@
-/* 3.0.2每页常驻角色/备考信息：dashboard提供真实数据，scene_portal提供本机地点名。
+/* 3.0.3自适应角色/备考信息：dashboard提供真实数据，scene_portal提供本机地点名。
    不计算/发放奖励；只展示累计经验/下一境界总阈值，数值刷新与原心跳一致。 */
 (() => {
   'use strict';
@@ -17,10 +17,16 @@
   function mount(d,view) {
     if(d)data=d;if(view)current=view;if(!data)return;
     let root=document.getElementById('studyHud');
-    if(!root){root=document.createElement('aside');root.id='studyHud';root.className='study-hud';root.setAttribute('aria-label','角色与备考信息');document.body.appendChild(root);}
+    if(!root){root=document.createElement('aside');root.id='studyHud';root.className='study-hud';root.setAttribute('aria-label','角色与备考信息');document.body.insertBefore(root,document.getElementById('banner'));
+      const measure=()=>document.documentElement.style.setProperty('--study-workspace-height',Math.ceil(root.getBoundingClientRect().height)+'px');
+      const sync=()=>{const h=document.documentElement;h.classList.toggle('study-workspace',['in-chat','nt-full','yj-on','in-sl-exam','focus'].some(c=>h.classList.contains(c))||!!document.querySelector('.sl-writing.sl-card-expanded'));measure();};
+      new ResizeObserver(measure).observe(root);
+      new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
+      new MutationObserver(sync).observe(document.getElementById('view'),{subtree:true,attributes:true,attributeFilter:['class']});
+      sync();}
     const p=data.persona||{},r=data.realm||{},m=data.minutes||{},s=data.study_status||{};
     const terms=data.theme?.terms||{},xp=terms.xp||'修为',realm=terms.realm||'境界';
-    const page=window.SCENE_PORTAL?.title(current)||({settings:'设置',bank:'实战训练',train:'修炼',notes:'手记'}[current])||'当前板块';
+    const page=(current==='train'&&window.STUDY_REGIONS?.title())||window.SCENE_PORTAL?.title(current)||({settings:'设置',bank:'实战训练',train:'修炼',notes:'手记'}[current])||'当前板块';
     const world=window.SCENE_PORTAL?.title('home')||'主地图';
     const day=s.day>0?`学习第 ${s.day} 天`:'尚未开始';
     const remaining=Number(s.remaining);

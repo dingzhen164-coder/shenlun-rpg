@@ -1,0 +1,44 @@
+/* 3.0.3真实入口与分区隔离：临时自编卡、嵌套跨板块简匣、完整温简/撤销和导图开关。
+   检查普通页随文状态栏及工作区紧凑带；手机/平板亮暗边界。无真实库或AI。 */
+const assert=require('node:assert/strict'),{chromium}=require('playwright'),{spawn}=require('node:child_process'),fs=require('node:fs');
+const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1];
+const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--journey-fixture'],{env:process.env});
+let browser,page,logs='';srv.stderr.on('data',b=>logs+=b);
+const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error(logs||'服务未启动')),20000);srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});srv.on('exit',c=>{clearTimeout(timer);reject(Error('服务退出 '+c+logs));});});
+async function bounds(){const issues=await page.evaluate(()=>{const h=document.querySelector('#studyHud').getBoundingClientRect(),v=[...document.querySelectorAll('.study-region,.study-hud-player,.study-hud-world')].map(x=>x.getBoundingClientRect());return {overflow:document.documentElement.scrollWidth>innerWidth+2,offscreen:v.some(r=>r.left<0||r.right>innerWidth+2),hud:h.height};});assert.equal(issues.overflow,false);assert.equal(issues.offscreen,false);return issues.hud;}
+async function compact(selector){await page.waitForFunction(()=>document.documentElement.classList.contains('study-workspace'));await page.waitForTimeout(80);const r=await page.evaluate(selector=>({hud:document.querySelector('#studyHud').getBoundingClientRect().bottom,work:document.querySelector(selector).getBoundingClientRect().top,position:getComputedStyle(document.querySelector('#studyHud')).position}),selector);assert.equal(r.position,'fixed');assert.ok(r.work>=r.hud-1,'紧凑信息带不遮挡学习工具 '+JSON.stringify(r));await bounds();}
+(async()=>{try{
+ const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.stack?.slice(0,2500));});page.on('dialog',d=>d.accept());await page.goto(base);await page.locator('.portal-world').waitFor();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'fixed');
+ const boards=await page.evaluate(()=>DASH.tree.map(b=>b.board));const first=boards[0],other=subject==='行测'?'资料分析':boards.find(b=>b!==first);
+ await page.evaluate(async({first,other})=>{for(const deck of [first+'::自编',first+'::'+other+'::自编',other+'::自编','未分类自编'])await api('/api/cards/add',{deck,type:'问答',front:'自编条件 '+deck,back:'自编答案'});},{first,other});
+ await page.locator('[data-portal-go="train"]').click();await page.locator('.study-regions').waitFor();
+ assert.equal(await page.locator('[data-study-region]').count(),subject==='行测'||subject==='申论'?5:boards.length);
+ if(subject==='行测'){assert.deepEqual(await page.locator('.study-region-copy b').allTextContents(),['辨言峰','演数峰','明理峰','观星峰','万象峰']);assert.equal(await page.locator('.study-peak-art').count(),5);}
+ assert.equal(await page.locator('.yj-hall,.ln-hall').count(),0,'选择分区前不铺全部学习内容');
+ const target=subject==='行测'?'li':'board-0';
+ const regions=await page.locator('[data-study-region]').evaluateAll(xs=>xs.map(x=>x.dataset.studyRegion));
+ for(const id of regions){
+  await page.locator(`[data-study-region="${id}"]`).click();await page.locator('.study-region-heading').waitFor();
+  const actual=await page.locator('.yj-name[data-yjgo]').evaluateAll(xs=>xs.map(x=>x.dataset.yjgo));assert.ok(await page.evaluate(({names,id})=>names.every(n=>STUDY_REGIONS.belongs(n,id)),{names:actual,id}),'玉简只能来自所选分区');assert.ok(!actual.includes('未分类自编'));
+  assert.equal(await page.locator('.yj-hall,.ln-hall').count(),2);assert.equal(await page.locator('.study-region,#bankCount,.xc-sect-chamber').count(),0);assert.ok((await page.locator('.study-hud-location').textContent()).includes(await page.locator('.study-region-heading h2').textContent()));
+  const maps=await page.locator('[data-ln]').evaluateAll(xs=>xs.map(x=>x.dataset.ln));assert.ok(await page.evaluate(({names,id})=>names.every(n=>STUDY_REGIONS.belongs(n,id)),{names:maps,id}));
+  await page.locator('[data-study-regions-back]').click();await page.locator('.study-regions').waitFor();
+ }
+ for(const viewport of [{width:1280,height:860},{width:800,height:1280},{width:390,height:844}])for(const theme of ['light','dark']){await page.setViewportSize(viewport);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');}
+ await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ if(process.argv.includes('--shot')){await page.emulateMedia({reducedMotion:'reduce'});fs.mkdirSync('ui-artifacts/regions',{recursive:true});await page.screenshot({path:'ui-artifacts/regions/'+(subject||'法考')+'-selector.png'});}
+ await page.locator(`[data-study-region="${target}"]`).click();await page.locator('.study-region-heading').waitFor();
+ assert.equal(await page.locator('.yj-hall-head .small').textContent().then(s=>s.match(/共 (\d+)/)?.[1]),'3','统计不能计入属于另一板块的嵌套子匣');
+ await page.locator('button[data-yjgo=""]').click();await page.locator('#yjShow').waitFor();await compact('#yjStage');
+ const chosen=await page.evaluate(()=>api('/api/cards/next',{scope:[...document.querySelectorAll('.yj-name[data-yjgo]')].map(x=>x.dataset.yjgo)}));assert.ok(await page.evaluate(({deck,id})=>STUDY_REGIONS.belongs(deck,id),{deck:chosen.card.deck,id:target}));
+ await page.locator('#yjShow').click();await page.locator('[data-rate="4"]').click();await page.locator('#yjUndo').click();await page.locator('#yjShow').waitFor();await compact('#yjStage');await page.locator('#yjBack').click();
+ assert.ok((await page.locator('.study-region-heading h2').textContent()).length);await page.locator('[data-ln]').first().click();await page.locator('.ln-stage').waitFor();await compact('.ln-stage');await page.keyboard.press('Escape');await page.locator('.ln-stage').waitFor({state:'detached'});
+ let release,requested;const gate=new Promise(resolve=>release=resolve),seen=new Promise(resolve=>requested=resolve);
+ await page.route('**/api/mindmap/get',async route=>{requested();await gate;await route.continue();});
+ await page.locator('[data-ln]').first().click();await seen;await page.keyboard.press('Escape');await page.locator('.ln-stage').waitFor({state:'detached'});release();await page.waitForTimeout(120);await page.unroute('**/api/mindmap/get');assert.equal(await page.locator('.ln-stage').count(),0);assert.equal(await page.evaluate(()=>MINDMAP.isOpen()),false);
+
+ await page.evaluate(()=>go('tianji'));await page.locator('.tj-hub').waitFor();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');const separated=await page.evaluate(()=>{const h=document.querySelector('#studyHud').getBoundingClientRect(),b=document.querySelector('#banner').getBoundingClientRect();return b.top>=h.bottom-1;});assert.equal(separated,true,'状态栏不能覆盖提醒');
+ await page.evaluate(()=>go('settings'));await page.locator('.shortcut-settings').waitFor();await page.evaluate(()=>scrollTo(0,800));assert.ok(await page.locator('#studyHud').evaluate(x=>x.getBoundingClientRect().bottom<0),'普通页状态栏随内容滚走');await page.evaluate(()=>{scrollTo(0,0);return go('tianji');});await page.locator('.tj-hub').waitFor();
+ if(process.argv.includes('--shot')){await page.waitForFunction(()=>!document.querySelector('#toasts')?.children.length);await page.screenshot({path:'ui-artifacts/regions/'+(subject||'法考')+'-tianji.png'});}
+ assert.deepEqual(errors,[]);console.log('3.0.3分区/跨板块隔离/温简撤销/导图/自适应状态信息/三尺寸亮暗通过：'+(subject||'法考'));
+}catch(e){if(page){fs.mkdirSync('ui-artifacts/regions',{recursive:true});await page.screenshot({path:'ui-artifacts/regions/failure-'+(subject||'法考')+'.png'}).catch(()=>{});}throw e;}finally{if(browser)await browser.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

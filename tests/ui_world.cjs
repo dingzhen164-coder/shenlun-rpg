@@ -30,7 +30,7 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await card();await open();await page.locator('[data-journey-deliver="main:study"]').click();
  const first=await data();assert.equal(first.journey.collection.length,2);assert.equal(first.world_progress.stage,1);
  await page.locator('[data-journey-claim="main:review"]').click();await page.locator('[data-journey-start="main:review"]').click();
- await page.locator('button[data-yjgo=""]').click();await card();await open();
+ await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':'民法'}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
  await page.locator('[data-journey-deliver="main:review"]').click();await page.locator('[data-journey-deliver^="daily:"]').click();
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();

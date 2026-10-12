@@ -34,6 +34,52 @@ class CardsTest(unittest.TestCase):
     def add(self, front, back="答", deck="资料分析::速算", typ="问答", tags=""):
         return cards.add(self.g, {"deck": deck, "type": typ, "front": front, "back": back, "tags": tags})
 
+    def test_region_scope_excludes_nested_other_board_and_keeps_limits(self):
+        a = self.add("自编甲", deck="判断::论证逻辑")
+        self.add("自编乙", deck="判断::论证逻辑::资料分析")
+        self.add("自编丙", deck="数量关系")
+        scope = ["判断::论证逻辑"]
+        order, counts, _ = cards.queue(self.g, "判断", scope=scope)
+        self.assertEqual(order, [a["id"] + "#1"])
+        self.assertEqual(counts["new"], 1)
+        ov = cards.overview(self.g, scope)
+        self.assertEqual(ov["cards"], 1)
+        self.assertEqual([d["name"] for d in ov["decks"]], scope)
+        self.assertEqual(ov["decks"][0]["total"], 1)
+        self.assertEqual(cards.next_card(self.g, "", [])['counts']['new'], 0)
+        self.assertTrue(cards.next_card(self.g, "", [])['done'])
+        cards.data(self.g)["decks"]["判断"] = {"new_per_day": 0}
+        self.assertTrue(cards.next_card(self.g, "", scope)['done'])
+        self.assertEqual(len(cards.queue(self.g, "")[0]), 1)  # 其他板块仍照旧出卡
+
+    def test_region_undo_does_not_revoke_another_region(self):
+        a = self.add("自编判断", deck="论证逻辑")
+        b = self.add("自编数量", deck="数量关系")
+        cards.answer(self.g, a["id"] + "#1", 4)
+        cards.answer(self.g, b["id"] + "#1", 4)
+        old_xp = self.g.state['xp']
+        with self.assertRaises(cards.CardError):
+            cards.undo(self.g, scope=['论证逻辑'])
+        self.assertEqual(self.g.state['xp'], old_xp)
+        self.assertEqual(len(cards.data(self.g)['undo']), 2)
+        self.assertEqual(cards.undo(self.g, scope=['数量关系']), b['id'] + '#1')
+        self.assertEqual(cards.undo(self.g), a['id'] + '#1')
+        with self.assertRaises(cards.CardError):
+            cards.next_card(self.g, '', '论证逻辑')
+
+    def test_region_api_rejects_other_card_before_awarding(self):
+        from unittest.mock import patch
+        a = self.add("自编资料", deck="资料分析")
+        key = a['id'] + '#1'
+        old_xp = self.g.state['xp']
+        with patch.object(api, '_cards', side_effect=lambda fn: fn(self.g)):
+            with self.assertRaises(cards.CardError):
+                api.cards_answer({'scope':['论证逻辑'], 'key':key, 'rating':4})
+            self.assertEqual(api.cards_next({'scope':['资料分析']})['card']['key'], key)
+            self.assertTrue(api.cards_next({'scope':[]})['done'])
+        self.assertEqual(self.g.state['xp'], old_xp)
+        self.assertEqual(len(cards.data(self.g)['undo']), 0)
+
     def test_markdown_round_trip_and_obsidian_edits(self):
         r = self.add("隔年增长率怎么算？", "r = r1 + r2 + r1×r2", tags="增长 公式")
         f = self.vault / "训练/卡片/资料分析.md"

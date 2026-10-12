@@ -1139,13 +1139,12 @@ async function hubHtml() {
     }
     return `<section class="hall-body" data-hall-page="bank">${await shizhanHtml()}</section>`;
   }
-  return `<section class="hall-body" data-hall-page="train">${(window.XC_SECT ? XC_SECT.chamberHtml() : "") + await xiulianHtml()}</section>`;
+  return `<section class="hall-body" data-hall-page="train">${await xiulianHtml()}</section>`;
 }
 
-// 修炼：上面是玉简（照 Anki 的记忆卡片，web/cards.js），下面斩心魔（模考错题）
+// 修炼：先选分区，再只展示对应玉简与灵脉图；试炼仍由独立入口进入。
 async function xiulianHtml() {
-  const [yj, ln] = await Promise.all([window.CARDS ? CARDS.hubHtml() : '', window.MINDMAP ? MINDMAP.hubHtml() : '']);
-  return yj + ln;
+  return STUDY_REGIONS.html();
 }
 
 let KP_BOARD = '';               // 知识点试炼里选中的板块
@@ -1206,6 +1205,7 @@ function pagodaHtml(t, done, wrong, acc) {
 }
 
 function bindHub() {
+  window.STUDY_REGIONS?.bind($("#view"));
   document.querySelectorAll('[data-xlboard]').forEach(a => a.onclick = () => { XL_BOARD = a.dataset.xlboard; renderTrain(); });
   document.querySelectorAll('[data-xlwrong]').forEach(b => b.onclick = () =>
     startTask({ task: { type: 'wrong', board: b.dataset.xlwrong, target: '', title: `👹 ${W('kill')} · ${b.dataset.xlwrong}` } }));

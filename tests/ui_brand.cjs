@@ -119,13 +119,13 @@ async function main(){
    await page.reload();await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="story"]').click();assert.ok((await page.locator('[data-xc-chapter="arrival"]').textContent()).includes('已读'));
    await page.keyboard.press('Escape');
-   await page.locator('[data-portal-go="train"]').click();await page.locator('.xc-sect-chamber').waitFor();
-   for(const room of ['yan','shu','li','zi','chang']){
-    await page.locator(`[data-xc-room="${room}"]`).click();
-    await page.waitForFunction(()=>document.querySelector('.xc-sect-room-image')?.naturalWidth===1672);
-    assert.equal(await page.locator(`[data-xc-room="${room}"]`).getAttribute('aria-pressed'),'true');
+   await page.locator('[data-portal-go="train"]').click();await page.locator('.study-peaks').waitFor();
+   assert.equal(await page.locator('[data-study-region]').count(),5);
+   for(const region of ['yan','shu','li','zi','chang']){
+    await page.locator(`[data-study-region="${region}"]`).click();await page.locator('.study-region-heading').waitFor();
+    assert.equal(await page.locator('.xc-sect-chamber,#bankCount').count(),0);
+    await page.locator('[data-study-regions-back]').click();await page.locator('.study-peaks').waitFor();
    }
-   assert.ok((await page.locator('.xc-sect-room-image').getAttribute('src')).endsWith('chang.webp'));
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="bank"]').click();await page.locator('#xcGuideAvatar').waitFor();
    assert.equal(await page.evaluate(()=>HALL),'shizhan');
