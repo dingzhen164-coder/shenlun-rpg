@@ -31,6 +31,7 @@
   function updateFields(){for(const id of ['settings','dwelling']){const el=document.querySelector(`[data-shortcut-value="${id}"]`);if(el)el.value=label(draft[id]);}}
   function beforeRender(){const tools=document.querySelector('.top-tools');if(tools)document.querySelector('.topbar')?.appendChild(tools);}
   function mount(view) {
+    const guide=document.getElementById('xcGuideAvatar');if(guide)document.body.append(guide);
     document.getElementById('mapPageTools')?.remove();
     const tools=document.querySelector('.top-tools'),slot=document.querySelector('[data-scene-tools]');
     if(tools)(view==='settings'&&slot?slot:document.querySelector('.topbar'))?.appendChild(tools);

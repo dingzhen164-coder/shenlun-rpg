@@ -9,7 +9,7 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
 async function view(name){await page.waitForFunction(v=>VIEW===v&&!!document.querySelector(v==='home'?'.portal-world':v==='settings'?'.shortcut-settings':'#mapPageTools'),name);}
 async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.locator('[data-map-home]').click();await view('home');}}
 (async()=>{try{
- const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});
+ const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});require('./fixed_ui_helpers.cjs').install(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await view('home');
  const shape=await page.evaluate(()=>{const r=document.querySelector('.portal-world').getBoundingClientRect();return {top:r.top,left:r.left,width:r.width,height:r.height,screen:[innerWidth,innerHeight]};});
  assert.equal(shape.top,0);assert.equal(shape.left,0);assert.equal(shape.width,shape.screen[0]);assert.equal(shape.height,shape.screen[1]);
@@ -22,11 +22,11 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.loca
  }
  await home();await page.keyboard.press('Tab');await view('dwelling');await page.keyboard.press('Tab');await view('home');
  await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>VIEW),'home');
- await page.keyboard.press('Escape');await view('settings');assert.equal(await page.locator('#bgmBtn').isVisible(),true);assert.equal(await page.locator('[data-portal-motion]').isVisible(),true);
+ await page.keyboard.press('Escape');await view('settings');await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('#bgmBtn'));assert.equal(await page.locator('#bgmBtn').isVisible(),true);await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('[data-portal-motion]'));assert.equal(await page.locator('[data-portal-motion]').isVisible(),true);
  await page.locator('[data-shortcut-record="settings"]').click();await page.keyboard.press('Tab');assert.match(await page.locator('[data-shortcut-status]').textContent(),/不能相同/);
  await page.keyboard.press('F2');await page.locator('[data-shortcut-record="dwelling"]').click();await page.keyboard.press('F3');await page.locator('[data-shortcut-save]').click();await page.locator('[data-shortcut-status]').filter({hasText:'快捷键已保存'}).waitFor();
  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('map-shortcuts-v1'))),{settings:'F2',dwelling:'F3'});
- await page.evaluate(()=>render());assert.equal(await page.locator('#bgmBtn').isVisible(),true);assert.ok((await page.locator('#todayPill').textContent()).length>4);
+ await page.evaluate(()=>render());await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('#bgmBtn'));assert.equal(await page.locator('#bgmBtn').isVisible(),true);assert.ok((await page.locator('#todayPill').textContent()).length>4);
  await page.keyboard.press('F2');await view('home');await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>VIEW),'home');
  await page.reload();await view('home');await page.keyboard.press('F3');await view('dwelling');await page.keyboard.press('F3');await view('home');
  await page.keyboard.press('F2');await view('settings');await page.locator('[data-portal-x]').focus();await page.keyboard.press('F3');assert.equal(await page.evaluate(()=>VIEW),'settings');await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>VIEW),'settings');

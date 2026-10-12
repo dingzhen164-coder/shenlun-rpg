@@ -17,7 +17,7 @@ let browser, page;
   const base=await ready;
   browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
   const context=await browser.newContext({viewport:{width:1280,height:860}});
-  page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  page=await context.newPage();require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
   const baseline=await page.evaluate(()=>fetch('/api/dashboard').then(r=>r.json()));
   const xp=baseline.xp,minutes=baseline.minutes.today;

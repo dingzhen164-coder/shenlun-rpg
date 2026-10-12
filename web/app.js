@@ -252,6 +252,7 @@ async function render() {
     mountNarrative();
     SCENE_PORTAL.mount(VIEW);
     window.MAP_NAVIGATION?.mount(VIEW);
+    window.FIXED_LAYOUT?.mount(VIEW);
   } catch (e) { showError(e); }
 }
 

@@ -15,7 +15,7 @@ async function data(){return page.evaluate(()=>fetch('/api/narrative').then(r=>r
 async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.querySelector('.narrative-dialog'),r=d.getBoundingClientRect();return document.documentElement.scrollWidth<=innerWidth+2&&r.left>=0&&r.right<=innerWidth&&d.scrollWidth<=d.clientWidth+2;}),true);}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
- const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();
  await page.locator('[data-portal-motion]').click();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
  await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');

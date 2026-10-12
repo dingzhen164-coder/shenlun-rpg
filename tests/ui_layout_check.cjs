@@ -48,6 +48,8 @@ function startServer() {
 function inspect() {
   const vw = window.innerWidth, out = [];
   const de = document.documentElement;
+  if (de.scrollHeight > innerHeight + 2) out.push(`整页纵向溢出 ${de.scrollHeight - innerHeight}px`);
+  if (window.scrollY > 0) out.push(`整页发生滚动 ${window.scrollY}px`);
   if (de.scrollWidth > vw + 2) out.push(`整页横向溢出 ${de.scrollWidth - vw}px`);
   const visible = (el) => {   // 折叠起来的 <details> 里的东西浏览器照样算位置，但屏幕上看不到，不算
     if (el.checkVisibility && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) return false;

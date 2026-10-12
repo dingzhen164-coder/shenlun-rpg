@@ -6,7 +6,7 @@ async function main(){
  const server=spawn(process.env.PYTHON||'python',['tests/ui_brand_server.py'],{env:{...process.env,PYTHONIOENCODING:'utf-8'}});let logs='',browser;server.stderr.on('data',b=>logs+=b);
  try{
  const base=await new Promise((resolve,reject)=>{let t='';const timer=setTimeout(()=>reject(Error(logs)),20000);server.stdout.on('data',b=>{t+=b;const m=t.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});server.on('exit',c=>{clearTimeout(timer);reject(Error('server '+c+logs));});});
- browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];require('./fixed_ui_helpers.cjs').install(page);page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);
  async function settings(){
   await page.evaluate(()=>go('settings'));
