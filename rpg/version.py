@@ -1,4 +1,4 @@
-"""程序版本。2.8.6青衡宗与清禾师尊；本批统一验证Windows、安卓与Mac安装包。"""
+"""程序版本。3.0.5累计界面更新；验证分支检查三端，main构建正式安装包。"""
 VERSION = "3.0.5"
 APP_NAME = "公考模拟器"
 REPO = "dingzhen164-coder/shenlun-rpg"

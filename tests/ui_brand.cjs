@@ -122,7 +122,7 @@ async function main(){
    await page.locator('[data-portal-go="train"]').click();await page.locator('.study-peaks').waitFor();
    assert.equal(await page.locator('[data-study-region]').count(),5);
    for(const region of ['yan','shu','li','zi','chang']){
-    await page.locator(`[data-study-region="${region}"]`).click();await page.locator('.study-region-heading').waitFor();
+    const entry=page.locator(`[data-study-region="${region}"]`);while(!await entry.isVisible())await page.locator('.fx-pager button').filter({hasText:'下一页'}).click();await entry.click();await page.locator('.study-region-heading').waitFor();
     assert.equal(await page.locator('.xc-sect-chamber,#bankCount').count(),0);
     await page.locator('[data-study-regions-back]').click();await page.locator('.study-peaks').waitFor();
    }
