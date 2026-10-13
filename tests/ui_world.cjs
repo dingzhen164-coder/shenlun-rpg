@@ -30,12 +30,12 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await card();await open();await page.locator('[data-journey-deliver="main:study"]').click();
  const first=await data();assert.equal(first.journey.collection.length,2);assert.equal(first.world_progress.stage,1);
  await page.locator('[data-journey-claim="main:review"]').click();await page.locator('[data-journey-start="main:review"]').click();
- await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':'民法'}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
+ const firstBoard=await page.evaluate(()=>DASH.tree[0].board);await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':firstBoard}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
  await page.locator('[data-journey-deliver="main:review"]').click();await page.locator('[data-journey-deliver^="daily:"]').click();
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();
  await page.locator('.journey-collection summary').click();await page.locator('[data-journey-place="main:ornament"]').click();
- await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Tab');await page.locator('.journey-display').waitFor();
+ await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.locator('.journey-display').waitFor();
  assert.match(await page.locator('.journey-display').textContent(),/法典|卷宗|竹卷/);await home();await open();
  await page.locator('.world-progress summary').click();await page.locator('[data-world-go="restored"]').click();
  await page.waitForFunction(()=>VIEW==='log');assert.equal(await page.locator('.narrative-dialog').count(),0);
