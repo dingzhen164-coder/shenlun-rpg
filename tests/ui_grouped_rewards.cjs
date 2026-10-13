@@ -1,17 +1,18 @@
 /* 3.0.6合并模块与手动领取的真实交互；临时库、自编成绩、无真实AI。 */
 const {chromium}=require('playwright');
 const {spawn}=require('child_process'),assert=require('assert'),fs=require('fs');
+const requested=process.argv.find(x=>x.startsWith('--subject='))?.split('=')[1];
 const root=require('path').resolve(__dirname,'..'), out=process.env.UI_ARTIFACT_DIR||root+'/ui-artifacts/grouped-306';fs.mkdirSync(out,{recursive:true});
 const reveal=require('./fixed_ui_helpers.cjs').reveal;
 (async()=>{const browser=await chromium.launch({...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});let count=0;
-try{for(const subject of ['行测','申论']){
+try{for(const subject of requested?[requested]:['行测','申论']){
 const repo='shenlun-rpg';
 const server=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--merge-fixture'],{cwd:root});let log='';server.stderr.on('data',b=>log+=b);
 try{const url=await new Promise((resolve,reject)=>{let s='';server.stdout.on('data',b=>{s+=b;const m=s.match(/UI-READY (http:\/\/\S+)/);if(m)resolve(m[1]);});server.on('exit',()=>reject(Error(log)));});
 const page=await browser.newPage({viewport:{width:1280,height:860}}),errors=[];page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
 await page.goto(url);await page.waitForFunction(()=>!!window.DASH_REF?.());
-const route=async v=>{await page.evaluate(v=>go(v),v);await page.waitForTimeout(160);};
-await route('dwelling');
+const route=async v=>{await page.evaluate(v=>go(v),v);await page.waitForTimeout(300);};
+await route('dwelling');await page.waitForFunction(()=>!!document.querySelector('[data-fx-group="growth"]'));
 assert.equal(await page.locator('.narrative-dwelling,.xc-guide-scene,.npc.greet').count(),0);
 assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),3);
 const before=await page.evaluate(()=>DASH.xp),reward=await page.evaluate(()=>DASH.mock_rewards.find(r=>r.status==='pending').preview.amount);
@@ -29,7 +30,7 @@ if(subject!=='申论'){
  await reveal(page,page.locator('#mkMarksCard'));await page.screenshot({path:out+'/'+(subject||'法考')+'-成绩录入.png'});
 }
 await route('settings');assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),6);
-for(const selector of ['[data-shortcut-save]','[data-portal-save]','#sSave']){const b=page.locator(selector);await reveal(page,b);assert(await b.isVisible());if(selector!=='#sSave'){await b.click();await page.waitForTimeout(160);}}
+for(const selector of ['[data-shortcut-save]','[data-portal-save]','#sSave']){const b=page.locator(selector);await reveal(page,b);assert(await b.isVisible());if(selector!=='#sSave'){await b.click();await page.waitForTimeout(300);}}
 await reveal(page,page.locator('[data-portal-save]'));await page.screenshot({path:out+'/'+(subject||'法考')+'-设置.png'});
 for(const size of [{width:800,height:1280},{width:390,height:844}]){
  await page.setViewportSize(size);

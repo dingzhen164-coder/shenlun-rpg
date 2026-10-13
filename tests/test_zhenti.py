@@ -118,7 +118,9 @@ class ZhentiTest(unittest.TestCase):
         for i in range(5):
             r = trainer.action(g, r['session'], 'exam_pick:%d:B' % i)
         r = trainer.action(g, r['session'], 'exam_submit')
-        self.assertIn('正确率 100.0%', str(r))
+        self.assertEqual((r['battle']['correct'], r['battle']['total']), (5, 5))
+        self.assertTrue(r['messages'][0]['pin'])
+        self.assertFalse(any(b.get('t')=='table' for m in r['messages'] for b in m.get('blocks', [])))
         self.assertIn('官方20', str(r))
 
 

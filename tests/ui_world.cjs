@@ -35,8 +35,8 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();
  await page.locator('.journey-collection summary').click();await page.locator('[data-journey-place="main:ornament"]').click();
- await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.locator('.journey-display').waitFor();
- assert.match(await page.locator('.journey-display').textContent(),/法典|卷宗|竹卷/);await home();await open();
+ await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.evaluate(()=>go('home'));await open();await page.locator('.journey-space summary').click();
+ assert.match(await page.locator('.journey-space').textContent(),/法典|卷宗|竹卷/);await home();await open();
  await page.locator('.world-progress summary').click();await page.locator('[data-world-go="restored"]').click();
  await page.waitForFunction(()=>VIEW==='log');assert.equal(await page.locator('.narrative-dialog').count(),0);
  // 触控竖屏 + 暗色 + 系统减少动画。章/任务状态保持，关闭后学习入口不被挡住。
