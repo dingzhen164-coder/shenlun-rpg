@@ -53,3 +53,26 @@ body.guantu #studyHud .study-hud-world{--hud-ink:#253f56;--hud-soft:#576977;--hu
 }
 .fx-keyboard #studyHud .study-hud-stats{display:none}
 .fx-keyboard #studyHud .study-hud-location{border:0;margin:0;padding:0}
+
+/* 3.0.7子页标题内嵌工具：不再显示角色/备考双卡，保留首页完整信息。 */
+.fixed-app #studyHud.subpage-heading{position:relative;inset:auto;transform:none;display:flex;align-items:center;justify-content:space-between;flex:none;gap:16px;width:100%;max-width:none;padding:6px 0 10px;margin:0;z-index:2;background:transparent;pointer-events:auto}
+body>#studyHud.subpage-heading{display:none!important}
+.subpage-place{display:flex;align-items:center;gap:10px;min-width:0}
+.subpage-seal{display:grid;place-items:center;flex:none;width:40px;height:40px;color:var(--gold);border:1px solid var(--line);border-radius:12px 4px;background:var(--panel)}
+.subpage-seal svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.subpage-place small{display:block;color:var(--muted);font-size:10px;letter-spacing:.12em}
+.subpage-place h2{font-family:var(--display);font-size:20px;line-height:1.3;margin:0;color:var(--text);letter-spacing:.08em;overflow-wrap:anywhere}
+.subpage-tools{display:flex;align-items:center;gap:10px;flex:none}
+#studyHud.subpage-heading #drawBtn{display:grid;place-items:center;flex:none;width:36px;height:36px;min-height:36px;padding:0;border-radius:10px 4px;font-size:18px}
+#studyHud.subpage-heading #todayPill{display:flex;align-items:center;gap:6px;width:230px;padding:0;border:0;background:transparent;box-shadow:none;white-space:nowrap}
+#studyHud.subpage-heading .study-hud-meter{flex:1;min-width:0;height:28px;margin:0;border-radius:5px;border-color:var(--line);background:var(--panel2);font-size:12px}
+#studyHud.subpage-heading .study-hud-meter i{background:var(--accent);opacity:.25}
+#studyHud.subpage-heading .study-hud-meter span{position:relative;z-index:1;color:var(--text);padding:4px 8px}
+.study-candle{width:20px;height:29px;flex:none;overflow:visible}
+.candle-body{fill:var(--panel);stroke:var(--gold);stroke-width:1.3}
+.candle-flame{fill:var(--muted);opacity:.25}
+#todayPill.on .candle-flame{fill:#edb34c;opacity:1;filter:drop-shadow(0 0 3px #f0b548)}
+@media(max-width:580px){.fixed-app #studyHud.subpage-heading{gap:6px;padding-bottom:6px}.subpage-place{gap:5px}.subpage-place h2{font-size:15px}.subpage-place small{font-size:9px}.subpage-seal{width:28px;height:32px}.subpage-seal svg{width:20px;height:20px}.subpage-tools{gap:5px}#studyHud.subpage-heading #todayPill{width:156px}#studyHud.subpage-heading .study-hud-meter{font-size:10px}#studyHud.subpage-heading #drawBtn{width:30px;height:32px;min-height:32px}}
+
+#studyHud.subpage-heading #todayPill::before{display:none}
+#studyHud.subpage-heading .study-hud-meter span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

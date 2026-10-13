@@ -244,7 +244,9 @@ class BankTest(unittest.TestCase):
                 self.assertIn('编号 懒猫-01-02', str(r))          # 选完自动翻页，不判对错
                 self.assertNotIn('秘密解析', str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
-        self.assertIn('正确率 95.0%（19/20）', str(r))
+        self.assertEqual((r['battle']['correct'], r['battle']['total']), (19, 20))
+        self.assertTrue(r['messages'][0]['pin'])
+        self.assertFalse(any('下面逐题复盘' in m['text'] for m in r['messages']))
         self.assertEqual(len([e for e in r['events'] if e['kind'] == 'xp']), 1)   # 修为合成一条
         r = trainer.action(self.g, sid, 'exam_close')
         self.assertTrue(r['finished'])
@@ -306,9 +308,12 @@ class BankTest(unittest.TestCase):
         r = trainer.action(self.g, sid, 'exam_pick:2:C')
         self.assertIn('答题卡：1·A 2·A 3·C', str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
-        self.assertIn('正确率 66.7%（2/3）', str(r))
-        table = r['messages'][0]['blocks'][0]
-        self.assertEqual([row[6] for row in table['rows']], ['✓', '✓', '✗', '2/3'])
+        self.assertEqual((r['battle']['correct'], r['battle']['total']), (2, 3))
+        self.assertTrue(r['messages'][0]['pin'])
+        self.assertFalse(any('下面逐题复盘' in m['text'] for m in r['messages']))
+        self.assertFalse(any(b.get('t') == 'table' for m in r['messages'] for b in m.get('blocks', [])))
+        log = (self.paths.train / '试炼记录' / (self.g.t + '.md')).read_text(encoding='utf-8')
+        self.assertIn('正确率 66.7%（2/3）', log)
         self.assertIn('秘密解析', str(r))
         # 暂离后再进来还在复盘
         trainer.action(self.g, sid, 'bank_pause')
@@ -526,9 +531,9 @@ class BankTest(unittest.TestCase):
             now[0] += 10
             trainer.action(self.g, sid, 'exam_pick:1:A')
             r = trainer.action(self.g, sid, 'exam_submit')
-        rows = r['messages'][0]['blocks'][0]['rows']
-        self.assertEqual([row[7] for row in rows], ['10:30', '1:15', '11:45'])
-        self.assertIn('用时 11:45', r['messages'][0]['text'])
+        self.assertTrue(r['messages'][0]['pin'])
+        self.assertFalse(any(b.get('t') == 'table' for m in r['messages'] for b in m.get('blocks', [])))
+        self.assertIn('用时 10:30', r['messages'][0]['text'])
         self.assertEqual(bank.summary(self.g)['groups'][0]['seconds'], 705)
         log = (self.paths.train / '试炼记录' / (self.g.t + '.md')).read_text(encoding='utf-8')
         self.assertIn('| 1 | 01 | 类比推理 | 削弱 | B | A | ✗ | 10:30 |', log)
@@ -552,7 +557,9 @@ class BankTest(unittest.TestCase):
         for i in range(3):
             trainer.action(self.g, sid, 'exam_pick:%d:A' % i)
         r = trainer.action(self.g, sid, 'exam_submit')
-        self.assertIn('正确率 100.0%（3/3）', str(r))
+        self.assertEqual((r['battle']['correct'], r['battle']['total']), (3, 3))
+        self.assertTrue(r['messages'][0]['pin'])
+        self.assertFalse(any('下面逐题复盘' in m['text'] for m in r['messages']))
         trainer.action(self.g, sid, 'exam_close')
         with self.assertRaises(trainer.TrainError):
             trainer.start(self.g, task)                                   # 这一类做完了

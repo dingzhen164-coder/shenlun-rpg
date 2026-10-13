@@ -689,8 +689,9 @@ class FlowTest(unittest.TestCase):
         self.assertEqual((rv[1]["ok"], rv[1]["wrong"], rv[1]["blank"], rv[1]["reviewed"]), (1, 1, 0, 0))
         r = api.session_start({"task": {"type": "mock_review", "season": 36, "board": "论证逻辑"}})
         self.assertEqual(r["type"], "mock_review")
-        self.assertIn("答对 1/2", r["messages"][0]["text"])
-        self.assertEqual(r["messages"][0]["blocks"][0]["rows"][1], ["2", "A", "B", "✗ 答错"])
+        self.assertTrue(r["messages"][0]["pin"])
+        self.assertFalse(any(b.get("t") == "table" for m in r["messages"] for b in m.get("blocks", [])))
+        self.assertFalse(any("下面逐题复盘" in m["text"] for m in r["messages"]))
         self.assertEqual(r["battle"]["position"], 1)
         ids = [b["id"] for b in r["input"]["buttons"]]
         self.assertIn("mr_wrong", ids)

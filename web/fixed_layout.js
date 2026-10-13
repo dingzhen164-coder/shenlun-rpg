@@ -99,7 +99,7 @@
   function sections(root,key) {
     if(root.querySelector(':scope > .fx-shell'))return;
     const nodes=[...root.children].flatMap(flatten);if(!nodes.length)return;
-    const headers=nodes.filter(n=>n.matches('.lib-head,.sl-ui-masthead'));
+    const headers=nodes.filter(n=>n.matches('.lib-head,.sl-ui-masthead,.subpage-heading'));
     const entries=groupedEntries(nodes.filter(n=>!headers.includes(n)));if(!entries.length)return;
     const shell=make('section','fx-shell'+(route==='settings'?' fx-settings':'')),area=make('div','fx-panels');
     const items=entries.map(entry=>{
@@ -213,7 +213,7 @@
     const height=Math.round(viewport?.height||innerHeight);
     const keyboard=height<innerHeight-150;if(h.classList.contains('fx-keyboard')!==keyboard)h.classList.toggle('fx-keyboard',keyboard);
     if(h.style.getPropertyValue('--fx-height')!==height+'px')h.style.setProperty('--fx-height',height+'px');
-    const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.getBoundingClientRect().height)+'px');
+    const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.classList.contains('subpage-heading')?hud.getBoundingClientRect().bottom:hud.getBoundingClientRect().height)+'px');
   }
   function apply() {
     pending=false;const root=document.getElementById('view');if(!root)return;
@@ -225,7 +225,7 @@
       else if(root.querySelector('.ex-page'))catalog(root);
       else if(shenlun(root)){}
       else if(regions(root)){}
-      else {let host=root;while(host.children.length===1&&!host.firstElementChild.matches('.card,details,.grid')&&host.firstElementChild.children.length)host=host.firstElementChild;host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
+      else {let host=root;while(true){const children=[...host.children].filter(n=>!n.matches('.subpage-heading'));if(children.length!==1||children[0].matches('.card,details,.grid')||!children[0].children.length)break;host=children[0];}host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
     }
     overlays();
   }

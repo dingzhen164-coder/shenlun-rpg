@@ -134,6 +134,12 @@ async function go(view) {
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   return render();
 }
+// 复盘/导师会话沿用训练引擎，地点标题仍显示其原功能归属。
+window.STUDY_PAGE_CONTEXT=()=>{
+  if(VIEW!==TRAIN_ROUTE||!T.session)return null;
+  const view=T_TYPE==='mock_review'?'contest':T_TYPE==='chat'?'guide':T_TYPE==='wrong'?'log':null;
+  return view?{view}:null;
+};
 window.MAP_NAVIGATION?.configure({go, current:()=>VIEW, room:()=>W("nav.home").replace(/^\S+\s/, ""), error:showError});
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回地图；返回 false 表示没得退了
@@ -230,6 +236,8 @@ function banner() {
 }
 
 async function render() {
+  window.STUDY_HUD?.suspend(true);
+  window.STUDY_HUD?.beforeRender();
   window.MAP_NAVIGATION?.beforeRender();
   document.body.classList.remove("portal-home");
   const v = $("#view");
@@ -252,8 +260,10 @@ async function render() {
     mountNarrative();
     SCENE_PORTAL.mount(VIEW);
     window.MAP_NAVIGATION?.mount(VIEW);
+    window.STUDY_HUD?.mount(DASH,VIEW);
     window.FIXED_LAYOUT?.mount(VIEW);
   } catch (e) { showError(e); }
+  finally { window.STUDY_HUD?.suspend(false);window.STUDY_HUD?.mount(DASH,VIEW); }
 }
 
 // 纪事入口仅在全景/个人空间出现；真实训练仍使用原任务与AI会话。
@@ -1048,8 +1058,11 @@ async function renderTrain() {
   if (!["train", "bank"].includes(VIEW)) return;
   const html = await views.train().catch((e) => { showError(e); return ''; });
   if (!["train", "bank"].includes(VIEW)) return;
+  window.STUDY_HUD?.beforeRender();
   $("#view").innerHTML = html;
   bindTrain();
+  window.STUDY_HUD?.mount(DASH,VIEW);
+  window.FIXED_LAYOUT?.mount(VIEW);
   if(isSL())window.SL_UI?.mount(VIEW);
   mountGuide();
   fitChat();

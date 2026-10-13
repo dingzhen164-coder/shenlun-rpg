@@ -54,6 +54,19 @@ def main():
                     g.state.setdefault('mocks', {})[str(num)] = dict(score=score, date=g.t, avg=55, top=88, beat=80, rank=20, people=100, minutes={}, scores={})
                     g.state['boss'].append(dict(d=g.t, name='第%d季' % num, score=score, kind='大比'))
                 mock_rewards.offer(g, '自编模考奖励', 72, g.raw_score())
+        if '--review-fixture' in sys.argv:
+            # 自编长材料，复现平板复盘底部操作被裁切；只写临时库。
+            with api.open_game() as g:
+                board = next(iter(g.boards))
+                if g.paths.seasons:
+                    folder = g.paths.seasons / '第38季'
+                    folder.mkdir(parents=True, exist_ok=True)
+                    material = '> 自编材料：本月数据100，下月数据120，增长率为20%。\n' * 35
+                    body = '## 材料（第1-2题）\n> [!abstract]- 自编数据\n' + material + '\n---\n'
+                    for i, icon in ((1, '✅'), (2, '❌')):
+                        body += '### %d. %s\n自编题：增长率为多少？\n- **A.** 20%%\n- **B.** 30%%\n\n> [!check]- 答案\n> 正确答案：**A**　我的答案：**B**　错误\n\n> [!note] 复盘\n> 自编解析：用增加量除以原值。\n\n---\n' % (i, icon)
+                    (folder / ('01-' + board + '.md')).write_text(body, encoding='utf-8')
+                api.bank_add(dict(board=board, topic='自编条件验证', source='UI测试', stem='自编题：哪个选项符合条件？', options=dict(A='符合', B='不符合', C='无关', D='无关'), answer='A', analysis='自编解析：逐项核对条件。'))
         srv = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
         api.RUNTIME.update(port=srv.server_port, lan=False)
         print('UI-READY http://127.0.0.1:%d' % srv.server_port, flush=True)

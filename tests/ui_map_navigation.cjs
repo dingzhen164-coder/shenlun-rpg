@@ -7,7 +7,7 @@ const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(s
 let browser,page,logs='';srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error(logs||'服务未启动')),20000);srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});srv.on('exit',c=>{clearTimeout(timer);reject(Error('服务退出 '+c+' '+logs));});});
 async function view(name){await page.waitForFunction(v=>VIEW===v&&!!document.querySelector(v==='home'?'.portal-world':v==='settings'?'.shortcut-settings':'#view[data-fx-route="'+v+'"]'),name);}
-async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.locator('[data-hud-home]').click();await view('home');}}
+async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await page.evaluate(()=>{document.activeElement?.blur();const p=JSON.parse(localStorage.getItem('map-shortcuts-v1')||'{}');return p.home||p.dwelling||'Tab';});await page.keyboard.press(key);await view('home');}}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});require('./fixed_ui_helpers.cjs').install(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await view('home');
@@ -18,7 +18,7 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.loca
  for(const id of ids){await home();await page.locator(`[data-portal-go="${id}"]`).click();
   if(id==='journal'){await page.locator('.narrative-dialog').waitFor();await page.keyboard.press('Escape');await page.locator('.narrative-dialog').waitFor({state:'detached'});assert.equal(await page.evaluate(()=>VIEW),'home');}
   else if(id==='guide'||id==='story'){await page.locator('.xc-guide-dialogue').waitFor();await page.keyboard.press('Escape');await page.locator('.xc-guide-dialogue').waitFor({state:'detached'});}
-  else{await view(id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('[data-hud-home]').isVisible(),true);assert.equal(await page.locator('#mapPageTools,#xcGuideAvatar').count(),0);}
+  else{await view(id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('.subpage-heading').isVisible(),true);assert.equal(await page.locator('#mapPageTools,#xcGuideAvatar').count(),0);}
  }
  await home();await page.locator('[data-portal-go="dwelling"]').click();await view('dwelling');await page.keyboard.press('Tab');await view('home');await page.keyboard.press('Tab');await view('home');
  await page.keyboard.press('Escape');await view('settings');await page.keyboard.press('Tab');await view('home');
@@ -42,7 +42,7 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){await page.loca
  }
  // 浏览器拒绝保存时，现有按键仍有效。
  await page.evaluate(()=>{window.originalShortcutSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='map-shortcuts-v1')throw Error('模拟存储拒绝');return originalShortcutSet.call(this,k,v);};});
- await page.locator('[data-shortcut-reset]').click();await page.locator('[data-shortcut-save]').click();assert.match(await page.locator('[data-shortcut-status]').textContent(),/保存失败/);await page.evaluate(()=>Storage.prototype.setItem=originalShortcutSet);await page.locator('[data-shortcut-save]').click();await page.locator('[data-shortcut-status]').filter({hasText:'快捷键已保存'}).waitFor();await page.locator('[data-hud-home]').click();await view('home');
+ await page.locator('[data-shortcut-reset]').click();await page.locator('[data-shortcut-save]').click();assert.match(await page.locator('[data-shortcut-status]').textContent(),/保存失败/);await page.evaluate(()=>Storage.prototype.setItem=originalShortcutSet);await page.locator('[data-shortcut-save]').click();await page.locator('[data-shortcut-status]').filter({hasText:'快捷键已保存'}).waitFor();await home();
  // 所有主题都保留手记，保存失败/延迟时设置快捷键不能丢草稿。
  await page.locator('[data-portal-go="notes"]').click();await view('notes');await page.waitForFunction(()=>!!window.NOTES);
  await page.evaluate(()=>{document.activeElement.blur();window.oldNavigationFlush=NOTES.flush;NOTES.flush=()=>new Promise(r=>window.releaseNavigationFlush=r);});
