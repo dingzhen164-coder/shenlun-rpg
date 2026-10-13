@@ -2,7 +2,7 @@
    不计算/发放奖励；只展示累计经验/下一境界总阈值，数值刷新与原心跳一致。 */
 (() => {
   'use strict';
-  let data, current='home',paused=false;
+  let data, current='home',paused=false,drawNode=document.getElementById('drawBtn'),pillNode=document.getElementById('todayPill');
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const amount=v=>Math.round(num(v)*10)/10;
@@ -17,12 +17,12 @@
   // 原笔记按钮与计时节点原位搬移；重绘前停放，保留笔迹、事件和计时状态。
   function beforeRender(){
     const tools=document.querySelector('.top-tools');
-    for(const id of ['drawBtn','todayPill']){const node=document.getElementById(id);if(node&&tools)tools.append(node);}
+    for(const id of ['drawBtn','todayPill']){const node=document.getElementById(id)||(id==='drawBtn'?drawNode:pillNode);if(node&&tools)tools.append(node);}
     const root=document.getElementById('studyHud');if(root?.classList.contains('subpage-heading'))document.body.insertBefore(root,document.getElementById('banner'));
   }
   const symbols={dwelling:'M3 19V10l9-7 9 7v9H3Zm6 0v-7h6v7',train:'m2 20 7-15 5 10 3-7 5 12H2Z',bank:'M6 21V4h12v17M4 21h16M9 8h6M9 12h6M9 16h6',skeleton:'M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-3-1-7-2-10 1Zm0 0v16',tianji:'M12 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM7 21h10M12 19v2M9 6l-2 3',contest:'m4 3 17 17M3 4l2 5 4-4-5-2Zm17-1L3 20m17-17-5 2 4 4 2-5',notes:'m4 20 3-8L19 2l3 3-10 12-8 3Zm3-8 5 5M4 20l6-6',log:'M6 3h12v18H6V3Zm3 5h6m-6 4h6m-6 4h4',settings:'M12 3v3m0 12v3M3 12h3m12 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8'};
   function compact(root,page,world,m,iconKey=current){
-    const draw=document.getElementById('drawBtn'),pill=document.getElementById('todayPill');
+    const draw=document.getElementById('drawBtn')||drawNode,pill=document.getElementById('todayPill')||pillNode;drawNode=draw;pillNode=pill;
     root.classList.add('subpage-heading');root.setAttribute('aria-label','地点与今日学习');
     root.innerHTML=`<div class="subpage-place"><span class="subpage-seal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${symbols[iconKey]||symbols.dwelling}"/></svg></span><div><small>${esc(world)}</small><h2>${esc(page)}</h2></div></div><div class="subpage-tools"></div>`;
     const tools=root.querySelector('.subpage-tools');if(draw){draw.setAttribute('aria-label','打开笔记草稿');draw.title='笔记草稿：保存当前题目的笔迹';tools.append(draw);}
@@ -58,5 +58,5 @@
     root.innerHTML=`<section class="study-hud-player"><div class="study-hud-avatar">${avatar(p)}</div><div class="study-hud-profile"><div class="study-hud-name"><strong>${esc(p.id||p.call||'主角')}</strong><span>${esc(realm)} · ${esc(r.name||'初入')}</span></div>${meter('今日学习（分钟）',m.today,m.goal,'time')}${r.next_xp!=null?meter(xp,data.xp,r.next_xp,'xp'):`<div class="study-hud-cap">${esc(xp)} ${amount(data.xp)} · 已达最高${esc(realm)}</div>`}<small>${r.ready?'可突破至 '+esc(r.next):r.bottleneck?'突破试炼待完成':r.next?'下一'+esc(realm)+'：'+esc(r.next):'继续积累'}</small></div></section><section class="study-hud-world"><div class="study-hud-stats">${stats}</div><div class="study-hud-location"><button type="button" data-hud-home aria-label="返回地图：${esc(world)}" title="返回地图">${seal}<span><strong>${esc(world)}</strong>${current==='home'?'':`<span class="study-hud-place"> / ${esc(page)}</span>`}</span></button>${current==='home'?'':`<button type="button" data-hud-settings class="study-hud-settings" aria-label="打开设置" title="打开设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2 3 3-1 1 4 4 2-2 3 1 4-4 1-3 4-2-3-4 1-1-4-4-2 2-3-1-4 4-1Z"/><circle cx="12" cy="12" r="3"/></svg></button>`}</div></section>`;
     root.querySelector('img')?.addEventListener('error',e=>{e.target.parentElement.innerHTML=avatar({...p,avatar:''});},{once:true});
   }
-  window.STUDY_HUD={mount,beforeRender,suspend:v=>paused=v,refresh:()=>mount()};
+  window.STUDY_HUD={mount,beforeRender,ensure:()=>{const root=document.getElementById('studyHud');if(!paused&&data&&(!root||(current!=='home'&&!document.getElementById('view')?.contains(root))))mount();},suspend:v=>paused=v,refresh:()=>mount()};
 })();

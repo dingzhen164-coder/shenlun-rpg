@@ -216,7 +216,7 @@
     const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.classList.contains('subpage-heading')?hud.getBoundingClientRect().bottom:hud.getBoundingClientRect().height)+'px');
   }
   function apply() {
-    pending=false;const root=document.getElementById('view');if(!root)return;
+    pending=false;window.STUDY_HUD?.ensure();const root=document.getElementById('view');if(!root)return;
     if(!document.documentElement.classList.contains('fixed-app'))document.documentElement.classList.add('fixed-app');root.dataset.fxRoute=route;measure();
     if(route!=='home'&&!root.querySelector('.fx-shell')){
       if(root.querySelector('.train')){} // 会话由原消息/输入工作区处理。

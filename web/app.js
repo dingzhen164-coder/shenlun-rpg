@@ -219,7 +219,8 @@ async function refresh() {
 function updatePill() {
   if (!DASH) return;
   const m = DASH.minutes;
-  $("#todayPill").textContent = `${W("today_word") === "today_word" ? "🕯 今日功行" : W("today_word")} ${m.today} / ${m.goal} 分钟（${W("study")} ${m.study ?? m.today} · ${W("lecture")} ${m.lecture ?? 0}）` + (m.today >= m.goal ? " ✦" : "");
+  window.STUDY_HUD?.ensure();
+  if($("#todayPill"))$("#todayPill").textContent = `${W("today_word") === "today_word" ? "🕯 今日功行" : W("today_word")} ${m.today} / ${m.goal} 分钟（${W("study")} ${m.study ?? m.today} · ${W("lecture")} ${m.lecture ?? 0}）` + (m.today >= m.goal ? " ✦" : "");
   updateStudyDot();
   window.STUDY_HUD?.mount(DASH, VIEW);
 }
@@ -1684,8 +1685,9 @@ setInterval(() => {
 }, 1000);
 function updateStudyDot() {
   const on = studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
-  $("#todayPill").classList.toggle("on", on);
-  $("#todayPill").title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
+  const lamp=$("#todayPill");if(!lamp){window.STUDY_HUD?.ensure();return;}
+  lamp.classList.toggle("on", on);
+  lamp.title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
 }
 let beatCount = 0;
 setInterval(async () => {
