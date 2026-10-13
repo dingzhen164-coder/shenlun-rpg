@@ -1,10 +1,10 @@
-/* 3.0.1地图导航：app.js提供go/current/room回调；隐藏旧导航节点保留内部状态钩子。
-   本机localStorage map-shortcuts-v1={settings:'Escape',dwelling:'Tab'}，两科共用。
+/* 3.0.5地图导航：app.js提供go/current回调；隐藏旧导航节点保留内部状态钩子。
+   本机localStorage map-shortcuts-v1={settings:'Escape',home:'Tab'}，兼容旧dwelling按键，两科共用。
    设置里录入/保存/恢复快捷键；不写学习存档，输入及弹窗中保留Tab焦点操作。 */
 (() => {
   'use strict';
-  const KEY='map-shortcuts-v1', DEFAULTS={settings:'Escape',dwelling:'Tab'};
-  let actions, bindings, recording='', draft, busy=false, settingsReturn='home', roomReturn='home';
+  const KEY='map-shortcuts-v1', DEFAULTS={settings:'Escape',home:'Tab'};
+  let actions, bindings, recording='', draft, busy=false, settingsReturn='home';
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const label=s=>s.replace('Escape','Esc').replace(/Key([A-Z])/g,'$1').replace(/Digit([0-9])/g,'$1');
   function valid(s) {
@@ -16,7 +16,7 @@
         && !(parts.includes('Ctrl')||parts.includes('Meta')? /^(Key[ACLNPRQTVWXYZ])$/.test(key):false);
   }
   function load() {
-    try{const raw=JSON.parse(localStorage.getItem(KEY));if(raw&&valid(raw.settings)&&valid(raw.dwelling)&&raw.settings!==raw.dwelling)return {settings:raw.settings,dwelling:raw.dwelling};}catch(e){}
+    try{const raw=JSON.parse(localStorage.getItem(KEY));const home=raw?.home??raw?.dwelling;if(raw&&valid(raw.settings)&&valid(home)&&raw.settings!==home)return {settings:raw.settings,home};}catch(e){}
     return {...DEFAULTS};
   }
   function chord(e) {
@@ -25,31 +25,26 @@
   function configure(a){actions=a;bindings=load();}
   function settingsHtml() {
     draft={...bindings};recording='';
-    return `<section class="card shortcut-settings"><h3>键盘快捷键</h3><p class="small muted">点击修改后按下新快捷键，再保存。本机两科共用；输入和弹窗中的Tab仍用于移动焦点。</p>${['settings','dwelling'].map(id=>`<div class="shortcut-row"><label>${id==='settings'?'设置':esc(actions.room())}<input data-shortcut-value="${id}" value="${esc(label(draft[id]))}" readonly aria-label="${id==='settings'?'设置':esc(actions.room())}快捷键"></label><button data-shortcut-record="${id}">修改</button></div>`).join('')}<p class="small muted">支持Esc、Tab、F1—F10或带修饰键的字母/数字组合；常用编辑及浏览器快捷键保留。</p><div class="row"><button class="primary" data-shortcut-save>保存快捷键</button><button data-shortcut-reset>恢复默认</button><span data-shortcut-status role="status"></span></div></section><section class="card scene-utility-tools"><h3>界面工具</h3><div data-scene-tools></div><p>学习时长、音乐、专注与草稿工具移到这里；各板块由地图进入。</p></section>`;
+    return `<section class="card shortcut-settings"><h3>键盘快捷键</h3><p class="small muted">点击修改后按下新快捷键，再保存。本机两科共用；输入和弹窗中的Tab仍用于移动焦点。</p>${['settings','home'].map(id=>`<div class="shortcut-row"><label>${id==='settings'?'设置':'返回地图'}<input data-shortcut-value="${id}" value="${esc(label(draft[id]))}" readonly aria-label="${id==='settings'?'设置':'返回地图'}快捷键"></label><button data-shortcut-record="${id}">修改</button></div>`).join('')}<p class="small muted">支持Esc、Tab、F1—F10或带修饰键的字母/数字组合；常用编辑及浏览器快捷键保留。</p><div class="row"><button class="primary" data-shortcut-save>保存快捷键</button><button data-shortcut-reset>恢复默认</button><span data-shortcut-status role="status"></span></div></section><section class="card scene-utility-tools"><h3>界面工具</h3><div data-scene-tools></div><p>学习时长、音乐、专注与草稿工具移到这里；各板块由地图进入。</p></section>`;
   }
   function status(s){const el=document.querySelector('[data-shortcut-status]');if(el)el.textContent=s;}
-  function updateFields(){for(const id of ['settings','dwelling']){const el=document.querySelector(`[data-shortcut-value="${id}"]`);if(el)el.value=label(draft[id]);}}
+  function updateFields(){for(const id of ['settings','home']){const el=document.querySelector(`[data-shortcut-value="${id}"]`);if(el)el.value=label(draft[id]);}}
   function beforeRender(){const tools=document.querySelector('.top-tools');if(tools)document.querySelector('.topbar')?.appendChild(tools);}
   function mount(view) {
-    const guide=document.getElementById('xcGuideAvatar');if(guide)document.body.append(guide);
     document.getElementById('mapPageTools')?.remove();
     const tools=document.querySelector('.top-tools'),slot=document.querySelector('[data-scene-tools]');
     if(tools)(view==='settings'&&slot?slot:document.querySelector('.topbar'))?.appendChild(tools);
     if(view!=='settings')recording='';
-    if(view!=='home'){
-      const bar=document.createElement('div');bar.id='mapPageTools';bar.className='map-page-tools';
-      bar.innerHTML=`<button data-map-home>← 返回地图</button>${view==='settings'?'':`<button data-map-settings>设置 <kbd>${esc(label(bindings.settings))}</kbd></button>`}<span class="small muted">${esc(label(bindings.dwelling))}：${esc(actions.room())}</span>`;
-      const root=document.getElementById('view');root.parentElement.insertBefore(bar,root);
-    }
   }
   async function toggle(id) {
     if(busy||!actions)return;busy=true;
     try{
-      const current=actions.current(), previous=id==='settings'?settingsReturn:roomReturn;
-      const target=current===id?previous:id;
+      const current=actions.current();
+      const target=id==='home'?'home':current==='settings'?settingsReturn:'settings';
+      if(target===current)return;
       if(document.documentElement.classList.contains('in-chat')&&!confirm('离开这次功课，切换界面？'))return;
       await actions.go(target);
-      if(actions.current()===id&&current!==id){if(id==='settings')settingsReturn=current;else roomReturn=current;}
+      if(id==='settings'&&actions.current()==='settings'&&current!=='settings')settingsReturn=current;
     }finally{busy=false;}
   }
   function closeTransient() {
@@ -68,21 +63,20 @@
     if(recording){
       e.preventDefault();e.stopImmediatePropagation();if(['Control','Alt','Shift','Meta'].includes(e.key))return;
       const next=chord(e);if(!valid(next)){status('请选择支持的快捷键，常用编辑和浏览器快捷键不可占用。');return;}
-      const other=recording==='settings'?'dwelling':'settings';if(next===draft[other]){status('两项快捷键不能相同，请换一个。');return;}
+      const other=recording==='settings'?'home':'settings';if(next===draft[other]){status('两项快捷键不能相同，请换一个。');return;}
       draft[recording]=next;recording='';updateFields();status('尚未保存');return;
     }
     if(e.key==='Escape'&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!e.metaKey&&closeTransient()){e.preventDefault();e.stopImmediatePropagation();return;}
     const id=Object.keys(bindings).find(id=>bindings[id]===chord(e));if(!id)return;
     if(e.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])')&&e.key!=='Escape')return;
     if(document.querySelector('.narrative-dialog,.xc-guide-dialogue,[role="dialog"],.modal:not(.hidden),.img-zoom')||document.documentElement.classList.contains('drawing'))return;
-    // Tab在设置里仍可访问修改/保存/返回按钮，Shift+Tab也不触发默认Tab绑定。
-    if(e.key==='Tab'&&actions.current()==='settings')return;
+    // 输入、临时层保留Tab；普通页面（含设置）返回地图，Shift+Tab继续移动焦点。
     e.preventDefault();e.stopImmediatePropagation();toggle(id).catch(err=>actions.error(err));
   },true);
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
-    if(b.hasAttribute('data-map-home'))return actions.go('home');
-    if(b.hasAttribute('data-map-settings'))return toggle('settings').catch(err=>actions.error(err));
+    if(b.hasAttribute('data-hud-home'))return toggle('home').catch(err=>actions.error(err));
+    if(b.hasAttribute('data-hud-settings'))return toggle('settings').catch(err=>actions.error(err));
     if(b.dataset.shortcutRecord){recording=b.dataset.shortcutRecord;status('现在按下新的快捷键…');return;}
     if(b.hasAttribute('data-shortcut-reset')){draft={...DEFAULTS};recording='';updateFields();status('已恢复默认，保存后生效');}
     if(b.hasAttribute('data-shortcut-save')){

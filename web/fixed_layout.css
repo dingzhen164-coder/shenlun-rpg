@@ -12,9 +12,6 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 .fixed-app body:not(.portal-home) .study-hud-world{font-size:11px}
 .fixed-app #banner{flex:none;max-height:60px;overflow:auto;overscroll-behavior:contain}
 .fixed-app #banner .warn{margin:0 auto;padding:4px 12px;font-size:12px}
-.fixed-app #mapPageTools{flex:none;width:100%;max-width:1280px;margin:0 auto;padding:4px 16px;gap:8px}
-.fixed-app #mapPageTools button{min-height:34px;padding:4px 10px;font-size:12px}
-.fixed-app #mapPageTools span{width:auto}
 .fixed-app #view,.fixed-app body.guantu #view{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;overflow:hidden;max-width:1280px;width:100%;padding:10px 16px;margin:0 auto}
 .fixed-app body.portal-home #view{max-width:none;padding:0}
 .fixed-app .portal-world{height:100%;min-height:0;flex:1}
@@ -129,7 +126,6 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
   .fixed-app body:not(.portal-home) .study-hud-player,.fixed-app body:not(.portal-home) .study-hud-world{padding:4px 6px}
   .fixed-app body:not(.portal-home) .study-hud-name strong{font-size:12px}
   .fixed-app body:not(.portal-home) .study-hud-avatar{width:26px;height:26px}
-  .fixed-app #mapPageTools{padding:3px 8px}
   .fx-settings{flex-direction:column;gap:6px}
   .fx-settings>.fx-tabs{flex:none;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:0;padding:2px}
   .fx-settings .fx-tab{white-space:nowrap}
@@ -164,9 +160,6 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 .fixed-app .tj-ibody>*:not(.tj-read){min-height:0;overflow:auto}
 .fixed-app .xc-guide-paper>.xc-guide-dialogue-head{position:sticky;top:0;background:inherit;z-index:2}
 
-.fixed-app #mapPageTools .xc-guide-avatar{position:static;width:auto;min-height:32px;height:32px;margin-left:auto;padding:2px 8px;box-shadow:none}
-.fixed-app #mapPageTools .xc-guide-avatar img{width:22px;height:26px;object-fit:contain}
-.fixed-app #mapPageTools .xc-guide-avatar span{font-size:11px;width:auto}
 
 .fx-reader-switch{display:none}
 .fixed-app .nt-main>[hidden]{display:flex!important}
@@ -174,7 +167,7 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 .fx-region-select .study-region-grid,.fixed-app .tj-grid.fx-paged-grid{grid-auto-rows:minmax(0,1fr);align-content:stretch}
 .fixed-app .ex-content>.fx-actions>.row{margin:0;width:100%}
 
-.fx-keyboard #banner,.fx-keyboard #mapPageTools>.small{display:none}
+.fx-keyboard #banner{display:none}
 .fx-keyboard body:not(.portal-home) .study-hud{padding:2px 6px;font-size:10px;gap:4px}
 .fx-keyboard body:not(.portal-home) .study-hud-player,.fx-keyboard body:not(.portal-home) .study-hud-world{padding:2px 4px;line-height:1.2}
 .fx-keyboard body:not(.portal-home) .study-hud-avatar{width:20px;height:20px}

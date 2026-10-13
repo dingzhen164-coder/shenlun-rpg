@@ -11,7 +11,7 @@ async function fits(label){
   const de=document.scrollingElement;window.scrollTo(0,99999);
   const view=document.querySelector('#view').getBoundingClientRect();
   const visible=x=>x.getClientRects().length&&!x.closest('[hidden]');
-  const controls=[...document.querySelectorAll('#mapPageTools button,.fx-actions button,.yj-top button,.yj-bar button,.fx-pager:not([hidden]) button')].filter(visible);
+  const controls=[...document.querySelectorAll('.fx-actions button,.yj-top button,.yj-bar button,.fx-pager:not([hidden]) button')].filter(visible);
   return {scroll:window.scrollY,extra:de.scrollHeight-innerHeight,width:de.scrollWidth-innerWidth,bottom:view.bottom,top:view.top,area:view.height,
    controls:controls.map(x=>{const r=x.getBoundingClientRect();return {text:x.textContent.trim().slice(0,22),top:r.top,bottom:r.bottom,left:r.left,right:r.right};}).filter(r=>r.top<0||r.bottom>innerHeight+2||r.left<-1||r.right>innerWidth+2)};
  });

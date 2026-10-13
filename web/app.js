@@ -136,7 +136,7 @@ async function go(view) {
 }
 window.MAP_NAVIGATION?.configure({go, current:()=>VIEW, room:()=>W("nav.home").replace(/^\S+\s/, ""), error:showError});
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
-// 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回洞府；返回 false 表示没得退了
+// 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回地图；返回 false 表示没得退了
 window.xcBack = () => {
   if (window.NARRATIVE?.close()) return true;
   if (window.XC_GUIDE?.close(true)) return true;
@@ -152,7 +152,7 @@ window.xcBack = () => {
   if (m && !m.classList.contains("hidden")) { m.classList.add("hidden"); return true; }
   if (window.FOCUS && FOCUS.isOn()) { FOCUS.exit(); return true; }
   if (VIEW === "home") return false;
-  if (document.documentElement.classList.contains("in-chat") && !confirm("离开这次功课，回洞府？")) return true;
+  if (document.documentElement.classList.contains("in-chat") && !confirm("离开这次功课，返回地图？")) return true;
   go("home");
   return true;
 };

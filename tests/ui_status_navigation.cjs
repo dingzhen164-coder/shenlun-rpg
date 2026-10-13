@@ -27,6 +27,22 @@ async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.eva
  await go('settings');await page.locator('[data-portal-selected]').selectOption('bank');await page.locator('[data-portal-name]').fill('<img src=x onerror=alert(1)>');await page.locator('[data-portal-save]').click();await go('home');assert.equal(await page.locator('[data-portal-go="bank"] img').count(),0);
  await go('settings');await page.locator('[data-portal-selected]').selectOption('bank');await page.locator('[data-portal-name-reset]').click();await page.locator('[data-portal-save]').click();await go('home');assert.notEqual(await page.locator('[data-portal-go="bank"] b').textContent(),'独立实战入口');
  for(const viewport of [{width:800,height:1280},{width:390,height:844},{width:1280,height:860}]){await page.setViewportSize(viewport);await page.waitForTimeout(100);await checkHUD();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));const overlaps=await page.evaluate(()=>{const h=[...document.querySelectorAll('.study-hud-player,.study-hud-world')].map(x=>x.getBoundingClientRect());return [...document.querySelectorAll('[data-portal-go]')].filter(x=>{const r=x.getBoundingClientRect();return h.some(a=>Math.min(a.right,r.right)>Math.max(a.left,r.left)&&Math.min(a.bottom,r.bottom)>Math.max(a.top,r.top));}).map(x=>x.dataset.portalGo);});assert.deepEqual(overlaps,[],'HUD不能挡住地图入口 '+JSON.stringify(viewport));}
- if(process.argv.includes('--shot')){fs.mkdirSync('ui-artifacts/status-navigation',{recursive:true});await page.screenshot({path:'ui-artifacts/status-navigation/'+(subject||'mage')+'.png'});}
- assert.deepEqual(errors,[]);console.log('3.0.2独立页面/天机台/改名持久化/累计进度/HUD布局通过：'+(subject||'法考'));
+ // 三主题信息卡：主地图与子页、四种窗口明暗，真实数据不因切页丢失。
+ for(const theme of ['light','dark'])for(const viewport of [{width:1280,height:860},{width:800,height:1280},{width:390,height:844},{width:960,height:540}]){
+  await page.setViewportSize(viewport);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
+  for(const route of ['home','tianji','dwelling','settings']){
+   await go(route);await page.waitForTimeout(80);await checkHUD();
+   assert.equal(await page.locator('#mapPageTools,#xcGuideAvatar').count(),0);
+   const fit=await page.evaluate(()=>{const w=document.querySelector('.study-hud-world'),r=w.getBoundingClientRect();return {width:r.width,scroll:w.scrollWidth,client:w.clientWidth,bottom:r.bottom,pageHeight:document.documentElement.scrollHeight,font:parseFloat(getComputedStyle(w.querySelector('.study-hud-stat b')).fontSize)};});
+   assert.ok(fit.width<=356,'信息卡按内容定宽，不能填满右侧空白');assert.ok(fit.scroll<=fit.client+1,'信息卡内容不溢出');assert.ok(fit.bottom<viewport.height);assert.ok(fit.pageHeight<=viewport.height+2,'整页继续固定');assert.ok(fit.font>=18,'信息数字保持可读');
+  }
+ }
+ await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>document.documentElement.dataset.theme='light');await go('tianji');
+ await page.evaluate(()=>STUDY_HUD.mount({...DASH,study_status:{day:15,remaining:null,average_minutes:75}},VIEW));
+ assert.equal(await page.locator('.study-hud-stat').nth(0).getAttribute('aria-label'),'学习第 15 天');assert.equal(await page.locator('.study-hud-stat').nth(1).getAttribute('aria-label'),'考试日期待设置');assert.equal(await page.locator('.study-hud-stat').nth(2).getAttribute('aria-label'),'平均每日学习 75 分钟');
+ await page.evaluate(()=>STUDY_HUD.mount({...DASH,study_status:{day:9999,remaining:-12,average_minutes:120.5}},VIEW));assert.equal(await page.locator('.study-hud-stat').nth(1).getAttribute('aria-label'),'考试已过 12 天');
+ await page.setViewportSize({width:390,height:844});await checkHUD();assert.ok(await page.locator('.study-hud-world').evaluate(x=>x.scrollWidth<=x.clientWidth+1),'较长数字不挤出玉牌');
+ await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>STUDY_HUD.mount(DASH,VIEW));
+ if(process.argv.includes('--shot')){await page.reload();await go('tianji');await page.waitForTimeout(120);fs.mkdirSync('ui-artifacts/status-navigation',{recursive:true});await page.screenshot({path:'ui-artifacts/status-navigation/'+(subject||'mage')+'.png'});}
+ assert.deepEqual(errors,[]);console.log('3.0.5四尺寸明暗HUD/无工具栏/日期边界/独立页面与累计进度通过：'+(subject||'法考'));
 }catch(e){if(page){fs.mkdirSync('ui-artifacts/status-navigation',{recursive:true});await page.screenshot({path:'ui-artifacts/status-navigation/failure-'+(subject||'mage')+'.png'}).catch(()=>{});}throw e;}finally{if(browser)await browser.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

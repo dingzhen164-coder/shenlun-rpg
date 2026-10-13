@@ -145,7 +145,6 @@
     // 目录子页会重绘自身，下一轮观察重新分配，不改变原筛选、草稿或题号。
   }
   function overlays() {
-    const guide=document.getElementById('xcGuideAvatar'),tools=document.getElementById('mapPageTools');if(guide&&tools&&guide.parentElement!==tools)tools.append(guide);
     document.querySelectorAll('.yj-stage').forEach(s=>{
       let body=s.querySelector(':scope > .fx-stage-body');
       if(!body){body=make('div','fx-stage-body fx-scroll');[...s.children].filter(x=>!x.matches('.yj-top,.yj-bar')).forEach(x=>body.append(x));s.insertBefore(body,s.querySelector('.yj-bar'));body.tabIndex=0;}

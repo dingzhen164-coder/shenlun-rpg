@@ -1,0 +1,55 @@
+/* 3.0.5备考玉牌：study_hud.js提供真实数字与地图名；末尾加载覆盖旧HUD布局。
+   三组数字按内容定宽，纹样为本地SVG/CSS；各主题及明暗模式分别配色。 */
+#studyHud{align-items:center}
+#studyHud .study-hud-world{--hud-ink:#214c43;--hud-soft:#596d61;--hud-metal:#9b762e;--hud-edge:#ad914b80;--hud-bg:linear-gradient(120deg,#faf8e9,#e7eee4);position:relative;flex:none;width:354px;max-width:44%;min-width:0;padding:13px 18px 9px;background:var(--hud-bg);color:var(--hud-ink);border:1px solid var(--hud-edge);border-radius:5px 20px 5px 20px;box-shadow:inset 0 0 0 3px #fff3,0 3px 12px #142e2110;text-align:left;backdrop-filter:none}
+#studyHud .study-hud-world::before,#studyHud .study-hud-world::after{content:'';position:absolute;width:20px;height:12px;border-color:var(--hud-metal);border-style:solid;opacity:.65;pointer-events:none}
+#studyHud .study-hud-world::before{top:4px;left:4px;border-width:1px 0 0 1px}
+#studyHud .study-hud-world::after{bottom:4px;right:4px;border-width:0 1px 1px 0}
+#studyHud .study-hud-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}
+#studyHud .study-hud-stat{text-align:center;padding:0 7px;min-width:0}
+#studyHud .study-hud-stat+.study-hud-stat{border-left:1px solid var(--hud-edge)}
+#studyHud .study-hud-stat>span{display:block;font-size:11px;line-height:1.6;color:var(--hud-soft);letter-spacing:.08em}
+#studyHud .study-hud-stat>div{display:flex;justify-content:center;align-items:baseline;gap:4px;min-width:0;line-height:1.3}
+#studyHud .study-hud-stat b{font-size:25px;font-weight:600;font-family:var(--display);font-variant-numeric:tabular-nums;color:var(--hud-ink);overflow-wrap:anywhere}
+#studyHud .study-hud-stat b:not(:empty){text-shadow:0 1px #fff3}
+#studyHud .study-hud-stat small{font-size:10px;color:var(--hud-soft);white-space:nowrap}
+#studyHud .study-hud-location{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding-top:6px;border-top:1px solid var(--hud-edge);color:var(--hud-metal);min-width:0}
+#studyHud .study-hud-location button{pointer-events:auto;display:flex;align-items:center;gap:7px;min-width:0;min-height:28px;flex:1;padding:0;border:0;border-radius:4px;background:transparent;color:inherit;box-shadow:none;text-align:left;font:inherit}
+#studyHud .study-hud-location button:hover{background:color-mix(in srgb,var(--hud-metal) 10%,transparent)}
+#studyHud .study-hud-location button:focus-visible{outline:2px solid var(--hud-metal);outline-offset:2px}
+#studyHud .study-hud-location svg{width:27px;height:27px;flex:none;fill:none;stroke:currentColor;stroke-width:1.2}
+#studyHud .study-hud-location button>span{min-width:0;overflow-wrap:anywhere;line-height:1.35}
+#studyHud .study-hud-location strong{font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:.06em}
+#studyHud .study-hud-place{font-size:11px;color:var(--hud-soft)}
+#studyHud .study-hud-location .study-hud-settings{flex:none;width:28px;justify-content:center;opacity:.8}
+#studyHud .study-hud-settings svg{width:17px;height:17px;stroke-width:1.4}
+body.xuanhuan #studyHud .study-hud-world{--hud-ink:#51426e;--hud-soft:#716883;--hud-metal:#a27d38;--hud-edge:#b99b6180;--hud-bg:linear-gradient(120deg,#f7f2e9,#ede8f4)}
+body.guantu #studyHud .study-hud-world{--hud-ink:#253f56;--hud-soft:#576977;--hud-metal:#917446;--hud-edge:#ad977780;--hud-bg:linear-gradient(120deg,#faf8f0,#eaf0f4);border-radius:6px 14px 6px 14px}
+[data-theme=dark] #studyHud .study-hud-world,body.portal-home #studyHud .study-hud-world{--hud-ink:#f6e6b8;--hud-soft:#c5d3bd;--hud-metal:#d2b56e;--hud-edge:#bda16470;--hud-bg:linear-gradient(120deg,#123b34f5,#234e43eb);box-shadow:inset 0 0 0 3px #e4d69a08,0 4px 14px #0002}
+[data-theme=dark] body.xuanhuan #studyHud .study-hud-world,body.xuanhuan.portal-home #studyHud .study-hud-world{--hud-ink:#f7e6be;--hud-soft:#d6c9e3;--hud-metal:#d4b473;--hud-bg:linear-gradient(120deg,#29203ff5,#463355eb)}
+[data-theme=dark] body.guantu #studyHud .study-hud-world,body.guantu.portal-home #studyHud .study-hud-world{--hud-ink:#f1e3be;--hud-soft:#c6d3de;--hud-metal:#c9ad78;--hud-bg:linear-gradient(120deg,#20364bf5,#324960eb)}
+.fixed-app body:not(.portal-home) #studyHud .study-hud-player{width:auto;flex:1;max-width:680px;min-width:0;align-self:center}
+.fixed-app body:not(.portal-home) #studyHud .study-hud-world{padding:10px 14px 7px}
+@media(max-width:720px){
+  #studyHud{gap:8px;padding:8px}
+  #studyHud .study-hud-world,.fixed-app body:not(.portal-home) #studyHud .study-hud-world{width:44%;padding:8px 6px 5px;border-radius:4px 14px 4px 14px}
+  #studyHud .study-hud-stat{padding:0 3px}
+  #studyHud .study-hud-stat>span{font-size:10px;letter-spacing:0}
+  #studyHud .study-hud-stat b{font-size:18px}
+  #studyHud .study-hud-stat>div{gap:2px;flex-wrap:wrap}
+  #studyHud .study-hud-stat small{font-size:9px}
+  #studyHud .study-hud-location{gap:3px;margin-top:5px;padding-top:4px}
+  #studyHud .study-hud-location button{gap:4px}
+  #studyHud .study-hud-location svg{width:20px;height:20px}
+  #studyHud .study-hud-location strong{font-size:12px;letter-spacing:0}
+  #studyHud .study-hud-place{font-size:10px}
+  #studyHud .study-hud-location .study-hud-settings{width:24px}
+}
+@media(max-height:600px){
+  .fixed-app body:not(.portal-home) #studyHud .study-hud-world{padding:5px 10px 3px}
+  #studyHud .study-hud-stat b{font-size:18px}
+  #studyHud .study-hud-stat>span{font-size:10px}
+  #studyHud .study-hud-location{margin-top:3px;padding-top:2px}
+}
+.fx-keyboard #studyHud .study-hud-stats{display:none}
+.fx-keyboard #studyHud .study-hud-location{border:0;margin:0;padding:0}

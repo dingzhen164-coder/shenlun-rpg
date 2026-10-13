@@ -14,7 +14,7 @@ assert.ok(g.greeting(d).includes('1/3'));assert.ok(g.greeting(d).includes('4 道
 assert.equal(g.nextTask(d).id,'t1');assert.equal(JSON.stringify(d),original);
 assert.ok(g.greeting({}).includes('尚无功课'));assert.equal(g.nextTask({plan:{tasks:[{id:'t',done:true}]}}),undefined);
 assert.ok(!g.homeHtml(d).includes('undefined'));
-let called=0;g.mount(d,'train',{study:()=>called++});assert.ok(elements.has('xcGuideAvatar'));
+let called=0;g.mount(d,'train',{study:()=>called++});assert.equal(elements.has('xcGuideAvatar'),false);
 listeners.click({target:{closest:()=>({dataset:{xcGuide:'study'}})}});assert.equal(called,1);
 g.mount({subject:'申论'},'home',{study:()=>called++});assert.equal(elements.size,0);
 listeners.click({target:{closest:()=>({dataset:{xcGuide:'study'}})}});assert.equal(called,1);

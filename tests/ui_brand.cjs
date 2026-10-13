@@ -110,7 +110,7 @@ async function main(){
    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.xc-guide-portrait').click();
    assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
    await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
-   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();await page.locator('#xcGuideAvatar').waitFor();await page.locator('.xc-guide-scene').waitFor({state:'detached'});
+   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();assert.equal(await page.locator('#xcGuideAvatar').count(),0);await page.locator('.xc-guide-scene').waitFor({state:'detached'});
    assert.equal(await page.locator('.xc-guide-scene').count(),0);
    await page.evaluate(()=>go('dwelling'));await page.locator('.xc-guide-scene').waitFor();
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
@@ -127,7 +127,7 @@ async function main(){
     await page.locator('[data-study-regions-back]').click();await page.locator('.study-peaks').waitFor();
    }
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
-   await page.locator('[data-portal-go="bank"]').click();await page.locator('#xcGuideAvatar').waitFor();
+   await page.locator('[data-portal-go="bank"]').click();await page.locator('#bankCount').waitFor();assert.equal(await page.locator('#xcGuideAvatar').count(),0);
    assert.equal(await page.evaluate(()=>HALL),'shizhan');
    await page.setViewportSize({width:1280,height:860});await settings();
    assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('sl-office-cursor')));
