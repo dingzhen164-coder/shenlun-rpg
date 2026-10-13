@@ -1,6 +1,6 @@
 /* 📊 年度考核：整套模考 / 套卷的成绩记录与走势。
    记录走 /api/boss（成绩按 0–100 分制；贵州卷 150 分这类，填满分后自动折算成百分制）。
-   最近两次较低的成绩若高于当前综合评价，政绩直接补上；达到晋升分数线是晋升考核的条件之一（规则见 训练/规则.md）。 */
+   成绩超过预估分可获得手动领取的阶段奖励；达到晋升分数线是晋升考核的条件之一（规则见 训练/规则.md）。 */
 "use strict";
 (() => {
   const pct = (score, full) => Math.round((Number(score) / Number(full)) * 1000) / 10;
@@ -18,10 +18,11 @@
   async function render(v) {
     const d = DASH, list = d.boss_all || d.boss || [];
     const last2 = list.slice(-2).map((b) => b.score);
-    v.innerHTML = `<div class="card"><h3>${esc(W("boss"))} <small>整套模考的成绩：最近两次的较低分，会拉动${esc(W("score"))}与${esc(W("tribulation"))}条件</small></h3>
+    v.innerHTML = `<div class="card"><h3>${esc(W("boss"))} <small>整套模考的成绩：成绩超过预估分生成待领取奖励；晋升条件仍参考最近两次成绩</small></h3>
       <div class="row ct-form"><input id="ctName" placeholder="卷子名称，如 国考行政执法 2025" style="flex:3"><input id="ctScore" placeholder="得分" style="flex:1">
         <input id="ctFull" placeholder="满分" value="100" style="flex:1"><button class="primary" id="ctGo">记录</button></div>
       <div class="small muted" id="ctHint" style="margin-top:6px">按百分制记录；贵州卷（150 分）填满分 150，会自动折算。</div></div>
+      ${window.MOCK_REWARDS?.html(d)||""}
       <div class="card"><h3>📈 走势 <small>最近 ${list.length} 次</small></h3>${list.length >= 2 ? trend(list) : '<p class="muted">记两次以上才有走势图。</p>'}
         ${last2.length === 2 ? `<p class="small muted">最近两次：${last2.join(" / ")} 分，较低的是 <b>${Math.min(...last2)}</b>。</p>` : ""}</div>
       <div class="card"><h3>📜 历次成绩</h3>${list.length ? list.slice().reverse().map((b) => `<div class="row"><span class="small faint">${esc(b.d)}</span><b>${esc(b.name)}</b><span class="spacer"></span><b>${b.score} 分</b></div>`).join("") : '<p class="muted">还没有记录。</p>'}</div>`;

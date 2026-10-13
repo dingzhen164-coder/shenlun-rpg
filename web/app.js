@@ -267,10 +267,7 @@ function mountNarrative() {
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
     legacy: () => window.XC_SECT?.openStory(),
   });
-  if (VIEW === 'dwelling' && DASH?.narrative) {
-    const el = document.createElement('section'); el.className = 'card narrative-dwelling';
-    el.innerHTML = NARRATIVE.homeHtml(DASH.narrative); document.getElementById('view').prepend(el);
-  }
+
 }
 
 // ------------------------------------------------------------ 小组件
@@ -495,7 +492,6 @@ const views = {
     const retreat = d.retreat ? `<div class="card retreat row"><b>🧘 ${esc(W("retreat"))}中：${esc(d.retreat.board)}</b> <span id="retreatLeft" class="muted"></span>
         <span class="spacer"></span><button class="small" id="retreatEnd">${esc(W("retreat_end"))}</button></div>` : "";
     return `
-    ${!isSL() && window.XC_GUIDE ? XC_GUIDE.homeHtml(d) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
     ${retreat}
     <div class="card hero">
       <div class="avatar">${avatar}</div>
@@ -522,6 +518,7 @@ const views = {
       <div class="stat"><div class="k">🎯 预计 ${I.target_score} 分</div><div class="v">${I.eta || "—"}</div><div class="d">目标日 ${I.target}</div></div>
     </div>
     ${trib}
+    ${window.MOCK_REWARDS?.html(d)||""}
     ${boardTimeCard(d)}
     ${lectureCard(d)}
     ${practiceCard(d)}
@@ -588,7 +585,7 @@ const views = {
         <div class="card"><h3>⚔ 记录${esc(W("boss"))}（模考成绩）</h3>
           <details class="fold form-fold"><summary>✍ 记一次成绩</summary>
           <div class="row"><input id="bossName" placeholder="名称，如 第37季" style="flex:2"><input id="bossScore" placeholder="分数" style="flex:1"><button class="primary" id="bossBtn">记录</button></div>
-          <div class="small muted" style="margin-top:6px">最近两次的较低分若高于当前${esc(W("score"))}，${esc(W("xp"))}直接补上；达到下一道${esc(W("tribulation"))}线得突破丹</div></details></div>
+          <div class="small muted" style="margin-top:6px">成绩超过当前预估分时，按当前阶段生成手动领取的悟道奖励；达到下一道${esc(W("tribulation"))}线得突破丹</div></details></div>
         <div class="card"><h3>📜 ${esc(W("leave"))} <small>本月已用 ${d.leave.used}/${d.leave.total}</small></h3>
           <p class="muted small">生病、家里有事、加班……用一份${esc(W("leave"))}：今天${esc(W("streak"))}不断，也不计入${esc(W("ideal"))}。</p>
           <button id="leaveBtn" ${d.leave.today ? "disabled" : ""}>${d.leave.today ? "今天已告假" : "使用" + esc(W("leave"))}</button></div>

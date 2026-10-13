@@ -102,7 +102,7 @@
       const val = key === "minutes" ? mm?.minutes : mm && !mm.estimated ? mm.score : null;
       return `<label>${esc(m)} <input type="number" step="0.1" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${ph}"></label>`;
     }).join("");
-    return `<div class="card contest-card" id="mkForm"><h3>📝 录入成绩单 <small>照抄粉笔模考报告上的数字；空着的不算。第一次录分数时也记进${esc(W("boss"))}（修为、悟道、突破丹照旧）</small></h3>
+    return `<div class="card contest-card" id="mkForm"><h3>📝 录入成绩单 <small>照抄粉笔模考报告上的数字；空着的不算。第一次录分数时也记进${esc(W("boss"))}（固定录分奖励、手动领取悟道与突破信物）</small></h3>
       <div class="rp-auto"><b>📷 从成绩截图自动填</b> <span class="small muted">粉笔模考报告里“得分 / 最高分 / 平均分 / 排名”和“各模块共几题、答对几题、用时”那两张截图（Windows 自带 OCR 认字）</span>
         <div class="row mk-row"><input type="file" id="rpFiles" accept="image/png,image/jpeg" multiple><button class="primary small" id="rpScan">识别并填入</button></div>
         <details class="fold"><summary>不是 Windows / 认不出：把报告文字粘贴进来（手机相册、微信“提取文字”都行）</summary>
@@ -209,7 +209,7 @@
   function html(d) {
     const o = d.overall, ss = d.seasons;
     if (!ss.length) {
-      return `<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">还没有模考。模考完先到「${esc(NAV("skeleton"))} → 📖 经卷 · 题库」最下面的「📥 导入真题」导入模考 PDF，这里就会出现成绩与走势。</p></div>`;
+      return `<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">还没有模考。模考完先到「${esc(NAV("skeleton"))} → 📖 经卷 · 题库」最下面的「📥 导入真题」导入模考 PDF，这里就会出现成绩与走势。</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"");
     }
     const lr = o.latest_rank;
     const head = `<div class="card contest-hero"><div class="row"><h2>⚔ ${esc(W("boss"))}</h2><span class="small muted">共 ${o.count} 季模考 · 录了成绩单的 ${o.scored} 季</span></div>
@@ -243,7 +243,7 @@
         <td class="num">${s.beat == null ? "—" : f1(s.beat) + "%"}</td><td class="num">${s.rank ? `${s.rank}/${s.people || "?"}` : "—"}</td>
         <td class="num">${s.ok}/${s.total}（${pc(s.acc)}）</td><td class="num">${s.minutes == null ? "—" : s.minutes + " 分"}</td>
         <td><button class="ghost small" data-mk-edit="${s.season}">${s.score == null ? "录入" : "改"}</button></td></tr>`).join("");
-    return head + reviewCard(d) + analysisCard(d) + `
+    return head + reviewCard(d) + analysisCard(d) + (window.MOCK_REWARDS?.html(DASH)||"") + `
       <div class="grid g2 contest-grid" style="margin-top:14px">
         <div class="card contest-card"><h3>📈 分数走势 <small>我的分数 · 大比平均分 · 最高分（满分 100，y 轴从 ${lo} 起）</small></h3>${scoreChart}</div>
         <div class="card contest-card"><h3>🎯 各模块正确率走势 <small>点图例看各条线；悬停看每一季</small></h3>${accChart}</div>

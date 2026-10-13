@@ -993,25 +993,29 @@ class EngineTest(unittest.TestCase):
         self.assertTrue(g.realm_info()["bottleneck"])
 
     def test_bottleneck_and_calibration_by_contest(self):
+        from rpg import mock_rewards
         g = self.make(dt.date(2026, 10, 1))
         g.add_boss("第37季", 57)
-        self.assertEqual(g.realm_info()["name"], "凡人 · 未入道")   # 只有一次，不校准
         g.add_boss("第38季", 58)
-        self.assertEqual(g.realm_info()["name"], "凡人 · 未入道")   # 修为补上了，但要自己点突破
-        self.assertEqual(g.realm_info()["ready_count"], 7)
+        self.assertEqual(g.state["xp"], 200)  # 录分基础奖励，悟道待手动领取
+        self.assertEqual(len(mock_rewards.view(g)), 2)
+        mock_rewards.claim(g, mock_rewards.exam_key("第37季"))
         claim_all(g)
-        self.assertEqual(g.realm_info()["name"], "炼气七层")        # min(57, 58) = 57 → 直接跨到炼气七层
-        self.assertLessEqual(g.ideal()["diff_days"], 2)              # 大比悟道的修为不算天道进度
+        self.assertEqual(g.realm_info()["name"], "炼气一层")
+        mock_rewards.claim(g, mock_rewards.exam_key("第38季"))
+        claim_all(g)
+        self.assertEqual(g.realm_info()["name"], "炼气二层")
+        self.assertLessEqual(g.ideal()["diff_days"], 2)
         g.add_boss("第39季", 66)
         g.add_boss("第40季", 64)
+        g.state["xp"] = int(g.xp_at(64))  # 以实际修炼达到瓶颈，成绩本身不再补足经验
         claim_all(g)
-        info = g.realm_info()
-        self.assertEqual(info["name"], "炼气九层")                  # 修为补到 64，但筑基要渡劫
-        self.assertTrue(info["bottleneck"])
+        self.assertEqual(g.realm_info()["name"], "炼气九层")
+        self.assertTrue(g.realm_info()["bottleneck"])
         st = g.tribulation_status()
         self.assertEqual(st["gate"], 60)
-        self.assertTrue(st["conds"][1]["ok"])                       # 最近两次大比都 ≥ 60
-        self.assertFalse(st["conds"][2]["ok"])                      # 还没觉醒灵根
+        self.assertTrue(st["conds"][1]["ok"])
+        self.assertFalse(st["conds"][2]["ok"])
 
     def test_root_grades(self):
         from rpg import config

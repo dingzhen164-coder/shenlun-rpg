@@ -177,3 +177,14 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 
 .fixed-app .sl-topic-dialog{max-height:calc(var(--fx-height,100dvh) - 32px)}
 .fixed-app .sl-topic-dialog>.fx-scroll{min-height:0;max-height:65dvh}
+
+/* 3.0.6功能合并后的面板与二级切换。 */
+.fx-subgroup{display:flex;flex-direction:column;min-height:0;height:100%;gap:8px}
+.fx-subgroup>.fx-tabs{flex:none}
+.fx-subpanels{display:flex;flex:1;min-height:0;overflow:hidden}
+.fx-subpanel{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;gap:10px}
+.fx-subpanel>.card{flex:1;margin:0!important;min-height:0;overflow:auto}
+.fx-subpanel .fx-actions{flex:none}
+.mock-reward-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.mock-reward-row p{margin:5px 0}.mock-reward-row button{flex:none}
+@media(max-width:600px){.mock-reward-row{align-items:stretch;flex-direction:column}.fx-subgroup>.fx-tabs .fx-tab{font-size:12px}}

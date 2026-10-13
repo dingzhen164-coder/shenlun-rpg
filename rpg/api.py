@@ -96,6 +96,11 @@ def open_game(save=True):
         rules, persona, lines = config.load_all(paths, state["theme"])
         g = engine.Game(paths, rules, persona, lines, state, today)
         g.store = st
+        if save:
+            from . import mock_rewards
+            if not g.state.get("mock_rewards", {}).get("legacy_corrected") and mock_rewards.legacy_events(g):
+                st.backup_named("3.0.6悟道修正前")
+            g.mock_reward_corrections = mock_rewards.migrate(g)
         yield g
         if save and paths.vault:
             st.save(state, today)
@@ -744,6 +749,16 @@ def leave(body):
         return {"ok": ok, "events": tutor.enrich(g, ev)}
 
 
+def mock_reward_claim(body):
+    from . import mock_rewards
+    with open_game() as g:
+        try:
+            ev = mock_rewards.claim(g, str(body.get("key") or ""))
+        except ValueError as e:
+            raise ApiError(str(e))
+        return {"events": ev, "rewards": mock_rewards.view(g)}
+
+
 def boss(body):
     """宗门大比（kind=大比，默认）或飞升大典（kind=飞升，国考）成绩"""
     name = str(body.get("name", "")).strip() or "模考"
@@ -1063,6 +1078,7 @@ ROUTES = {
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,
     ("POST", "/api/boss"): boss,
+    ("POST", "/api/mock/rewards/claim"): mock_reward_claim,
     ("POST", "/api/practice"): practice,
     ("GET", "/api/mock"): mock_summary,
     ("GET", "/api/idioms"): idioms_list,
