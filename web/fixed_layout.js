@@ -1,7 +1,7 @@
 /* 3.0.4固定窗口布局：app.render结束后调用mount，观察模块异步重绘及弹窗。
    原DOM原位移动，保留事件、草稿、API和计时；只在内存记住各模块标签/分页。
    页面不滚动，正文、目录、设置在有界工作区内滚动，操作栏留在内容区外。
-   无存档格式、学习规则或奖励变化；法师成长记与公考两主题共用。 */
+   3.0.6将同类卡片分组；法师成长记与公考两主题共用。 */
 (() => {
   'use strict';
   let route='home', pending=false, serial=0;
@@ -47,31 +47,79 @@
     if(footer){footer.classList.add('fx-actions');node.append(footer);}
   }
   function flatten(node) {
+    if(node.matches('.grid.g5'))return [node];
     if(node.matches('.log-cols,.log-col')||node.matches('.grid')&&node.querySelector(':scope > .card'))return [...node.children].flatMap(flatten);
     return [node];
+  }
+  // 3.0.6按稳定控件与功能分组，保留原节点和原保存逻辑。
+  function groupedEntries(parts) {
+    const groups=new Map(), mode=themeKey();
+    const group=(id,label,node,sub=false)=>{if(!groups.has(id))groups.set(id,{id,label,nodes:[],sub});groups.get(id).nodes.push(node);};
+    for(const n of parts){
+      const name=title(n),has=s=>n.matches(s)||!!n.querySelector(s);
+      if(route==='dwelling'){
+        if(has('.narrative-dwelling,.xc-guide-scene,.npc.greet')){n.remove();continue;}
+        if(has('.hero,.trib-card,.retreat,.mock-rewards'))group('growth',mode==='office'?'仕途与晋升':mode==='mage'?'成长与晋升':'修为与突破',n);
+        else if(has('.sancai,.grid.g5'))group('daily',mode==='office'?'学时与出勤':'时辰与日课',n);
+        else if(has('.lecture-card'))group('records',mode==='peaks'?'修行记录':'学习记录',n,true);
+        else group('other','成长记录',n);
+      }else if(route==='settings'){
+        if(has('.shortcut-settings,.portal-settings'))group('navigation','地图与操作',n,true);
+        else if(has('#ambTheme,#cwR,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
+        else if(has('#sSave'))group('ai','AI与资料',n);
+        else if(has('#scheduleSave,[data-subject]')||/改规则/.test(name))group('learning','学习与成长',n);
+        else if(has('#updCheck'))group('updates','版本与更新',n);
+        else if(has('#lanOn,.scene-utility-tools'))group('device','设备与工具',n);
+        else group('other','其他设置',n);
+      }else if(route==='contest'){
+        if(has('#chScore,#chAcc,#mkPick')||/走势/.test(name))group('charts','成绩走势',n,true);
+        else if(has('#mkForm,#mkMarksCard,#ctGo'))group('entry','成绩录入',n);
+        else if(has('.contest-hero,.mock-rewards')||/考情分析|年度考核|竞技场|宗门大比/.test(name))group('overview','模考与分析',n);
+        else if(has('.mk-table')||/复盘|历次/.test(name))group('history','复盘与档案',n);
+        else if(n.matches('p,.small,.warn'))group('overview','模考与分析',n);
+        else group('overview','模考与分析',n);
+      }else if(route==='log'){
+        if(has('#tasks,#leaveBtn'))group('daily',mode==='office'?'日常事务':'每日功课',n);
+        else if(has('#bossBtn,#asBtn'))group('exam','考试档案',n);
+        else if(/日志/.test(name))group('history','修行日志',n);
+        else group('growth',mode==='office'?'成长与资源':'功法与资源',n);
+      }else if(route==='bank'){
+        if(has('.pagoda-card,#bankCount')||/刷题|试炼/.test(name))group('practice','试炼与练习',n);
+        else group('history','练习记录',n);
+      }else if(route==='skeleton'){
+        group('library','资料与简匣',n);
+      }else{
+        const id=name==='概览'?'overview':name;
+        if(n.matches('p,.small,.warn')&&groups.size)[...groups.values()][groups.size-1].nodes.push(n);
+        else group(id,name==='概览'?'内容总览':name,n);
+      }
+    }
+    return [...groups.values()];
   }
   function sections(root,key) {
     if(root.querySelector(':scope > .fx-shell'))return;
     const nodes=[...root.children].flatMap(flatten);if(!nodes.length)return;
-    const headers=nodes.filter(n=>n.matches('.lib-head,.sl-ui-masthead'));
-    const parts=nodes.filter(n=>!headers.includes(n));
-    const entries=[];
-    for(const n of parts){
-      if(n.matches('p,.small,.warn')&&entries.length){entries[entries.length-1].nodes.push(n);continue;}
-      entries.push({label:title(n,n.matches('.grid')?'成长概览':'概览'),nodes:[n]});
-    }
-    if(!entries.length)return;
-    const shell=make('section','fx-shell'+(route==='settings'?' fx-settings':''));
-    const area=make('div','fx-panels');
-    const items=entries.map(entry=>{const panel=make('section','fx-panel');const scroll=make('div','fx-scroll');scroll.tabIndex=0;
-      for(const node of entry.nodes){if(node.tagName==='DETAILS')node.open=true;scroll.append(node);}
-      panel.append(scroll);area.append(panel);return {label:entry.label,panel};});
-    shell.append(area);root.append(shell);
-    if(items.length>1)tabs(shell,items,key);
-    // 保存操作属于各原设置面板，不增加第二套状态或保存逻辑。
+    const headers=nodes.filter(n=>n.matches('.lib-head,.sl-ui-masthead,.subpage-heading'));
+    const entries=groupedEntries(nodes.filter(n=>!headers.includes(n)));if(!entries.length)return;
+    const shell=make('section','fx-shell'+(route==='settings'?' fx-settings':'')),area=make('div','fx-panels');
+    const items=entries.map(entry=>{
+      const panel=make('section','fx-panel'),scroll=make('div','fx-scroll');scroll.tabIndex=0;
+      panel.dataset.fxGroup=entry.id;
+      if(entry.sub&&entry.nodes.length>1){
+        const sub=make('section','fx-subgroup'),panes=make('div','fx-subpanels');
+        const subs=entry.nodes.map(node=>{const p=make('section','fx-subpanel fx-scroll');if(node.tagName==='DETAILS')node.open=true;p.append(node);panes.append(p);return {panel:p,label:title(node,'其他')};});
+        sub.append(panes);scroll.append(sub);tabs(sub,subs,'sub:'+key+':'+entry.id);
+      }else for(const node of entry.nodes){if(node.tagName==='DETAILS')node.open=true;scroll.append(node);}
+      panel.append(scroll);area.append(panel);return {label:entry.label,panel};
+    });
+    shell.append(area);root.append(shell);if(items.length>1)tabs(shell,items,key);
+    // 不同表单保留各自保存按钮；子面板的按钮固定在对应子面板内。
     for(const item of items){
-      const action=item.panel.querySelector('#sSave,[data-shortcut-save],[data-portal-save],#ctGo');
-      if(action){const row=action.closest('.row,.portal-editor-actions,.ct-form');if(row){row.classList.add('fx-actions');item.panel.append(row);}}
+      const rows=new Set();
+      for(const action of item.panel.querySelectorAll('#sSave,[data-shortcut-save],[data-portal-save],#ctGo')){
+        const row=action.closest('.row,.portal-editor-actions,.ct-form');if(!row||rows.has(row))continue;rows.add(row);
+        const target=action.closest('.fx-subpanel')||item.panel;row.classList.add('fx-actions');target.append(row);
+      }
     }
   }
   function paginate(grid,key,kind) {
@@ -165,10 +213,10 @@
     const height=Math.round(viewport?.height||innerHeight);
     const keyboard=height<innerHeight-150;if(h.classList.contains('fx-keyboard')!==keyboard)h.classList.toggle('fx-keyboard',keyboard);
     if(h.style.getPropertyValue('--fx-height')!==height+'px')h.style.setProperty('--fx-height',height+'px');
-    const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.getBoundingClientRect().height)+'px');
+    const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.classList.contains('subpage-heading')?hud.getBoundingClientRect().bottom:hud.getBoundingClientRect().height)+'px');
   }
   function apply() {
-    pending=false;const root=document.getElementById('view');if(!root)return;
+    pending=false;window.STUDY_HUD?.ensure();const root=document.getElementById('view');if(!root)return;
     if(!document.documentElement.classList.contains('fixed-app'))document.documentElement.classList.add('fixed-app');root.dataset.fxRoute=route;measure();
     if(route!=='home'&&!root.querySelector('.fx-shell')){
       if(root.querySelector('.train')){} // 会话由原消息/输入工作区处理。
@@ -177,7 +225,7 @@
       else if(root.querySelector('.ex-page'))catalog(root);
       else if(shenlun(root)){}
       else if(regions(root)){}
-      else {let host=root;while(host.children.length===1&&!host.firstElementChild.matches('.card,details,.grid')&&host.firstElementChild.children.length)host=host.firstElementChild;host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
+      else {let host=root;while(true){const children=[...host.children].filter(n=>!n.matches('.subpage-heading'));if(children.length!==1||children[0].matches('.card,details,.grid')||!children[0].children.length)break;host=children[0];}host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
     }
     overlays();
   }

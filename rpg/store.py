@@ -112,6 +112,17 @@ class Store:
             json.dump(state, fp, ensure_ascii=False, indent=1)
         os.replace(tmp, f)
 
+    def backup_named(self, label):
+        """规则纠正前额外留一份快照，保留每日备份之外的审计依据。"""
+        f = self.paths.save_file
+        if not f or not f.exists():
+            return
+        folder = self._backup_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        dst = folder / ("规则修正-" + label + ".json")
+        if not dst.exists():
+            dst.write_bytes(f.read_bytes())
+
     def _backup_dir(self):
         return self.paths.save_dir / "备份"
 

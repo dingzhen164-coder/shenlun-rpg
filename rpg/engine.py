@@ -7,7 +7,7 @@
     境界按道行分段（themes.BANDS）：凡人 50 / 炼气 51–59 / 筑基 60 / 金丹 65 / 元婴 70 / 化神 75 / 大乘 80 / 真仙 85。
     渡劫：进入“渡劫分数线”（60、65…）上的大境界必须渡劫。修为到了但没渡劫 → 道行停在线下（瓶颈），多出的修为照样累计，
     渡劫成功后一次性涌入。条件见 tribulation_status()。
-    宗门大比（模考）：最近两次成绩里较低的那个若高于当前道行，修为直接补到这个分数（add_boss 里的“大比悟道”）。
+    模考高于录入时预估分时生成手动领取奖励，按当前小境界完整突破修为与阶段倍率计算。
 
 二、功法（骨架）掌握度：每一重（大项）0 未入门 →（背诵连续过 N 次）1 小成 →（论道过）2 大成 →（试剑连续过 N 次）3 圆满，
     之后按复查间隔温养道基；温养失败降回 0（根基松动）。批次 / 周目逻辑同前（一批 = 一重秘境，全部打通 = 一个大周天）。
@@ -913,7 +913,8 @@ class Game:
 
     def housekeeping(self):
         """检查通关、灵根、护心丹、周常、闭关到期，记录进度快照。每次读取面板和提交结果后调用。"""
-        ev = self._backfill_study_xp() + self._roots_housekeeping()
+        ev = getattr(self, "mock_reward_corrections", []) + self._backfill_study_xp() + self._roots_housekeeping()
+        self.mock_reward_corrections = []
         changed = True
         while changed:
             changed = False
@@ -1268,6 +1269,9 @@ class Game:
 
     def add_boss(self, name, score, kind="大比"):
         """宗门大比（模考）/ 飞升大典（国考）成绩"""
+        from . import mock_rewards
+        corrections = mock_rewards.migrate(self)
+        baseline = self.raw_score()
         self.state["boss"].append({"d": self.t, "name": name, "score": score, "kind": kind})
         if kind == "飞升":
             return self._award(self.rules.xp("飞升"), "ascend", note=f"{self.T('ascend')}「{name}」{score} 分", bonus=False)
@@ -1275,21 +1279,14 @@ class Game:
         e = self._npc("宗门大比")
         e["extra"] = f"刚记录了{self.T('boss')}成绩：{name} {score} 分"
         ev.append(e)
-        # 大比悟道：最近两次中较低的那个高于当前道行 → 修为直接补到这个分数
-        last2 = [b["score"] for b in self.contests()[-2:]]
-        if len(last2) == 2:
-            m = min(min(last2), self.rules.num("最高分数"))
-            if m > self.raw_score():
-                gain = int(math.ceil(self.xp_at(m) - self.state["xp"]))
-                if gain > 0:
-                    ev += self._award(gain, "insight", note=f"{self.T('boss')}悟道：{self.T('xp')}暴涨至 {m} 分", bonus=False)
+        ev += mock_rewards.offer(self, name, score, baseline)
         # 突破丹：成绩达到下一道渡劫线，奖励对应的突破丹（最多存 3 颗）
         nxt = next((g for g in self.gates() if g not in self.state["gates"]), None)
         item = self.th["gate_items"].get(nxt) if nxt else None
         if item and score >= nxt and self.state["bag"].get(item, 0) < 3:
             self.bag_add(item)
             ev.append({"kind": "info", "msg": f"{self.T('boss')}成绩达到 {nxt} 分，获得一颗{item}（{self.T('tribulation')}时可抵挡一道天雷）"})
-        return ev
+        return corrections + ev
 
     def add_practice(self, board, total, correct, minutes, source="", note="", day=None):
         d = D(day) if day else self.today
@@ -1707,6 +1704,7 @@ class Game:
 
     # ================================================================ 面板
     def dashboard(self):
+        from . import mock_rewards
         from . import question_bank
         from . import study_status
         info = self.realm_info()
@@ -1742,6 +1740,7 @@ class Game:
             "today": self.t, "theme": {"name": self.theme, "terms": self.th["terms"],
                                        "levels": self.level_names(), "face": self.th["tutor_face"]},
             "realm": info, "xp": self.state["xp"], "study_status": study_status.view(self),
+            "mock_rewards": mock_rewards.view(self),
             "streak": {"days": run, "bonus": bonus}, "dao": {"value": dao, "label": self.dao_label(dao)},
             "ideal": self.ideal(), "lap": self.state["lap"],
             "batch": {"index": (cur + 1) if cur is not None else None,

@@ -134,6 +134,12 @@ async function go(view) {
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   return render();
 }
+// 复盘/导师会话沿用训练引擎，地点标题仍显示其原功能归属。
+window.STUDY_PAGE_CONTEXT=()=>{
+  if(VIEW!==TRAIN_ROUTE||!T.session)return null;
+  const view=T_TYPE==='mock_review'?'contest':T_TYPE==='chat'?'guide':T_TYPE==='wrong'?'log':null;
+  return view?{view}:null;
+};
 window.MAP_NAVIGATION?.configure({go, current:()=>VIEW, room:()=>W("nav.home").replace(/^\S+\s/, ""), error:showError});
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回地图；返回 false 表示没得退了
@@ -213,7 +219,8 @@ async function refresh() {
 function updatePill() {
   if (!DASH) return;
   const m = DASH.minutes;
-  $("#todayPill").textContent = `${W("today_word") === "today_word" ? "🕯 今日功行" : W("today_word")} ${m.today} / ${m.goal} 分钟（${W("study")} ${m.study ?? m.today} · ${W("lecture")} ${m.lecture ?? 0}）` + (m.today >= m.goal ? " ✦" : "");
+  window.STUDY_HUD?.ensure();
+  if($("#todayPill"))$("#todayPill").textContent = `${W("today_word") === "today_word" ? "🕯 今日功行" : W("today_word")} ${m.today} / ${m.goal} 分钟（${W("study")} ${m.study ?? m.today} · ${W("lecture")} ${m.lecture ?? 0}）` + (m.today >= m.goal ? " ✦" : "");
   updateStudyDot();
   window.STUDY_HUD?.mount(DASH, VIEW);
 }
@@ -230,6 +237,8 @@ function banner() {
 }
 
 async function render() {
+  window.STUDY_HUD?.suspend(true);
+  window.STUDY_HUD?.beforeRender();
   window.MAP_NAVIGATION?.beforeRender();
   document.body.classList.remove("portal-home");
   const v = $("#view");
@@ -252,8 +261,10 @@ async function render() {
     mountNarrative();
     SCENE_PORTAL.mount(VIEW);
     window.MAP_NAVIGATION?.mount(VIEW);
+    window.STUDY_HUD?.mount(DASH,VIEW);
     window.FIXED_LAYOUT?.mount(VIEW);
   } catch (e) { showError(e); }
+  finally { window.STUDY_HUD?.suspend(false);window.STUDY_HUD?.mount(DASH,VIEW); }
 }
 
 // 纪事入口仅在全景/个人空间出现；真实训练仍使用原任务与AI会话。
@@ -267,10 +278,7 @@ function mountNarrative() {
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
     legacy: () => window.XC_SECT?.openStory(),
   });
-  if (VIEW === 'dwelling' && DASH?.narrative) {
-    const el = document.createElement('section'); el.className = 'card narrative-dwelling';
-    el.innerHTML = NARRATIVE.homeHtml(DASH.narrative); document.getElementById('view').prepend(el);
-  }
+
 }
 
 // ------------------------------------------------------------ 小组件
@@ -495,7 +503,6 @@ const views = {
     const retreat = d.retreat ? `<div class="card retreat row"><b>🧘 ${esc(W("retreat"))}中：${esc(d.retreat.board)}</b> <span id="retreatLeft" class="muted"></span>
         <span class="spacer"></span><button class="small" id="retreatEnd">${esc(W("retreat_end"))}</button></div>` : "";
     return `
-    ${!isSL() && window.XC_GUIDE ? XC_GUIDE.homeHtml(d) : `<div class="card npc greet">${tutorFace()}<div><div class="who">${esc(p.tutor)}</div><div id="greet">${md(d.greeting)}${d.greet_pending ? '<div class="thinking small">正在打量你</div>' : ""}</div></div></div>`}
     ${retreat}
     <div class="card hero">
       <div class="avatar">${avatar}</div>
@@ -522,6 +529,7 @@ const views = {
       <div class="stat"><div class="k">🎯 预计 ${I.target_score} 分</div><div class="v">${I.eta || "—"}</div><div class="d">目标日 ${I.target}</div></div>
     </div>
     ${trib}
+    ${window.MOCK_REWARDS?.html(d)||""}
     ${boardTimeCard(d)}
     ${lectureCard(d)}
     ${practiceCard(d)}
@@ -588,7 +596,7 @@ const views = {
         <div class="card"><h3>⚔ 记录${esc(W("boss"))}（模考成绩）</h3>
           <details class="fold form-fold"><summary>✍ 记一次成绩</summary>
           <div class="row"><input id="bossName" placeholder="名称，如 第37季" style="flex:2"><input id="bossScore" placeholder="分数" style="flex:1"><button class="primary" id="bossBtn">记录</button></div>
-          <div class="small muted" style="margin-top:6px">最近两次的较低分若高于当前${esc(W("score"))}，${esc(W("xp"))}直接补上；达到下一道${esc(W("tribulation"))}线得突破丹</div></details></div>
+          <div class="small muted" style="margin-top:6px">成绩超过当前预估分时，按当前阶段生成手动领取的悟道奖励；达到下一道${esc(W("tribulation"))}线得突破丹</div></details></div>
         <div class="card"><h3>📜 ${esc(W("leave"))} <small>本月已用 ${d.leave.used}/${d.leave.total}</small></h3>
           <p class="muted small">生病、家里有事、加班……用一份${esc(W("leave"))}：今天${esc(W("streak"))}不断，也不计入${esc(W("ideal"))}。</p>
           <button id="leaveBtn" ${d.leave.today ? "disabled" : ""}>${d.leave.today ? "今天已告假" : "使用" + esc(W("leave"))}</button></div>
@@ -1051,8 +1059,11 @@ async function renderTrain() {
   if (!["train", "bank"].includes(VIEW)) return;
   const html = await views.train().catch((e) => { showError(e); return ''; });
   if (!["train", "bank"].includes(VIEW)) return;
+  window.STUDY_HUD?.beforeRender();
   $("#view").innerHTML = html;
   bindTrain();
+  window.STUDY_HUD?.mount(DASH,VIEW);
+  window.FIXED_LAYOUT?.mount(VIEW);
   if(isSL())window.SL_UI?.mount(VIEW);
   mountGuide();
   fitChat();
@@ -1674,8 +1685,9 @@ setInterval(() => {
 }, 1000);
 function updateStudyDot() {
   const on = studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
-  $("#todayPill").classList.toggle("on", on);
-  $("#todayPill").title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
+  const lamp=$("#todayPill");if(!lamp){window.STUDY_HUD?.ensure();return;}
+  lamp.classList.toggle("on", on);
+  lamp.title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
 }
 let beatCount = 0;
 setInterval(async () => {

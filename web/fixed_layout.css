@@ -177,3 +177,26 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 
 .fixed-app .sl-topic-dialog{max-height:calc(var(--fx-height,100dvh) - 32px)}
 .fixed-app .sl-topic-dialog>.fx-scroll{min-height:0;max-height:65dvh}
+
+/* 3.0.6功能合并后的面板与二级切换。 */
+.fx-subgroup{display:flex;flex-direction:column;min-height:0;height:100%;gap:8px}
+.fx-subgroup>.fx-tabs{flex:none}
+.fx-subpanels{display:flex;flex:1;min-height:0;overflow:hidden}
+.fx-subpanel{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0;gap:10px}
+.fx-subpanel>.card{flex:1;margin:0!important;min-height:0;overflow:auto}
+.fx-subpanel .fx-actions{flex:none}
+.mock-reward-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.mock-reward-row p{margin:5px 0}.mock-reward-row button{flex:none}
+@media(max-width:600px){.mock-reward-row{align-items:stretch;flex-direction:column}.fx-subgroup>.fx-tabs .fx-tab{font-size:12px}}
+
+/* 3.0.7为底部操作保留实际高度，材料/解析只在中间轨道滚动。 */
+.fixed-app.in-chat .train{height:auto;grid-template-rows:minmax(0,1fr);overflow:hidden}
+.fixed-app.in-chat .train>.card{height:100%;max-height:100%;min-width:0;box-sizing:border-box}
+.fixed-app.in-chat .chat{overflow:hidden}
+.fixed-app.in-chat .chat>.review-head{flex:none;min-height:0;max-height:none;overflow:auto}
+.fixed-app.in-chat .chat>.msgs{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.fixed-app.in-chat .chat>.composer{position:relative;margin:0;padding:8px 0 max(8px,env(safe-area-inset-bottom));min-height:0;flex:0 0 auto;max-height:48%;overflow:auto;box-sizing:border-box}
+.fixed-app.in-chat .chat.with-mat{grid-template-rows:auto minmax(0,1fr) max-content}
+.fixed-app.in-chat .chat.with-mat>.composer{grid-column:1/-1;grid-row:3;max-height:none}
+.fixed-app.in-chat .chat.with-mat>.mat-pane{min-height:0;max-height:none;overflow:auto}
+@media(max-width:900px){.fixed-app.in-chat .chat.with-mat{grid-template-rows:auto minmax(0,.6fr) minmax(0,1fr) max-content}.fixed-app.in-chat .chat.with-mat>.composer{grid-row:4}.fixed-app.in-chat .chat.with-mat>.mat-pane{max-height:none;margin-bottom:6px}}

@@ -1345,14 +1345,6 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     i = run.setdefault('rpos', 0)
     q, r = qs[i], res[i]
     msgs = []
-    if head:
-        rate = 100 * group['correct'] / group['total']
-        table, total = _result_table(g, run)
-        msgs.append(_msg('sys', '交卷！%s · 正确率 %.1f%%（%s/%s）· 用时 %s（平均每题 %s）\n试炼品评：%s\n\n下面逐题复盘，看不懂的点「师傅解惑」。' % (
-            question_bank.label(run['board']), rate, group['correct'], group['total'], _clock(total), _clock(total / len(res)),
-            g.T('bank_rank.' + str(group['rank']))), table))
-        msgs.append(_msg('npc', _say(g, _rank_scene(group), 正确率='%.0f%%' % rate, 对题数=group['correct'],
-                                     总题数=group['total'], 错题数=group['total'] - group['correct']) or g.T('bank_close')))
     qb, mat = _bank_q(g, q)
     msgs.append(_msg('sys', '复盘 第 %s/%s 题 · 编号 %s · %s · 用时 %s' % (i + 1, len(qs), q['id'], '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
                      qb, pin=True, material=mat, qkey='bank:' + q['id']))
@@ -1626,22 +1618,6 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
     if q["num"] not in done:
         done.append(q["num"])
     msgs = []
-    if head:
-        c = _mreview_counts(qs)
-        ok, n = c["✅"], len(qs)
-        rows = [[str(x["num"]), x["mine"] or "—", x["correct"] or "?", MOCK_ICON.get(x["icon"], x["icon"])] for x in qs]
-        note = ("（这个板块全对，没有错题，下面复盘全部题目）" if s.get("all_correct")
-                else "（只看错题和没做的）" if s["only_wrong"] else "")
-        if s.get("resumed"):
-            note += "（接着上次，从第 %d 题看起；表里点不了，用「← 上一题」往回翻）" % (s["resumed"] + 1)
-        msgs.append(_msg("sys", "📜 第%s季大比复盘 · %s%s\n答对 %d/%d（%.0f%%）· 答错 %d · 没做 %d\n\n下面逐题复盘：看题 → 对答案 → 读解析，看不懂的点「师傅解惑」。" % (
-            s["season"], s["source"], note, ok, n, 100 * ok / n, c["❌"], c["⚪"]),
-            [{"t": "table", "head": ["题号", "我选", "答案", "结果"], "rows": rows}]))
-        rate = ok / n
-        scene = "试炼·全对" if ok == n else "试炼·上品" if rate >= 0.8 else "试炼·中品" if rate >= 0.6 else "试炼·下品"
-        line = _say(g, scene, 正确率="%.0f%%" % (100 * rate), 对题数=ok, 总题数=n, 错题数=n - ok)
-        if line:
-            msgs.append(_msg("npc", line))
     msgs.append(_msg("sys", "复盘 第 %d/%d 题 · 第%s季第 %s 题 · %s · %s" % (
         i + 1, len(qs), s["season"], q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),

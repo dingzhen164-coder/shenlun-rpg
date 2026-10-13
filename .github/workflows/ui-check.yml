@@ -42,6 +42,10 @@ jobs:
           node tests/ui_study_regions.cjs --subject=行测
           node tests/ui_fixed_layout.cjs --subject=申论
           node tests/ui_fixed_layout.cjs --subject=行测
+          node tests/ui_grouped_rewards.cjs --subject=申论
+          node tests/ui_grouped_rewards.cjs --subject=行测
+          node tests/ui_compact_review.cjs --subject=申论
+          node tests/ui_compact_review.cjs --subject=行测
           node tests/ui_narrative.cjs --subject=申论
           node tests/ui_narrative.cjs --subject=行测
           node tests/ui_world.cjs --subject=申论

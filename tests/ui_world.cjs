@@ -15,10 +15,10 @@ async function data(){return page.evaluate(()=>fetch('/api/narrative').then(r=>r
 async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.querySelector('.narrative-dialog'),r=d.getBoundingClientRect();return document.documentElement.scrollWidth<=innerWidth+2&&r.left>=0&&r.right<=innerWidth&&d.scrollWidth<=d.clientWidth+2;}),true);}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
- const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();
+ const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();page.setDefaultTimeout(8000);require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();
  await page.locator('[data-portal-motion]').click();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
- await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
+ await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
  await home();assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.portal-cloud')).animationName),'none');await open();await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
  await page.locator('[data-narrative-choice="practice"]').click();await page.locator('[data-narrative-choice="continue"]').click();
  await page.locator('[data-narrative="finish"]').click();await page.locator('[data-narrative="replay"]').waitFor();
@@ -35,8 +35,8 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();
  await page.locator('.journey-collection summary').click();await page.locator('[data-journey-place="main:ornament"]').click();
- await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.locator('.journey-display').waitFor();
- assert.match(await page.locator('.journey-display').textContent(),/法典|卷宗|竹卷/);await home();await open();
+ await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.evaluate(()=>go('home'));await open();await page.locator('.journey-space summary').click();
+ assert.match(await page.locator('.journey-space').textContent(),/法典|卷宗|竹卷/);await home();await open();
  await page.locator('.world-progress summary').click();await page.locator('[data-world-go="restored"]').click();
  await page.waitForFunction(()=>VIEW==='log');assert.equal(await page.locator('.narrative-dialog').count(),0);
  // 触控竖屏 + 暗色 + 系统减少动画。章/任务状态保持，关闭后学习入口不被挡住。

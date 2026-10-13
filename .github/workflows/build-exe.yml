@@ -1,4 +1,4 @@
-# 改 rpg/version.py 的版本号推到 main → 在 Windows 上打包 公考模拟器.exe、在 Linux 上打包平板 App gongkao-simulator.apk、
+# 用户明确发布后更新release-request并推到 main → 在 Windows 上打包 公考模拟器.exe、在 Linux 上打包平板 App gongkao-simulator.apk、
 # 在 Mac 上打包 公考模拟器.app（Apple 芯片，gongkao-simulator-mac.zip），
 # 一起发到 Releases（tag v<版本>）。一个程序里有两个科目（申论官途 / 行测修仙传）。
 # 普通开发分支只积累代码；validate/**在用户要求统一验证时运行测试/三端构建，仅main发布Release。
@@ -9,7 +9,7 @@ name: build-exe
 on:
   push:
     branches: [main, 'validate/**']
-    paths: [rpg/version.py, .github/workflows/build-exe.yml]
+    paths: [.github/release-request.json]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/validate/')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
