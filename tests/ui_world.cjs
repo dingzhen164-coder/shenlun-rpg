@@ -8,19 +8,18 @@ let logs='',browser,page;srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error(logs||'临时库未启动')),20000);
  srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});
  srv.on('exit',c=>{clearTimeout(timer);reject(Error('服务退出 '+c+' '+logs));});});
-async function open(){await page.locator('[data-narrative="catalogue"]').first().click();await page.locator('.narrative-dialog').waitFor();}
-async function home(){await page.locator('#nav [data-view="home"]').click();await page.locator('[data-narrative="catalogue"]').first().waitFor();}
+async function open(){await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().click();await page.locator('.narrative-dialog').waitFor();}
+async function home(){await page.evaluate(()=>go('home'));await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();}
 async function card(){await page.getByRole('button',{name:/显示答案|揭示答案/}).click();await page.locator('[data-rate="4"]').click();await page.locator('#yjBack').click();await home();}
 async function data(){return page.evaluate(()=>fetch('/api/narrative').then(r=>r.json()));}
 async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.querySelector('.narrative-dialog'),r=d.getBoundingClientRect();return document.documentElement.scrollWidth<=innerWidth+2&&r.left>=0&&r.right<=innerWidth&&d.scrollWidth<=d.clientWidth+2;}),true);}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
- const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(base);await page.locator('[data-portal-motion]').waitFor();
+ const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();
  await page.locator('[data-portal-motion]').click();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
- await page.reload();await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
- assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.portal-cloud')).animationName),'none');
- await open();await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
+ await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
+ await home();assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.portal-cloud')).animationName),'none');await open();await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
  await page.locator('[data-narrative-choice="practice"]').click();await page.locator('[data-narrative-choice="continue"]').click();
  await page.locator('[data-narrative="finish"]').click();await page.locator('[data-narrative="replay"]').waitFor();
  const before=await data();assert.equal(before.companions[0].read,true);assert.equal(before.journey.collection.length,0);
@@ -31,13 +30,13 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await card();await open();await page.locator('[data-journey-deliver="main:study"]').click();
  const first=await data();assert.equal(first.journey.collection.length,2);assert.equal(first.world_progress.stage,1);
  await page.locator('[data-journey-claim="main:review"]').click();await page.locator('[data-journey-start="main:review"]').click();
- await page.locator('button[data-yjgo=""]').click();await card();await open();
+ const firstBoard=await page.evaluate(()=>DASH.tree[0].board);await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':firstBoard}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
  await page.locator('[data-journey-deliver="main:review"]').click();await page.locator('[data-journey-deliver^="daily:"]').click();
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();
  await page.locator('.journey-collection summary').click();await page.locator('[data-journey-place="main:ornament"]').click();
- await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.journey-display').waitFor();
- assert.match(await page.locator('.journey-display').textContent(),/法典|卷宗|竹卷/);await open();
+ await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.locator('.journey-display').waitFor();
+ assert.match(await page.locator('.journey-display').textContent(),/法典|卷宗|竹卷/);await home();await open();
  await page.locator('.world-progress summary').click();await page.locator('[data-world-go="restored"]').click();
  await page.waitForFunction(()=>VIEW==='log');assert.equal(await page.locator('.narrative-dialog').count(),0);
  // 触控竖屏 + 暗色 + 系统减少动画。章/任务状态保持，关闭后学习入口不被挡住。
@@ -48,7 +47,7 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await page.locator('[data-narrative="replay"]').click();await page.locator('[data-narrative="skip"]').click();
  assert.equal((await data()).journey.collection.length,6);
  if(process.argv.includes('--shot')){fs.mkdirSync('ui-artifacts/world',{recursive:true});await page.screenshot({path:'ui-artifacts/world/'+(subject||'mage')+'.png'});}
- assert.equal(await page.evaluate(()=>xcBack()),true);await page.locator('#nav [data-view="train"]').click();await page.waitForFunction(()=>VIEW==='train'&&!document.querySelector('.portal-atmosphere'));
+ assert.equal(await page.evaluate(()=>xcBack()),true);await page.evaluate(()=>go('train'));await page.waitForFunction(()=>VIEW==='train'&&!document.querySelector('.portal-atmosphere'));
  assert.equal(await page.locator('.portal-atmosphere').count(),0);assert.equal(await page.locator('.narrative-dialog').count(),0);assert.deepEqual(errors,[]);
  console.log('3.0世界/同伴/真实学习循环检查通过：'+(subject||'法考'));
 }catch(e){if(page){fs.mkdirSync('ui-artifacts/world',{recursive:true});await page.screenshot({path:'ui-artifacts/world/failure-'+(subject||'mage')+'.png'}).catch(()=>{});}throw e;}

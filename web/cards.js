@@ -6,6 +6,7 @@
   const T = (k) => (typeof W === "function" ? W(k) : k);
   const LS = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   const CLOSED = new Set(JSON.parse(LS.get("xrpg-yj-closed", "[]")));
+  let HUB_SCOPE = null;
   let OV = null;                 // /api/cards 的概览
   let MODE = "";                 // review | add | browse | stats | import
   let R = null;                  // 温简状态 {deck, card, intervals, counts, shown, t0, ask:[], asking}
@@ -13,24 +14,32 @@
   const TYPE_NAMES = { "问答": "问答", "问答+反向": "问答 + 反向（正反各一张）", "填空": "填空（{{c1::…}} 挖空）" };
 
   // ---------------------------------------------------------------- 修炼殿里的简匣树
-  async function hubHtml() {
+  async function hubHtml(region) {
+    HUB_SCOPE = null;
     try { OV = await api("/api/cards"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
+    if (region) {
+      const scope=OV.decks.filter(d=>STUDY_REGIONS.belongs(d.name,region.id)).map(d=>d.name);
+      try { OV=await api("/api/cards",{scope}); } catch(e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
+      HUB_SCOPE={scope,label:region.label,deck:region.deck};
+    }
     const decks = OV.decks;
+    const roots=decks.filter(d=>!decks.some(p=>d.name.startsWith(p.name+"::")));
+    const depth=d=>d.depth-(roots.find(p=>d.name===p.name||d.name.startsWith(p.name+"::"))?.depth||0);
     const kids = (name) => decks.some((d) => d.name.startsWith(name + "::"));
-    const hidden = (name) => { const p = name.split("::"); for (let i = 1; i < p.length; i++) if (CLOSED.has(p.slice(0, i).join("::"))) return true; return false; };
+    const hidden = (name) => { const p = name.split("::"); for (let i = 1; i < p.length; i++) if (decks.some(d=>d.name===p.slice(0,i).join("::")) && CLOSED.has(p.slice(0, i).join("::"))) return true; return false; };
     const num = (n, cls) => `<span class="yj-n ${n ? cls : "zero"}">${n}</span>`;
-    const rows = decks.filter((d) => !hidden(d.name)).map((d) => `<div class="yj-row" style="--dep:${d.depth}">
+    const rows = decks.filter((d) => !hidden(d.name)).map((d) => `<div class="yj-row" style="--dep:${depth(d)}">
         <span class="yj-fold">${kids(d.name) ? `<a data-yjfold="${esc(d.name)}">${CLOSED.has(d.name) ? "▸" : "▾"}</a>` : ""}</span>
         <a class="yj-name" data-yjgo="${esc(d.name)}" title="温这个简匣（含子匣）">${esc(d.label)}</a>
         ${num(d.new, "new")}${num(d.learn, "learn")}${num(d.review, "due")}
         <a class="yj-gear" data-yjgear="${esc(d.name)}" title="${esc(T("yj_rule"))}、新建子匣、改名、删除">⚙</a></div>`).join("");
-    const total = decks.filter((d) => !d.depth).reduce((a, d) => [a[0] + d.new, a[1] + d.learn, a[2] + d.review], [0, 0, 0]);
+    const total = roots.reduce((a, d) => [a[0] + d.new, a[1] + d.learn, a[2] + d.review], [0, 0, 0]);
     return `<div class="card yj-hall">
       <div class="yj-hall-head"><div><div class="yj-title">📜 ${esc(T("yj"))}</div>
-        <div class="small muted">共 ${OV.cards} ${esc(T("yj_unit"))} · 今日已温 ${OV.today.n} ${esc(T("yj_unit"))}${OV.today.secs >= 60 ? ` · ${Math.round(OV.today.secs / 60)} 分钟` : ""}</div></div>
+        <div class="small muted">共 ${OV.cards} ${esc(T("yj_unit"))}${region ? " · " + esc(region.label) : ` · 今日已温 ${OV.today.n} ${esc(T("yj_unit"))}${OV.today.secs >= 60 ? ` · ${Math.round(OV.today.secs / 60)} 分钟` : ""}`}</div></div>
         <span class="spacer"></span>
-        <button class="ghost yj-daily" id="yjDaily" title="每天学多少新${esc(T("yj_unit"))}、复习多少（全部${esc(T("yj_deck"))}的默认；单个匣子在它右边的 ⚙ 里另设）">⚙ 每天 ${esc(T("yj_new"))} ${OV.defaults.new_per_day} · 复习 ${OV.defaults.rev_per_day}</button>
-        <button class="primary yj-go-all" data-yjgo="" ${total[0] + total[1] + total[2] ? "" : "disabled"}>🌙 ${esc(T("yj_review"))}全部</button></div>
+        ${region ? "" : `<button class="ghost yj-daily" id="yjDaily" title="每天学多少新${esc(T("yj_unit"))}、复习多少（全部${esc(T("yj_deck"))}的默认；单个匣子在它右边的 ⚙ 里另设）">⚙ 每天 ${esc(T("yj_new"))} ${OV.defaults.new_per_day} · 复习 ${OV.defaults.rev_per_day}</button>`}
+        <button class="primary yj-go-all" data-yjgo="" ${total[0] + total[1] + total[2] ? "" : "disabled"}>🌙 ${esc(T("yj_review"))}${region?esc(region.label):"全部"}</button></div>
       <div class="yj-tree"><div class="yj-row yj-th"><span class="yj-fold"></span><span class="yj-name">${esc(T("yj_deck"))}</span>
         <span class="yj-n new">${esc(T("yj_new"))}</span><span class="yj-n learn">${esc(T("yj_learn"))}</span><span class="yj-n due">${esc(T("yj_due"))}</span><span class="yj-gear"></span></div>
         ${rows}</div>
@@ -58,7 +67,7 @@
       const n = a.dataset.yjfold; CLOSED.has(n) ? CLOSED.delete(n) : CLOSED.add(n);
       LS.set("xrpg-yj-closed", JSON.stringify([...CLOSED])); renderTrain();
     }));
-    root.querySelectorAll("[data-yjgo]").forEach((a) => (a.onclick = () => review(a.dataset.yjgo)));
+    root.querySelectorAll("[data-yjgo]").forEach((a) => (a.onclick = () => review(a.dataset.yjgo, HUB_SCOPE)));
     root.querySelectorAll("[data-yjmode]").forEach((b) => (b.onclick = () => open(b.dataset.yjmode)));
     root.querySelectorAll("[data-yjgear]").forEach((a) => (a.onclick = (e) => { e.stopPropagation(); deckMenu(a, a.dataset.yjgear); }));
     const dl = root.querySelector("#yjDaily");
@@ -193,12 +202,12 @@
   }
 
   // ---------------------------------------------------------------- 温简
-  async function review(deck) {
+  async function review(deck, selection) {
     MODE = "review";
-    R = { deck, ask: [] };
-    stage().innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(deck || "全部" + T("yj_deck"))}`) + `<div class="yj-wait">取简中…</div>`;
+    R = { deck, ask: [], scope: selection?.scope, label: deck || selection?.label, addDeck: deck || selection?.deck };
+    stage().innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.label || "全部" + T("yj_deck"))}`) + `<div class="yj-wait">取简中…</div>`;
     bindBack();
-    try { show(await api("/api/cards/next", { deck })); } catch (e) { showError(e); closeStage(); }
+    try { show(await api("/api/cards/next", { deck, scope: R.scope })); } catch (e) { showError(e); closeStage(); }
   }
   function show(r) {
     if (MODE !== "review") return;
@@ -210,19 +219,19 @@
     if (window.DRAW && DRAW.state.on) DRAW.close();          // 换卡前把这张卡上的草稿存好收起
     const tools = `${r.done ? "" : '<button class="ghost small yj-pen" id="yjPen" title="画笔：在卡上写写画画（每张卡的草稿单独保存；Esc 收起）">✏ 画笔</button>'}${cnt(r.counts)}<button class="ghost small" id="yjUndo" title="撤销上一张（Ctrl+Z）">↶ 撤销</button>`;
     if (r.done) {
-      s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.deck || "全部" + T("yj_deck"))}`, tools) + `<div class="yj-finish">
+      s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.label || "全部" + T("yj_deck"))}`, tools) + `<div class="yj-finish">
         <div class="yj-moon"><svg viewBox="0 0 64 64" width="76" height="76"><path d="M40 6a26 26 0 1 0 18 44A22 22 0 1 1 40 6z" fill="currentColor"/></svg></div><h2>${esc(T("yj_done"))}</h2>
         <p>${r.next_learn ? `还有参悟中的${esc(T("yj"))}，约 ${esc(r.next_learn)} 后再来。` : "明日再来，记忆会在恰好将忘之时被唤醒。"}</p>
         <div class="row" style="justify-content:center"><button class="primary" id="yjDoneBack">回修炼殿</button><button class="ghost" id="yjDoneAdd">✍ ${esc(T("yj_add"))}</button></div></div>`;
       bindBack(); bindUndo();
       document.getElementById("yjDoneBack").onclick = closeStage;
-      document.getElementById("yjDoneAdd").onclick = () => { ADD.deck = R.deck; open("add"); };
+      document.getElementById("yjDoneAdd").onclick = () => { ADD.deck = R.addDeck || R.deck; open("add"); };
       return;
     }
     const c = r.card;
     const f = faces(c);
     const kind = ["new", "learn", "due", "learn"][c.state] || "new";
-    s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.deck || "全部" + T("yj_deck"))}`, tools) + `
+    s.innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.label || "全部" + T("yj_deck"))}`, tools) + `
       <div class="yj-desk"><div class="yj-slip ${kind}">
         <div class="yj-slip-meta"><span>${esc(c.deck)}</span>${c.leech ? `<span class="tag bad">${esc(T("yj_leech"))}</span>` : ""}${c.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}<span class="spacer"></span>
           <a id="yjEdit" title="改这枚${esc(T("yj"))}">✎ 改</a><a id="yjSusp" title="暂停：以后不出，藏简阁里可恢复">⏸ 暂停</a><a id="yjInfo" title="温习记录">ℹ</a></div>
@@ -234,9 +243,9 @@
     bindBack(); bindUndo();
     s.querySelectorAll(".yj-face img").forEach((im) => (im.onclick = () => window.zoomImg && zoomImg(im.src)));
     document.getElementById("yjShow").onclick = flip;
-    document.getElementById("yjEdit").onclick = () => editDialog(c.id, async () => { show(await api("/api/cards/next", { deck: R.deck })); });
+    document.getElementById("yjEdit").onclick = () => editDialog(c.id, async () => { show(await api("/api/cards/next", { deck: R.deck, scope: R.scope })); });
     document.getElementById("yjSusp").onclick = async () => {
-      try { await api("/api/cards/suspend", { keys: [c.key], on: true }); toast("已暂停这张卡"); show(await api("/api/cards/next", { deck: R.deck })); } catch (e) { showError(e); }
+      try { await api("/api/cards/suspend", { keys: [c.key], on: true }); toast("已暂停这张卡"); show(await api("/api/cards/next", { deck: R.deck, scope: R.scope })); } catch (e) { showError(e); }
     };
     document.getElementById("yjInfo").onclick = () => infoDialog(c.key);
   }
@@ -277,13 +286,13 @@
     if (!R || !R.shown || busy) return;
     busy = true;
     const secs = Math.round((Date.now() - R.t0) / 1000);
-    try { show(await api("/api/cards/answer", { deck: R.deck, key: R.card.key, rating: k, secs })); } catch (e) { showError(e); }
+    try { show(await api("/api/cards/answer", { deck: R.deck, scope: R.scope, key: R.card.key, rating: k, secs })); } catch (e) { showError(e); }
     busy = false;
   }
   async function undo() {
     if (busy) return;
     busy = true;
-    try { show(await api("/api/cards/undo", { deck: R.deck })); toast("已撤销"); } catch (e) { showError(e); }
+    try { show(await api("/api/cards/undo", { deck: R.deck, scope: R.scope })); toast("已撤销"); } catch (e) { showError(e); }
     busy = false;
   }
   async function ask(q) {
@@ -867,7 +876,7 @@
 
   // 心跳：开着温简页面、页面看得见、10 分钟内有过操作（翻面 / 评分 / 问师傅…）→ 计进“修炼 · 复习”（服务器核对 10 分钟内在温简页面上取过卡）
   const active = () => MODE === "review" && !!R && !!R.card && document.visibilityState === "visible" && Date.now() - lastActive < 600000;
-  const board = () => (R && R.deck ? R.deck.split("::")[0] : "");
+  const board = () => R?.scope && R.card ? R.card.deck.split("::").reverse().find(b=>(DASH?.tree||[]).some(x=>x.board===b))||"" : (R && R.deck ? R.deck.split("::")[0] : "");
   const drawKey = () => (MODE === "review" && R && R.card ? "yj:" + R.card.key : "");
   window.CARDS = { drawKey, hubHtml, bindHub, toolsHtml, bindTools, browseDeck, review, open, flipDeck, close: closeStage, isOpen: () => !!MODE, active, board };
 })();

@@ -8,7 +8,6 @@ async function main(){
  const handlers={saveStory:async()=>{saves++;if(fail)throw Error('网络失败');return {...d.sect,unread:0};},refresh:async()=>refreshes++,error:()=>errors++};
  ctx.window.XC_SECT.mount(d,handlers);
  function event(key,value){click({target:{closest:selector=>selector===`[${key}]`?{dataset:{[key.replace(/^data-/,'').replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]:value}}:null}});}
- const roomHtml=ctx.window.XC_SECT.chamberHtml();assert.ok(roomHtml.includes('assets/sect/li.webp'));assert.equal((roomHtml.match(/data-xc-room=/g)||[]).length,5);
  const html=ctx.window.XC_SECT.homeHtml(d);assert.ok(html.includes('&lt;真实进度&gt;'));assert.ok(html.includes('青衡宗'));assert.equal((html.match(/class="xc-sect-place /g)||[]).length,7);
  event('data-xc-sect','story');assert.ok(controls.includes('disabled'));
  event('data-xc-chapter','tower');assert.ok(!spoken.includes('锁定'));

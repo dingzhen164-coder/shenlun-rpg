@@ -8,7 +8,7 @@ let logs='';srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error(logs||'服务未启动')),20000);
   srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});
   srv.on('exit',c=>{clearTimeout(timer);reject(Error('服务退出 '+c+' '+logs));});});
-const open=async page=>{await page.locator('[data-narrative="catalogue"]').first().click();await page.locator('.narrative-dialog').waitFor();};
+const open=async page=>{await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().click();await page.locator('.narrative-dialog').waitFor();};
 const chapter=async page=>{await page.locator('[data-narrative-chapter="prologue"]').click();await page.locator('[data-narrative-choice="understand"]').waitFor();};
 const get=async page=>page.evaluate(()=>fetch('/api/narrative').then(r=>r.json()));
 let browser, page;
@@ -17,8 +17,8 @@ let browser, page;
   const base=await ready;
   browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
   const context=await browser.newContext({viewport:{width:1280,height:860}});
-  page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base);await page.locator('[data-narrative="catalogue"]').first().waitFor();
+  page=await context.newPage();require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(base);await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
   const baseline=await page.evaluate(()=>fetch('/api/dashboard').then(r=>r.json()));
   const xp=baseline.xp,minutes=baseline.minutes.today;
   await open(page);assert.equal(await page.locator('[data-narrative-chapter="study_echo"]').isDisabled(),true);
@@ -26,7 +26,7 @@ let browser, page;
   await page.locator('[data-narrative-choice="understand"]').click();await page.locator('[data-narrative-choice="continue"]').waitFor();
   assert.equal((await get(page)).revision,1);
   await page.keyboard.press('Escape');assert.equal(await page.locator('.narrative-dialog').count(),0);
-  await page.reload();await page.locator('[data-narrative="catalogue"]').first().waitFor();await open(page);
+  await page.reload();await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();await open(page);
   await page.locator('[data-narrative-chapter="prologue"]').click();await page.locator('[data-narrative-choice="continue"]').waitFor();
   assert.match(await page.locator('.narrative-transcript').textContent(),/我想先梳理方法/);
   // 同一服务端存档的另一窗口先推进，旧窗口不能覆盖。
@@ -47,13 +47,13 @@ let browser, page;
   assert.equal(await page.evaluate(()=>xcBack()),true);assert.equal(await page.locator('.narrative-dialog').count(),0);
   // 新对话打开请求晚返回时，导航已离页不得再弹出。
   await page.route('**/api/narrative',async route=>{await new Promise(r=>setTimeout(r,250));await route.continue();});
-  await page.locator('[data-narrative="catalogue"]').first().click();await page.evaluate(()=>go('log'));
+  await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().click();await page.evaluate(()=>go('log'));
   await page.waitForTimeout(450);assert.equal(await page.locator('.narrative-dialog').count(),0);await page.unroute('**/api/narrative');
-  await page.evaluate(()=>go('home'));await page.locator('[data-narrative="catalogue"]').first().waitFor();
+  await page.evaluate(()=>go('home'));await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
   // 自定义地点在刷新后仍保留。
   await page.evaluate(()=>go('settings'));await page.locator('[data-portal-x]').waitFor({state:'attached'});await page.locator('[data-portal-x]').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});
   await page.locator('[data-portal-selected]').selectOption('dwelling');await page.locator('[data-portal-x]').fill('24');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();
-  await page.reload();await page.locator('[data-narrative="catalogue"]').first().waitFor();
+  await page.reload();await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
   const layout=await page.evaluate(()=>JSON.parse(localStorage.getItem('scene-layout:'+DASH_REF().narrative.world.replace('office','guantu'))));
   assert.equal(layout.desktop.dwelling.x,24);
   if((await get(page)).world==='mage'){
@@ -62,7 +62,7 @@ let browser, page;
     await page.evaluate(()=>{window.originalNarrativeFlush=NOTES.flush;NOTES.flush=()=>new Promise(r=>window.releaseNarrativeFlush=r);go('home');});
     assert.equal(await page.evaluate(()=>VIEW),'notes');
     await page.evaluate(()=>releaseNarrativeFlush(false));await page.waitForTimeout(60);assert.equal(await page.evaluate(()=>VIEW),'notes');
-    await page.evaluate(()=>{NOTES.flush=originalNarrativeFlush;go('home');});await page.locator('[data-narrative="catalogue"]').first().waitFor();
+    await page.evaluate(()=>{NOTES.flush=originalNarrativeFlush;go('home');});await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
   }
   // 平板深色对话不会横向溢出，选择与触控入口正常；只截本次改动的一张图。
   await page.setViewportSize({width:800,height:1280});await page.evaluate(()=>document.documentElement.dataset.theme='dark');

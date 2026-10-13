@@ -296,6 +296,19 @@ def _in(deck, parent):
     return not parent or deck == parent or deck.startswith(parent + "::")
 
 
+def scope_names(scope):
+    """可选的精确简匣集合：None 保持旧行为，空列表表示本分区没有卡；不含子匣通配。"""
+    if scope is None:
+        return None
+    if not isinstance(scope, (list, tuple, set)) or any(not isinstance(n, str) for n in scope):
+        raise CardError("分区简匣格式不正确")
+    return set(scope)
+
+
+def in_scope(deck, scope):
+    return scope is None or deck in scope
+
+
 def _ancestors(deck):
     parts = deck.split("::")
     return ["::".join(parts[:i]) for i in range(1, len(parts) + 1)]
@@ -333,8 +346,9 @@ def _siblings_today(c, today):
     return out
 
 
-def queue(g, deck, now=None):
+def queue(g, deck, now=None, scope=None):
     """要温的卡（按 Anki：到期的学习中 → 复习和新简穿插；本匣和上层的每日上限都算），和三个计数"""
+    scope = scope_names(scope)
     now = now or time.time()
     c = data(g)
     notes, _ = load(g.paths)
@@ -343,7 +357,7 @@ def queue(g, deck, now=None):
     seen = _siblings_today(c, today)
     new_left, rev_left = {}, {}
     for key, n, o in all_cards(notes):
-        if not _in(n["deck"], deck):
+        if not _in(n["deck"], deck) or not in_scope(n["deck"], scope):
             continue
         s = _sched(c, key)
         if s.get("susp"):
@@ -524,10 +538,13 @@ def answer(g, key, rating, secs=0, now=None):
                                                if new.get("leech") and not (old or {}).get("leech") else [])
 
 
-def undo(g):
+def undo(g, deck="", scope=None):
+    scope = scope_names(scope)
     c = data(g)
     if not c["undo"]:
         raise CardError("没有可以撤销的")
+    if scope is not None and (not in_scope(c["undo"][-1]["deck"], scope) or not _in(c["undo"][-1]["deck"], deck)):
+        raise CardError("上一张玉简不属于当前分区，未撤销")
     u = c["undo"].pop()
     if u["old"] is None:
         c["sched"].pop(u["key"], None)
@@ -570,20 +587,22 @@ def award(g, xp, deck):
 
 
 # ================================================================ 给网页的
-def tree(g):
+def tree(g, scope=None):
     """简匣树：[{name, label, depth, new, learn, review, total, susp}]（数字含子匣）"""
+    scope = scope_names(scope)
     c = data(g)
     notes, _ = load(g.paths)
-    names = deck_names(c, notes)
+    names = [n for n in deck_names(c, notes) if in_scope(n, scope)]
     out = []
     for nm in names:
-        order, counts, _ = queue(g, nm)
-        total = sum(1 for _, n, _ in all_cards(notes) if _in(n["deck"], nm))
+        order, counts, _ = queue(g, nm, scope=scope)
+        total = sum(1 for _, n, _ in all_cards(notes) if _in(n["deck"], nm) and in_scope(n["deck"], scope))
         out.append({"name": nm, "label": nm.split("::")[-1], "depth": nm.count("::"), **counts, "total": total})
     return out
 
 
-def overview(g):
+def overview(g, scope=None):
+    scope = scope_names(scope)
     c = data(g)
     if g.subject == "行测" and not c.get("idiom_sync"):              # （行测）升级后第一次：把已经师傅答疑过的成语实词补成玉简
         from . import idioms
@@ -593,8 +612,8 @@ def overview(g):
             pass
         c["idiom_sync"] = True
     notes, _ = load(g.paths)
-    return {"decks": tree(g), "today": {"n": c["today"]["n"], "secs": c["today"]["secs"]}, "defaults": opts(c, ""),
-            "cards": sum(1 for _ in all_cards(notes)), "notes": len(notes), "can_undo": bool(c["undo"])}
+    return {"decks": tree(g, scope), "today": {"n": c["today"]["n"], "secs": c["today"]["secs"]}, "defaults": opts(c, ""),
+            "cards": sum(1 for _, n, _ in all_cards(notes) if in_scope(n["deck"], scope)), "notes": len(notes), "can_undo": bool(c["undo"])}
 
 
 def card_view(g, key):
@@ -609,9 +628,9 @@ def card_view(g, key):
             "state": s.get("st", 0), "leech": bool(s.get("leech")), "ai": n.get("ai", "")}
 
 
-def next_card(g, deck):
+def next_card(g, deck, scope=None):
     LAST_ANSWER["t"] = time.time()          # 在温简页面上就算在复习（心跳计时用）
-    order, counts, later = queue(g, deck)
+    order, counts, later = queue(g, deck, scope=scope)
     out = {"counts": counts, "deck": deck}
     if not order:
         out["done"] = True

@@ -6,8 +6,9 @@ const doc={addEventListener:(name,f)=>listeners[name]=f,querySelector:s=>values.
 const ctx={window:{innerWidth:1280,innerHeight:860,addEventListener(){}},document:doc,localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>{if(fail)throw Error('quota');storage.set(k,v);}}};
 vm.runInNewContext(fs.readFileSync('web/scene_portal.js','utf8'),ctx);
 const api=ctx.window.SCENE_PORTAL,places=[{id:'dwelling',label:'洞府',view:'dwelling',x:12,y:78},{id:'train',label:'训练',view:'train',x:40,y:33}];
-const raw={desktop:{dwelling:{x:Infinity,y:'10'},train:{x:-20,y:150}},narrow:{dwelling:{x:33,y:44}},extra:'bad'};
+const raw={desktop:{dwelling:{x:Infinity,y:'10'},train:{x:-20,y:150}},narrow:{dwelling:{x:33,y:44}},names:{dwelling:'  新洞府  ',train:42,unknown:'忽略'},extra:'bad'};
 const n=api.normalize(raw,places);assert.equal(n.desktop.dwelling.x,12);assert.equal(n.desktop.dwelling.y,78);assert.equal(n.desktop.train.x,5);assert.equal(n.desktop.train.y,95);assert.equal(n.narrow.dwelling.x,33);
+assert.equal(n.names.dwelling,'新洞府');assert.equal(n.names.train,undefined);assert.equal(n.names.unknown,undefined);
 api.configure({id:'xingce',title:'宗门',image:'map.webp',places},()=>{});api.settingsHtml();api.mount('settings');
 const changed={matches:s=>s.includes('data-portal-x'),valueAsNumber:37};listeners.change({target:changed});
 const click=selector=>listeners.click({target:{closest:s=>s===selector?{}:null}});

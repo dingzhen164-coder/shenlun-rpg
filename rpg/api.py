@@ -558,7 +558,9 @@ def heartbeat(body):
         else:
             ev = []
         studying = studying or noting or carding or answer or bool(tj)
-        return {"events": ev, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
+        from . import study_status
+        return {"events": ev, "xp": g.state["xp"], "realm": g.realm_info(), "study_status": study_status.view(g),
+                "today": g.t, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
                 "rest": g.resting(), "retreat_on": bool(g.state.get("retreat"))}
 
 
@@ -1222,17 +1224,22 @@ def _cards(fn, *a, save=True):
 
 
 def cards_overview(body):
-    return _cards(cards.overview)
+    return _cards(lambda g: cards.overview(g, body.get("scope")))
 
 
 def cards_next(body):
-    return _cards(lambda g: cards.next_card(g, body.get("deck") or ""))
+    return _cards(lambda g: cards.next_card(g, body.get("deck") or "", body.get("scope")))
 
 
 def cards_answer(body):
     def run(g):
+        scope = cards.scope_names(body.get("scope"))
+        if scope is not None:
+            current = cards.card_view(g, body.get("key"))
+            if not cards.in_scope(current["deck"], scope) or not cards._in(current["deck"], body.get("deck") or ""):
+                raise cards.CardError("这张玉简不属于当前分区")
         ev = tutor.enrich(g, cards.answer(g, body.get("key"), int(body.get("rating") or 0), body.get("secs") or 0))
-        r = cards.next_card(g, body.get("deck") or "")
+        r = cards.next_card(g, body.get("deck") or "", body.get("scope"))
         r["events"] = ev
         return r
     return _cards(run)
@@ -1240,8 +1247,8 @@ def cards_answer(body):
 
 def cards_undo(body):
     def run(g):
-        key = cards.undo(g)
-        r = cards.next_card(g, body.get("deck") or "")
+        key = cards.undo(g, body.get("deck") or "", body.get("scope"))
+        r = cards.next_card(g, body.get("deck") or "", body.get("scope"))
         if key and r.get("card", {}).get("key") != key:     # 撤销的那张直接再拿出来
             r["card"] = cards.card_view(g, key)
             r["intervals"] = cards.intervals(g, key, r["card"]["deck"])
@@ -1617,6 +1624,7 @@ ROUTES[("GET", "/api/version")] = version_get
 ROUTES[("GET", "/api/changelog")] = changelog_get
 ROUTES[("GET", "/api/app/latest")] = app_latest
 ROUTES[("GET", "/api/cards")] = cards_overview
+ROUTES[("POST", "/api/cards")] = cards_overview
 ROUTES[("GET", "/api/mindmap")] = mm_list
 for _n, _f in (("get", mm_get), ("save", mm_save), ("create", mm_create), ("rename", mm_rename), ("delete", mm_delete), ("export", mm_export)):
     ROUTES[("POST", "/api/mindmap/" + _n)] = _f

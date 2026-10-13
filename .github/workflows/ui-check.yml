@@ -34,6 +34,14 @@ jobs:
           node tests/test_narrative_ink.cjs
           node tests/test_journey_dom.cjs --subject=申论
           node tests/test_journey_dom.cjs --subject=行测
+          node tests/ui_map_navigation.cjs --subject=申论
+          node tests/ui_map_navigation.cjs --subject=行测
+          node tests/ui_status_navigation.cjs --subject=申论
+          node tests/ui_study_regions.cjs --subject=申论
+          node tests/ui_status_navigation.cjs --subject=行测
+          node tests/ui_study_regions.cjs --subject=行测
+          node tests/ui_fixed_layout.cjs --subject=申论
+          node tests/ui_fixed_layout.cjs --subject=行测
           node tests/ui_narrative.cjs --subject=申论
           node tests/ui_narrative.cjs --subject=行测
           node tests/ui_world.cjs --subject=申论

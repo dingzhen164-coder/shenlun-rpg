@@ -21,9 +21,9 @@ async function main() {
     browser = await chromium.launch({ headless: true, executablePath:process.env.CHROMIUM_PATH||undefined });
     const errors = [];
     const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
-    const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
+    const page = await context.newPage();require('./fixed_ui_helpers.cjs').install(page); page.on('pageerror', e => errors.push(e.message));
     page.on('dialog', d => d.accept());
-    await page.goto(base); await page.locator('#nav [data-view="tianji"]').click();
+    await page.goto(base); await page.evaluate(()=>go('tianji'));
     assert.equal(await page.locator('[data-tab="month"], [data-tab="topic"], #tjImport').count(), 0, '申论移除两个时政板块');
     await page.locator('#arCrawl').click();
     await page.locator('[data-count="15"]').click(); assert.equal(await page.locator('#arFetchCount').inputValue(), '15');

@@ -51,10 +51,7 @@
   function mount(d, view, handlers) {
     data = d; actions = handlers; close();
     document.getElementById('xcGuideAvatar')?.remove();
-    if (d?.subject !== '行测' || view === 'home') return;
-    const avatar = document.createElement('button'); avatar.id = 'xcGuideAvatar'; avatar.className = 'xc-guide-avatar';
-    avatar.dataset.xcGuide = 'open'; avatar.setAttribute('aria-label', '与清禾师尊交谈');
-    avatar.innerHTML = `<img src="${portrait}" alt=""><span>清禾师尊</span>`; document.body.appendChild(avatar);
+    // 师尊从地图与洞府进入，子界面不再生成常驻悬浮入口。
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-xc-guide]'); if (!b || data?.subject !== '行测') return;
