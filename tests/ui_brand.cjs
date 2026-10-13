@@ -92,14 +92,13 @@ async function main(){
    await page.setViewportSize({width:1280,height:860});await settings();
   }
   if(subject==='行测'){
-   await page.evaluate(()=>go('dwelling'));await page.locator('.xc-guide-scene').waitFor();
-   await page.waitForFunction(()=>document.querySelector('.xc-guide-portrait img')?.naturalWidth===1024);
+   await page.evaluate(()=>go('home'));await page.locator('[data-portal-go="guide"]').waitFor();
    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280],['phone',390,844]]){
     await page.setViewportSize({width,height});
     for(const theme of ['light','dark']){
      await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-     await page.locator('.xc-guide-portrait').click();await page.locator('.xc-guide-dialogue').waitFor();
+     await page.locator('[data-portal-go="guide"]').click();await page.locator('.xc-guide-dialogue').waitFor();
      await page.locator('[data-xc-guide="reveal"]').click();
      assert.ok(await page.locator('.xc-guide-bust').evaluate(el=>el.scrollHeight>el.clientHeight),'上半身框裁去下半身');
      assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
@@ -107,12 +106,12 @@ async function main(){
      await page.keyboard.press('Escape');assert.equal(await page.locator('.xc-guide-dialogue').count(),0);
     }
    }
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.xc-guide-portrait').click();
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-portal-go="guide"]').click();
    assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
    await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
-   await page.locator('.xc-guide-scene [data-xc-guide="teach"]').click();assert.equal(await page.locator('#xcGuideAvatar').count(),0);await page.locator('.xc-guide-scene').waitFor({state:'detached'});
+   await page.locator('[data-portal-go="guide"]').click();await page.locator('.xc-guide-dialogue').waitFor();await page.locator('.xc-guide-dialogue [data-xc-guide="teach"]').click();assert.equal(await page.locator('#xcGuideAvatar').count(),0);
    assert.equal(await page.locator('.xc-guide-scene').count(),0);
-   await page.evaluate(()=>go('dwelling'));await page.locator('.xc-guide-scene').waitFor();
+   await page.evaluate(()=>go('home'));await page.locator('[data-portal-go="guide"]').waitFor();
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="story"]').click();await page.locator('[data-xc-chapter="arrival"]').click();
    await page.locator('[data-xc-story="skip"]').click();await page.waitForFunction(()=>!document.querySelector('.xc-guide-dialogue'));
