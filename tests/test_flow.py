@@ -261,7 +261,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(self.state()["items"][iid]["level"], 3)
 
         r = api.session_start({"task": {"type": "wrong", "board": "论证逻辑", "target": "36|论证逻辑|2", "title": "心魔"}})
-        self.assertTrue(any(b["t"] == "img" for m in r["messages"] for b in m.get("blocks", [])))
+        self.assertFalse(any(b["t"] == "img" for m in r["messages"] for b in m.get("blocks", [])))  # 3.1.1完整文字题取消截图
         self.run_task({"type": "wrong", "board": "论证逻辑", "target": "36|论证逻辑|2", "title": "心魔"})
         self.assertEqual(self.state()["wrong"]["36|论证逻辑|2"]["status"], "done")
 
@@ -700,7 +700,7 @@ class FlowTest(unittest.TestCase):
         sid = r["session"]
         r = api.session_action({"session": sid, "action": "mr_wrong"})
         self.assertEqual(r["battle"]["position"], 2)
-        self.assertTrue(any(b.get("t") == "img" for m in r["messages"] for b in m.get("blocks", [])))   # 题干里的图
+        self.assertFalse(any(b.get("t") == "img" for m in r["messages"] for b in m.get("blocks", [])))  # 3.1.1论证逻辑只显示已提取文字
         self.assertTrue(any("否定论点" in m["text"] or any("否定论点" in b.get("v", "") for b in m.get("blocks", [])) for m in r["messages"]))
         r = api.session_action({"session": sid, "action": "mr_explain:1"})
         self.assertIn("复盘笔记", r["messages"][-1]["text"])

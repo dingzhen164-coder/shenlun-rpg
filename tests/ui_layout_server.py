@@ -79,6 +79,10 @@ def main():
                 mindmap.create(g.paths, board, board, {'root': root, 'layout': 'logicalStructure'})
                 cards.add(g,dict(deck=board,type='问答',front='自编记忆卡：说明一个方法的条件。',back='核对条件，再解释边界。'))
                 print('UI-READER ' + __import__('json').dumps(dict(vault=str(g.paths.vault),board=board),ensure_ascii=False),flush=True)
+        if '--image-clean-fixture' in sys.argv:
+            from image_fixture311 import install
+            with api.open_game() as g:
+                install(g)
         srv = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
         api.RUNTIME.update(port=srv.server_port, lan=False)
         print('UI-READY http://127.0.0.1:%d' % srv.server_port, flush=True)

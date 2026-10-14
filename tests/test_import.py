@@ -137,7 +137,7 @@ class ImportTest(unittest.TestCase):
         sd.mkdir(parents=True)
         (sd / "split_mokao.py").write_text(            # 假拆分脚本：按真脚本的输出位置写板块复盘
             "import re,sys\nfrom pathlib import Path\np=Path(sys.argv[1]);n=re.search(r'第(\\d+)季',p.stem).group(1)\n"
-            "o=p.parent.parent/'板块复盘'/('第%s季'%n);o.mkdir(parents=True,exist_ok=True)\n"
+            "o=Path(sys.argv[sys.argv.index('--out')+1]);o.mkdir(parents=True,exist_ok=True)\n"
             "(o/'02-常识判断.md').write_text('### 21. ✅\\n下列说法正确的是\\n- **A.** 甲\\n- **B.** 乙\\n- **C.** 丙\\n- **D.** 丁\\n"
             "> 正确答案：**D**　我的答案：**D**\\n---\\n',encoding='utf-8')\n", encoding="utf-8")
         data = base64.b64encode(b"%PDF-1.4 x").decode()
