@@ -238,3 +238,36 @@ html.drawing .page-settings-gear{display:none}
 .fixed-app .xc-guide-dialogue{position:fixed;inset:0;display:flex;width:100%;max-width:none;height:var(--fx-height,100dvh)}
 .fixed-app .xc-guide-dialogue>.xc-guide-bust{display:none}
 .fixed-app .xc-guide-dialogue>.xc-guide-paper{flex:1;border-radius:0;border:0;margin:0}
+
+/* 3.1.0：卷轴式只读文档与并排导图，工作区固定，正文独立滚动。 */
+.ln-reading-body{display:grid;grid-template-columns:minmax(0,1fr);flex:1;min-height:0;overflow:hidden;background:var(--panel)}
+.ln-reading-body[data-mode="split"]{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.ln-reading-body>[hidden]{display:none!important}
+.ln-reading-body .ln-canvas{width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}
+.ln-reading-tabs{display:flex;align-items:center;gap:6px;padding:7px 14px;border-bottom:1px solid var(--line);flex:none;background:var(--panel);overflow-x:auto;white-space:nowrap}
+.ln-reading-tabs button{font-size:13px;padding:6px 12px;min-height:34px;flex:none}
+.ln-reading-tabs [aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.ln-document{min-width:0;overflow:auto;overscroll-behavior:contain;padding:clamp(18px,3vw,44px);line-height:1.85;background:var(--panel);color:var(--text)}
+.ln-document h1{font-family:var(--display);font-size:clamp(21px,2.1vw,30px);font-weight:500;letter-spacing:.12em;margin:0 0 24px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.ln-document ul{padding-left:22px;margin:10px 0;border-left:1px solid var(--line);list-style:none}
+.ln-document>ul{padding-left:0;border-left:0}
+.ln-document li{position:relative;margin:12px 0;font-size:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ln-document li:before{content:"";position:absolute;left:-24px;top:.85em;width:14px;border-top:1px solid var(--line)}
+.ln-document>ul>li:before{display:none}.ln-document>ul>li>span{font-weight:600;color:var(--accent)}
+.ln-reading-body[data-mode="split"] .ln-document{border-left:1px solid var(--line)}
+.study-region-image{display:block;width:100%;height:48%;min-height:0;object-fit:cover;flex:1}
+.study-peaks .study-region{border-color:color-mix(in srgb,var(--gold) 34%,var(--line));background:linear-gradient(160deg,var(--panel),var(--panel2));box-shadow:0 4px 16px #16382c0c}
+.study-peaks .study-region-copy b{font-family:"STKaiti","Kaiti SC","KaiTi","Songti SC",serif;font-size:clamp(25px,2.7vw,37px);letter-spacing:.18em;color:var(--accent);line-height:1.4;font-weight:500}
+.study-peaks .study-region-copy span{letter-spacing:.12em;font-size:13px;color:var(--text)}
+.study-peaks .study-region-copy small{letter-spacing:.06em;line-height:1.8;color:var(--muted)}
+.study-peaks .study-region-copy{padding:16px 10px 24px;gap:10px}
+.study-peaks .study-region-copy b:after{content:"";display:block;width:34px;margin:8px auto 2px;border-bottom:1px solid var(--gold);opacity:.7}
+.study-peaks .study-regions-heading h2{font-family:"STKaiti","Kaiti SC","KaiTi","Songti SC",serif;letter-spacing:.24em;color:var(--accent);font-size:32px}
+.study-towers .study-region-copy b,.study-offices .study-region-copy b{letter-spacing:.08em}
+@media(max-width:600px){.ln-reading-tabs{padding:5px 8px}.ln-reading-tabs button{padding:5px 8px;font-size:12px}.ln-document{padding:16px}.ln-document li{font-size:14px}.ln-document ul{padding-left:14px}.ln-document li:before{left:-16px;width:10px}.study-peaks .study-region-copy b{font-size:25px}.study-peaks .study-region-copy{padding:10px;gap:5px}}
+
+.study-towers .study-region,.study-offices .study-region{justify-content:center;text-align:center;background:linear-gradient(150deg,var(--panel2),var(--panel));border-color:color-mix(in srgb,var(--gold) 40%,var(--line))}
+.study-towers .study-region-symbol,.study-offices .study-region-symbol{align-self:center;color:var(--gold);font-family:Georgia,serif;font-variant-emoji:text}
+.study-towers .study-region-copy b,.study-offices .study-region-copy b{font-size:28px;line-height:1.6}
+.study-towers .study-region-copy,.study-offices .study-region-copy{gap:12px;padding:16px}
+.study-towers .study-region-image,.study-offices .study-region-image{flex:none}

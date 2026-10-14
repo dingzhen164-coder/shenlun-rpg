@@ -160,7 +160,7 @@
     const s = document.getElementById("yjStage");
     if (s) s.remove();
     document.documentElement.classList.remove("yj-on");
-    MODE = ""; R = null; FL = null;
+    MODE = ""; R = null; FL = null; updateStudyDot();
     if (typeof VIEW !== "undefined" && VIEW === "train") renderTrain();
     else if (typeof VIEW !== "undefined" && VIEW === "skeleton") window.render();      // 藏经阁：刻了 / 导入了，数字跟着变
   }
@@ -330,7 +330,7 @@
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); return R.shown ? rate(3) : flip(); }
     if (R.shown && /^[1-4]$/.test(e.key)) { e.preventDefault(); rate(+e.key); }
   });
-  ["pointerdown", "keydown", "wheel"].forEach((ev) => addEventListener(ev, () => { if (MODE === "review") lastActive = Date.now(); }, { passive: true }));
+  ["pointerdown", "keydown", "wheel"].forEach((ev) => addEventListener(ev, () => { if (["review", "flip"].includes(MODE)) lastActive = Date.now(); }, { passive: true }));
 
   // ---------------------------------------------------------------- 翻阅（藏经阁「玉简 · 知识点」）：一匣玉简一枚一枚翻着看，画面和温简一样，不打分、不动温习进度
   let FL = null;                 // {deck, keys, i, shown, card}
@@ -362,7 +362,7 @@
     FL.i = Math.max(0, Math.min(FL.i, FL.keys.length - 1));
     let c;
     try { c = await api("/api/cards/info", { key: FL.keys[FL.i] }); } catch (e) { showError(e); return; }
-    FL.card = c; FL.shown = false;
+    FL.card = c; FL.shown = false; lastActive = Date.now(); updateStudyDot();
     const f = faces(c);
     const kind = ["new", "learn", "due", "learn"][c.state] || "new";
     s.innerHTML = head(title, `<span class="yj-cnt">${FL.i + 1} / ${FL.keys.length}</span>` + go) + `
@@ -874,9 +874,9 @@
     };
   }
 
-  // 心跳：开着温简页面、页面看得见、10 分钟内有过操作（翻面 / 评分 / 问师傅…）→ 计进“修炼 · 复习”（服务器核对 10 分钟内在温简页面上取过卡）
-  const active = () => MODE === "review" && !!R && !!R.card && document.visibilityState === "visible" && Date.now() - lastActive < 600000;
-  const board = () => R?.scope && R.card ? R.card.deck.split("::").reverse().find(b=>(DASH?.tree||[]).some(x=>x.board===b))||"" : (R && R.deck ? R.deck.split("::")[0] : "");
+  // 心跳：开着温简页面、页面看得见、2 分钟内有过操作（翻面 / 评分 / 问师傅…）→ 计进“修炼 · 复习”（服务器核对 10 分钟内在温简页面上取过卡）
+  const active = () => ((MODE === "review" && !!R?.card) || (MODE === "flip" && !!FL?.card)) && document.visibilityState === "visible" && Date.now() - lastActive < 120000;
+  const board = () => MODE === "flip" ? (FL?.card?.deck||FL?.deck||"").split("::").reverse().find(b=>(DASH?.tree||[]).some(x=>x.board===b))||"" : R?.scope && R.card ? R.card.deck.split("::").reverse().find(b=>(DASH?.tree||[]).some(x=>x.board===b))||"" : (R && R.deck ? R.deck.split("::")[0] : "");
   const drawKey = () => (MODE === "review" && R && R.card ? "yj:" + R.card.key : "");
   window.CARDS = { drawKey, hubHtml, bindHub, toolsHtml, bindTools, browseDeck, review, open, flipDeck, close: closeStage, isOpen: () => !!MODE, active, board };
 })();

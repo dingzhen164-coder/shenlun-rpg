@@ -132,7 +132,7 @@
   }
   function pageBar(root) {
     const slot=root.querySelector('#studyHud .subpage-nav');if(!slot)return;
-    root.querySelectorAll('.fx-shell>.fx-tabs,.lib-head>.lib-tabs').forEach(nav=>slot.append(nav));
+    root.querySelectorAll('.fx-shell>.fx-tabs,.lib-head>.lib-tabs,.sl-ui-section-tabs>.lib-tabs').forEach(nav=>slot.append(nav));
     root.querySelectorAll('.lib-head,.sl-ui-masthead').forEach(h=>{if(!h.querySelector('button')||h.matches('.sl-ui-masthead'))h.hidden=true;});
   }
   function paginate(grid,key,kind) {
@@ -207,6 +207,7 @@
   }
   function overlays() {
     document.querySelectorAll('.yj-stage').forEach(s=>{
+      if(s.classList.contains('ln-stage'))return; // 导图自己管理画布/文档，不再套整块滚动框。
       let body=s.querySelector(':scope > .fx-stage-body');
       if(!body){body=make('div','fx-stage-body fx-scroll');[...s.children].filter(x=>!x.matches('.yj-top,.yj-bar')).forEach(x=>body.append(x));s.insertBefore(body,s.querySelector('.yj-bar'));body.tabIndex=0;}
       body.querySelectorAll('#aSave,#iGo,#gGo,#gSave').forEach(button=>{const action=button.closest('.row');if(action){action.classList.add('fx-actions');s.append(action);}});

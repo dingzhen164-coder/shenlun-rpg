@@ -126,7 +126,7 @@ async function go(view) {
   if (VIEW === "notes" && view !== "notes" && window.NOTES && !(await NOTES.flush())) return;
   if (view === "tianji" && VIEW === "tianji" && window.TIANJI && TIANJI.isOpen()) TIANJI.close();   // 在一期里再点顶栏：回天机简报首页
   if (window.CARDS && CARDS.isOpen()) CARDS.close();
-  if (window.MINDMAP && MINDMAP.isOpen()) MINDMAP.close();
+  if (window.MINDMAP && MINDMAP.isOpen() && (await MINDMAP.close()) === false) return;
   VIEW = view;
   if (view === "train" || view === "bank") HALL = view === "bank" ? "shizhan" : "xiulian";
   window.STUDY_HUD?.mount(DASH, VIEW);
@@ -189,7 +189,7 @@ function configurePortal() {
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
-    {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'五脉修炼殿',view:'train',x:46,y:38},
+    {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'问道群峰',view:'train',x:46,y:38},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:76,y:34},{id:'bank',label:'试炼塔',view:'bank',x:87,y:57},
     {id:'log',label:'照心台',view:'log',x:64,y:76},{id:'contest',label:'演武场',view:'contest',x:33,y:77},
     {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
@@ -564,8 +564,9 @@ const views = {
   },
 
   async skeleton() {
-    if (isSL() && !["cards", "bank", "jiaocai"].includes(LIB.tab)) LIB.tab = "cards";
+    if (isSL() && !["cards", "bank", "jiaocai", "mindmaps"].includes(LIB.tab)) LIB.tab = "cards";
     const tabs = `<div class="lib-head"><h2>${esc(NAV('skeleton'))}</h2><div class="lib-tabs">
+      <button class="${LIB.tab === 'mindmaps' ? 'on' : ''}" data-libtab="mindmaps">🌿 知识导图</button>
       <button class="${LIB.tab === 'cards' ? 'on' : ''}" data-libtab="cards">📗 ${esc(W('yj'))} · 知识点</button>
       ${isSL() ? `<button class="${LIB.tab === 'bank' ? 'on' : ''}" data-libtab="bank">📑 题库 · 采分点</button>` : `<button class="${LIB.tab === 'yujian' ? 'on' : ''}" data-libtab="yujian">📖 经卷 · 题库</button>
       <button class="${LIB.tab === 'idioms' ? 'on' : ''}" data-libtab="idioms">📘 词录 · 成语实词</button>`}
@@ -574,6 +575,7 @@ const views = {
     if (LIB.tab === 'idioms') return tabs + `<div class="id-root">${await IDIOMS.render()}</div>`;
     if (LIB.tab === 'yujian') return tabs + await yujianHtml() + importCardHtml();
     if (LIB.tab === 'jiaocai') return tabs + await jiaocaiHtml();
+    if (LIB.tab === 'mindmaps') return tabs + await MINDMAP.hubHtml(null, true);
     return tabs + await cardsLibHtml();
   },
 
@@ -1542,6 +1544,7 @@ function bindLibrary() {
 }
 function bindSkeleton() {
   bindLibrary();
+  window.MINDMAP?.bindHub($("#view"));
   if ($('#importCard')) $('#importCard').ontoggle = (e) => { if (e.target.open) loadImport(); };
   document.querySelectorAll("[data-skel]").forEach((b) => (b.onclick = () =>
     startTask({ task: { type: "skeleton", board: b.dataset.skel, target: b.dataset.skel, title: `📜 「${b.dataset.skel}」${W("skeleton")}` } })));
@@ -1651,24 +1654,26 @@ let lastActive = Date.now();
 let T_TYPE = "";
 ["mousemove", "keydown", "click", "scroll", "input"].forEach((ev) => addEventListener(ev, () => (lastActive = Date.now()), { passive: true }));
 function studyingNow() {
-  return VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
+  return !window.MINDMAP?.isOpen() && !window.CARDS?.isOpen() && VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
     && (T.busy || Date.now() - lastActive < 120000);
 }
 // 在 🪶 手札里写字也算复习：按秒累计“1 分钟内写过字”的时间，心跳时连同本子编号一起报（服务器核对这本最近真的存过笔迹）
 let noteSec = 0;
 let cardSec = 0;   // 温简也算复习：按秒累计正在温简的时间（web/cards.js 的 active：在温、看得见、2 分钟内有操作）
+let mapSec=0, mapToken="", cardBoard="";
 let tjSec = 0;     // 🔮 天机简报：开着一期、2 分钟内动过（web/tianji.js 的 active）
 let tjMode = "";
 let slSec = 0;     // 申论作答：在作答页敲过键盘（web/shenlun.js 的 active）
 setInterval(() => {
   if (window.SHENLUN && SHENLUN.active()) slSec += 1;
   if (window.NOTES && NOTES.writingId()) noteSec += 1;
-  if (window.CARDS && CARDS.active()) cardSec += 1;
+  if (window.CARDS && CARDS.active()) {cardSec += 1;cardBoard=CARDS.board();}
+  if (window.MINDMAP && MINDMAP.active()) {mapSec+=1;mapToken=MINDMAP.token();}
   const tj = window.TIANJI ? TIANJI.active() : "";
   if (tj) { tjSec += 1; tjMode = tj; }
 }, 1000);
 function updateStudyDot() {
-  const on = studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
+  const on = !!window.MINDMAP?.active() || studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
   const lamp=$("#todayPill");if(!lamp){window.STUDY_HUD?.ensure();return;}
   lamp.classList.toggle("on", on);
   lamp.title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
@@ -1678,23 +1683,34 @@ setInterval(async () => {
   updateStudyDot();
   const on = studyingNow();
   beatCount += 1;
-  if (!on && !noteSec && !cardSec && !tjSec && !slSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
+  if (!on && !noteSec && !cardSec && !mapSec && !tjSec && !slSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
   try {
     const nid = !on && window.NOTES ? NOTES.writingId() || (noteSec ? NOTES.lastId() : "") : "";
     const carding = !on && !nid && cardSec > 0;
-    const tj = !on && !nid && !carding && tjSec > 0 ? tjMode : "";
-    const sl = !on && !nid && !carding && !tj && slSec > 0 && window.SHENLUN ? SHENLUN.board() || "作答" : "";
-    const sec = on ? BEAT : Math.min(BEAT, nid ? noteSec : carding ? cardSec : tj ? tjSec : slSec);
-    noteSec = 0; cardSec = 0; tjSec = 0; slSec = 0;
+    const mapping = !on && !nid && !carding && mapSec>0;
+    const tj = !on && !nid && !carding && !mapping && tjSec > 0 ? tjMode : "";
+    const sl = !on && !nid && !carding && !mapping && !tj && slSec > 0 && window.SHENLUN ? SHENLUN.board() || "作答" : "";
+    const sec = on ? BEAT : Math.min(BEAT, nid ? noteSec : carding ? cardSec : mapping ? mapSec : tj ? tjSec : slSec);
+    noteSec = 0; cardSec = 0; mapSec = 0; tjSec = 0; slSec = 0;
     if (nid && sec) await NOTES.save();          // 先把刚写的存上，服务器才认得“最近写过”
     const r = await api("/api/heartbeat", { seconds: sec, session: on ? T.session : null, notes: nid || null,
-      cards: carding || null, cards_board: carding ? CARDS.board() : null, tianji: tj || null, answering: sl || null });
+      cards: carding || null, cards_board: carding ? cardBoard : null, mindmap: mapping ? mapToken : null, tianji: tj || null, answering: sl || null });
     if (DASH) { Object.assign(DASH, {xp:r.xp, realm:r.realm, study_status:r.study_status, today:r.today}); DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
     handleEvents(r.events);
     if (DASH?.retreat && !r.retreat_on && VIEW === "dwelling") render();
   } catch (e) { /* 程序关了就不提示 */ }
 }, BEAT * 1000);
 setInterval(updateStudyDot, 5000);
+// 退出导图前结算不足一次心跳的秒数，避免短次复习丢失；仍走同一个计时后端。
+window.finishMindmapReading=async token=>{
+  const sec=token===mapToken?Math.min(90,mapSec):0;mapSec=0;
+  if(!sec)return;
+  try{const r=await api('/api/heartbeat',{seconds:sec,mindmap:token});
+    if(DASH){Object.assign(DASH,{xp:r.xp,realm:r.realm,study_status:r.study_status});DASH.minutes.today=r.minutes;updatePill();}
+    handleEvents(r.events);
+  }catch(_){}
+};
+
 
 render();
 

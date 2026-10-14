@@ -124,7 +124,7 @@ const AMB = (() => {
         <span class="small muted">只影响这台设备（电脑、平板各选各的）</span></div>
       <label class="small muted">背景（点一下立即换）</label>
       <div class="bg-grid">${tile("none", "不用背景")}${files}</div>
-      <p class="small muted">背景用自己的图片：放进库里的 <b>${esc2(DATA.folders.bg)}</b>（jpg / png / webp），刷新本页就会出现在上面。</p>
+      <p class="small muted">背景用自己的图片：放进库里的 <b>${esc2(DATA.folders.bg)}</b>（jpg / png / webp），刷新本页就会出现在上面。</p><p class="small muted">分区图片：放入 <b>训练/外观/五脉/</b>，以分区名称命名，例如万象峰.png；申论按题型名，法考按科目名命名。返回分区选择页即可刷新。</p>
       <div class="row"><label style="flex:1">背景遮罩（越大越暗、字越清楚）<input type="range" id="ambDim" min="0" max="0.85" step="0.05" value="${c.dim}"></label></div>
       <hr class="soft">
       <div class="row"><label style="flex:1">语录 <select id="ambQuote">${qOpt("daily", "每日一句")}${qOpt("random", "每次打开随机")}${qOpt("fixed", "固定一句")}${qOpt("off", "不显示")}</select></label>
