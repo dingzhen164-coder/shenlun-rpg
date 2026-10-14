@@ -151,6 +151,12 @@ jobs:
           echo "$out"
           echo "$out" | grep -q SMOKE-OK
 
+      - name: Mac update restart smoke
+        run: |
+          out=$("dist/公考模拟器.app/Contents/MacOS/GongkaoSimulator" --run-script tests/smoke_mac_update.py gongkao-simulator-mac.zip)
+          echo "$out"
+          echo "$out" | grep -q MAC-UPDATE-FROZEN-OK
+
       - name: Upload to release
         if: github.ref == 'refs/heads/main'
         env:

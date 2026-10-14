@@ -1,12 +1,11 @@
-"""检查更新 / 一键更新（exe 版）。
+"""检查正式 Release 与桌面一键更新（Windows exe / Mac App）。
 
-- 每次改 rpg/version.py 的版本号推到 main，GitHub Actions 在 Windows 上打包出新的 exe，发到仓库的 Releases；
-- 程序里点「检查更新」：问 GitHub 最新的 Release 是哪个版本，比当前新就给出下载；
-- exe 版点「更新并重启」：把新 exe 下到旁边，交给一个隐藏的 PowerShell 小脚本——等这个程序退出、用新 exe 换掉旧的
-  （exe 还被占着就每半秒再试，最多 30 秒）、再启动——然后自己退出；
-- 源码版（python server.py）不自动替换，照旧用压缩包更新。
+rpg.api 的本机接口调用 check/apply；Windows 交给 PowerShell，Mac 交给
+mac_update 的独立助手替换并确认重启。源码版仍手工更新；日常开发不触发发布。
 """
+import hashlib
 import json
+import shutil
 import os
 import re
 import subprocess
@@ -17,9 +16,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from . import net
+from . import mac_update, net
 from .paths import FROZEN
 from .version import REPO, VERSION
+
+MAC_ASSET = 'gongkao-simulator-mac.zip'
 
 API = "https://api.github.com/repos/%s/releases/latest" % REPO
 
@@ -51,13 +52,25 @@ def check():
     except Exception as e:
         raise UpdateError("连不上 GitHub（%s）。也可以直接打开 https://github.com/%s/releases 下载" % (e, REPO))
     tag = rel.get("tag_name") or ""
-    asset = next((a for a in rel.get("assets", []) if a.get("name", "").lower().endswith(".exe")), None)
-    apk = next((a for a in rel.get("assets", []) if a.get("name", "").lower().endswith(".apk")), None)
+    assets = rel.get("assets", [])
+    windows = next((a for a in assets if a.get("name", "").lower().endswith(".exe")), None)
+    mac = next((a for a in assets if a.get("name") == MAC_ASSET), None)
+    apk = next((a for a in assets if a.get("name", "").lower().endswith(".apk")), None)
+    asset = mac if sys.platform == "darwin" else windows
+    reason = ""
+    supported = FROZEN and (os.name == "nt" or sys.platform == "darwin")
+    if supported and sys.platform == "darwin":
+        try:
+            mac_update.writable_bundle()
+        except mac_update.MacUpdateError as e:
+            supported, reason = False, str(e)
     return {"current": VERSION, "latest": tag.lstrip("v"), "newer": _ver(tag) > _ver(VERSION), "frozen": FROZEN,
             "notes": _notes(rel.get("body")), "page": rel.get("html_url") or "https://github.com/%s/releases" % REPO,
             "asset_url": asset.get("browser_download_url") if asset else "", "size": asset.get("size") if asset else 0,
+            "digest": asset.get("digest") if asset else "",
             "apk_url": apk.get("browser_download_url") if apk else "", "apk_size": apk.get("size") if apk else 0,
-            "windows": os.name == "nt"}
+            "windows": os.name == "nt", "macos": sys.platform == "darwin",
+            "can_apply": bool(supported and asset and asset.get("browser_download_url")), "update_reason": reason}
 
 
 def swap_script(pid, new, exe):
@@ -96,15 +109,68 @@ def launch_swap(pid, new, exe):
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def _apply_mac(info):
+    stage = None
+    try:
+        app = mac_update.writable_bundle()
+        stage = Path(tempfile.mkdtemp(prefix=".rpg-update-", dir=str(app.parent)))
+        archive = stage / "download.zip"
+        req = urllib.request.Request(info["asset_url"], headers={"User-Agent": REPO.split("/")[-1]})
+        digest = hashlib.sha256()
+        with net.urlopen(req, timeout=60) as r, archive.open("wb") as f:
+            while True:
+                chunk = r.read(1 << 16)
+                if not chunk:
+                    break
+                f.write(chunk)
+                digest.update(chunk)
+        if info.get("size") and archive.stat().st_size != info["size"]:
+            raise UpdateError("下载不完整，再试一次；旧应用未改动")
+        expected = info.get("digest") or ""
+        if expected.startswith("sha256:") and digest.hexdigest() != expected[7:]:
+            raise UpdateError("下载校验不通过，再试一次；旧应用未改动")
+        new = mac_update.prepare(stage, archive, app, info["latest"])
+        mac_update.launch(os.getpid(), new, app, stage, clean_env())
+    except Exception as e:
+        if stage is not None:
+            shutil.rmtree(str(stage), ignore_errors=True)
+        if isinstance(e, UpdateError):
+            raise
+        raise UpdateError("Mac 更新准备失败（%s）；旧应用未改动" % e)
+    threading.Timer(1.5, lambda: os._exit(0)).start()
+    return {"ok": True, "version": info["latest"]}
+
+
+_APPLY_LOCK = threading.Lock()
+_APPLY_PENDING = False
+
+
 def apply():
-    """下载新 exe，交给批处理换掉自己并重启。只在 Windows 上的 exe 版能用"""
-    if not (FROZEN and os.name == "nt"):
-        raise UpdateError("自动更新只在 Windows 的 exe 版能用；源码版请照旧下载压缩包更新")
+    """防止重复下载和并发替换；成功交给独立助手后等待退出。"""
+    global _APPLY_PENDING
+    if not _APPLY_LOCK.acquire(blocking=False):
+        raise UpdateError("正在准备更新，请稍候")
+    try:
+        if _APPLY_PENDING:
+            raise UpdateError("正在更新并重启，请稍候")
+        result = _apply()
+        _APPLY_PENDING = True
+        return result
+    finally:
+        _APPLY_LOCK.release()
+
+
+def _apply():
+    """下载平台对应安装包，验证后交给独立进程替换并重启。"""
+    if not (FROZEN and (os.name == "nt" or sys.platform == "darwin")):
+        raise UpdateError("自动更新支持 Windows exe 和 Mac App；源码版请照旧下载压缩包更新")
     info = check()
     if not info["newer"]:
         raise UpdateError("已经是最新版（%s）" % VERSION)
     if not info["asset_url"]:
         raise UpdateError("新版本还在打包，过几分钟再试")
+    if sys.platform == "darwin":
+        return _apply_mac(info)
     exe = Path(sys.executable).resolve()
     new = exe.with_name(exe.stem + ".new.exe")
     req = urllib.request.Request(info["asset_url"], headers={"User-Agent": "shenlun-rpg"})

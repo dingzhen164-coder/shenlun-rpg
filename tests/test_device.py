@@ -90,6 +90,15 @@ class DeviceTest(unittest.TestCase):
         r, _ = self.req("GET", "/api/version", headers={"Cookie": cookie}, remote=True)
         self.assertEqual(r.status, 401)
 
+    def test_update_apply_only_on_host(self):
+        code = lan.settings()["code"]
+        r, _ = self.req("POST", "/lan/login", "code=" + code, {"Content-Type": "application/x-www-form-urlencoded"}, remote=True)
+        cookie = r.getheader("Set-Cookie").split(";")[0]
+        with patch.object(update, "apply") as apply:
+            r, _ = self.req("POST", "/api/update/apply", {}, {"Cookie": cookie}, remote=True)
+            self.assertEqual(r.status, 403)
+            apply.assert_not_called()
+
     def test_ping_without_code(self):
         r, data = self.req("GET", "/lan/ping", remote=True)                 # 平板 App 找电脑：不用口令
         self.assertEqual(r.status, 200)
