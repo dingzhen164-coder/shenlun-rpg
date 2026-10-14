@@ -264,7 +264,7 @@ def _fingerprint(pdf, script):
 
 
 def prepare(paths, pdf, persist=True):
-    """每份PDF只索引一次；缓存只含题号/板块/矩形，不复制题干、答案或笔记。"""
+    """每份PDF只索引一次；缓存含题号、裁图坐标及行内符号修复配对，不保存答案或笔记。"""
     script, pm = _script(paths), _pm()
     if not script or not pm:
         return None
