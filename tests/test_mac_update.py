@@ -187,6 +187,21 @@ class MacUpdateTest(unittest.TestCase):
             with self.assertRaisesRegex(mac_update.MacUpdateError, "校验失败"): mac_update.prepare(self.stage(), archive, self.app, "9.9.9")
         self.assertTrue(self.exe.is_file())
 
+    @unittest.skipUnless(Path("/usr/bin/ditto").is_file(), "Mac 原生ZIP编码回归")
+    def test_real_ditto_chinese_archive_name(self):
+        source = self.root / "ditto-source"
+        new, _ = bundle(source, name="公考模拟器.app")
+        archive = self.root / "ditto.zip"
+        subprocess.run(["/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(new), str(archive)], check=True)
+        original = subprocess.run
+        def tools(args, **kwargs):
+            if args[0] == "/usr/bin/codesign": return subprocess.CompletedProcess(args, 0)
+            return original(args, **kwargs)
+        with patch.object(mac_update.subprocess, "run", side_effect=tools):
+            app = mac_update.prepare(self.stage(), archive, self.app, "9.9.9")
+        self.assertEqual(app.name, "公考模拟器.app")
+        self.assertTrue((app / "Contents/Info.plist").is_file())
+
     def test_startup_receipt_only_in_current_update_directory(self):
         stage = self.stage(); receipt = stage / "ready"
         with patch.dict(os.environ, {"RPG_UPDATE_READY_FILE": str(receipt)}): mac_update.confirm_startup()

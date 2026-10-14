@@ -86,13 +86,18 @@ def validate_zip(archive):
 
 def prepare(stage, archive, app, version):
     """保持执行权限/框架链接地解压，并核对应用身份、版本、签名。旧 App 尚未改动。"""
-    root = validate_zip(archive)
+    validate_zip(archive)
     extracted = stage / "unpacked"
     extracted.mkdir()
     try:
         subprocess.run(["/usr/bin/ditto", "-x", "-k", str(archive), str(extracted)],
                        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
-        new = extracted / root
+        # ditto 的中文ZIP文件名可能未设UTF-8标记，zipfile会误解码。
+        # 安全路径检查已完成；使用ditto实际解出的唯一App，不靠猜文件名。
+        bundles = list(extracted.glob("*.app"))
+        if len(bundles) != 1 or bundles[0].is_symlink() or not bundles[0].is_dir():
+            raise MacUpdateError("解压后没有找到唯一的完整 Mac App")
+        new = bundles[0]
         for p in new.rglob("*"):
             if p.is_symlink():
                 try:
