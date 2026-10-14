@@ -48,7 +48,8 @@ class MacUpdateTest(unittest.TestCase):
         self.frozen = patch.object(update, "FROZEN", True)
         self.executable = patch.object(sys, "executable", str(self.exe))
         for p in (self.platform, self.frozen, self.executable): p.start()
-        self.addCleanup(patch.stopall)
+        # 只恢复本用例的替身，保留完整测试外层的假 HOME 隔离。
+        for p in (self.platform, self.frozen, self.executable): self.addCleanup(p.stop)
         self.addCleanup(self.tmp.cleanup)
         update._APPLY_PENDING = False
         self.addCleanup(setattr, update, "_APPLY_PENDING", False)
@@ -135,9 +136,11 @@ class MacUpdateTest(unittest.TestCase):
         finally: update._APPLY_LOCK.release()
 
     def test_zip_rejects_traversal_absolute_and_other_files(self):
-        for entry in ("../outside", "/tmp/outside", "P.app/../outside", "installer.sh", "P.app\\outside"):
+        for entry in ("../outside", "/tmp/outside", "P.app/../outside", "installer.sh", "P.app\\outside", "P.app/file\x00hidden"):
             p = self.root / "bad.zip"
-            with zipfile.ZipFile(p, "w") as z: z.writestr(entry, b"bad")
+            item = zipfile.ZipInfo("raw-name")
+            item.filename = entry  # 写入原始非法名称，不先让Windows构造器替测试规范化。
+            with zipfile.ZipFile(p, "w") as z: z.writestr(item, b"bad")
             with self.assertRaises(mac_update.MacUpdateError): mac_update.validate_zip(p)
         p = self.root / "two.zip"
         with zipfile.ZipFile(p, "w") as z:

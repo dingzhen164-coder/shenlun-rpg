@@ -58,8 +58,9 @@ def validate_zip(archive):
         roots = set()
         links = set()
         for item in members:
-            p = PurePosixPath(item.filename)
-            if p.is_absolute() or ".." in p.parts or "\\" in item.filename or not p.parts:
+            raw = item.orig_filename  # Windows zipfile会改写反斜杠，按原始名称校验。
+            p = PurePosixPath(raw)
+            if p.is_absolute() or ".." in p.parts or "\\" in raw or "\x00" in raw or not p.parts:
                 raise MacUpdateError("安装包包含不安全的路径")
             root = p.parts[0]
             if root != "__MACOSX":
