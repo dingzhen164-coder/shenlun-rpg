@@ -64,17 +64,23 @@ def main():
         webview = None
     if webview is None or "--browser" in sys.argv:
         webbrowser.open(url)
+        from rpg.mac_update import confirm_startup
+        confirm_startup()
         print("（没有窗口组件，已用浏览器打开；关掉这个程序才会退出）")
         threading.Event().wait()
         return
     try:
         data = Path.home() / ".shenlun-rpg" / "webview"     # 窗口里的本机设置（对话框大小、音乐……）存这里，重开还在
         data.mkdir(parents=True, exist_ok=True)
-        webview.create_window(APP_NAME, url, width=1440, height=920, min_size=(900, 600), text_select=True)
+        win = webview.create_window(APP_NAME, url, width=1440, height=920, min_size=(900, 600), text_select=True)
+        from rpg.mac_update import confirm_startup
+        win.events.loaded += confirm_startup
         webview.start(private_mode=False, storage_path=str(data))
     except Exception:
         traceback.print_exc()
         webbrowser.open(url)        # 窗口开不了（比如缺 WebView2）：退回浏览器
+        from rpg.mac_update import confirm_startup
+        confirm_startup()
         threading.Event().wait()
     os._exit(0)                     # 关掉窗口 = 退出（后台服务一起停）
 

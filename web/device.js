@@ -73,7 +73,7 @@
     const verCard = `<div class="card dev-card"><h3>🆕 版本与更新 <small>当前 ${esc(ver.version)}（${kind}）</small></h3>
       <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><button id="updCheck">检查更新</button><span id="updMsg" class="small muted"></span></div>
       <div id="updBox"></div>
-      <p class="small faint" style="margin-top:6px">${ver.frozen && mac ? "Mac App：有新版本时点「到 GitHub 下载」，下载 gongkao-simulator-mac.zip，退出旧程序后把「公考模拟器.app」拖进「应用程序」，再从这个新App启动（存档、题库都在库里，不受影响）。"
+      <p class="small faint" style="margin-top:6px">${ver.frozen && mac ? "Mac App：有新版本时点「更新并重启」，自动下载、校验、替换并重新打开；启动失败会恢复旧应用。请先把 App 放到可写的应用文件夹，存档和题库保留。"
         : ver.frozen ? "exe 版：有新版本时点「更新并重启」，自动下载、替换、重开（存档、题库都在库里，不受影响）。"
         : "源码版：照旧用压缩包更新；也可以到 GitHub 的 Releases 下载 exe 版，放进 训练/程序/ 双击就能用。"}</p>${logHtml}</div>`;
     return (local || lan ? lanCard : "") + (local ? verCard : logHtml ? `<div class="card dev-card"><h3>🆕 版本 <small>${esc(ver.version)}</small></h3>${logHtml}</div>` : "");
@@ -122,15 +122,16 @@
     const chk = document.getElementById("updCheck");
     if (chk) chk.onclick = async () => {
       const msg = document.getElementById("updMsg"), box = document.getElementById("updBox");
-      chk.disabled = true; msg.textContent = "正在问 GitHub…";
+      chk.disabled = true; box.innerHTML = ""; msg.textContent = "正在问 GitHub…";
       try {
         UPD = await api("/api/update/check");
-        if (!UPD.latest) msg.textContent = "还没有发布过 exe 版。";
+        if (!UPD.latest) msg.textContent = "还没有发布过安装包。";
         else if (!UPD.newer) msg.textContent = `已经是最新版（${UPD.current}）。`;
         else {
           msg.textContent = `有新版本 ${UPD.latest}！`;
           box.innerHTML = `<div class="upd-new">${UPD.notes ? `<div class="small">${md(UPD.notes)}</div>` : ""}
-            <div class="row" style="gap:10px;margin-top:8px">${UPD.frozen && UPD.windows && UPD.asset_url ? `<button class="primary" id="updApply">更新并重启</button>` : ""}
+            <div class="row" style="gap:10px;margin-top:8px">${(UPD.can_apply ?? (UPD.frozen && UPD.windows && UPD.asset_url)) ? `<button class="primary" id="updApply">更新并重启</button>` : ""}
+              ${UPD.update_reason ? `<span class="small muted">${esc(UPD.update_reason)}</span>` : ""}
               <a href="${esc(UPD.page)}" target="_blank" rel="noopener">到 GitHub 下载</a></div></div>`;
           const ap = document.getElementById("updApply");
           if (ap) ap.onclick = async () => {
