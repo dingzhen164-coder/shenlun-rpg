@@ -19,7 +19,7 @@ async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.eva
   await go('bank');await page.locator('[data-bank]').filter({hasText:'闯关'}).first().click();await page.waitForFunction(()=>VIEW==='bank'&&T_TYPE==='bank'&&!T.busy);await page.locator('.train').waitFor();await checkHUD();
   const chatTop=await page.locator('.train').evaluate(x=>x.getBoundingClientRect().top);const hudBottom=await page.locator('#studyHud').evaluate(x=>x.getBoundingClientRect().bottom);assert.ok(chatTop>=hudBottom-1,'试炼聊天区避开紧凑信息带');
   await go('train');await page.locator('[data-hall-page="train"]').waitFor();assert.equal(await page.locator('.train').count(),0);
-  await go('bank');await page.locator('.train').waitFor();await page.locator('#toHall').click();await page.locator('#bankCount').waitFor();
+  await go('bank');await page.locator('.train').waitFor();assert.equal(await page.locator('#toHall').count(),0);await page.keyboard.press('Escape');await page.waitForFunction(()=>VIEW==='home');await page.locator('.portal-world').waitFor();await checkHUD();await go('bank');await page.locator('.train').waitFor();
  }
  await go('home');await page.locator('[data-portal-go="tianji"]').click();await page.locator('.tj-hub').waitFor();assert.equal(await page.evaluate(()=>VIEW),'tianji');await checkHUD();
  for(const view of ['dwelling','skeleton','notes','log','contest','settings'])await go(view);
