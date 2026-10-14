@@ -1,9 +1,9 @@
 /* 3.0.5地图导航：app.js提供go/current回调；隐藏旧导航节点保留内部状态钩子。
-   本机localStorage map-shortcuts-v1={settings:'Escape',home:'Tab'}，兼容旧dwelling按键，两科共用。
+   本机localStorage map-shortcuts-v1={settings:'Tab',home:'Escape'}，兼容旧dwelling按键，两科共用。
    设置里录入/保存/恢复快捷键；不写学习存档，输入及弹窗中保留Tab焦点操作。 */
 (() => {
   'use strict';
-  const KEY='map-shortcuts-v1', DEFAULTS={settings:'Escape',home:'Tab'};
+  const KEY='map-shortcuts-v1', DEFAULTS={settings:'Tab',home:'Escape'};
   let actions, bindings, recording='', draft, busy=false, settingsReturn='home';
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const label=s=>s.replace('Escape','Esc').replace(/Key([A-Z])/g,'$1').replace(/Digit([0-9])/g,'$1');
@@ -16,7 +16,7 @@
         && !(parts.includes('Ctrl')||parts.includes('Meta')? /^(Key[ACLNPRQTVWXYZ])$/.test(key):false);
   }
   function load() {
-    try{const raw=JSON.parse(localStorage.getItem(KEY));const home=raw?.home??raw?.dwelling;if(raw&&valid(raw.settings)&&valid(home)&&raw.settings!==home)return {settings:raw.settings,home};}catch(e){}
+    try{const raw=JSON.parse(localStorage.getItem(KEY));const home=raw?.home??raw?.dwelling;if(raw&&valid(raw.settings)&&valid(home)&&raw.settings!==home){if(raw.schema!==2&&raw.settings==='Escape'&&home==='Tab')return {...DEFAULTS};return {settings:raw.settings,home};}}catch(e){}
     return {...DEFAULTS};
   }
   function chord(e) {
@@ -32,6 +32,7 @@
   function beforeRender(){const tools=document.querySelector('.top-tools');if(tools)document.querySelector('.topbar')?.appendChild(tools);}
   function mount(view) {
     document.getElementById('mapPageTools')?.remove();
+    if(!document.getElementById('pageSettingsGear')){const b=document.createElement('button');b.id='pageSettingsGear';b.type='button';b.dataset.hudSettings='';b.className='page-settings-gear';b.setAttribute('aria-label','打开设置');b.title='打开设置';b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2 3 3-1 1 4 4 2-2 3 1 4-4 1-3 4-2-3-4 1-1-4-4-2 2-3-1-4 4-1Z"/><circle cx="12" cy="12" r="3"/></svg>';document.body.append(b);}
     const tools=document.querySelector('.top-tools'),slot=document.querySelector('[data-scene-tools]');
     if(tools)(view==='settings'&&slot?slot:document.querySelector('.topbar'))?.appendChild(tools);
     if(view!=='settings')recording='';
@@ -76,12 +77,12 @@
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
     if(b.hasAttribute('data-hud-home'))return toggle('home').catch(err=>actions.error(err));
-    if(b.hasAttribute('data-hud-settings'))return toggle('settings').catch(err=>actions.error(err));
+    if(b.hasAttribute('data-hud-settings')){closeTransient();return toggle('settings').catch(err=>actions.error(err));}
     if(b.dataset.shortcutRecord){recording=b.dataset.shortcutRecord;status('现在按下新的快捷键…');return;}
     if(b.hasAttribute('data-shortcut-reset')){draft={...DEFAULTS};recording='';updateFields();status('已恢复默认，保存后生效');}
     if(b.hasAttribute('data-shortcut-save')){
       if(recording){status('请先完成快捷键录入');return;}
-      try{localStorage.setItem(KEY,JSON.stringify(draft));bindings={...draft};status('快捷键已保存');mount('settings');}
+      try{localStorage.setItem(KEY,JSON.stringify({...draft,schema:2}));bindings={...draft};status('快捷键已保存');mount('settings');}
       catch(err){status('保存失败，原快捷键保持，请检查浏览器存储权限。');}
     }
   });

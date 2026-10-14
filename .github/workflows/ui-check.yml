@@ -48,6 +48,8 @@ jobs:
           node tests/ui_compact_review.cjs --subject=行测
           node tests/ui_mac_update.cjs --subject=申论
           node tests/ui_mac_update.cjs --subject=行测
+          node tests/ui_workspace_309.cjs --subject=行测
+          node tests/ui_workspace_309.cjs --subject=申论
           node tests/ui_narrative.cjs --subject=申论
           node tests/ui_narrative.cjs --subject=行测
           node tests/ui_world.cjs --subject=申论

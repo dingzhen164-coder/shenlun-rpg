@@ -96,31 +96,44 @@
     }
     return [...groups.values()];
   }
+  // 所有二级分类原位合并；设置只保留一页折叠卡，不复制或销毁输入控件。
+  const folds=new Map();
+  function folding(node,key) {
+    if(node.dataset.fxFold)return node;
+    let fold=node;
+    if(node.tagName!=='DETAILS'){
+      fold=make('details','fx-fold-card');const summary=make('summary');
+      const heading=node.querySelector(':scope > h2,:scope > h3');
+      if(heading)summary.append(heading);else summary.textContent=title(node,'设置项');
+      fold.append(summary,node);
+    }else fold.classList.add('fx-fold-card');
+    fold.dataset.fxFold=key;fold.open=folds.get(key)??false;
+    fold.addEventListener('toggle',()=>{folds.set(key,fold.open);window.dispatchEvent(new Event('resize'));});return fold;
+  }
   function sections(root,key) {
     if(root.querySelector(':scope > .fx-shell'))return;
     const nodes=[...root.children].flatMap(flatten);if(!nodes.length)return;
     const headers=nodes.filter(n=>n.matches('.lib-head,.sl-ui-masthead,.subpage-heading'));
     const entries=groupedEntries(nodes.filter(n=>!headers.includes(n)));if(!entries.length)return;
-    const shell=make('section','fx-shell'+(route==='settings'?' fx-settings':'')),area=make('div','fx-panels');
+    const settings=route==='settings',shell=make('section','fx-shell'+(settings?' fx-settings':'')),area=make('div','fx-panels');
+    if(settings){
+      const panel=make('section','fx-panel'),scroll=make('div','fx-scroll fx-settings-list');scroll.tabIndex=0;
+      for(const entry of entries){const group=make('section','fx-settings-group');group.dataset.fxGroup=entry.id;const h=make('h3');h.textContent=entry.label;group.append(h);entry.nodes.forEach((n,i)=>group.append(folding(n,key+':'+entry.id+':'+i)));scroll.append(group);}
+      panel.append(scroll);area.append(panel);shell.append(area);root.append(shell);return;
+    }
     const items=entries.map(entry=>{
-      const panel=make('section','fx-panel'),scroll=make('div','fx-scroll');scroll.tabIndex=0;
-      panel.dataset.fxGroup=entry.id;
-      if(entry.sub&&entry.nodes.length>1){
-        const sub=make('section','fx-subgroup'),panes=make('div','fx-subpanels');
-        const subs=entry.nodes.map(node=>{const p=make('section','fx-subpanel fx-scroll');if(node.tagName==='DETAILS')node.open=true;p.append(node);panes.append(p);return {panel:p,label:title(node,'其他')};});
-        sub.append(panes);scroll.append(sub);tabs(sub,subs,'sub:'+key+':'+entry.id);
-      }else for(const node of entry.nodes){if(node.tagName==='DETAILS')node.open=true;scroll.append(node);}
+      const panel=make('section','fx-panel'),scroll=make('div','fx-scroll');scroll.tabIndex=0;panel.dataset.fxGroup=entry.id;
+      if(entry.id==='records')scroll.classList.add('fx-records-list');
+      entry.nodes.forEach(n=>scroll.append(n));
       panel.append(scroll);area.append(panel);return {label:entry.label,panel};
     });
     shell.append(area);root.append(shell);if(items.length>1)tabs(shell,items,key);
-    // 不同表单保留各自保存按钮；子面板的按钮固定在对应子面板内。
-    for(const item of items){
-      const rows=new Set();
-      for(const action of item.panel.querySelectorAll('#sSave,[data-shortcut-save],[data-portal-save],#ctGo')){
-        const row=action.closest('.row,.portal-editor-actions,.ct-form');if(!row||rows.has(row))continue;rows.add(row);
-        const target=action.closest('.fx-subpanel')||item.panel;row.classList.add('fx-actions');target.append(row);
-      }
-    }
+    for(const item of items){const rows=new Set();for(const action of item.panel.querySelectorAll('#ctGo')){const row=action.closest('.row,.ct-form');if(!row||rows.has(row))continue;rows.add(row);row.classList.add('fx-actions');item.panel.append(row);}}
+  }
+  function pageBar(root) {
+    const slot=root.querySelector('#studyHud .subpage-nav');if(!slot)return;
+    root.querySelectorAll('.fx-shell>.fx-tabs,.lib-head>.lib-tabs').forEach(nav=>slot.append(nav));
+    root.querySelectorAll('.lib-head,.sl-ui-masthead').forEach(h=>{if(!h.querySelector('button')||h.matches('.sl-ui-masthead'))h.hidden=true;});
   }
   function paginate(grid,key,kind) {
     if(grid.dataset.fxPages)return;
@@ -227,7 +240,7 @@
       else if(regions(root)){}
       else {let host=root;while(true){const children=[...host.children].filter(n=>!n.matches('.subpage-heading'));if(children.length!==1||children[0].matches('.card,details,.grid')||!children[0].children.length)break;host=children[0];}host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
     }
-    overlays();
+    pageBar(root);overlays();
   }
   function schedule(){if(!pending){pending=true;requestAnimationFrame(apply);}}
   const observer=new MutationObserver(schedule);observer.observe(document.body,{childList:true,subtree:true});

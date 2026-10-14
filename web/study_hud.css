@@ -76,3 +76,18 @@ body>#studyHud.subpage-heading{display:none!important}
 
 #studyHud.subpage-heading #todayPill::before{display:none}
 #studyHud.subpage-heading .study-hud-meter span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 子页单行工具栏；窄屏只在模块标签内横向滚动，保留标题、笔记和计时。 */
+.fixed-app #studyHud.subpage-heading{display:flex;flex-wrap:nowrap;gap:10px;padding:5px 10px;margin:0;min-height:48px;background:var(--panel);border-bottom:1px solid var(--line);box-sizing:border-box}
+#studyHud.subpage-heading .subpage-place{flex:none;gap:7px;max-width:24%}
+#studyHud.subpage-heading .subpage-place small{display:none}
+#studyHud.subpage-heading .subpage-place h2{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em}
+#studyHud.subpage-heading .subpage-seal{width:30px;height:30px;background:transparent;border:0;border-radius:0}
+.subpage-nav{display:flex;align-items:center;flex:1;min-width:0;overflow:auto;gap:8px;scrollbar-width:thin}
+.subpage-nav>.fx-tabs,.subpage-nav>.lib-tabs{display:flex;flex-wrap:nowrap;flex:none;gap:5px;margin:0;padding:0;overflow:visible;border:0;background:transparent}
+.subpage-nav button{white-space:nowrap;min-height:34px;font-size:12px;padding:6px 10px}
+#studyHud.subpage-heading .subpage-tools{gap:6px}
+#studyHud.subpage-heading #todayPill{width:200px}
+#studyHud.subpage-heading #drawBtn{width:30px;min-height:32px;height:32px;font-size:16px}
+@media(max-width:820px){.fixed-app #studyHud.subpage-heading{gap:5px;padding:4px 6px}#studyHud.subpage-heading .subpage-place h2{font-size:14px}#studyHud.subpage-heading #todayPill{width:150px}.subpage-nav button{padding:6px 7px;font-size:11px}}
+@media(max-width:480px){#studyHud.subpage-heading .subpage-place{max-width:23%;gap:3px}#studyHud.subpage-heading .subpage-seal{width:21px;height:28px}#studyHud.subpage-heading .subpage-seal svg{width:20px;height:20px}#studyHud.subpage-heading .subpage-place h2{font-size:12px}#studyHud.subpage-heading #todayPill{width:117px}#studyHud.subpage-heading .study-hud-meter{font-size:9px}.subpage-nav button{font-size:10px;padding:6px}.subpage-nav:empty{flex:1}}

@@ -602,7 +602,7 @@ class FlowTest(unittest.TestCase):
         self.assertFalse(d["trib"]["ready"])
         self.assertTrue(any(t["title"].startswith("疗伤") for t in d["plan"]["tasks"]))
 
-    def test_ai_tutor_and_theme_switch(self):
+    def test_ai_tutor_and_fixed_theme(self):
         d = api.dashboard({})
         self.assertTrue(d["greet_pending"])
         self.assertEqual(api.tutor_greet({})["text"], "哎呀，学姐的现场台词。")
@@ -616,12 +616,13 @@ class FlowTest(unittest.TestCase):
             ev = api.tutor.enrich(g, g.break_through())
         self.assertTrue(any(e.get("kind") == "realm" for e in ev))
         self.assertIn("哎呀，学姐的现场台词。", [e.get("msg") for e in ev])
-        api.theme_set({"theme": "玄幻"})
+        xp = api.dashboard({})["xp"]
+        with api.open_game() as g:
+            g.state["theme"] = "玄幻"   # 旧版风格迁移不改变学习数值。
         d = api.dashboard({})
-        self.assertEqual(d["persona"]["tutor"], "艾琳学姐")
-        self.assertEqual(d["theme"]["terms"]["skeleton"], "咒文书")
-        self.assertTrue(d["realm"]["name"].startswith("见习学徒"))
-        self.assertTrue(d["greet_pending"])            # 换了导师要重新打招呼
+        self.assertEqual((d["theme"]["name"], d["xp"]), ("修仙", xp))
+        self.assertEqual(d["persona"]["tutor"], "劭神韵")
+        self.assertNotIn(("POST", "/api/theme"), api.ROUTES)
 
     def test_no_ai_self_rating(self):
         paths.save_settings({"vaults": {"行测": str(self.vault)}})  # 没有 key

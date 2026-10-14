@@ -13,7 +13,6 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     GET  /api/subject              当前科目和可选科目；POST {"subject": "行测"|"申论"} 切换（网页随后重新加载）
     GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
     GET  /api/app/latest           平板 App 的最新版本（电脑替平板去 GitHub 下安装包）；/app/xingce-xiuxian.apk 拿安装包
-    POST /api/theme                {"theme": "修仙"|"玄幻"}  切换风格
     POST /api/retreat/start        {"board", "minutes"}  闭关；POST /api/retreat/end 提前出关
     POST /api/plan/regenerate      重新生成今日任务
     POST /api/session/start        {"task_id"} 或 {"task": {type, board, target, title}} 开始修炼
@@ -89,7 +88,7 @@ def open_game(save=True):
         st = store.Store(paths)
         today = dt.date.today()
         state = st.load(today)
-        # 风格存在存档里：它决定用哪套导师设定、哪个台词库；风格必须属于当前科目（行测：修仙 / 玄幻；申论：官场）
+        # 风格存在存档里：它决定用哪套导师设定、哪个台词库；风格必须属于当前科目（行测：修仙；申论：官场）
         sub = subjects.SUBJECTS[paths.subject]
         if state.get("theme") not in sub["themes"]:
             state["theme"] = sub["default_theme"]
@@ -775,19 +774,6 @@ def boss(body):
         return {"events": tutor.enrich(g, g.add_boss(name, score, kind) + g.housekeeping())}
 
 
-def theme_set(body):
-    name = body.get("theme")
-    if name not in themes.THEMES:
-        raise ApiError("未知的风格")
-    if name not in subjects.get(subjects.active())["themes"]:
-        raise ApiError("这个科目没有这种风格")
-    with open_game() as g:
-        g.state["theme"] = name
-        g.state["tutor_greet"] = None   # 换了导师，重新打招呼
-        g.state["plan"] = None          # 功课标题换成新风格的说法
-        return {"ok": True}
-
-
 def lecture_add(body):
     """记一笔听道（其他平台看网课的时间）"""
     with open_game() as g:
@@ -1021,7 +1007,6 @@ ROUTES = {
     ("GET", "/api/dashboard"): dashboard,
     ("POST", "/api/sect/story"): sect_story_read,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
-    ("POST", "/api/theme"): theme_set,
     ("GET", "/api/subject"): subject_get,
     ("POST", "/api/subject"): subject_set,
     ("GET", "/api/shenlun/papers"): shenlun_papers,
