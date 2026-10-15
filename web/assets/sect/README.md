@@ -11,3 +11,12 @@
 | li.webp | dwellings/beihan-hanfeng-city-dwelling-v1.png | 明理殿 · 判断推理 |
 | zi.webp | dwellings/yunji-city-dwelling-v1.png | 观星台 · 资料分析 |
 | chang.webp | dwellings/xuanhuang-forest-dwelling-v1.png | 万象院 · 常识判断 |
+
+## 3.4 新增：青衡宗全景（白天、夜晚）
+
+| 文件 | 用途 |
+|---|---|
+| xc-sect-day.webp | 青衡宗全景·白天（亮色主题），按八个模块逐一设计景物 |
+| xc-sect-night.webp | 青衡宗全景·夜晚（暗色主题），与白天图构图一致 |
+
+用户于2026-10-15在本次对话提供，使用Gemini生成（按《图片需求清单-3.4第一批.md》提示词），1672×941，仅转WebP，不重绘；原PNG不分发。旧地图map.webp保留作备用。授权以所用生成服务的条款为准，由用户确认。

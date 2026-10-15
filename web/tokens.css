@@ -1,0 +1,77 @@
+/* 3.1.2设计令牌：全站视觉常量与主题变量的唯一来源（fakao-rpg、shenlun-rpg两份内容完全相同）。
+   分三层：①原语刻度（字号/间距/圆角/阴影/动效，所有主题共用）；②语义色（映射到style.css的主题变量，随body主题类取值）；
+   ③主题组件色（纸笺、状态牌、地点牌等，按主题×明暗给出）。页面与组件只写var(--ds-*)，不写裸色值与硬编码字号/圆角。
+   改某个主题的外观＝只改本文件第③层对应主题块；新增主题＝复制一组块。
+   选择器与原各页面样式完全一致（html[data-theme]、body.guantu/xuanhuan、body.portal-home），保证换成令牌后外观不变。
+   规范与命名约定见DESIGN.md“界面规范（3.1.2）”；tests/test_design_system.py检查令牌齐全并防止裸值回增。 */
+
+/* ① 原语刻度 */
+:root {
+  /* 字号：只收录现有实际使用且出现多次的阶梯；15/17px等零散值暂不并入，由检查脚本只降不升 */
+  --ds-fs-10: 10px; --ds-fs-11: 11px; --ds-fs-12: 12px; --ds-fs-13: 13px; --ds-fs-14: 14px;
+  --ds-fs-16: 16px; --ds-fs-18: 18px; --ds-fs-20: 20px; --ds-fs-22: 22px; --ds-fs-26: 26px;
+  /* 间距：以4为基数，按像素命名（14px沿用纸笺内边距） */
+  --ds-sp-4: 4px; --ds-sp-8: 8px; --ds-sp-12: 12px; --ds-sp-14: 14px; --ds-sp-16: 16px; --ds-sp-20: 20px; --ds-sp-24: 24px; --ds-sp-32: 32px;
+  /* 圆角：4/6/8/10/12为常规阶梯，2/3为细节小圆角；5、7px等零散值并入6、8 */
+  --ds-r-2: 2px; --ds-r-3: 3px; --ds-r-4: 4px; --ds-r-6: 6px; --ds-r-8: 8px; --ds-r-10: 10px; --ds-r-12: 12px; --ds-r-pill: 999px;
+  /* 触控与动效：平板（安卓APK、iPad浏览器）为首要设备，触控目标不小于42px */
+  --ds-touch: 42px; --ds-dur: .15s; --ds-dur-slow: .2s;
+  /* 阴影三级与通用遮罩 */
+  --ds-shadow-1: 0 4px 10px #0004; --ds-shadow-2: var(--shadow); --ds-shadow-3: 0 20px 80px #0006;
+  --ds-shade-30: #0003; --ds-glint: #fff3;
+}
+
+/* ② 语义色：映射style.css里随主题变化的变量。定义在:root与body两处，body上的主题类（xiuxian等）覆盖后也能取到新值 */
+:root, body {
+  --ds-bg: var(--bg); --ds-surface: var(--panel); --ds-surface-2: var(--panel2); --ds-line: var(--line);
+  --ds-text: var(--text); --ds-muted: var(--muted); --ds-faint: var(--faint);
+  --ds-accent: var(--accent); --ds-accent-2: var(--accent2); --ds-gold: var(--gold);
+  --ds-ok: var(--green); --ds-warn: var(--orange); --ds-danger: var(--red); --ds-info: var(--accent2);
+  --ds-radius: var(--radius, 14px); --ds-font-title: var(--display);
+  --ds-on-accent: #fff; --ds-danger-text: #b74132;
+  --ds-feedback-bg: #9eae8230;
+  --ds-flame: #edb34c; --ds-flame-glow: #f0b548;
+}
+
+/* ③ 主题组件色。默认块＝修仙（行测）亮色；guantu＝官场（申论）；xuanhuan＝玄幻（法考） */
+
+/* 纸笺（纪事、委托、收藏所在对话框）：paper底、ink字、line分隔线、accent强调 */
+body { --ds-paper: #f6f1e4; --ds-paper-ink: #243b33; --ds-paper-line: #c7bc99; --ds-paper-accent: #426954; --ds-scrim: #10241e99;
+  --ds-seal-bg: linear-gradient(135deg, #d5bd7440, #ffffff05); }
+body.guantu { --ds-paper-ink: #24394b; --ds-paper-accent: #254f69; }
+body.xuanhuan { --ds-paper-ink: #38284c; --ds-paper-accent: #67407c; }
+[data-theme="dark"] body { --ds-paper: #242b29; --ds-paper-ink: #eee7d4; --ds-paper-line: #766d54; --ds-paper-accent: #bdcdae; }
+[data-theme="dark"] body.guantu { --ds-paper: #1d2b38; --ds-paper-ink: #eee7d4; --ds-paper-accent: #b4c9d9; }
+[data-theme="dark"] body.xuanhuan { --ds-paper: #2a2236; --ds-paper-ink: #eee2d4; --ds-paper-accent: #d0b5dd; }
+
+/* 场景牌（全景上的地点牌、人物入口按钮、说明牌）：按场景主题，不随明暗变化 */
+:root, body { --ds-sign-bg: #183f36ed; --ds-sign-line: #bac59a; --ds-sign-ink: #f9f0d5; --ds-sign-hover: #35694c; --ds-sign-focus: #e0bf62; --ds-sign-pick: #e9b33c;
+  --ds-sign-symbol: #f0d38b; --ds-sign-symbol-shadow: #001e19; --ds-sign-shadow: #0004;
+  --ds-scene-bg: #183f36; --ds-scene-edit-bg: #23483a; --ds-scene-glow: #e5b75536; --ds-scene-cloud: #eef7dc24;
+  --ds-caption-bg: #143c32b8; --ds-caption-line: #bbc29d77; --ds-caption-ink: #fff2d0; --ds-caption-shadow: #001d15;
+  --ds-entry-bg: #183f36; --ds-entry-ink: #fff0c7; --ds-entry-line: #c5b378; --ds-motion-bg: #183f36; --ds-motion-ink: #fff2d0; --ds-motion-line: #c5b378; }
+.portal-guantu { --ds-sign-bg: #16374aef; --ds-sign-ink: #f1e5c4; --ds-sign-line: #ae9d6b; --ds-scene-bg: #132f42; --ds-caption-bg: #132f42d9; --ds-scene-glow: #f3d08f30; --ds-entry-bg: #17384c; }
+.portal-mage { --ds-sign-bg: #292044ed; --ds-sign-line: #ccaa63; --ds-sign-ink: #ffedc4; --ds-scene-bg: #14142b; --ds-caption-bg: #211c39da; --ds-entry-bg: #302245; }
+
+/* 状态牌（备考玉牌）：plate-ink字、soft次要字、metal金属线、edge边线、bg底；radius随主题，shadow随明暗/首页 */
+body { --ds-plate-ink: #214c43; --ds-plate-soft: #596d61; --ds-plate-metal: #9b762e; --ds-plate-edge: #ad914b80; --ds-plate-bg: linear-gradient(120deg, #faf8e9, #e7eee4);
+  --ds-plate-radius: 5px 20px 5px 20px; --ds-plate-shadow: inset 0 0 0 3px #fff3, 0 3px 12px #142e2110; }
+body.xuanhuan { --ds-plate-ink: #51426e; --ds-plate-soft: #716883; --ds-plate-metal: #a27d38; --ds-plate-edge: #b99b6180; --ds-plate-bg: linear-gradient(120deg, #f7f2e9, #ede8f4); }
+body.guantu { --ds-plate-ink: #253f56; --ds-plate-soft: #576977; --ds-plate-metal: #917446; --ds-plate-edge: #ad977780; --ds-plate-bg: linear-gradient(120deg, #faf8f0, #eaf0f4);
+  --ds-plate-radius: 6px 14px 6px 14px; }
+[data-theme="dark"] body, body.portal-home { --ds-plate-ink: #f6e6b8; --ds-plate-soft: #c5d3bd; --ds-plate-metal: #d2b56e; --ds-plate-edge: #bda16470; --ds-plate-bg: linear-gradient(120deg, #123b34f5, #234e43eb);
+  --ds-plate-shadow: inset 0 0 0 3px #e4d69a08, 0 4px 14px #0002; }
+[data-theme="dark"] body.xuanhuan, body.xuanhuan.portal-home { --ds-plate-ink: #f7e6be; --ds-plate-soft: #d6c9e3; --ds-plate-metal: #d4b473; --ds-plate-bg: linear-gradient(120deg, #29203ff5, #463355eb); }
+[data-theme="dark"] body.guantu, body.guantu.portal-home { --ds-plate-ink: #f1e3be; --ds-plate-soft: #c6d3de; --ds-plate-metal: #c9ad78; --ds-plate-bg: linear-gradient(120deg, #20364bf5, #324960eb); }
+/* 边线：暗色非首页沿用各主题自己的边线；首页统一暗色基线（与原样式层叠结果一致，:root用于抬高优先级） */
+[data-theme="dark"] body.xuanhuan { --ds-plate-edge: #b99b6180; }
+[data-theme="dark"] body.guantu { --ds-plate-edge: #ad977780; }
+:root body.xuanhuan.portal-home, :root body.guantu.portal-home { --ds-plate-edge: #bda16470; }
+
+/* 旧式角色牌（地图左上角角色/日期牌，map_navigation.css）：深底金边，按场景主题 */
+:root, body { --ds-hud-ink: #fff3d3; --ds-hud-gold: #ffe6a6; --ds-hud-soft: #ebd8ad; --ds-hud-loc: #e5ce9a; --ds-hud-edge: #c2a065; --ds-hud-ring: #d8b977; --ds-hud-avatar-bg: #254c46;
+  --ds-hud-bg: linear-gradient(110deg, #153c36ee, #183f38d9); --ds-hud-shadow: 0 4px 18px #0004;
+  --ds-hud-track: #102b2e; --ds-hud-track-line: #c5b68080; --ds-hud-text-shadow: #000;
+  --ds-hud-fill: linear-gradient(90deg, #b86735, #d69647); --ds-hud-fill-xp: linear-gradient(90deg, #277da0, #5ba6af); }
+.xuanhuan { --ds-hud-bg: linear-gradient(110deg, #302543ee, #252d45db); }
+.guantu { --ds-hud-bg: linear-gradient(110deg, #334854ee, #23363edb); --ds-hud-edge: #d0bb84; }

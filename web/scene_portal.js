@@ -10,7 +10,7 @@
     const result={desktop:{},narrow:{},names:{}};
     places.forEach(p=>{const value=source?.names?.[p.id];if(typeof value==='string'){const name=value.replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,24);if(name)result.names[p.id]=name;}});
     for(const profile of ['desktop','narrow'])places.forEach((p,i)=>{
-      const fallback=profile==='desktop'?{x:p.x,y:p.y}:{x:28+(i%2)*44,y:18+Math.floor(i/2)*(64/Math.max(1,Math.ceil(places.length/2)-1))};
+      const fallback=profile==='desktop'?{x:p.x,y:p.y}:(typeof p.nx==='number'?{x:p.nx,y:p.ny}:{x:28+(i%2)*44,y:18+Math.floor(i/2)*(64/Math.max(1,Math.ceil(places.length/2)-1))});   // 竖屏只显示全景中间一条：地点可自带nx/ny竖屏默认位置
       const v=source?.[profile]?.[p.id];
       result[profile][p.id]={x:typeof v?.x==='number'&&Number.isFinite(v.x)?clamp(v.x):fallback.x,
                             y:typeof v?.y==='number'&&Number.isFinite(v.y)?clamp(v.y):fallback.y};
@@ -18,7 +18,8 @@
   }
   const placeName = (p, layout=load()) => layout.names[p.id] || p.label;
   function title(view) {return view==='home'?config?.title:config?.places.find(p=>p.view===view)&&placeName(config.places.find(p=>p.view===view));}
-  function load() {let d;try{const raw=localStorage.getItem('scene-layout:'+config.id);if(raw&&raw.length<20000)d=JSON.parse(raw);}catch(e){}return normalize(d,config.places);}
+  const layoutKey = () => 'scene-layout:' + (config.layoutId || config.id);   // 换全景图时用layoutId让旧排布失效（旧位置对新图无意义）
+  function load() {let d;try{const raw=localStorage.getItem(layoutKey());if(raw&&raw.length<20000)d=JSON.parse(raw);}catch(e){}return normalize(d,config.places);}
   const profile = () => window.innerWidth/window.innerHeight>=1.15?'desktop':'narrow';
   function configure(c, go) {if(config?.id!==c.id){edit=null;cancelDrag();}config=c;navigate=go;}
   function motionOff() {
@@ -28,9 +29,15 @@
   function syncMotion() {
     if(document.documentElement.dataset)document.documentElement.dataset.motion=motionOff()?'reduced':document.hidden?'paused':'full';
   }
+  // 3.4白天/夜晚两张全景：亮色主题显示白天、暗色主题显示夜晚（纯CSS切换，不显示的那张懒加载）；单图场景保持原样。
+  function landscapeHtml() {
+    const alt = esc(config.title) + '全景';
+    if (!config.images) return `<img class="portal-landscape" src="${esc(config.image)}" alt="${alt}">`;
+    return `<img class="portal-landscape portal-day" src="${esc(config.images.day)}" alt="${alt}"><img class="portal-landscape portal-night" src="${esc(config.images.night)}" alt="" aria-hidden="true" loading="lazy">`;
+  }
   function stageHtml(layout, device, editing=false) {
-    return `<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}<img class="portal-landscape" src="${esc(config.image)}" alt="${esc(config.title)}全景">${config.places.map(p=>{
-      const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span aria-hidden="true">◆</span><b>${esc(placeName(p,layout))}</b></button>`;
+    return `<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${landscapeHtml()}${config.places.map(p=>{
+      const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span aria-hidden="true">◆</span><b class="ds-sign">${esc(placeName(p,layout))}</b></button>`;
     }).join('')}</div>`;
   }
   function homeHtml() {return `<section class="portal-world portal-${esc(config.id)}" aria-label="${esc(config.title)}">${stageHtml(load(),profile())}</section>`;}
@@ -66,7 +73,7 @@
     const place=e.target.closest('[data-portal-go]');if(place&&config){const p=config.places.find(p=>p.id===place.dataset.portalGo);if(p)navigate(p);return;}
     if(!edit||!document.querySelector('[data-portal-preview]'))return;
     const point=e.target.closest('[data-portal-point]');if(point){edit.selected=point.dataset.portalPoint;syncEditor();return;}
-    if(e.target.closest('[data-portal-save]')){try{localStorage.setItem('scene-layout:'+config.id,JSON.stringify(edit.layout));status('排布与名称已保存');window.STUDY_HUD?.refresh();}catch(err){status('保存失败，请检查浏览器存储权限；调整仍保留在当前页面。');}}
+    if(e.target.closest('[data-portal-save]')){try{localStorage.setItem(layoutKey(),JSON.stringify(edit.layout));status('排布与名称已保存');window.STUDY_HUD?.refresh();}catch(err){status('保存失败，请检查浏览器存储权限；调整仍保留在当前页面。');}}
     if(e.target.closest('[data-portal-reset]')){cancelDrag();edit.layout[edit.device]=normalize(null,config.places)[edit.device];redrawEditor();status('已恢复默认位置，点击保存生效');}
     if(e.target.closest('[data-portal-name-reset]')){delete edit.layout.names[edit.selected];syncEditor();status('默认名已恢复，点击保存生效');}
     if(e.target.closest('[data-portal-reload]')){cancelDrag();edit.layout=load();redrawEditor();status('已撤销未保存调整');}

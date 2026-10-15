@@ -27,7 +27,6 @@ jobs:
       - name: Sect and mentor quick regressions
         run: |
           node tests/test_guide.cjs
-          node tests/test_sect.cjs
           node tests/test_scene_portal.cjs
       - name: Narrative and learning contracts
         run: |

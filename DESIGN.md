@@ -1,5 +1,44 @@
 # DESIGN · 申论官途（申论 RPG）
 
+## 3.4开发批次：半身立绘、白天/夜晚全景（第一批，2026-10-15，未发布）
+
+仅行测接入（申论沿用政务大厅单图与原对话框；法考见fakao-rpg）。素材由用户用Gemini生成，来源见`web/assets/guide/README.md`、`web/assets/sect/README.md`。
+- 沈清禾半身立绘：`xc-qinghe-calm/cheer/explain/concern/proud.webp`（900×1200，色键去底）+`xc-qinghe-blink.webp`（只含眼部、羽化的眨眼叠层，位置比例在`rpg/themes.py _portraits`）。旧全身立绘保留，清禾静室旧对话模块仍引用。
+- 对话框（narrative.js/css，两仓库共用）：立绘区放大到约32%宽；`narrative-stage`叠放基础图、表情叠层与眨眼叠层。呼吸/摆动只用`translate/scale/rotate`动画；表情淡入淡出；平静时每2.8—6秒眨眼一次；鼓励/欣慰/关切停留约6秒后回到平静，讲解在阅读剧情时保持。事件映射：默认平静、领取任务→鼓励、读剧情→讲解、交付成功→欣慰、请求失败→关切。表情只由本地事件决定，不改成绩。`data-motion=reduced/paused`、系统减少动画与页面隐藏时静止；用户自定义导师头像优先于内置立绘（rpg/narrative.py）。
+- 青衡宗全景：新图`xc-sect-day/night.webp`（1672×941，八个模块逐一设计景物）。scene_portal支持`images:{day,night}`，亮色主题显示白天、暗色显示夜晚（纯CSS切换，夜景懒加载）；`layoutId`改为`xingce-v2`，旧排布不再套用到新图；地点可带`nx/ny`作为竖屏默认位置（竖屏只显示全景中间一条）。旧地图`map.webp`保留作备用。
+- 未做：季节变体、按时间段自动切换（当前跟随明暗主题）、飘落光点、申论立绘与场景、清禾静室旧对话的半身化。
+- 验证：两科ui_layout_check（各40页）与纪事、世界、地图导航、状态牌、分区、固定布局、品牌、合并奖励、紧凑复盘专项通过；浏览器实测表情切换、眨眼、减少动画静止、无脚本错误。
+
+## 3.1.3开发批次：行测洞府与地图入口调整（2026-10-15，未发布）
+
+仅行测（修仙）；申论、法考的页面与名称不变，法考版另行评估。
+- 洞府五页：修为与突破（含三才时辰与五项日课数据）｜十二经｜修行记录｜储物袋｜修行日志。三张修行记录同一排，卡片撑满工作区高度，近7天记录默认展开并在卡内滚动；电脑与平板横屏三列，平板竖屏三行等分（fx-records-fill）。
+- 储物袋、告假玉简、修行日志从照心台搬入洞府（原节点逻辑不变，告假按钮在bindHome绑定）；考试档案（飞升/模考成绩表单）、每日功课列表、功法与资源其余卡片取消显示，数据与接口保留。每日功课改由任务大殿的“今日修习”接取。
+- 地图：删除清禾静室、宗门纪事（含xiuxian_sect.js/css及其测试，纪事旧存档sect_story与接口保留作迁移）、照心台（行测log路由转洞府，导航链接隐藏，世界阶段“restored”区域改指洞府）。人物纪事与委托改名任务大殿（对话框标题、导语改为“接取日常任务的地方”），修行手札改名灵台手札。
+- 受影响共用文件：narrative.js（删除“原五章宗门纪事”按钮）、world.py（restored区域按世界选择洞府/日志）。
+
+## 界面规范（3.1.2开发批次：设计系统，2026-10-15）
+
+只做规整，不换视觉语言，不新增功能行为；首要设备是平板（安卓APK、iPad浏览器），不再做手机界面。fakao-rpg与shenlun-rpg两份实现相同。
+
+**文件与加载顺序**：`web/tokens.css`（令牌，最先）→ `style.css` → `web/ds.css`（组件）→ 各页面CSS。
+
+**三层令牌（tokens.css）**
+1. 原语刻度：字号`--ds-fs-10/11/12/13/14/16/18/20/22/26`、间距`--ds-sp-4/8/12/14/16/20/24/32`、圆角`--ds-r-2/3/4/6/8/10/12/pill`、阴影`--ds-shadow-1/2/3`、触控`--ds-touch:42px`、动效`--ds-dur`。按像素命名。
+2. 语义色：`--ds-surface/-2/line/text/muted/accent/gold/ok/warn/danger/info`等，映射style.css的主题变量，随`body.xiuxian/guantu/xuanhuan`取值。
+3. 主题组件色（按主题×明暗给值）：纸笺`--ds-paper*`、状态牌`--ds-plate*`、场景牌`--ds-sign*/scene*/caption*/entry*`、旧角色牌`--ds-hud*`。选择器沿用原页面样式（`[data-theme="dark"]`、`body.portal-home`、`.portal-guantu/.portal-mage`），保证外观不变。
+
+**换肤方法**：只改tokens.css第3层对应主题块；新增主题＝复制一组块。页面与组件不写裸色值、不写硬编码字号和px圆角。
+
+**组件（ds.css，类名统一`ds-`前缀）**：`ds-btn`（`.ds-modal`内按钮自动采用纸笺风格）、`ds-modal`（纸笺弹窗）、`ds-card`、`ds-tag`、`ds-plate`（备考状态牌）、`ds-sign`（地图地点牌）、`ds-empty`、`ds-loading`。组件靠上下文变量（`--ds-btn-*`、`--ds-card-*`）适配容器，不用后代选择器覆盖。已迁移：纪事弹窗与章节卡（ds-modal/ds-card）、委托面板与阶段区域卡（ds-card）、收藏陈列（ds-tag）、备考状态牌（ds-plate）、地图地点牌（ds-sign）。注意：narrative.js靠`details`的className还原展开状态，不要给这些`details`加ds-类。
+
+**新增页面/组件规则**：先看ds.css有没有；新样式用令牌；新类名先搜是否冲突；ds-类只能写在ds.css。
+
+**零散值处理**：字号15/17px等不在阶梯内的值保持原样，圆角5px并入6px、7px并入8px（仅场景牌与阶段区域卡，肉眼差≤1px），其余未迁移页面只对与刻度完全相等的值做机械替换。
+基线（除tokens.css外的裸值）：fakao 颜色729→603、px字号396→83、px圆角257→77；shenlun 颜色811→685、字号470→94、圆角314→94。`tests/test_design_system.py`检查令牌齐全、类名规范、加载顺序，并让裸值只降不升（基线`tests/ds_baseline.json`，减少后`DS_UPDATE_BASELINE=1 python -m unittest tests.test_design_system`刷新）。
+
+**验证做法**：改前后用同一批元素（弹窗、状态牌、地点牌、地区卡）在三主题×明暗×首页/子页×电脑/平板下导出computed style逐项对比，除上述两处圆角并入外零差异；另跑`ui_layout_check`（电脑/平板×明暗，全页面）与纪事、世界、分区、地图导航、状态牌、固定布局等专项交互检查，均通过。
+
 ## 3.1.1统一发布候选（2026-10-14）
 
 - 累积3.0.9、3.1.0界面、分级文档和复习计时改动；版本与更新记录统一为3.1.1。验证分支完成全套单元、浏览器与Windows/Mac/安卓构建后才合main发布。

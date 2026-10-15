@@ -38,7 +38,7 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await page.locator('[data-narrative="close"]').click();await page.reload();await page.locator('.portal-world').waitFor();await page.locator('[data-portal-go="dwelling"]').click();await page.evaluate(()=>go('home'));await open();await page.locator('.journey-space summary').click();
  assert.match(await page.locator('.journey-space').textContent(),/法典|卷宗|竹卷/);await home();await open();
  await page.locator('.world-progress summary').click();await page.locator('[data-world-go="restored"]').click();
- await page.waitForFunction(()=>VIEW==='log');assert.equal(await page.locator('.narrative-dialog').count(),0);
+ await page.waitForFunction(v=>VIEW===v,subject==='行测'?'dwelling':'log');assert.equal(await page.locator('.narrative-dialog').count(),0);
  // 触控竖屏 + 暗色 + 系统减少动画。章/任务状态保持，关闭后学习入口不被挡住。
  await page.setViewportSize({width:800,height:1280});await page.emulateMedia({reducedMotion:'reduce'});
  await home();await page.evaluate(()=>document.documentElement.dataset.theme='dark');await open();await bounds();

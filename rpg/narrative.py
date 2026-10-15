@@ -102,7 +102,10 @@ def _profile(g, dashboard):
         p['character'] = leader.get('name') or g.persona['导师名'] or p['character']
         p['role'] = leader.get('title') or p['role']
     if world_id(g) != 'xingce':
-        p['portrait'] = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
+        custom = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
+        if custom or not p.get('portraits'):
+            p['portrait'] = custom          # 用户自定义导师头像优先，此时不用内置表情立绘
+            p.pop('portraits', None)
     return p
 
 
@@ -163,7 +166,7 @@ def _scene(g, dashboard, cid):
     if c.get('character'):
         person = next(p for p in out['companions'] if p['id'] == c['character'])
         out['profile'] = dict(out['guide_profile'], character=person['name'], role=person['role'],
-                              intro=person['intro'], greeting=person['feedback'], mark=person['mark'], portrait='')
+                              intro=person['intro'], greeting=person['feedback'], mark=person['mark'], portrait='', portraits=None)
     choices = [x for x in n['choices'] if not x.get('when') or out['facts'].get(x['when'])]
     trail = saved.get('trail', [])
     transcript = []

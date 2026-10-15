@@ -1,0 +1,71 @@
+/* 3.1.2组件层：状态牌、场景牌、卡片、按钮、弹窗、标签、空状态、加载状态各写一次，页面只加类名。
+   类名统一ds-前缀（tests/test_design_system.py检查别处不得定义ds-类）；颜色、字号、圆角只引用tokens.css的令牌，不写裸值。
+   上下文变量：组件自带默认外观，放进别的容器时由容器改--ds-btn-*、--ds-card-*等变量（如.ds-modal里的按钮是纸笺风格），
+   不用后代选择器覆盖。引入顺序：tokens.css → style.css → ds.css → 各页面CSS（同优先级时页面样式后到，可做布局微调）。 */
+
+:root {
+  --ds-btn-pad: 7px 14px; --ds-sign-pad: 7px 14px;
+}
+
+/* 按钮 .ds-btn：默认=全局button外观；.ds-modal里的所有按钮自动采用纸笺风格 */
+.ds-btn, .ds-modal button {
+  font: inherit; cursor: pointer; transition: var(--ds-dur);
+  color: var(--ds-btn-ink, var(--ds-text)); background: var(--ds-btn-bg, var(--ds-surface-2));
+  border: 1px solid var(--ds-btn-line, var(--ds-line)); border-radius: var(--ds-btn-radius, var(--ds-r-10));
+  padding: var(--ds-btn-pad); min-height: var(--ds-btn-min, auto); white-space: normal;
+}
+.ds-btn:hover, .ds-modal button:hover { border-color: var(--ds-btn-hover, var(--ds-accent)); }
+.ds-btn:disabled, .ds-modal button:disabled { opacity: var(--ds-btn-off, .5); cursor: default; }
+.ds-btn--primary { background: linear-gradient(135deg, var(--ds-accent), var(--ds-accent-2)); color: var(--ds-on-accent); border: 0; }
+.ds-btn--ghost { background: transparent; }
+
+/* 弹窗 .ds-modal：纸笺底、墨色字、细线框；内部按钮、卡片、标签继承纸笺上下文 */
+.ds-modal {
+  --ds-btn-bg: transparent; --ds-btn-ink: var(--ds-paper-ink); --ds-btn-line: var(--ds-paper-line); --ds-btn-hover: var(--ds-paper-accent);
+  --ds-btn-radius: var(--ds-r-6); --ds-btn-pad: 9px 13px; --ds-btn-min: var(--ds-touch); --ds-btn-off: .45;
+  --ds-card-line: var(--ds-paper-line);
+  color: var(--ds-paper-ink); background: var(--ds-paper); border: 1px solid var(--ds-paper-line); border-radius: var(--ds-r-12);
+  padding: 0; box-shadow: var(--ds-shadow-3); overflow: auto; overscroll-behavior: contain;
+}
+.ds-modal::backdrop { background: var(--ds-scrim); }
+.ds-modal button:hover, .ds-modal button:focus-visible { outline: 2px solid var(--ds-paper-accent); outline-offset: 2px; }
+
+/* 卡片 .ds-card：细线框、8px圆角、14px内边距；布局（栅格、外边距）由页面自己写 */
+.ds-card {
+  border: 1px solid var(--ds-card-line, var(--ds-line)); border-radius: var(--ds-card-radius, var(--ds-r-8));
+  padding: var(--ds-card-pad, var(--ds-sp-14));
+}
+
+/* 标签 .ds-tag：描边小标签，颜色跟随文字 */
+.ds-tag {
+  display: inline-block; font-size: var(--ds-fs-12); color: inherit; border: 1px solid currentColor;
+  border-radius: var(--ds-r-4); padding: var(--ds-sp-4) var(--ds-sp-8);
+}
+
+/* 状态牌 .ds-plate：备考玉牌，角标用主题金属色；尺寸与内边距由页面决定 */
+.ds-plate {
+  position: relative; color: var(--ds-plate-ink); background: var(--ds-plate-bg); border: 1px solid var(--ds-plate-edge);
+  border-radius: var(--ds-plate-radius); box-shadow: var(--ds-plate-shadow); backdrop-filter: none;
+}
+.ds-plate::before, .ds-plate::after {
+  content: ''; position: absolute; width: 20px; height: 12px; border-color: var(--ds-plate-metal); border-style: solid;
+  opacity: .65; pointer-events: none;
+}
+.ds-plate::before { top: 4px; left: 4px; border-width: 1px 0 0 1px; }
+.ds-plate::after { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
+
+/* 场景牌 .ds-sign：全景地图上的地点名牌（深底、细金边、衬线字） */
+.ds-sign {
+  background: var(--ds-sign-bg); border: 1px solid var(--ds-sign-line); color: var(--ds-sign-ink); padding: var(--ds-sign-pad);
+  border-radius: var(--ds-r-6); font-family: serif; letter-spacing: 1px; box-shadow: var(--ds-shadow-1);
+}
+
+/* 空状态 .ds-empty：一句引导，不放插画；加载状态 .ds-loading：文字+呼吸，减少动画时静止 */
+.ds-empty {
+  padding: var(--ds-sp-16); text-align: center; color: var(--ds-muted); font-size: var(--ds-fs-13);
+  border: 1px dashed var(--ds-line); border-radius: var(--ds-r-8);
+}
+.ds-loading { color: var(--ds-muted); font-size: var(--ds-fs-13); animation: ds-breathe 1.4s ease-in-out infinite alternate; }
+@keyframes ds-breathe { from { opacity: .45; } to { opacity: 1; } }
+[data-motion="reduced"] .ds-loading, [data-motion="paused"] .ds-loading { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ds-loading { animation: none; } }

@@ -54,7 +54,7 @@ let browser, page;
   await page.evaluate(()=>go('settings'));await page.locator('[data-portal-x]').waitFor({state:'attached'});await page.locator('[data-portal-x]').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});
   await page.locator('[data-portal-selected]').selectOption('dwelling');await page.locator('[data-portal-x]').fill('24');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();
   await page.reload();await page.locator('[data-narrative="catalogue"],[data-portal-go="journal"]').first().waitFor();
-  const layout=await page.evaluate(()=>JSON.parse(localStorage.getItem('scene-layout:'+DASH_REF().narrative.world.replace('office','guantu'))));
+  const layout=await page.evaluate(()=>JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k=>k.startsWith('scene-layout:')))));
   assert.equal(layout.desktop.dwelling.x,24);
   if((await get(page)).world==='mage'){
     await page.evaluate(()=>go('notes'));

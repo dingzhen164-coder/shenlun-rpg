@@ -17,7 +17,6 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await
  const ids=await page.locator('[data-portal-go]').evaluateAll(es=>es.map(e=>e.dataset.portalGo));
  for(const id of ids){await home();await page.locator(`[data-portal-go="${id}"]`).click();
   if(id==='journal'){await page.locator('.narrative-dialog').waitFor();await page.keyboard.press('Escape');await page.locator('.narrative-dialog').waitFor({state:'detached'});assert.equal(await page.evaluate(()=>VIEW),'home');}
-  else if(id==='guide'||id==='story'){await page.locator('.xc-guide-dialogue').waitFor();await page.keyboard.press('Escape');await page.locator('.xc-guide-dialogue').waitFor({state:'detached'});}
   else{await view(id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('.subpage-heading').isVisible(),true);assert.equal(await page.locator('#mapPageTools,#xcGuideAvatar').count(),0);}
  }
  await home();await page.locator('[data-portal-go="dwelling"]').click();await view('dwelling');await page.keyboard.press('Escape');await view('home');await page.keyboard.press('Escape');await view('home');

@@ -93,32 +93,11 @@ async function main(){
    await page.setViewportSize({width:1280,height:860});await settings();
   }
   if(subject==='行测'){
-   await page.evaluate(()=>go('home'));await page.locator('[data-portal-go="guide"]').waitFor();
-   for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280],['phone',390,844]]){
-    await page.setViewportSize({width,height});
-    for(const theme of ['light','dark']){
-     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-     await page.locator('[data-portal-go="guide"]').click();await page.locator('.xc-guide-dialogue').waitFor();
-     await page.locator('[data-xc-guide="reveal"]').click();
-     assert.ok(await page.locator('.xc-guide-dialogue').evaluate(el=>{const r=el.getBoundingClientRect();return r.left===0&&r.top===0&&Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2;}),'导师对话按当前设计全屏显示');
-     assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
-     await page.screenshot({path:path.join(out,`xc-guide-${name}-${theme}.png`),animations:'disabled'});
-     await page.keyboard.press('Escape');assert.equal(await page.locator('.xc-guide-dialogue').count(),0);
-    }
-   }
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-portal-go="guide"]').click();
-   assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
-   await page.keyboard.press('Escape');await page.emulateMedia({reducedMotion:'no-preference'});
-   await page.locator('[data-portal-go="guide"]').click();await page.locator('.xc-guide-dialogue').waitFor();await page.locator('.xc-guide-dialogue [data-xc-guide="teach"]').click();assert.equal(await page.locator('#xcGuideAvatar').count(),0);
-   assert.equal(await page.locator('.xc-guide-scene').count(),0);
-   await page.evaluate(()=>go('home'));await page.locator('[data-portal-go="guide"]').waitFor();
+   // 3.1.3：行测地图不再有清禾静室、宗门纪事、照心台；人物纪事与委托改为任务大殿，修行手札改为灵台手札
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
-   await page.locator('[data-portal-go="story"]').click();await page.locator('[data-xc-chapter="arrival"]').click();
-   await page.locator('[data-xc-story="skip"]').click();await page.waitForFunction(()=>!document.querySelector('.xc-guide-dialogue'));
-   await page.reload();await page.locator('.portal-world').waitFor();
-   await page.locator('[data-portal-go="story"]').click();assert.ok((await page.locator('[data-xc-chapter="arrival"]').textContent()).includes('已读'));
-   await page.keyboard.press('Escape');
+   for(const gone of ['guide','story','log'])assert.equal(await page.locator(`[data-portal-go="${gone}"]`).count(),0,gone+'入口已删除');
+   assert.equal((await page.locator('[data-portal-go="journal"]').textContent()).trim().replace(/^◆/,''),'任务大殿');
+   assert.equal((await page.locator('[data-portal-go="notes"]').textContent()).trim().replace(/^◆/,''),'灵台手札');
    await page.locator('[data-portal-go="train"]').click();await page.locator('.study-peaks').waitFor();
    assert.equal(await page.locator('[data-study-region]').count(),5);
    for(const region of ['chang','yan','li','shu','zi']){

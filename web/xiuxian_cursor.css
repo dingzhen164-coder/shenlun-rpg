@@ -6,7 +6,7 @@ body.xc-custom-pointer :is(canvas,.nt-pages,.sl-material-sheet,.sl-writing-overl
 body.xc-custom-pointer :disabled { cursor:not-allowed; }
 .xc-cursor-effects { position:fixed; inset:0; z-index:100000; pointer-events:none; overflow:hidden; }
 .xc-cursor-effects * { pointer-events:none; }
-.xc-cursor-trail { position:absolute; height:2px; border-radius:3px; transform-origin:left center; background:linear-gradient(90deg,transparent,#23e1f6); box-shadow:0 0 5px #1fc8e7; animation:xc-trail-fade .4s ease-out forwards; }
+.xc-cursor-trail { position:absolute; height:2px; border-radius:var(--ds-r-3); transform-origin:left center; background:linear-gradient(90deg,transparent,#23e1f6); box-shadow:0 0 5px #1fc8e7; animation:xc-trail-fade .4s ease-out forwards; }
 .xc-cursor-array { position:absolute; transform:translate(-50%,-50%); animation:xc-array-fade var(--xc-duration) ease-out forwards; }
 .xc-cursor-array img { position:absolute; inset:0; width:100%; height:100%; filter:brightness(1.3) drop-shadow(0 0 4px #22d7ee); }
 .xc-array-inner { animation:xc-array-inner var(--xc-duration) ease-out forwards; }

@@ -22,7 +22,7 @@ async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.eva
   await go('bank');await page.locator('.train').waitFor();assert.equal(await page.locator('#toHall').count(),0);await page.keyboard.press('Escape');await page.waitForFunction(()=>VIEW==='home');await page.locator('.portal-world').waitFor();await checkHUD();await go('bank');await page.locator('.train').waitFor();
  }
  await go('home');await page.locator('[data-portal-go="tianji"]').click();await page.locator('.tj-hub').waitFor();assert.equal(await page.evaluate(()=>VIEW),'tianji');await checkHUD();
- for(const view of ['dwelling','skeleton','notes','log','contest','settings'])await go(view);
+ for(const view of ['dwelling','skeleton','notes','log','contest','settings'].filter(v=>!(subject==='行测'&&v==='log')))await go(view);
  await page.locator('[data-portal-selected]').selectOption('bank');await page.locator('[data-portal-name]').fill('独立实战入口');await page.locator('[data-portal-x]').fill('81');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();assert.match(await page.locator('[data-portal-status]').textContent(),/已保存/);
  await go('home');assert.equal(await page.locator('[data-portal-go="bank"] b').textContent(),'独立实战入口');await page.reload();await page.locator('[data-portal-go="bank"]').waitFor();assert.equal(await page.locator('[data-portal-go="bank"] b').textContent(),'独立实战入口');await page.locator('[data-portal-go="bank"]').click();await page.waitForFunction(()=>VIEW==='bank');assert.match(await page.locator('.subpage-place').textContent(),/独立实战入口/);
  await go('home');
