@@ -57,7 +57,7 @@ def view(g, dashboard, journey, learned):
     regions = [dict(id=ident, title=p['regions'][i], unlocked=ident in st['unlocked'], view=route,
                     reason=st['unlocked'].get(ident, {}).get('reason', requirement))
                for i, (ident, route, requirement) in enumerate((('foundation', 'skeleton', '交付首段学习成果'),
-                    ('restored', 'log', '交付复习或复练成果'), ('assembly', 'contest', '原页面记录一次模考/考试成绩')))]
+                    ('restored', 'dwelling' if world_id(g) == 'xingce' else 'log', '交付复习或复练成果'), ('assembly', 'contest', '原页面记录一次模考/考试成绩')))]
     return {'error': '', 'title': p['title'], 'stage': stage, 'phase': p['stages'][stage],
             'milestones': milestones, 'regions': regions, 'exam': exam or '', 'remaining': remaining,
             'note': '解锁记录保留；修改考试日程不会收回阶段或收藏。原学习入口始终可用。'}

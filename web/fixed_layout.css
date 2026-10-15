@@ -271,3 +271,10 @@ html.drawing .page-settings-gear{display:none}
 .study-towers .study-region-copy b,.study-offices .study-region-copy b{font-size:28px;line-height:1.6}
 .study-towers .study-region-copy,.study-offices .study-region-copy{gap:12px;padding:16px}
 .study-towers .study-region-image,.study-offices .study-region-image{flex:none}
+
+/* 3.1.3行测洞府：三张修行记录同排，卡片撑满工作区高度，近7天记录在卡内滚动；电脑/平板横屏三列，平板竖屏三行等分 */
+.fx-records-list.fx-records-fill{grid-template-rows:minmax(0,1fr);align-content:stretch;gap:var(--ds-sp-12)}
+.fx-records-list.fx-records-fill>.card{display:flex;flex-direction:column;overflow:auto;margin:0!important}
+.fx-records-list.fx-records-fill>.card>details:not(.form-fold){flex:1;min-height:0}
+@media(max-width:1100px){.fx-records-list.fx-records-fill{display:grid}}
+@media(max-width:1100px) and (orientation:portrait){.fx-records-list.fx-records-fill{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr))}}

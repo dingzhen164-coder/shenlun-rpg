@@ -59,6 +59,16 @@
       const name=title(n),has=s=>n.matches(s)||!!n.querySelector(s);
       if(route==='dwelling'){
         if(has('.narrative-dwelling,.xc-guide-scene,.npc.greet')){n.remove();continue;}
+        if(mode==='peaks'){
+          // 3.1.3行测洞府：三才时辰与日课数据并入修为与突破；十二经独立一页；三张修行记录同排；储物袋、修行日志从照心台搬入
+          if(has('.hero,.trib-card,.retreat,.mock-rewards,.grid.g5')||n.matches('.sancai:not(.shier)'))group('growth','修为与突破',n);
+          else if(n.matches('.sancai.shier'))group('shier','十二经',n);
+          else if(has('.lecture-card'))group('records','修行记录',n,true);
+          else if(has('.bag-card,.leave-card'))group('bag','储物袋',n);
+          else if(has('.diary-card'))group('diary','修行日志',n);
+          else group('other','成长记录',n);
+          continue;
+        }
         if(has('.hero,.trib-card,.retreat,.mock-rewards'))group('growth',mode==='office'?'仕途与晋升':mode==='mage'?'成长与晋升':'修为与突破',n);
         else if(has('.sancai,.grid.g5'))group('daily',mode==='office'?'学时与出勤':'时辰与日课',n);
         else if(has('.lecture-card'))group('records',mode==='peaks'?'修行记录':'学习记录',n,true);
@@ -123,8 +133,9 @@
     }
     const items=entries.map(entry=>{
       const panel=make('section','fx-panel'),scroll=make('div','fx-scroll');scroll.tabIndex=0;panel.dataset.fxGroup=entry.id;
-      if(entry.id==='records')scroll.classList.add('fx-records-list');
+      if(entry.id==='records'){scroll.classList.add('fx-records-list');if(themeKey()==='peaks')scroll.classList.add('fx-records-fill');}
       entry.nodes.forEach(n=>scroll.append(n));
+      if(entry.id==='records'&&themeKey()==='peaks')scroll.querySelectorAll('details.fold:not(.form-fold)').forEach(d=>d.open=true);
       panel.append(scroll);area.append(panel);return {label:entry.label,panel};
     });
     shell.append(area);root.append(shell);if(items.length>1)tabs(shell,items,key);

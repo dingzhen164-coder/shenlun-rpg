@@ -32,7 +32,7 @@ dialog.close();dialog.remove();dialog=null;
     const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open],.world-progress[open],.narrative-companions[open]')||[]).map(e=>e.className);
     const top=dialog?.scrollTop||0;
     if(data.guide_profile)data.profile=data.guide_profile;
-    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${data.justDelivered?'<p class="narrative-feedback" role="status">成果已交付，人物纪念已记入收藏册。</p>':''}${journeyHtml()}${worldHtml()}${companionsHtml()}<div class="narrative-chapters">${data.chapters.filter(c=>!c.character).map(c=>`<div class="ds-card"><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button>${data.world==='xingce'?'<button data-narrative="legacy">原五章宗门纪事</button>':''}</div>${memoriesHtml()}`);
+    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${data.justDelivered?'<p class="narrative-feedback" role="status">成果已交付，人物纪念已记入收藏册。</p>':''}${journeyHtml()}${worldHtml()}${companionsHtml()}<div class="narrative-chapters">${data.chapters.filter(c=>!c.character).map(c=>`<div class="ds-card"><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button></div>${memoriesHtml()}`);
     expanded.forEach(name=>dialog.querySelector('.'+name)?.setAttribute('open',''));
     dialog.scrollTop=top;
   }
@@ -161,7 +161,7 @@ dialog.close();dialog.remove();dialog=null;
     const action=button.dataset.narrative;
     if(['finish','skip','replay'].includes(action))return command(action);
     if(action==='back'){delete data.scene;delete data.justDelivered;return catalogue();}
-    if(['study','review','tutor','legacy'].includes(action)){close();handlers?.[action]?.();}
+    if(['study','review','tutor'].includes(action)){close();handlers?.[action]?.();}
   });
   document.addEventListener('change',e=>{
     if(!e.target.matches('[data-narrative-brief]')||!dialog||pending)return;

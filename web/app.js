@@ -174,6 +174,7 @@ function applyTheme() {
   $(".brand").innerHTML = `<img class="app-brand-icon" src="icons/icon-192.png?v=2.5.1" alt=""><span>${esc(DASH.app_name || "公考模拟器")}</span><small class="app-subject">${esc(DASH.subject || "")}</small>`;
   document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
   configurePortal();
+  document.querySelectorAll('#nav a[data-view="log"]').forEach((a) => (a.hidden = !isSL()));
   document.querySelectorAll("#nav a").forEach((a) => (a.textContent = a.dataset.view === "home" ? (isSL()?"🏛 政务大厅":"🏯 青衡宗") : a.dataset.view === "dwelling" ? W("nav.home") : W("nav." + a.dataset.view)));
   if(isSL())window.SL_UI?.chrome();
   window.SL_CURSOR?.sync();
@@ -189,17 +190,15 @@ function configurePortal() {
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
-    {id:'guide',label:'清禾静室',view:'guide',x:17,y:54},{id:'train',label:'问道群峰',view:'train',x:46,y:38},
+    {id:'train',label:'问道群峰',view:'train',x:46,y:38},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:76,y:34},{id:'bank',label:'试炼塔',view:'bank',x:87,y:57},
-    {id:'log',label:'照心台',view:'log',x:64,y:76},{id:'contest',label:'演武场',view:'contest',x:33,y:77},
-    {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},{id:'story',label:'宗门纪事',view:'story',x:60,y:20},
-    {id:'notes',label:'修行手札',view:'notes',x:89,y:30},
-    {id:'tianji',label:'天机台',view:'tianji',x:15,y:30},{id:'journal',label:'人物纪事与委托',view:'journal',x:34,y:18},
+    {id:'contest',label:'演武场',view:'contest',x:33,y:77},
+    {id:'dwelling',label:'洞府',view:'dwelling',x:12,y:88},
+    {id:'notes',label:'灵台手札',view:'notes',x:89,y:30},
+    {id:'tianji',label:'天机台',view:'tianji',x:15,y:30},{id:'journal',label:'任务大殿',view:'journal',x:34,y:18},
   ];
   SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',image:official?'assets/shenlun/hall.webp':'assets/sect/map.webp',extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
-    else if(p.view==='guide')XC_GUIDE.open();
-    else if(p.view==='story')XC_SECT.openStory();
     else go(p.view);
   });
 }
@@ -254,6 +253,7 @@ async function render() {
     else if (VIEW === "skeleton") { if (!DASH) await refresh(); v.innerHTML = await views.skeleton(); bindSkeleton(); }
     else if (VIEW === "bank") { if (!DASH) await refresh(); v.innerHTML = await views.train(); bindTrain(); }
     else if (VIEW === "wrong" || VIEW === "pill") { VIEW = "log"; return go("log"); }   // 心魔录、丹房在 3.0 去掉了
+    else if (VIEW === "log" && !isSL()) { VIEW = "dwelling"; return go("dwelling"); }   // 3.1.3行测没有照心台：日志与储物袋在洞府
     else if (VIEW === "log") { await refresh(); v.innerHTML = views.log(); bindLog(); }
     else if (VIEW === "settings") { await refresh(); await AMB.load(); v.innerHTML = await views.settings(); bindSettings(); }
     if(isSL())window.SL_UI?.mount(VIEW);
@@ -273,10 +273,9 @@ function mountNarrative() {
     api, error: showError,
     task: t => t.type === "cards" ? (go("train").then(() => CARDS.review(""))) : startTask({task_id:t.id}),
     updated: () => refresh(),
-    route: view => ["train","skeleton","log","contest"].includes(view) && go(view),
-    study: () => go('train'), review: () => go('log'),
+    route: view => ["train","skeleton","log","contest","dwelling"].includes(view) && go(view),
+    study: () => go('train'), review: () => go(isSL() ? 'log' : 'dwelling'),
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
-    legacy: () => window.XC_SECT?.openStory(),
   });
 
 }
@@ -534,6 +533,7 @@ const views = {
     ${lectureCard(d)}
     ${practiceCard(d)}
     ${selfstudyCard(d)}
+    ${isSL() ? "" : dwellingExtras(d)}
     `;
   },
 
@@ -694,6 +694,15 @@ function bindRetreatTimer() {
   window._rt = setInterval(() => { if (!document.body.contains(el)) return clearInterval(window._rt); tick(); }, 1000);
 }
 // ------------------------------------------------------------ 听道（其他平台看网课）：首页记录，计入每日功行
+// 3.1.3行测洞府：储物袋、告假、修行日志从照心台搬来（原节点结构与按钮不变，告假按钮在bindHome绑定）
+function dwellingExtras(d) {
+  const P = progressParts(d);
+  return `<div class="card bag-card"><h3>🎒 ${esc(W("bag"))}</h3>${P.bag}</div>
+    <div class="card leave-card"><h3>📜 ${esc(W("leave"))} <small>本月已用 ${d.leave.used}/${d.leave.total}</small></h3>
+      <p class="muted small">生病、家里有事、加班……用一份${esc(W("leave"))}：今天${esc(W("streak"))}不断，也不计入${esc(W("ideal"))}。</p>
+      <button id="leaveBtn" ${d.leave.today ? "disabled" : ""}>${d.leave.today ? "今天已告假" : "使用" + esc(W("leave"))}</button></div>
+    <div class="card diary-card"><h3>📖 修行日志</h3>${recentList(d.recent)}</div>`;
+}
 function lectureCard(d) {
   const m = d.minutes, goal = m.goal || 300;
   const lec7 = (d.lectures || []).reduce((a, x) => a + x.minutes, 0);
@@ -952,6 +961,7 @@ function bindHome() {
   bindBreak();
   const tb = $("#tribBtn"); if (tb) tb.onclick = () => startTask({ task: { type: "tribulation", board: "", target: String(DASH.trib.gate), title: `⚡ ${W("tribulation")} · ${DASH.trib.realm}` } });
   bindRetreatTimer();
+  const lv = $("#leaveBtn"); if (lv) lv.onclick = async () => { try { const r = await api("/api/leave", {}); handleEvents(r.events); render(); } catch (e) { showError(e); } };
   if (DASH?.greet_pending && (isSL() || !window.XC_GUIDE)) {
     DASH.greet_pending = false;
     api("/api/tutor/greet", {}).then((r) => {
@@ -962,20 +972,6 @@ function bindHome() {
 }
 
 function mountGuide() {
-  window.XC_SECT?.mount(DASH, {
-    guide: () => document.querySelector('[data-xc-guide="open"]')?.click(),
-    study: () => { HALL = "xiulian"; go("train"); },
-    library: () => go("skeleton"),
-    tower: () => { go("bank"); },
-    wrong: () => {
-      const task = DASH?.plan?.tasks?.find(t => t.type === "wrong" && !t.done);
-      if (task) startTask({ task_id: task.id }); else go("log");
-    },
-    contest: () => go("contest"),
-    schedule: () => go("settings"),
-    saveStory: chapter => api("/api/sect/story", { chapter }),
-    refresh: () => render(), error: showError,
-  });
   window.XC_GUIDE?.mount(DASH, VIEW, {
     teach: () => go("skeleton"),
     study: () => {
@@ -986,7 +982,7 @@ function mountGuide() {
     wrong: () => {
       const task = DASH?.plan?.tasks?.find(t => t.type === "wrong" && !t.done);
       if (task) startTask({ task_id: task.id });
-      else go("log");
+      else go(isSL() ? "log" : "train");
     },
     tutor: () => startTask({ task: { type: "chat", board: "", target: "", title: `💬 ${W("tutor_room")}` } }),
   });

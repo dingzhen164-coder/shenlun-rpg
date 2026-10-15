@@ -14,7 +14,7 @@ await page.goto(url);await page.waitForFunction(()=>!!window.DASH_REF?.());
 const route=async v=>{await page.evaluate(v=>go(v),v);await page.waitForTimeout(300);};
 await route('dwelling');await page.waitForFunction(()=>!!document.querySelector('[data-fx-group="growth"]'));
 assert.equal(await page.locator('.narrative-dwelling,.xc-guide-scene,.npc.greet').count(),0);
-assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),3);
+assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),subject==='行测'?5:3);   // 行测洞府3.1.3：修为与突破/十二经/修行记录/储物袋/修行日志
 const before=await page.evaluate(()=>DASH.xp),reward=await page.evaluate(()=>DASH.mock_rewards.find(r=>r.status==='pending').preview.amount);
 const claim=page.locator('[data-mock-reward]').first();await reveal(page,claim);await claim.click();
 await page.waitForFunction(x=>DASH.xp===x,before+reward);
