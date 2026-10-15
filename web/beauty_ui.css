@@ -103,5 +103,8 @@
 @media (max-width: 1099px) { #companion { display: none; } }
 
 /* ---- 人物“看向光标”：随鼠标/倾斜轻微平移与偏转（独立的 translate/rotate 属性，不影响原有呼吸、摇摆动画） */
-.narrative-stage, .comp-img { translate: calc(var(--mx, 0) * 5px) calc(var(--my, 0) * 2px); rotate: calc(var(--mx, 0) * 1.1deg); }
-[data-motion="reduced"] .narrative-stage, [data-motion="reduced"] .comp-img { translate: none; rotate: none; }
+.comp-img { translate: calc(var(--mx, 0) * 5px) calc(var(--my, 0) * 2px); rotate: calc(var(--mx, 0) * 1.1deg); }
+.narrative-stage > img { translate: calc(var(--mx, 0) * 4px) calc(var(--my, 0) * 1.5px); }   /* 无 WebGL 时的降级：图层整体轻微看向光标（舞台本身有呼吸动画，不能改它的 translate） */
+.narrative-stage.sway-on > img { visibility: hidden; }
+.sway-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+[data-motion="reduced"] .comp-img, [data-motion="reduced"] .narrative-stage > img { translate: none; rotate: none; }

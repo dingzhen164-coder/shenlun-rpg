@@ -425,3 +425,4 @@ shared web/beauty_compass.js
 shared web/assets/beauty/dongfu/README.md
 shared web/beauty_companion.js
 shared web/beauty_motion.js
+shared web/beauty_sway.js

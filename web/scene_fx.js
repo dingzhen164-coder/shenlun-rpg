@@ -135,7 +135,7 @@
   window.SCENE_FX = {
     phase, season, resolve, apply,
     settingsHtml() {
-      const comp = window.BeautyCompanion ? `<p>${BeautyCompanion.settingsHtml()}</p>` : '';
+      const comp = (window.BeautyCompanion ? `<p>${BeautyCompanion.settingsHtml()}</p>` : '') + (window.BeautySway ? `<p>${BeautySway.settingsHtml()}</p>` : '');
       const o = (k, cur, list) => list.map(([v, n]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${n}</option>`).join('');
       return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${o('t', LS('scene-time', 'auto'), [['auto', '自动（跟随时钟）'], ['day', '一直白天'], ['night', '一直夜晚'], ['theme', '跟随亮暗主题']])}</select></label>` +
         `<label>季节效果<select data-scene-season>${o('s', LS('scene-season', 'auto'), [['auto', '自动（按月份）'], ['spring', '春·落樱'], ['summer', '夏·萤火'], ['autumn', '秋·落叶'], ['winter', '冬·飘雪'], ['off', '关闭']])}</select></label></div>` + comp;
