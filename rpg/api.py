@@ -13,7 +13,6 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     GET  /api/subject              当前科目和可选科目；POST {"subject": "行测"|"申论"} 切换（网页随后重新加载）
     GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
     GET  /api/app/latest           平板 App 的最新版本（电脑替平板去 GitHub 下安装包）；/app/xingce-xiuxian.apk 拿安装包
-    POST /api/theme                {"theme": "修仙"|"玄幻"}  切换风格
     POST /api/retreat/start        {"board", "minutes"}  闭关；POST /api/retreat/end 提前出关
     POST /api/plan/regenerate      重新生成今日任务
     POST /api/session/start        {"task_id"} 或 {"task": {type, board, target, title}} 开始修炼
@@ -89,7 +88,7 @@ def open_game(save=True):
         st = store.Store(paths)
         today = dt.date.today()
         state = st.load(today)
-        # 风格存在存档里：它决定用哪套导师设定、哪个台词库；风格必须属于当前科目（行测：修仙 / 玄幻；申论：官场）
+        # 风格存在存档里：它决定用哪套导师设定、哪个台词库；风格必须属于当前科目（行测：修仙；申论：官场）
         sub = subjects.SUBJECTS[paths.subject]
         if state.get("theme") not in sub["themes"]:
             state["theme"] = sub["default_theme"]
@@ -543,14 +542,15 @@ def wrong(body):
 
 def heartbeat(body):
     """网页定时上报。只有带着“正在修炼”的会话（见 trainer.is_studying）才计时；
-    只是开着网页、看面板、和导师闲聊，只刷新状态，不计时。"""
+    玉简翻阅/温简和已签发阅读凭据的导图也按复习计时；面板和闲聊不计时。"""
     sec = max(0, min(90, int(body.get("seconds", 0))))
     studying = trainer.is_studying(body.get("session"))
     noting = not studying and bool(body.get("notes")) and notes.writing(body.get("notes"))   # 在手札里写（1 分钟内动过笔）
-    carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 在温简（2 分半内答过一张）
+    carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 后端核对近期取卡、翻卡或答卡，前端另核对可见性及操作时限
     answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 申论：在作答页写答案
     tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在天机简报里学（5 分钟内翻过、填过、答过）
     with open_game() as g:
+        mapping = mindmap.reading(g.paths, body.get("mindmap")) if not (studying or noting or carding) and g.paths.vault else None
         sid = body.get("session")
         if studying and sec:
             ev = tutor.enrich(g, g.add_seconds(sec, trainer.study_kind(sid), trainer.study_board(g, sid)))
@@ -558,11 +558,13 @@ def heartbeat(body):
             ev = tutor.enrich(g, g.add_seconds(sec, "review", body.get("cards_board") if carding and body.get("cards_board") in g.boards else ""))
         elif answer and sec:   # 在作答页写答案（2 分钟内敲过键盘），算做题
             ev = tutor.enrich(g, g.add_seconds(sec, "practice", body.get("answering") if body.get("answering") in g.boards else ""))
+        elif mapping is not None and sec:
+            ev = tutor.enrich(g, g.add_seconds(sec, "review", mapping if mapping in g.boards else ""))
         elif tj and sec:      # 精卷算做题，研读 / 消化算复习，都记在政治理论
             ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", g.news_board() if g.news_board() in g.boards else ""))
         else:
             ev = []
-        studying = studying or noting or carding or answer or bool(tj)
+        studying = studying or noting or carding or mapping is not None or answer or bool(tj)
         from . import study_status
         return {"events": ev, "xp": g.state["xp"], "realm": g.realm_info(), "study_status": study_status.view(g),
                 "today": g.t, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
@@ -773,19 +775,6 @@ def boss(body):
         if kind == "飞升" and body.get("result"):
             name = f"{name}（{body['result']}）"
         return {"events": tutor.enrich(g, g.add_boss(name, score, kind) + g.housekeeping())}
-
-
-def theme_set(body):
-    name = body.get("theme")
-    if name not in themes.THEMES:
-        raise ApiError("未知的风格")
-    if name not in subjects.get(subjects.active())["themes"]:
-        raise ApiError("这个科目没有这种风格")
-    with open_game() as g:
-        g.state["theme"] = name
-        g.state["tutor_greet"] = None   # 换了导师，重新打招呼
-        g.state["plan"] = None          # 功课标题换成新风格的说法
-        return {"ok": True}
 
 
 def lecture_add(body):
@@ -1021,7 +1010,6 @@ ROUTES = {
     ("GET", "/api/dashboard"): dashboard,
     ("POST", "/api/sect/story"): sect_story_read,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
-    ("POST", "/api/theme"): theme_set,
     ("GET", "/api/subject"): subject_get,
     ("POST", "/api/subject"): subject_set,
     ("GET", "/api/shenlun/papers"): shenlun_papers,
@@ -1310,7 +1298,11 @@ def cards_search(body):
 
 
 def cards_info(body):
-    return _cards(lambda g: cards.info(g, body.get("key")))
+    def read(g):
+        r = cards.info(g, body.get("key"))
+        cards.LAST_ANSWER["t"] = cards.time.time()
+        return r
+    return _cards(read)
 
 
 def cards_stats(body):
@@ -1392,11 +1384,16 @@ def mm_list(body):
 
 
 def mm_get(body):
-    return _mm(mindmap.get, body.get("board"), body.get("name"))
+    def read(p):
+        r = mindmap.document(p, body.get("board"), body.get("name"), not body.get("readonly"))
+        if body.get("readonly") and r.get("document_path"):
+            r["reading_token"] = mindmap.start_reading(p, r["board"], r["name"])
+        return r
+    return _mm(read)
 
 
 def mm_save(body):
-    r = _mm(mindmap.save, body.get("board"), body.get("name"), body.get("data"))
+    r = _mm(mindmap.save_document, body.get("board"), body.get("name"), body.get("data"), body.get("document_revision"))
     r.pop("data", None)
     return r
 
@@ -1843,3 +1840,41 @@ def cursor_import(body):
 
 
 ROUTES[("POST", "/api/cursor/import")] = cursor_import
+
+# 3.1.0：分区图只读取训练/外观/五脉，文件名沿用分区显示名称。
+def study_regions_images(body):
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            return {"images": {}, "folder": "训练/外观/五脉/"}
+        folder = g.paths.train / "外观" / "五脉"
+        resolved = folder.resolve()
+        if g.paths.train.resolve() not in resolved.parents or g.paths.vault.resolve() not in resolved.parents:
+            raise ApiError("分区图片文件夹必须在训练目录内")
+        folder.mkdir(parents=True, exist_ok=True)
+        images = {}
+        for f in folder.iterdir():
+            if not f.is_file() or f.suffix.lower() != ".png":
+                continue
+            if vault.safe_vault_file(g.paths, f.relative_to(g.paths.vault).as_posix()):
+                images[f.stem] = "/vault-file?p=" + quote(f.relative_to(g.paths.vault).as_posix()) + "&v=" + str(f.stat().st_mtime_ns)
+        return {"images": images, "folder": "训练/外观/五脉/"}
+
+ROUTES[("GET", "/api/study-regions")] = study_regions_images
+ROUTES[("POST", "/api/mindmap/stop")] = lambda body: mindmap.end_reading(body.get("token"))
+
+def mm_local(body):
+    def open_document(p):
+        r = mindmap.document(p, body.get('board'), body.get('name'), False)
+        if not r.get('document_path'):
+            raise ApiError('请先在资料库创建这幅导图')
+        target = (p.vault / r['document_path']).resolve()
+        if p.train.resolve() not in target.parents:
+            raise ApiError('文档路径必须在训练目录内')
+        try:
+            notes.open_local(target)
+        except Exception as e:
+            raise ApiError('打不开本地Markdown：%s' % e)
+        return {'ok': True}
+    return _mm(open_document)
+ROUTES[("POST", "/api/mindmap/local")] = mm_local
+LOCAL_ONLY.add('/api/mindmap/local')

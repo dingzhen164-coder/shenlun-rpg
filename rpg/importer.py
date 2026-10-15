@@ -27,7 +27,7 @@ from . import ai, skeleton, vault
 BOARDS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
           "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
 ALIAS = {"类比关系": "类比推理", "中心理解": "片段阅读", "语句排序": "片段阅读", "语句表达": "片段阅读"}
-IMAGE_BOARDS = {"图形推理", "资料分析"}          # 题目文字里没有图，没图做不了
+IMAGE_BOARDS = {"图形推理"}          # 题目文字里没有图，没图做不了
 TODO = "（待补）"
 UNSORTED = "待分类"
 FIX_DIR = "_待修"
@@ -559,6 +559,8 @@ def with_source(stem, source):
 def place_images(paths, board, qid, stem, dry):
     """模考截图 ![[S36-Q066.png]] 复制到 训练/题库/图片/<板块>/<编号>.png（材料图 <前缀>-M111-115.png），改成库内路径。
     返回 (新题干, 缺的图)"""
+    from . import question_images
+    stem = question_images.clean_text(paths, board, stem)
     missing, seq = [], [0]
     img_dir = paths.train / "题库" / "图片" / board
     prefix = qid.rsplit("-", 1)[0]
@@ -599,7 +601,7 @@ SEASON_RE = re.compile(r"第([一二三四五六七八九十百零\d]+)季")
 
 
 def pdf_dir(paths):
-    return paths.vault.joinpath(*PDF_DIR)
+    return paths.train / "模考试卷"
 
 
 def split_script(paths):
@@ -620,8 +622,10 @@ def pdf_list(paths):
     """模考试卷文件夹里的 PDF，标出季数和是否已经拆过"""
     d, done = pdf_dir(paths), {n for n, sd in vault.seasons(paths) if any(sd.glob("[0-9][0-9]-*.md"))}
     out = []
-    if d.is_dir():
-        for f in sorted(d.glob("*.pdf"), key=lambda x: x.stat().st_mtime, reverse=True):
+    from . import question_images
+    candidates = question_images.pdf_files(paths)
+    if candidates:
+        for f in sorted(candidates, key=lambda x: x.stat().st_mtime, reverse=True):
             m = SEASON_RE.search(f.stem)
             n = _cn2int(m.group(1)) if m else None
             out.append({"file": f.name, "season": n, "split": n in done})
@@ -658,7 +662,8 @@ def split_pdf(paths, body):
     import subprocess
     import sys
     name = Path(str(body.get("file") or "")).name
-    f = pdf_dir(paths) / name
+    from . import question_images
+    f = next((p for p in question_images.pdf_files(paths) if p.name == name), pdf_dir(paths) / name)
     if not name or not f.is_file():
         raise ImportError_("找不到这份 PDF")
     m = SEASON_RE.search(f.stem)
@@ -669,17 +674,25 @@ def split_pdf(paths, body):
         raise ImportError_("没找到 xingce-mokao-split（先运行 skill 安装脚本）")
     if not has_pymupdf():
         raise ImportError_("缺少 pymupdf：点下面的“安装拆分组件”，或在 PowerShell 运行 pip install pymupdf")
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    season = _cn2int(m.group(1))
+    if any(n == season and any(d.glob("[0-9][0-9]-*.md")) for n, d in vault.seasons(paths)):
+        rep = commit(paths, {"kind": "season", "season": season})
+        rep.update(season=season, split_log="复用已有复盘；题目自动应用截图净化，保留原笔记")
+        return rep
+    output = paths.train / '模考复盘' / ('第%d季' % season)
+    output.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", XINGCE_CLEAN_IMAGES="1", XINGCE_CLEAN_VAULT=str(paths.vault))
     from .paths import FROZEN
     # 打包成 exe 时 sys.executable 就是 exe 本身：让它带 --run-script 去跑拆分脚本（exe 里带着 pymupdf）
-    cmd = [sys.executable, "--run-script", str(script), str(f)] if FROZEN else [sys.executable, str(script), str(f)]
+    args = ["--run-script", str(script), str(f), "--out", str(output)]
+    cmd = [sys.executable] + args if FROZEN else [sys.executable, str(Path(__file__).resolve().parent.parent / "app.py")] + args
     r = subprocess.run(cmd, capture_output=True, timeout=600, env=env,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     log = (r.stdout + r.stderr).decode("utf-8", errors="replace")
     if r.returncode != 0:
         raise ImportError_("拆分失败：\n" + log[-800:])
     season = _cn2int(m.group(1))
-    if not any(d for n, d in vault.seasons(paths) if n == season):
+    if not any(d for n, d in vault.seasons(paths) if n == season and any(d.glob("[0-9][0-9]-*.md"))):
         raise ImportError_("拆分完成但没找到第%d季的板块复盘：\n%s" % (season, log[-800:]))
     rep = commit(paths, {"kind": "season", "season": season})
     rep["season"] = season

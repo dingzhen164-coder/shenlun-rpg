@@ -37,6 +37,9 @@ def run_script():
             s.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+    if os.environ.get('XINGCE_CLEAN_IMAGES') == '1' and Path(script).name == 'split_mokao.py':
+        from rpg.question_images import run_splitter
+        return run_splitter(script, sys.argv[1:])
     runpy.run_path(script, run_name="__main__")
 
 

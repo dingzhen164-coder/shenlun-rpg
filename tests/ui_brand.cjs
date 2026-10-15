@@ -45,7 +45,7 @@ async function main(){
    await cursorToggle.evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
    for(const theme of ['light','dark']){
     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-    await page.locator('.sl-ui-masthead h1').click();await page.locator('.sl-cursor-stamp').first().waitFor();
+    await page.locator('.subpage-place h2').click();await page.locator('.sl-cursor-stamp').first().waitFor();
     await page.locator('.sl-cursor-stamp').first().evaluate(el=>el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;}));
     assert.equal(await page.locator('.sl-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');
     await page.screenshot({path:path.join(out,`sl-cursor-desktop-${theme}.png`),animations:'allow'});
@@ -53,9 +53,9 @@ async function main(){
    }
    await page.evaluate(()=>document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0})));
    assert.equal(await page.locator('.sl-cursor-stamp').count(),0);
-   await page.evaluate(()=>document.querySelector('.sl-ui-masthead h1').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0})));
+   await page.evaluate(()=>document.querySelector('.subpage-place h2').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0})));
    assert.equal(await page.locator('.sl-cursor-stamp').count(),0);
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.sl-ui-masthead h1').click();assert.equal(await page.locator('.sl-cursor-stamp').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.subpage-place h2').click();assert.equal(await page.locator('.sl-cursor-stamp').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
    await cursorToggle.uncheck();assert.ok(await page.locator('body').evaluate(el=>!el.classList.contains('sl-office-cursor')));
    await page.reload();await page.waitForFunction(()=>document.querySelector('.app-subject')?.textContent==='申论');
    assert.ok(await page.locator('body').evaluate(el=>!el.classList.contains('sl-office-cursor')));await settings();
@@ -66,16 +66,17 @@ async function main(){
    }
    for(const view of ['dwelling','train','bank','notes','contest','tianji','skeleton','log']){
     await page.evaluate(v=>go(v),view);
-    const title={dwelling:'办公室',train:'知识办理中心',bank:'实操训练中心',notes:'公务手账',contest:'年度考核',tianji:'天机台',skeleton:'档案室',log:'政绩录'}[view];
-    await page.waitForFunction(title=>document.querySelector('.sl-ui-masthead h1')?.textContent===title,title);
+    const title=await page.evaluate(v=>v==='train'?(STUDY_REGIONS.title()||SCENE_PORTAL.title(v)):SCENE_PORTAL.title(v),view);
+    await page.waitForFunction(title=>document.querySelector('.subpage-place h2')?.textContent===title,title);
     if(view==='train'||view==='bank')assert.equal(await page.locator('[data-hall]').count(),0);
-    if(view==='skeleton')assert.equal(await page.locator('.sl-ui-masthead [data-libtab]').count(),3);
+    if(view==='skeleton'){await page.locator('.subpage-nav [data-libtab]').first().waitFor();assert.equal(await page.locator('.subpage-nav [data-libtab]').count(),4);}
     if(view==='notes'){
-     assert.equal(await page.locator('.sl-ui-masthead [data-ntab]').count(),2);
-     await page.locator('.sl-ui-masthead [data-ntab="library"]').click();await page.locator('#ntQ').waitFor();
+     await page.locator('.subpage-nav [data-ntab]').first().waitFor();
+     assert.equal(await page.locator('.subpage-nav [data-ntab]').count(),2);
+     await page.locator('.subpage-nav [data-ntab="library"]').click();await page.locator('#ntQ').waitFor();
      await page.locator('#ntSideMin').click();await page.locator('#ntSideOpen').waitFor();
-     await page.locator('.sl-ui-masthead [data-ntab="books"]').click();await page.locator('#ntNew').waitFor();
-     assert.equal(await page.locator('.sl-ui-masthead [data-ntab]').count(),2);
+     await page.locator('.subpage-nav [data-ntab="books"]').click();await page.locator('#ntNew').waitFor();
+     assert.equal(await page.locator('.subpage-nav [data-ntab]').count(),2);
      assert.equal(await page.locator('.nt-side [data-ntab]').count(),0);
     }
     assert.equal(await page.locator('#nav .sl-ui-icon').count(),9);
@@ -100,7 +101,7 @@ async function main(){
      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
      await page.locator('[data-portal-go="guide"]').click();await page.locator('.xc-guide-dialogue').waitFor();
      await page.locator('[data-xc-guide="reveal"]').click();
-     assert.ok(await page.locator('.xc-guide-bust').evaluate(el=>el.scrollHeight>el.clientHeight),'上半身框裁去下半身');
+     assert.ok(await page.locator('.xc-guide-dialogue').evaluate(el=>{const r=el.getBoundingClientRect();return r.left===0&&r.top===0&&Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2;}),'导师对话按当前设计全屏显示');
      assert.equal(await page.locator('.xc-guide-spoken').textContent(),await page.locator('.xc-guide-sr').textContent());
      await page.screenshot({path:path.join(out,`xc-guide-${name}-${theme}.png`),animations:'disabled'});
      await page.keyboard.press('Escape');assert.equal(await page.locator('.xc-guide-dialogue').count(),0);
@@ -120,7 +121,7 @@ async function main(){
    await page.keyboard.press('Escape');
    await page.locator('[data-portal-go="train"]').click();await page.locator('.study-peaks').waitFor();
    assert.equal(await page.locator('[data-study-region]').count(),5);
-   for(const region of ['yan','shu','li','zi','chang']){
+   for(const region of ['chang','yan','li','shu','zi']){
     const entry=page.locator(`[data-study-region="${region}"]`);while(!await entry.isVisible())await page.locator('.fx-pager button').filter({hasText:'下一页'}).click();await entry.click();await page.locator('.study-region-heading').waitFor();
     assert.equal(await page.locator('.xc-sect-chamber,#bankCount').count(),0);
     await page.locator('[data-study-regions-back]').click();await page.locator('.study-peaks').waitFor();
@@ -132,14 +133,14 @@ async function main(){
    assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('sl-office-cursor')));
    for(const file of ['pointer','inner','outer'])assert.equal((await page.request.get(base+'/assets/xiuxian-cursor/'+file+'.svg')).status(),200);
    await page.locator('#xcSize').evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
-   async function arrayShot(name){await page.locator('#view .card h3').first().click();await page.locator('.xc-cursor-array').last().waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('.xc-cursor-array img')].every(im=>im.complete&&im.naturalWidth>50));await page.locator('.xc-cursor-array').evaluateAll(els=>{for(const el of els)for(const n of [el,...el.children])n.getAnimations().forEach(a=>{a.pause();a.currentTime=220;});});assert.equal(await page.locator('.xc-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');await page.screenshot({path:path.join(out,name+'.png'),animations:'allow'});await page.evaluate(()=>XC_CURSOR.sync());}
+   await page.evaluate(()=>{for(const [id,value] of [['xcSize','180'],['xcTime','1100']]){const b=document.getElementById(id);b.value=value;b.dispatchEvent(new Event('input',{bubbles:true}));}});
+   async function arrayShot(name){await page.locator('.subpage-place h2').first().click();await page.locator('.xc-cursor-array').last().waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('.xc-cursor-array img')].every(im=>im.complete&&im.naturalWidth>50));await page.locator('.xc-cursor-array').evaluateAll(els=>{for(const el of els)for(const n of [el,...el.children])n.getAnimations().forEach(a=>{a.pause();a.currentTime=220;});});assert.equal(await page.locator('.xc-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');await page.screenshot({path:path.join(out,name+'.png'),animations:'allow'});await page.evaluate(()=>XC_CURSOR.sync());}
    await page.locator('[data-xc-pref="pointer"]').uncheck();assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('xc-custom-pointer')));await page.locator('[data-xc-pref="pointer"]').check();
    for(const [name,width,height] of [['desktop',1280,860],['tablet',800,1280]]){await page.setViewportSize({width,height});for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-cursor-${name}-${theme}`);}}
    await page.setViewportSize({width:1280,height:860});
-   await page.locator('[data-xc-pref="click"]').uncheck();await page.locator('.shortcut-settings h3').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.locator('[data-xc-pref="click"]').check();
-   await page.evaluate(()=>{for(const [id,value] of [['xcSize','180'],['xcTime','1100']]){const b=document.getElementById(id);b.value=value;b.dispatchEvent(new Event('input',{bubbles:true}));}});
-   await page.evaluate(()=>{document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0}));document.querySelector('.shortcut-settings h3').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0}));});assert.equal(await page.locator('.xc-cursor-array').count(),0);
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.shortcut-settings h3').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
+   await page.locator('[data-xc-pref="click"]').uncheck();await page.locator('.subpage-place h2').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.locator('[data-xc-pref="click"]').check();
+   await page.evaluate(()=>{document.querySelector('#scheduleStart').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'mouse',button:0}));document.querySelector('.subpage-place h2').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch',button:0}));});assert.equal(await page.locator('.xc-cursor-array').count(),0);
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.subpage-place h2').click();assert.equal(await page.locator('.xc-cursor-array').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
    const zip=execFileSync(process.env.PYTHON||'python',['-c',"import sys;sys.path.insert(0,'tests');from test_cursor_assets import pack;sys.stdout.buffer.write(pack())"]);
    await page.locator('#xcZip').setInputFiles({name:'cursor.zip',mimeType:'application/zip',buffer:zip});await page.waitForFunction(()=>document.querySelector('#xcAssetStatus')?.textContent==='已使用本机Mod素材');
    for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await arrayShot(`xc-imported-desktop-${theme}`);}

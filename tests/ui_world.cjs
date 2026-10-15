@@ -16,9 +16,9 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
  const context=await browser.newContext({viewport:{width:1280,height:860}});page=await context.newPage();page.setDefaultTimeout(8000);require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();
+ await page.goto(base);await page.locator('.portal-world').waitFor();await page.keyboard.press('Tab');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();
  await page.locator('[data-portal-motion]').click();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
- await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Escape');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
+ await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Tab');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
  await home();assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.portal-cloud')).animationName),'none');await open();await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
  await page.locator('[data-narrative-choice="practice"]').click();await page.locator('[data-narrative-choice="continue"]').click();
  await page.locator('[data-narrative="finish"]').click();await page.locator('[data-narrative="replay"]').waitFor();

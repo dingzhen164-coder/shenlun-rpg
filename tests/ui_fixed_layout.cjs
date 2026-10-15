@@ -33,13 +33,13 @@ async function reveal(selector){
  for(const size of [{width:1280,height:860},{width:800,height:1280},{width:390,height:844},{width:1024,height:600}])for(const theme of ['light','dark']){
   await page.setViewportSize(size);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
   for(const route of routes){await page.evaluate(v=>go(v),route);await page.waitForTimeout(100);await fits(`${size.width}/${theme}/${route}`);checked++;
-   const labels=await page.locator('.fx-shell>.fx-tabs>.fx-tab').allTextContents();
-   for(let i=0;i<labels.length;i++){await page.locator('.fx-shell>.fx-tabs>.fx-tab').nth(i).click();await fits(route+'/'+labels[i]);assert.ok((await page.locator('.fx-panel:not([hidden])').innerText()).trim().length>0,'标签内容保留');}
+   const labels=await page.locator('.subpage-nav>.fx-tabs>.fx-tab').allTextContents();
+   for(let i=0;i<labels.length;i++){await page.locator('.subpage-nav>.fx-tabs>.fx-tab').nth(i).click();await fits(route+'/'+labels[i]);assert.ok((await page.locator('.fx-panel:not([hidden])').innerText()).trim().length>0,'标签内容保留');}
   }
  }
  await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>go('settings'));await reveal('#sModel');
  await page.locator('#sModel').fill('3.0.4未保存示例');const count=await page.locator('#view input').count();
- await page.locator('.fx-shell>.fx-tabs>.fx-tab').first().click();await reveal('#sModel');assert.equal(await page.locator('#sModel').inputValue(),'3.0.4未保存示例');assert.equal(await page.locator('#view input').count(),count,'切标签不能销毁设置输入');
+ await page.locator('#sModel').evaluate(e=>e.closest('details').open=false);await reveal('#sModel');assert.equal(await page.locator('#sModel').inputValue(),'3.0.4未保存示例');assert.equal(await page.locator('#view input').count(),count,'切标签不能销毁设置输入');
  const sc=page.locator('.fx-panel:not([hidden])>.fx-scroll');await sc.evaluate(e=>{const long=document.createElement('p');long.textContent='固定区域长文验证。'.repeat(2000);e.append(long);e.scrollTop=e.scrollHeight;});assert.ok(await sc.evaluate(e=>e.scrollTop>0),'长内容在框内滚动');await fits('长设置');
  await page.evaluate(()=>go('train'));await page.locator('[data-study-region]').first().click();await page.locator('.yj-hall').waitFor();await page.waitForTimeout(100);await fits('分区详情');
  const deck=await page.evaluate(()=>DASH.tree[0].board+'::固定布局自编');await page.evaluate(async deck=>{await api('/api/cards/add',{deck,type:'问答',front:'长文前面。\n\n'.repeat(200),back:'长文答案。\n\n'.repeat(200)});await CARDS.review(deck);},deck);

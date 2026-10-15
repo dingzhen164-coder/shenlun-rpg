@@ -5,13 +5,13 @@
   'use strict';
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const peaks=[
+    {id:'chang',name:'万象峰',subject:'常识与政治理论',hint:'认识天地 · 通晓世事',boards:['常识判断','政治理论']},
     {id:'yan',name:'辨言峰',subject:'言语理解',hint:'见字辨意 · 理清主旨',boards:['片段阅读','逻辑填空'],aliases:['言语理解','成语实词']},
-    {id:'shu',name:'演数峰',subject:'数量关系',hint:'推演变化 · 寻找解法',boards:['数量关系']},
     {id:'li',name:'明理峰',subject:'判断推理',hint:'理清论证 · 识破迷障',boards:['论证逻辑','形式逻辑','一拖五','定义判断','类比推理','图形推理'],aliases:['判断推理']},
-    {id:'zi',name:'观星峰',subject:'资料分析',hint:'观测数据 · 看清趋势',boards:['资料分析']},
-    {id:'chang',name:'万象峰',subject:'常识与政治理论',hint:'认识天地 · 通晓世事',boards:['常识判断','政治理论']}
+    {id:'shu',name:'演数峰',subject:'数量关系',hint:'推演变化 · 寻找解法',boards:['数量关系']},
+    {id:'zi',name:'观星峰',subject:'资料分析',hint:'观测数据 · 看清趋势',boards:['资料分析']}
   ];
-  let selected='',subject='';
+  let selected='',subject='',images={};
   // 复用功能判断，避免申论静态文件的术语替换改写科目比较常量。
   const office=()=>typeof isSL==='function'&&isSL();
   const peaksMode=()=>typeof isSL==='function'&&!isSL();
@@ -37,12 +37,17 @@
   }
   async function html(){
     const g=active(),title=SCENE_PORTAL.title('train'),xingce=peaksMode();
-    if(!g)return `<section class="study-regions ${xingce?'study-peaks':office()?'study-offices':'study-towers'}" aria-label="${esc(title)}分区选择"><header class="study-regions-heading"><span class="small muted">${xingce?'青衡宗 · 五脉同修':office()?'分题型办理':'分科目研习'}</span><h2>${esc(title)}</h2><p>${xingce?'择一峰而入，专心温简、梳理灵脉。':'选择一个板块，查看对应的记忆卡片与知识导图。'}</p></header><div class="study-region-grid">${groups().map((r,i)=>`<button class="study-region" data-study-region="${esc(r.id)}">${xingce?mountain(i):`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`}<span class="study-region-copy"><b>${esc(r.name)}</b><span>${esc(r.subject)}</span><small>${esc(r.hint)}</small><em>进入${xingce?'山峰':office()?'办理室':'研习区'} →</em></span></button>`).join('')}</div><p class="small muted study-regions-foot">资料沿用原来的板块与简匣。自定义的未分类资料可在「${esc(SCENE_PORTAL.title('skeleton'))}」中查看和整理。</p></section>`;
+    if(!g){try{images=(await api("/api/study-regions")).images||{};}catch(_){images={};}}
+    if(!g)return `<section class="study-regions ${xingce?'study-peaks':office()?'study-offices':'study-towers'}" aria-label="${esc(title)}分区选择"><header class="study-regions-heading"><span class="small muted">${xingce?'青衡宗 · 五脉同修':office()?'分题型办理':'分科目研习'}</span><h2>${esc(title)}</h2><p>${xingce?'择一峰而入，专心温简、梳理灵脉。':'选择一个板块，查看对应的记忆卡片与知识导图。'}</p></header><div class="study-region-grid">${groups().map((r,i)=>`<button class="study-region" data-study-region="${esc(r.id)}">${images[r.name]?`<img class="study-region-image" src="${esc(images[r.name])}" alt="${esc(r.name)}" data-region-image="${i}">`:xingce?mountain(i):`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`}<span class="study-region-copy"><b>${esc(r.name)}</b><span>${esc(r.subject)}</span><small>${esc(r.hint)}</small></span></button>`).join('')}</div></section>`;
     const boards=[...g.boards,...(g.aliases||[])];
     const [cards,maps]=await Promise.all([CARDS.hubHtml({id:g.id,label:g.name,deck:g.boards[0]}),MINDMAP.hubHtml(boards)]);
     return `<header class="study-region-heading"><button data-study-regions-back>← ${xingce?'返回五峰': '返回分区'}</button><div><h2>${esc(g.name)}</h2><p class="small muted">${esc(g.subject)} · ${esc(g.hint)}</p></div></header>${cards}${maps}`;
   }
   function bind(root){
+    root.querySelectorAll('[data-region-image]').forEach(img=>img.addEventListener('error',()=>{
+      if(peaksMode())img.outerHTML=mountain(Number(img.dataset.regionImage));
+      else img.outerHTML=`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`;
+    },{once:true}));
     root.querySelectorAll('[data-study-region]').forEach(el=>el.onclick=async()=>{selected=el.dataset.studyRegion;await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);});
     const back=root.querySelector('[data-study-regions-back]');if(back)back.onclick=async()=>{selected='';await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);};
   }

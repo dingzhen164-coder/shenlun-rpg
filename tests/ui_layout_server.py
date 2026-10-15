@@ -67,6 +67,22 @@ def main():
                         body += '### %d. %s\n自编题：增长率为多少？\n- **A.** 20%%\n- **B.** 30%%\n\n> [!check]- 答案\n> 正确答案：**A**　我的答案：**B**　错误\n\n> [!note] 复盘\n> 自编解析：用增加量除以原值。\n\n---\n' % (i, icon)
                     (folder / ('01-' + board + '.md')).write_text(body, encoding='utf-8')
                 api.bank_add(dict(board=board, topic='自编条件验证', source='UI测试', stem='自编题：哪个选项符合条件？', options=dict(A='符合', B='不符合', C='无关', D='无关'), answer='A', analysis='自编解析：逐项核对条件。'))
+        if '--reader-fixture' in sys.argv:
+            from rpg import cards, mindmap
+            with api.open_game() as g:
+                board = next(iter(g.boards))
+                root = {'data': {'text': board + ' · 自编知识纲要'}, 'children': []}
+                for i in range(12):
+                    root['children'].append({'data': {'text': '方法%d：理解适用条件' % (i + 1)}, 'children': [
+                        {'data': {'text': '先辨析问题，再核对条件。'}, 'children': []},
+                        {'data': {'text': '自编示例，逐步整理知识脉络。'}, 'children': []}]})
+                mindmap.create(g.paths, board, board, {'root': root, 'layout': 'logicalStructure'})
+                cards.add(g,dict(deck=board,type='问答',front='自编记忆卡：说明一个方法的条件。',back='核对条件，再解释边界。'))
+                print('UI-READER ' + __import__('json').dumps(dict(vault=str(g.paths.vault),board=board),ensure_ascii=False),flush=True)
+        if '--image-clean-fixture' in sys.argv:
+            from image_fixture311 import install
+            with api.open_game() as g:
+                install(g)
         srv = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
         api.RUNTIME.update(port=srv.server_port, lan=False)
         print('UI-READY http://127.0.0.1:%d' % srv.server_port, flush=True)

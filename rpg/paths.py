@@ -178,7 +178,7 @@ class Paths:
         if not self.vault:
             return []
         shen = self.subject == "申论"
-        dirs = [self.train, self.skeletons, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐"]
+        dirs = [self.train, self.skeletons, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐", self.train / "外观" / "五脉"]
         if shen:
             dirs += [self.rubrics, self.materials, self.reviews]
         for d in dirs:

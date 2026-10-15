@@ -176,14 +176,19 @@ def skill_for_tutor(paths, name):
 # ---------------------------------------------------------------- 模考复盘
 def seasons(paths):
     """[(季数, 目录)]，按季数从小到大"""
-    if not paths.seasons or not paths.seasons.is_dir():
-        return []
-    out = []
-    for d in paths.seasons.iterdir():
-        m = re.fullmatch(r"第(\d+)季", d.name)
-        if m and d.is_dir():
-            out.append((int(m.group(1)), d))
-    return sorted(out)
+    roots = [paths.seasons] if paths.seasons else []
+    if paths.train and getattr(paths,'subject','') == '行测':
+        roots.append(paths.train / '模考复盘')
+    found = {}
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for d in root.iterdir():
+            m = re.fullmatch(r"第(\d+)季", d.name)
+            if m and d.is_dir():
+                # 原有复盘包含用户笔记；新训练目录只补没有旧复盘的季，不覆盖已有目录。
+                found.setdefault(int(m.group(1)), d)
+    return sorted(found.items())
 
 
 def board_file(season_dir, source):
@@ -362,6 +367,9 @@ _img_index = {}
 def find_image(paths, season_dir, name):
     """Obsidian 式查找：先找本季目录（含 attachments），再在整个模考复盘目录里按文件名找"""
     name = name.strip()
+    direct = safe_vault_file(paths, name)
+    if direct:
+        return direct
     if season_dir:
         sd = Path(season_dir)
         for c in (sd / name, sd / "attachments" / name):
@@ -402,31 +410,39 @@ def render_blocks(paths, q, material=True):
     if text.strip():
         text += "\n\n"
     text += q["body"]
+    from . import question_images
+    text = question_images.clean_text(paths, q.get("board") or q.get("source") or "", text)
     return text_blocks(paths, q.get("dir"), text)
 
 
 def render_material(paths, q):
     t = material_text(q)
+    from . import question_images
+    t = question_images.clean_text(paths, q.get("board") or q.get("source") or "", t)
     return text_blocks(paths, q.get("dir"), t) if t else []
 
 
 def text_blocks(paths, folder, text):
     """一段 Markdown 文字 → 网页块（![[图]] 按库里的位置找成图片块）"""
-    blocks = []
-    pos = 0
+    blocks,buffer=[],""
+    pos=0
+    def flush():
+        nonlocal buffer
+        if buffer.strip():blocks.append({"t":"text","v":buffer.strip()})
+        buffer=""
     for m in IMG_RE.finditer(text):
-        if text[pos:m.start()].strip():
-            blocks.append({"t": "text", "v": text[pos:m.start()].strip()})
-        name = m.group(1) or m.group(2)
-        p = find_image(paths, folder, name)
+        buffer+=text[pos:m.start()]
+        name=m.group(1) or m.group(2);p=find_image(paths,folder,name)
         if p and paths.vault:
             try:
-                blocks.append({"t": "img", "v": p.resolve().relative_to(paths.vault.resolve()).as_posix()})
-            except ValueError:
-                pass
-        pos = m.end()
-    if text[pos:].strip():
-        blocks.append({"t": "text", "v": text[pos:].strip()})
+                rel=p.resolve().relative_to(paths.vault.resolve()).as_posix()
+                if '/_净化/符号/' in rel:
+                    buffer+='![[%s]]'%rel
+                else:
+                    flush();blocks.append({"t":"img","v":rel})
+            except ValueError:pass
+        pos=m.end()
+    buffer+=text[pos:];flush()
     return blocks
 
 

@@ -184,10 +184,15 @@ class SubjectTest(unittest.TestCase):
         d = api.dashboard({})
         self.assertEqual((d["subject"], d["features"]["bank"], d["theme"]["name"]), ("行测", True, "修仙"))
         self.assertIsNotNone(d["tower"])
-        api.theme_set({"theme": "玄幻"})                      # 行测可以切玄幻
+        self.assertEqual(subjects.get("行测")["themes"], ["修仙"])
+        self.assertNotIn(("POST", "/api/theme"), api.ROUTES)
+        # 旧玄幻存档继续使用，但恢复该科目的固定风格；学习数值保留。
+        with api.open_game() as g:
+            g.state["theme"] = "玄幻"
+            g.state["xp"] = 123
+        with api.open_game() as g:
+            self.assertEqual((g.theme, g.state["xp"]), ("修仙", 123))
         os.environ["SHENLUN_SUBJECT"] = "申论"
-        with self.assertRaises(api.ApiError):
-            api.theme_set({"theme": "玄幻"})                  # 申论只有官场
         d = api.dashboard({})
         self.assertEqual((d["subject"], d["features"]["grading"], d["theme"]["name"], d["tower"]), ("申论", True, "官场", None))
         self.assertEqual(d["theme"]["terms"]["brand"], "公考模拟器")

@@ -7,7 +7,7 @@ const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(s
 let browser,page,logs='';srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error(logs||'服务未启动')),20000);srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});srv.on('exit',c=>{clearTimeout(timer);reject(Error('服务退出 '+c+' '+logs));});});
 async function view(name){await page.waitForFunction(v=>VIEW===v&&!!document.querySelector(v==='home'?'.portal-world':v==='settings'?'.shortcut-settings':'#view[data-fx-route="'+v+'"]'),name);}
-async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await page.evaluate(()=>{document.activeElement?.blur();const p=JSON.parse(localStorage.getItem('map-shortcuts-v1')||'{}');return p.home||p.dwelling||'Tab';});await page.keyboard.press(key);await view('home');}}
+async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await page.evaluate(()=>{document.activeElement?.blur();const p=JSON.parse(localStorage.getItem('map-shortcuts-v1')||'{}');return p.schema!==2&&p.settings==='Escape'&&(p.home||p.dwelling)==='Tab'?'Escape':p.home||p.dwelling||'Escape';});await page.keyboard.press(key);await view('home');}}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});require('./fixed_ui_helpers.cjs').install(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await view('home');
@@ -20,13 +20,13 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await
   else if(id==='guide'||id==='story'){await page.locator('.xc-guide-dialogue').waitFor();await page.keyboard.press('Escape');await page.locator('.xc-guide-dialogue').waitFor({state:'detached'});}
   else{await view(id);assert.equal(await page.locator('.topbar').isVisible(),false);assert.equal(await page.locator('.subpage-heading').isVisible(),true);assert.equal(await page.locator('#mapPageTools,#xcGuideAvatar').count(),0);}
  }
- await home();await page.locator('[data-portal-go="dwelling"]').click();await view('dwelling');await page.keyboard.press('Tab');await view('home');await page.keyboard.press('Tab');await view('home');
- await page.keyboard.press('Escape');await view('settings');await page.keyboard.press('Tab');await view('home');
+ await home();await page.locator('[data-portal-go="dwelling"]').click();await view('dwelling');await page.keyboard.press('Escape');await view('home');await page.keyboard.press('Escape');await view('home');
+ await page.keyboard.press('Tab');await view('settings');await page.keyboard.press('Escape');await view('home');
  await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>VIEW),'home');
- await page.keyboard.press('Escape');await view('settings');await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('#bgmBtn'));assert.equal(await page.locator('#bgmBtn').isVisible(),true);await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('[data-portal-motion]'));assert.equal(await page.locator('[data-portal-motion]').isVisible(),true);
- await page.locator('[data-shortcut-record="settings"]').click();await page.keyboard.press('Tab');assert.match(await page.locator('[data-shortcut-status]').textContent(),/不能相同/);
+ await page.keyboard.press('Tab');await view('settings');await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('#bgmBtn'));assert.equal(await page.locator('#bgmBtn').isVisible(),true);await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('[data-portal-motion]'));assert.equal(await page.locator('[data-portal-motion]').isVisible(),true);
+ await page.locator('[data-shortcut-record="settings"]').click();await page.keyboard.press('Escape');assert.match(await page.locator('[data-shortcut-status]').textContent(),/不能相同/);
  await page.keyboard.press('F2');await page.locator('[data-shortcut-record="home"]').click();await page.keyboard.press('F3');await page.locator('[data-shortcut-save]').click();await page.locator('[data-shortcut-status]').filter({hasText:'快捷键已保存'}).waitFor();
- assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('map-shortcuts-v1'))),{settings:'F2',home:'F3'});
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('map-shortcuts-v1'))),{settings:'F2',home:'F3',schema:2});
  await page.evaluate(()=>render());await require('./fixed_ui_helpers.cjs').reveal(page,page.locator('#bgmBtn'));assert.equal(await page.locator('#bgmBtn').isVisible(),true);assert.ok((await page.locator('#todayPill').textContent()).length>4);
  await page.keyboard.press('F2');await view('home');await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>VIEW),'home');
  await page.reload();await view('home');await page.locator('[data-portal-go="dwelling"]').click();await view('dwelling');await page.keyboard.press('F3');await view('home');
@@ -46,11 +46,11 @@ async function home(){if(await page.evaluate(()=>VIEW)!=='home'){const key=await
  // 所有主题都保留手记，保存失败/延迟时设置快捷键不能丢草稿。
  await page.locator('[data-portal-go="notes"]').click();await view('notes');await page.waitForFunction(()=>!!window.NOTES);
  await page.evaluate(()=>{document.activeElement.blur();window.oldNavigationFlush=NOTES.flush;NOTES.flush=()=>new Promise(r=>window.releaseNavigationFlush=r);});
- await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>VIEW),'notes');await page.waitForFunction(()=>!!window.releaseNavigationFlush);await page.evaluate(()=>releaseNavigationFlush(false));await page.waitForTimeout(80);assert.equal(await page.evaluate(()=>VIEW),'notes');
+ await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>VIEW),'notes');await page.waitForFunction(()=>!!window.releaseNavigationFlush);await page.evaluate(()=>releaseNavigationFlush(false));await page.waitForTimeout(80);assert.equal(await page.evaluate(()=>VIEW),'notes');
  await page.evaluate(()=>{NOTES.flush=oldNavigationFlush;});await home();
  await page.setViewportSize({width:800,height:1280});await page.evaluate(()=>document.documentElement.dataset.theme='dark');await page.locator('.portal-world').waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);assert.equal(await page.locator('[data-portal-go="dwelling"]').isVisible(),true);
  if(process.argv.includes('--shot')){fs.mkdirSync('ui-artifacts/map-navigation',{recursive:true});await page.screenshot({path:'ui-artifacts/map-navigation/'+(subject||'mage')+'.png'});}
- assert.deepEqual(errors,[]);console.log('3.0.5工具栏移除/Tab返回地图/Esc设置/旧按键兼容/保存失败与草稿保护通过：'+(subject||'法考'));
+ assert.deepEqual(errors,[]);console.log('3.0.5工具栏移除/Esc返回地图/Tab设置/旧按键兼容/保存失败与草稿保护通过：'+(subject||'法考'));
 }catch(e){if(page){fs.mkdirSync('ui-artifacts/map-navigation',{recursive:true});await page.screenshot({path:'ui-artifacts/map-navigation/failure-'+(subject||'mage')+'.png'}).catch(()=>{});}throw e;}
 finally{if(browser)await browser.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

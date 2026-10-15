@@ -18,13 +18,15 @@
   function beforeRender(){
     const tools=document.querySelector('.top-tools');
     for(const id of ['drawBtn','todayPill']){const node=document.getElementById(id)||(id==='drawBtn'?drawNode:pillNode);if(node&&tools)tools.append(node);}
-    const root=document.getElementById('studyHud');if(root?.classList.contains('subpage-heading'))document.body.insertBefore(root,document.getElementById('banner'));
+    const root=document.getElementById('studyHud');root?.querySelector('.subpage-nav')?.replaceChildren();if(root?.classList.contains('subpage-heading'))document.body.insertBefore(root,document.getElementById('banner'));
   }
   const symbols={dwelling:'M3 19V10l9-7 9 7v9H3Zm6 0v-7h6v7',train:'m2 20 7-15 5 10 3-7 5 12H2Z',bank:'M6 21V4h12v17M4 21h16M9 8h6M9 12h6M9 16h6',skeleton:'M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-3-1-7-2-10 1Zm0 0v16',tianji:'M12 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM7 21h10M12 19v2M9 6l-2 3',contest:'m4 3 17 17M3 4l2 5 4-4-5-2Zm17-1L3 20m17-17-5 2 4 4 2-5',notes:'m4 20 3-8L19 2l3 3-10 12-8 3Zm3-8 5 5M4 20l6-6',log:'M6 3h12v18H6V3Zm3 5h6m-6 4h6m-6 4h4',settings:'M12 3v3m0 12v3M3 12h3m12 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8'};
   function compact(root,page,world,m,iconKey=current){
     const draw=document.getElementById('drawBtn')||drawNode,pill=document.getElementById('todayPill')||pillNode;drawNode=draw;pillNode=pill;
+    const nav=root.querySelector('.subpage-nav')||document.createElement('div');nav.className='subpage-nav';
     root.classList.add('subpage-heading');root.setAttribute('aria-label','地点与今日学习');
-    root.innerHTML=`<div class="subpage-place"><span class="subpage-seal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${symbols[iconKey]||symbols.dwelling}"/></svg></span><div><small>${esc(world)}</small><h2>${esc(page)}</h2></div></div><div class="subpage-tools"></div>`;
+    root.innerHTML=`<div class="subpage-place"><span class="subpage-seal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${symbols[iconKey]||symbols.dwelling}"/></svg></span><div><small>${esc(world)}</small><h2>${esc(page)}</h2></div></div><div class="subpage-nav"></div><div class="subpage-tools"></div>`;
+    root.querySelector('.subpage-nav').replaceWith(nav);
     const tools=root.querySelector('.subpage-tools');if(draw){draw.setAttribute('aria-label','打开笔记草稿');draw.title='笔记草稿：保存当前题目的笔迹';tools.append(draw);}
     if(pill){pill.innerHTML=`<svg class="study-candle" viewBox="0 0 24 32" aria-hidden="true"><path class="candle-flame" d="M12 1c-1 5-5 6-4 10 1 5 9 4 8-1-1-3-3-4-4-9Z"/><path class="candle-body" d="M8 14h8v13H8zM5 29h14M12 11v4"/></svg>${meter('今日（分钟）',m.today,m.goal,'time')}`;tools.append(pill);}
     document.getElementById('view')?.prepend(root);
