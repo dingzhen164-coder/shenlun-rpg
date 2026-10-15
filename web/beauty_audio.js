@@ -78,13 +78,8 @@
       ms.forEach(function (r) { r.addedNodes.forEach(function (n) { if (n.classList && n.classList.contains("xp")) sfx("reward"); }); });
     }).observe(tt, { childList: true });
     var v = document.getElementById("view");
-    if (v) new MutationObserver(function (ms) {
-      for (var i = 0; i < ms.length; i++) {
-        var r = ms[i];
-        if (r.type === "attributes" && r.target.classList && r.target.classList.contains("tj-opt")) {
-          if (r.target.classList.contains("right")) sfx("correct"); else if (r.target.classList.contains("wrong")) sfx("wrong");
-        }
-      }
+    document.addEventListener("beauty:answer", function (e) { sfx(e.detail && e.detail.right ? "correct" : "wrong"); });
+    if (v) new MutationObserver(function () {
       soon();
     }).observe(v, { attributes: true, attributeFilter: ["class"], subtree: true, childList: true });
     new MutationObserver(soon).observe(document.body, { attributes: true, attributeFilter: ["class"] });

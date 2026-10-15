@@ -408,3 +408,6 @@ shared web/scene_fx.js
 shared web/scene_fx.css
 shared web/assets/beauty/icons/svg/volume-2.svg
 shared web/assets/beauty/icons/svg/volume-x.svg
+shared web/beauty_dialog.js
+shared web/beauty_dialog.css
+shared web/beauty_fx.js
