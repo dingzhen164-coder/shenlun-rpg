@@ -149,7 +149,7 @@ const AMB = (() => {
       <div class="row" id="ambMine" style="${src === "mine" ? "" : "display:none"}">${has ? `<label style="flex:2">曲目 <select id="ambTrack">
           ${DATA.music.map((p) => `<option value="${esc2(p)}" ${c.track === p ? "selected" : ""}>${esc2(p.split("/").pop())}（顺序循环时从这首开始）</option>`).join("")}</select></label>
         <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : ""}</div>
-      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效（点击、答题、翻页等）</label>
+      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效与环境声（点击、答题、翻页、鸟虫流水等）</label>
         <label style="flex:1;min-width:160px">音效音量 <input type="range" id="baSfxVol" min="0" max="1" step="0.05" value="${st.vs}"></label></div>
       <p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，想换成自己的，同名覆盖即可（见该文件夹说明）。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
   }

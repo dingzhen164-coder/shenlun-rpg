@@ -48,7 +48,21 @@
     if (d.body.classList.contains("portal-home")) return dark ? "map-night" : "map-day";
     return "dongfu";
   }
-  function refresh() { want = context(); setBgm(S.src === "builtin" ? want : ""); }
+  // ---- 环境声：地图白天鸟鸣、夜晚虫鸣、洞府流水；跟“音效”开关与音量走（音量取一半）；答题和对话时不放
+  var amb = null, ambName = "";
+  var AMB_OF = { "map-day": "ambient-day", "map-night": "ambient-night", dongfu: "ambient-water" };
+  function ambVol() { return S.sfx ? S.vs * 0.5 : 0; }
+  function setAmb(name) {
+    if (name === ambName) { if (amb) ramp(amb, ambVol(), 400); return; }
+    var old = amb; ambName = name; amb = null;
+    if (old) ramp(old, 0, 1200, function () { old.pause(); });
+    if (!name || missing["sfx/" + name]) return;
+    var a = new Audio(BASE + "sfx/" + name + ".ogg"); a.loop = true; a.volume = 0;
+    a.addEventListener("error", function () { missing["sfx/" + name] = 1; if (amb === a) amb = null; });
+    amb = a;
+    if (unlocked && S.sfx) a.play().then(function () { ramp(a, ambVol(), 1500); }).catch(function () {});
+  }
+  function refresh() { want = context(); setBgm(S.src === "builtin" ? want : ""); setAmb(S.sfx ? (AMB_OF[want] || "") : ""); }
   function soon() { clearTimeout(timer); timer = setTimeout(refresh, 500); }
 
   function unlock() {
@@ -87,7 +101,7 @@
   }
   document.addEventListener("beauty:view", function () { sfx("page", 0.7); });
   document.addEventListener("visibilitychange", function () {
-    if (!cur) return; if (document.hidden) cur.pause(); else if (unlocked && S.bgm) cur.play().catch(function () {});
+    if (document.hidden) { if (cur) cur.pause(); if (amb) amb.pause(); } else { if (cur && unlocked && S.bgm && S.src === "builtin") cur.play().catch(function () {}); if (amb && unlocked && S.sfx) amb.play().catch(function () {}); }
   });
 
   // 仪式：升级/破境时放对应音效，并短暂切到仪式曲
@@ -121,7 +135,7 @@
     settings: S,
     set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; save(); apply(); paintBtn(); },
     setBgmVolume: function (v) { S.vb = v; save(); if (cur) cur.volume = targetVol(); },
-    setSfxVolume: function (v) { S.vs = v; save(); sfx("click"); }
+    setSfxVolume: function (v) { S.vs = v; save(); if (amb) amb.volume = ambVol(); sfx("click"); }
   };
   // 右下角只留一个“全部静音/恢复”小按钮（详细设置在 设置 → 外观与音乐）
   function ui() {

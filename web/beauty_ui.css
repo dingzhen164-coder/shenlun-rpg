@@ -64,3 +64,25 @@
 @keyframes splash-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 [data-motion="reduced"] #splash img, [data-motion="reduced"] #splash .splash-bar i { animation: none; }
 @media (prefers-reduced-motion: reduce) { #splash img, #splash .splash-bar i { animation: none; } }
+
+/* ---- 十二经经络图（beauty_meridian.js） */
+.mer-wrap { display: grid; gap: var(--ds-sp-8); justify-items: center; }
+.mer-svg { width: min(100%, 520px); height: auto; max-height: 72vh; }
+.mer-body, .mer-user { stroke: var(--ds-line); stroke-width: .9; fill: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
+.mer-body path:first-of-type { fill: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
+.mer-lines path { stroke: var(--ds-gold); stroke-width: .5; opacity: .55; stroke-dasharray: 2 2; animation: mer-flow 6s linear infinite; }
+@keyframes mer-flow { to { stroke-dashoffset: -16; } }
+[data-motion="reduced"] .mer-lines path { animation: none; }
+@media (prefers-reduced-motion: reduce) { .mer-lines path { animation: none; } }
+.mer-node { cursor: pointer; outline: none; }
+.mer-dot { fill: var(--c); opacity: .42; stroke: var(--ds-surface); stroke-width: .6; transition: opacity var(--ds-dur); }
+.mer-node.on .mer-dot { opacity: 1; }
+.mer-halo { fill: none; stroke: var(--c); stroke-width: .4; opacity: 0; }
+.mer-node.on .mer-halo { opacity: .7; }
+.mer-node.top .mer-halo { opacity: 1; animation: mer-pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes mer-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+[data-motion="reduced"] .mer-node.top .mer-halo { animation: none; }
+.mer-node:hover .mer-dot, .mer-node:focus-visible .mer-dot, .mer-node.sel .mer-dot { opacity: 1; stroke: var(--ds-gold); stroke-width: .9; }
+.mer-name { font-size: 3.4px; font-weight: 700; fill: var(--ds-text); }
+.mer-time { font-size: 2.8px; fill: var(--ds-muted); }
+.mer-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }

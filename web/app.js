@@ -786,6 +786,7 @@ function bindTimeCard() {
 }
 // ------------------------------------------------------------ 十二经：各模块的时辰（同三才法印，一排四枚，每个模块一种颜色）
 const BOARD_COLORS = ["#c2463a", "#d9822b", "#c9a227", "#6e9f3a", "#2e9d6b", "#b03a5b", "#3f9e8f", "#2f7fb8", "#5b5fc7", "#8a4fbf", "#b85fa6", "#8c6d46"];
+let BOARD_VIEW = (() => { try { return localStorage.getItem("boardView") || "map"; } catch { return "map"; } })();   // map＝经络图（beauty_meridian.js），orbs＝法印球
 let BOARD_SPAN = (() => { try { return localStorage.getItem("boardSpan") || "week"; } catch { return "week"; } })();
 function boardTimeCard(d) {
   const bt = d.boardtime; if (!bt) return "";
@@ -805,11 +806,19 @@ function boardTimeCard(d) {
   }).join("");
   return `<div class="card sancai shier" style="margin-top:14px">
     <div class="sancai-head"><h3>☸ 十二经 · 各模块时辰 <small>听课（记听道时选了模块的）· 做题（含自练）· 复习，单位分钟</small></h3><span class="spacer"></span>
-      <div class="sancai-tabs">${[["today", "今日"], ["week", "近七日"], ["all", "累计"]].map(([k, n]) => `<a data-bspan="${k}" class="${k === BOARD_SPAN ? "on" : ""}">${n}</a>`).join("")}</div></div>
-    <div class="orbs orbs4">${orbs}</div>
+      <div class="sancai-tabs">${[["today", "今日"], ["week", "近七日"], ["all", "累计"]].map(([k, n]) => `<a data-bspan="${k}" class="${k === BOARD_SPAN ? "on" : ""}">${n}</a>`).join("")}</div>
+      ${window.BeautyMeridian ? `<div class="sancai-tabs">${[["map", "经络图"], ["orbs", "法印"]].map(([k, n]) => `<a data-bview="${k}" class="${k === BOARD_VIEW ? "on" : ""}">${n}</a>`).join("")}</div>` : ""}</div>
+    ${window.BeautyMeridian && BOARD_VIEW === "map" ? BeautyMeridian.html(list, total, top, BOARD_COLORS, hm) : `<div class="orbs orbs4">${orbs}</div>`}
     <p class="small muted" style="margin:6px 0 0">共 ${Math.round(total)} 分钟${cur.loose ? `，另有 ${cur.loose} 分钟认不出模块（三才时辰里照算）` : ""}。修炼时间按当时在练的模块记；早先没记模块的，按那天修炼记录里各模块练了几次分摊。听道没选模块的，从“讲的什么”里认（写了“图形推理”“图推”“资料”等），认错了在近 7 天听道记录里改。</p></div>`;
 }
 function bindBoardTime() {
+  document.querySelectorAll("[data-bview]").forEach((a) => (a.onclick = () => {
+    BOARD_VIEW = a.dataset.bview;
+    try { localStorage.setItem("boardView", BOARD_VIEW); } catch {}
+    const el = document.querySelector(".shier");
+    if (el) { el.outerHTML = boardTimeCard(DASH); bindBoardTime(); }
+  }));
+  if (window.BeautyMeridian && BOARD_VIEW === "map") { const w = document.querySelector(".shier .mer-wrap"); if (w) BeautyMeridian.bind(w, ((DASH.boardtime || {})[BOARD_SPAN] || (DASH.boardtime || {}).week || {}).boards || []); }
   document.querySelectorAll("[data-bspan]").forEach((a) => (a.onclick = () => {
     BOARD_SPAN = a.dataset.bspan;
     try { localStorage.setItem("boardSpan", BOARD_SPAN); } catch {}

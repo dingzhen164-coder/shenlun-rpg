@@ -418,3 +418,8 @@ shared web/beauty_ui.css
 shared web/beauty_splash.js
 shared web/beauty_empty.js
 shared web/assets/beauty/ui/empty-scroll.svg
+shared web/assets/beauty/audio/sfx/ambient-day.ogg
+shared web/assets/beauty/audio/sfx/ambient-night.ogg
+shared web/assets/beauty/audio/sfx/ambient-water.ogg
+shared web/beauty_meridian.js
+shared web/assets/beauty/dongfu/README.md

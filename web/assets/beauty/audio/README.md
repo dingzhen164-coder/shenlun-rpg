@@ -31,4 +31,4 @@
 
 ## 当前已放入的开源素材（可随时同名覆盖）
 音效来自 Kenney（CC0）：click←Interface click_003，hover←tick_002，open/close←open_001/close_001，page←RPG bookFlip1，correct←confirmation_002，wrong←error_004，combo←select_006，reward←RPG handleCoins，levelup←Hit jingle 05，breakthrough←Steel jingle 12，quest-accept←confirmation_004，quest-done←Pizzicato jingle 08，type←tick_004。
-背景音乐均为 OpenGameArt 的 CC0 曲目，详见 REGISTRY.md。`ambient-*.ogg` 环境声暂未放入（可选）。
+背景音乐均为 OpenGameArt 的 CC0 曲目，详见 REGISTRY.md。环境声已放入 `ambient-day.ogg`（地图白天）、`ambient-night.ogg`（地图夜晚）、`ambient-water.ogg`（洞府），随“音效”开关和音量（取一半），答题与对话时不放。

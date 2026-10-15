@@ -20,3 +20,6 @@
 | scene-fx | web/scene_fx.js、scene_fx.css | 时段切换、季节飘落物、光点、飞鸟（纯代码，无贴图） | 本项目自写 | 无限制 | 2026-10-15 | 设置→地点排布里可调 |
 | empty-scroll | beauty/ui/empty-scroll.svg | 空状态小插画（CSS mask，随文字色） | 本项目自绘 | 无限制 | 2026-10-15 | ds.css .ds-empty::before |
 | cursors | xiuxian-cursor/*.svg 等 | 行测灵光法阵光标 | 本项目原创SVG | 无限制 | 2.x | 见 cursors/README.md |
+| ambient-day | beauty/audio/sfx/ambient-day.ogg | 地图白天环境声（鸟鸣） | "Ambient Bird Sounds" by isaiah658（OpenGameArt） | CC0 | 2026-10-15 | 转 ogg 单声道 |
+| ambient-night | beauty/audio/sfx/ambient-night.ogg | 地图夜晚环境声（虫鸣） | "Crickets Ambient Noise - loopable" by wolfgang（OpenGameArt） | CC0 | 2026-10-15 | 转 ogg 单声道 |
+| ambient-water | beauty/audio/sfx/ambient-water.ogg | 洞府环境声（流水） | "Park ambiences" 的 river 段 by thimras（OpenGameArt） | CC0 | 2026-10-15 | 截取40秒并淡入淡出 |
