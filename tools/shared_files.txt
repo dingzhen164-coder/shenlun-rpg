@@ -406,3 +406,5 @@ shared web/beauty_audio.js
 shared web/beauty_audio.css
 shared web/scene_fx.js
 shared web/scene_fx.css
+shared web/assets/beauty/icons/svg/volume-2.svg
+shared web/assets/beauty/icons/svg/volume-x.svg
