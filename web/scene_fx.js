@@ -49,6 +49,7 @@
     const cv = document.createElement('canvas'); cv.className = 'portal-fx'; cv.setAttribute('aria-hidden', 'true'); atm.appendChild(cv);
     const tint = document.createElement('i'); tint.className = 'portal-tint'; atm.insertBefore(tint, atm.firstChild);
     const ctx = cv.getContext('2d'); if (!ctx) return;
+    const indoor = !atm.parentElement?.querySelector('.portal-night');   // 单图室内场景（申论政务大厅）：不飘樱叶雪、不放飞鸟，只留灵光点
     let W = 0, H = 0, parts = [], motes = [], birds = [], key = '', raf = 0, last = 0, nextBird = Date.now() + rnd(6000, 14000);
     const still = () => root.dataset.motion === 'reduced' || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
     function size() {
@@ -58,7 +59,7 @@
     }
     function seed() {
       const r = resolve(); key = r.se + r.ph;
-      const k = KINDS[r.se];
+      const k = indoor ? null : KINDS[r.se];
       parts = k ? Array.from({ length: Math.round(k.n * (W < 700 ? .6 : 1)) }, () => Object.assign(k.make(W, H), { c: k.color[Math.floor(Math.random() * k.color.length)] })) : [];
       // 夏季萤火夜里才明显：白天减半
       if (r.se === 'summer' && r.ph !== 'night' && r.ph !== 'dusk') parts = parts.slice(0, 6);
@@ -88,7 +89,7 @@
       });
       ctx.globalAlpha = 1;
       // 飞鸟：白天偶尔掠过（几何小V）
-      if (r.ph !== 'night' && Date.now() > nextBird) { birds.push({ x: -20, y: rnd(H * .12, H * .4), v: rnd(.07, .12), s: rnd(5, 8), ph: rnd(0, 6) }); nextBird = Date.now() + rnd(14000, 30000); }
+      if (!indoor && r.ph !== 'night' && Date.now() > nextBird) { birds.push({ x: -20, y: rnd(H * .12, H * .4), v: rnd(.07, .12), s: rnd(5, 8), ph: rnd(0, 6) }); nextBird = Date.now() + rnd(14000, 30000); }
       birds = birds.filter((b) => b.x < W + 30);
       birds.forEach((b) => {
         b.x += b.v * dt; const f = Math.sin(t / 130 + b.ph) * b.s * .5;
@@ -126,9 +127,10 @@
   window.SCENE_FX = {
     phase, season, resolve, apply,
     settingsHtml() {
+      const comp = window.BeautyCompanion ? `<p>${BeautyCompanion.settingsHtml()}</p>` : '';
       const o = (k, cur, list) => list.map(([v, n]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${n}</option>`).join('');
       return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${o('t', LS('scene-time', 'auto'), [['auto', '自动（跟随时钟）'], ['day', '一直白天'], ['night', '一直夜晚'], ['theme', '跟随亮暗主题']])}</select></label>` +
-        `<label>季节效果<select data-scene-season>${o('s', LS('scene-season', 'auto'), [['auto', '自动（按月份）'], ['spring', '春·落樱'], ['summer', '夏·萤火'], ['autumn', '秋·落叶'], ['winter', '冬·飘雪'], ['off', '关闭']])}</select></label></div>`;
+        `<label>季节效果<select data-scene-season>${o('s', LS('scene-season', 'auto'), [['auto', '自动（按月份）'], ['spring', '春·落樱'], ['summer', '夏·萤火'], ['autumn', '秋·落叶'], ['winter', '冬·飘雪'], ['off', '关闭']])}</select></label></div>` + comp;
     },
   };
 })();

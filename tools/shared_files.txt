@@ -423,3 +423,4 @@ shared web/assets/beauty/audio/sfx/ambient-night.ogg
 shared web/assets/beauty/audio/sfx/ambient-water.ogg
 shared web/beauty_meridian.js
 shared web/assets/beauty/dongfu/README.md
+shared web/beauty_companion.js

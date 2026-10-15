@@ -86,3 +86,18 @@
 .mer-name { font-weight: 700; fill: var(--ds-text); }
 .mer-time { fill: var(--ds-muted); }
 .mer-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }
+
+/* ---- 同伴站位（beauty_companion.js）：子页面左下角的引导人物 */
+#companion { position: fixed; left: var(--ds-sp-12); bottom: 0; z-index: 40; width: clamp(96px, 8vw, 130px); cursor: pointer; filter: drop-shadow(0 4px 10px var(--ds-shade-30)); }
+#companion[hidden] { display: none; }
+.comp-img { display: block; width: 100%; height: auto; transform-origin: 50% 100%; animation: comp-breathe 4.6s ease-in-out infinite; pointer-events: none; }
+#companion.comp-still .comp-img { animation: none; }
+@keyframes comp-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02) translateY(-.5%); } }
+.comp-bubble {
+  position: absolute; left: calc(100% - var(--ds-sp-16)); bottom: 62%; width: max-content; max-width: 220px; padding: var(--ds-sp-8) var(--ds-sp-12);
+  font-size: var(--ds-fs-13); line-height: 1.6; color: var(--ds-paper-ink); background: var(--ds-paper); border: 1px solid var(--ds-paper-line); border-radius: var(--ds-r-8); box-shadow: var(--ds-shadow-2);
+}
+.comp-bubble[hidden] { display: none; }
+.comp-x { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--ds-r-pill); font-size: var(--ds-fs-14); line-height: 1; color: var(--ds-text); background: var(--ds-surface); border: 1px solid var(--ds-line); opacity: 0; transition: opacity var(--ds-dur); }
+#companion:hover .comp-x, #companion:focus-within .comp-x { opacity: .85; }
+@media (max-width: 1099px) { #companion { display: none; } }

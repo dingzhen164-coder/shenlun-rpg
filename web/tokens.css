@@ -82,3 +82,7 @@ body.guantu { --ds-plate-ink: #253f56; --ds-plate-soft: #576977; --ds-plate-meta
 :root { --ds-page-art: none; --ds-tint-dawn: linear-gradient(to top, #ffb87a40, #ffe3b01a 55%, #fff5d500); --ds-tint-dusk: linear-gradient(to top, #ff7a4a52, #b4508a2e 60%, #2a1a5a1a); }
 html:not([data-theme="dark"]) body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-day.webp"); }
 html[data-theme="dark"] body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-night.webp"); }
+html:not([data-theme="dark"]) body.guantu { --ds-page-art: url("assets/shenlun/hall.webp"); }
+html[data-theme="dark"] body.guantu { --ds-page-art: url("assets/shenlun/night.webp"); }
+html:not([data-theme="dark"]) body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-day.webp"); }
+html[data-theme="dark"] body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-night.webp"); }

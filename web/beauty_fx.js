@@ -61,5 +61,19 @@
     new MutationObserver(() => { if (armed) check(); }).observe(v, { attributes: true, attributeFilter: ['class'], subtree: true, childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  // 奖励飘字：经验类 toast（class xp）出现时，在屏幕中上方飘起“+N”（读 toast 文字里的数字，只做外观）
+  function floatReward(text) {
+    const d = document.createElement('div'); d.setAttribute('aria-hidden', 'true'); d.textContent = text;
+    d.style.cssText = 'position:fixed;left:50%;top:34%;transform:translateX(-50%);z-index:90;pointer-events:none;font:700 30px/1 var(--display,serif);letter-spacing:.08em;color:#f3d98b;text-shadow:0 2px 0 #3b2a05,0 0 12px #e0bf62';
+    document.body.appendChild(d);
+    d.animate([{ transform: 'translate(-50%,14px) scale(.7)', opacity: 0 }, { transform: 'translate(-50%,0) scale(1.1)', opacity: 1, offset: .2 }, { transform: 'translate(-50%,-46px) scale(1)', opacity: 0 }], { duration: 1500, easing: 'ease-out' }).onfinish = () => d.remove();
+  }
+  const watchToasts = () => {
+    const tt = document.getElementById('toasts'); if (!tt) return;
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+      if (n.classList && n.classList.contains('xp') && !still()) { const m2 = /\+\s*(\d+)/.exec(n.textContent || ''); if (m2) floatReward('+' + m2[1]); }
+    }))).observe(tt, { childList: true });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchToasts); else watchToasts();
   window.BeautyFx = { burst, shake, showCombo };
 })();

@@ -184,8 +184,8 @@ function applyTheme() {
 function configurePortal() {
   const official=isSL();
   const places=official?[
-    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'知识办理中心',view:'train',x:48,y:38},
-    {id:'bank',label:'实操训练中心',view:'bank',x:48,y:60},
+    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'知识办理中心',view:'train',x:48,y:31},
+    {id:'bank',label:'实操训练中心',view:'bank',x:48,y:66},
     {id:'skeleton',label:'档案室',view:'skeleton',x:75,y:42},{id:'notes',label:'公务手账',view:'notes',x:68,y:73},
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},

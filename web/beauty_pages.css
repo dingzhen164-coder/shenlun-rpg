@@ -1,4 +1,4 @@
-/* 3.2.6 子页面氛围：行测的洞府、任务大殿等非地图页，背后淡淡透出青衡宗全景（亮色白天、暗色夜晚）。
+/* 3.2.6 子页面氛围：非地图页（洞府、修炼等）背后淡淡透出本科目全景（行测青衡宗、申论政务大厅、法考学院；亮色白天、暗色夜晚）。
    用户自己在 设置→外观 选了背景图（body.has-bg）时不覆盖。 */
-body.xiuxian:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-art); background-position: center 30%; }
-body.xiuxian:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
+body:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-art); background-position: center 30%; }
+body:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
