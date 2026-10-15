@@ -2,3 +2,5 @@
    用户自己在 设置→外观 选了背景图（body.has-bg）时不覆盖。 */
 body:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-art); background-position: center 30%; }
 body:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
+/* 美术文件夹里给了本页背景（beauty_art.js）：遮罩调淡，让图更清楚 */
+body.has-page-art:not(.has-bg) #bgLayer::after { opacity: .3; }

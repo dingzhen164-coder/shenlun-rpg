@@ -134,7 +134,12 @@ const AMB = (() => {
         <input type="range" id="ambQSize" min="0.5" max="2" step="0.1" value="${c.quote_size ?? 1}"></label></div>
       <p class="small muted">语录在库里的 <b>${esc2(DATA.folders.quotes)}</b>，一行一句（“- ”开头），自己加、改、删，刷新生效。现在共 ${DATA.quotes.length} 句。</p>
       <hr class="soft">
-      ${musicHtml(c, esc2)}</div>`;
+      ${musicHtml(c, esc2)}
+      <hr class="soft">
+      <label class="small muted">美术文件夹（换首页全景、每个子地图的背景、人物立绘、内置音乐音效，不用改源代码）</label>
+      <p class="small" style="margin:4px 0">位置：库里的 <b>训练/外观/美术/</b>（<span id="artState">…</span>）。里面按中文名分文件夹：<b>首页全景</b>（白天、夜晚）、<b>子地图背景</b>（地点名、地点名-白天、地点名-夜晚）、<b>人物立绘</b>、<b>音乐</b>、<b>音效</b>。放进去、刷新网页就生效；删掉文件就恢复程序自带的。</p>
+      <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><button id="artExport" class="small">导出程序自带美术（当模板）</button><span id="artMsg" class="small muted"></span></div>
+      <p class="small muted">导出会把程序自带的全景、立绘、音乐、音效按上面的名字复制进美术文件夹（已有的不覆盖）；文件夹里的“说明.txt”写了每个文件的用途和建议尺寸。</p></div>`;
   }
 
   // 背景音乐与声音（3.2.x：内置场景音乐、我的音乐、音效合在一起）
@@ -161,6 +166,9 @@ const AMB = (() => {
     }))));
     const th = document.getElementById("ambTheme");
     if (th) th.onchange = () => { setTheme(th.value); apply(); if (typeof render === "function") render(); };
+    fetch("/api/art").then((r) => r.json()).then((d) => { const el = document.getElementById("artState"); if (el) el.textContent = d.path ? `${d.path}，已有 ${d.count} 个覆盖文件` : (d.exists ? `已有 ${d.count} 个覆盖文件` : "还没创建，点下面导出会自动创建"); }).catch(() => {});
+    const ex = document.getElementById("artExport");
+    if (ex) ex.onclick = () => { ex.disabled = true; fetch("/api/art/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((d) => { const m = document.getElementById("artMsg"); if (d.error) throw new Error(d.error); if (m) m.textContent = `已复制 ${d.copied} 个，已有 ${d.skipped} 个未覆盖。到 ${d.folder} 里看看。`; }).catch((e) => { const m = document.getElementById("artMsg"); if (m) m.textContent = "导出失败：" + e.message; }).finally(() => { ex.disabled = false; }); };
     const dim = document.getElementById("ambDim");
     if (!dim) return;
     dim.oninput = () => document.getElementById("bgLayer").style.setProperty("--dim", dim.value);

@@ -34,6 +34,15 @@ def main():
             vaults[s] = str(v)
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
+        if '--art-fixture' in sys.argv:
+            # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
+            import base64
+            png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+            for s2, place in (('行测', '洞府'), ('申论', '办公室')):
+                d = Path(vaults[s2]) / '训练/外观/美术'
+                (d / '首页全景').mkdir(parents=True, exist_ok=True); (d / '子地图背景').mkdir(parents=True, exist_ok=True)
+                (d / '首页全景' / '白天.png').write_bytes(png)
+                (d / '子地图背景' / (place + '.png')).write_bytes(png)
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards

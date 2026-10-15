@@ -531,3 +531,6 @@ shared web/assets/beauty/fonts/noto-serif-sc/files/noto-serif-sc-latin-ext-700-n
 shared web/assets/beauty/fonts/noto-serif-sc/files/noto-serif-sc-vietnamese-700-normal.woff2
 shared web/assets/beauty/fonts/noto-serif-sc/font.css
 shared web/beauty_badge.js
+shared rpg/art.py
+shared tests/test_art.py
+shared web/beauty_art.js

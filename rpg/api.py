@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -812,6 +812,22 @@ def appearance_get(body):
                                                                              "backgrounds": [], "music": [], "quotes": [], "daily": ""}
 
 
+def art_info(body):
+    vp = find_vault()
+    if not vp:
+        return {"folder": "训练/外观/美术/", "count": 0, "exists": False}
+    p = Paths(vp)
+    d = art.art_dir(p)
+    return {"folder": "训练/外观/美术/", "count": len(art.files(p, subjects.active())), "exists": d.is_dir(), "path": str(d)}
+
+
+def art_export(body):
+    vp = find_vault()
+    if not vp:
+        raise ApiError("请先在设置中指定库路径")
+    return art.export(Paths(vp), subjects.active(), WEB_DIR / "assets")
+
+
 def appearance_set(body):
     with open_game() as g:
         if not g.paths.vault:
@@ -1036,6 +1052,8 @@ ROUTES = {
     ("POST", "/api/lecture/delete"): lecture_delete,
     ("POST", "/api/lecture/board"): lecture_board,
     ("POST", "/api/appearance"): appearance_set,
+    ("GET", "/api/art"): art_info,
+    ("POST", "/api/art/export"): art_export,
     ("POST", "/api/retreat/start"): retreat_start,
     ("POST", "/api/retreat/end"): retreat_end,
     ("POST", "/api/tutor/greet"): tutor_greet,
@@ -1673,7 +1691,7 @@ ROUTES[("GET", "/api/update/check")] = update_check
 ROUTES[("POST", "/api/update/apply")] = update_apply
 ROUTES[("GET", "/api/lan")] = lan_get
 ROUTES[("POST", "/api/lan")] = lan_set
-LOCAL_ONLY = {"/api/lan", "/api/settings", "/api/update/apply", "/api/notes/open"}     # 只有电脑本机能改的
+LOCAL_ONLY = {"/api/lan", "/api/settings", "/api/update/apply", "/api/notes/open", "/api/art/export"}     # 只有电脑本机能改的
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1814,6 +1832,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, b, "image/png")
             return self._send(200, p.read_bytes(), ctype)
         rel = url.path.lstrip("/") or "index.html"
+        if rel.startswith("assets/") and rel[7:] in art.known(subjects.active()):       # 美术文件夹里有覆盖就先用它（rpg/art.py）
+            ov = art.lookup(Paths(find_vault()), subjects.active(), rel[7:]) if find_vault() else None
+            if ov:
+                ct = mimetypes.guess_type(ov.name)[0] or "application/octet-stream"
+                return self._send_range(ov, ct) if ov.suffix.lower() in art.AUD else self._send(200, ov.read_bytes(), ct)
         f = (WEB_DIR / rel).resolve()
         if WEB_DIR.resolve() not in f.parents or not f.is_file():
             return self._send(404, {"error": "not found"})
@@ -1823,7 +1846,9 @@ class Handler(BaseHTTPRequestHandler):
         sub = subjects.active()
         raw = wording.web(rel, f.read_bytes(), sub)        # 申论科目：网页里写死的修仙说法换成官场说法（rpg/wording.py）
         if rel == "index.html":          # 告诉页面它是按哪个科目载入的（科目被别的窗口切走时页面自己重新载入）
-            raw = raw.replace(b"</head>", ("<script>window.SUBJECT0=%s;</script>\n</head>" % json.dumps(sub, ensure_ascii=False)).encode("utf-8"), 1)
+            vp = find_vault()
+            af = art.files(Paths(vp), sub) if vp else []          # 美术文件夹里有哪些覆盖文件（前端据此决定子地图背景等）
+            raw = raw.replace(b"</head>", ("<script>window.SUBJECT0=%s;window.ART_FILES=%s;</script>\n</head>" % (json.dumps(sub, ensure_ascii=False), json.dumps(af))).encode("utf-8"), 1)
         self._send(200, raw, ctype, cache=rel.startswith("vendor/"))   # 第三方库（6MB 的思维导图编辑器）让平板缓存，不每次重下
 
     def do_GET(self):
