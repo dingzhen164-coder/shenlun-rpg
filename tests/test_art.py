@@ -104,6 +104,20 @@ class PortraitTest(unittest.TestCase):
         self.assertEqual(im.getpixel((150, 200))[3], 255)         # 人物不透明
         self.assertTrue((f.parent / ".cache").is_dir())
 
+    def test_skin_tone_unchanged_by_despill(self):
+        from PIL import Image, ImageDraw
+        import io
+        im = Image.new("RGB", (300, 400), (255, 0, 255))
+        ImageDraw.Draw(im).ellipse((80, 60, 220, 340), fill=(226, 172, 140))     # 肤色
+        d = art.art_dir(self.p)
+        d.mkdir(parents=True, exist_ok=True)
+        f = d / "skin.png"
+        im.save(f)
+        out = Image.open(io.BytesIO(art.processed(f)[0])).convert("RGBA")
+        r, g, b, a = out.getpixel((150, 200))
+        self.assertEqual(a, 255)
+        self.assertLess(max(abs(r - 226), abs(g - 172), abs(b - 140)), 6)         # 不发绿、不变色
+
     def test_green_background_and_no_key_for_busy_corners(self):
         g = self._fig("g.png", (0, 255, 0))
         from PIL import Image, ImageDraw

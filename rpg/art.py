@@ -196,7 +196,7 @@ def processed(path):
     except Exception:
         return None
     cache = path.parent / ".cache"
-    key = cache / ("%s-%d-%d.webp" % (path.stem, path.stat().st_mtime_ns, path.stat().st_size))
+    key = cache / ("%s-v2-%d-%d.webp" % (path.stem, path.stat().st_mtime_ns, path.stat().st_size))     # v2：改了算法后旧缓存作废
     if key.is_file():
         return key.read_bytes(), "image/webp"
     try:
@@ -225,10 +225,13 @@ def processed(path):
             alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.7))     # 收一圈再羽化，去掉底色毛边
             out = im.copy()
             out.putalpha(alpha)
-            if bg[0] > 180 and bg[2] > 180 and bg[1] < 90:               # 洋红底：边缘去粉紫色溢出
+            if bg[0] > 180 and bg[2] > 180 and bg[1] < 90:               # 洋红底：只在半透明的边缘去粉紫色溢出（人物内部颜色一概不动，否则肤色会发绿）
                 r, g, b, a = out.split()
-                r = ImageChops.darker(r, ImageChops.lighter(g, ImageChops.multiply(b, g)))
-                out = Image.merge("RGBA", (r, g, b, a))
+                excess = ImageChops.subtract(ImageChops.add(r, b, scale=2.0), g).point(lambda v: int(v * 0.6))     # 红蓝平均比绿多出来的部分＝洋红溢出
+                r2 = ImageChops.subtract(r, excess)
+                b2 = ImageChops.subtract(b, excess)
+                edge = a.point(lambda v: 255 if v < 250 else 0).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(1.0))
+                out = Image.merge("RGBA", (Image.composite(r2, r, edge), g, Image.composite(b2, b, edge), a))
     if max(out.size) > 1200:
         s = 1200 / max(out.size)
         out = out.resize((max(1, round(out.size[0] * s)), max(1, round(out.size[1] * s))), Image.LANCZOS)
