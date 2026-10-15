@@ -85,7 +85,7 @@
     new MutationObserver(soon).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-scene-time"] });
   }
-  window.addEventListener("hashchange", function () { sfx("page", 0.7); });
+  document.addEventListener("beauty:view", function () { sfx("page", 0.7); });
   document.addEventListener("visibilitychange", function () {
     if (!cur) return; if (document.hidden) cur.pause(); else if (unlocked && S.bgm) cur.play().catch(function () {});
   });

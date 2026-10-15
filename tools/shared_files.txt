@@ -413,3 +413,4 @@ shared web/beauty_dialog.css
 shared web/beauty_fx.js
 shared web/assets/beauty/icons/svg/mountain.svg
 shared web/assets/beauty/icons/svg/house.svg
+shared web/beauty_pages.css

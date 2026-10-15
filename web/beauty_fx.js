@@ -43,8 +43,21 @@
     if (!wrong) { combo++; if (!still()) { burst(right); if (combo >= 3) showCombo(combo); } }
     else { combo = 0; if (!still()) shake(wrong); }
   }
+  // 页面转场：顶栏当前页变化后，#view 内容第一次被换掉时淡入上移（通知音效模块放翻页声）
+  let pendingView = 0, curView = '';
+  function watchNav() {
+    const nav = document.getElementById('nav'); if (!nav) return;
+    new MutationObserver(() => {
+      const a = nav.querySelector('a.active'); const vw = a ? a.dataset.view : '';
+      if (vw && vw !== curView) { const first = !curView; curView = vw; if (!first) { pendingView = Date.now(); document.dispatchEvent(new CustomEvent('beauty:view', { detail: { view: vw } })); } }
+    }).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
+  }
   const start = () => {
     const v = document.getElementById('view'); if (!v) return;
+    watchNav();
+    new MutationObserver(() => {
+      if (pendingView && Date.now() - pendingView < 2500 && !still()) { pendingView = 0; v.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'ease-out' }); }
+    }).observe(v, { childList: true });
     new MutationObserver(() => { if (armed) check(); }).observe(v, { attributes: true, attributeFilter: ['class'], subtree: true, childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
