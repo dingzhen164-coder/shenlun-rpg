@@ -5,7 +5,7 @@ body.guantu {
   --accent:#a52e33; --accent2:#214761; --gold:#967044; --green:#327566;
   --red:#ab3540; --orange:#966025; --purple:#315774;
   --radius:8px; --shadow:0 3px 16px rgba(30,47,62,.045);
-  --display:'Songti SC','STSong','SimSun',Georgia,serif;
+  --display:'Noto Serif SC','Songti SC','STSong','SimSun',Georgia,serif;
   --sl-rail:#172c3e; --sl-rail-text:#ccd6dd; --sl-paper-line:#ecece5;
   --c-lecture:#315b76; --c-practice:#a52e33; --c-review:#967044;
   font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased;

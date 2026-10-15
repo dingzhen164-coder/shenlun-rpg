@@ -23,3 +23,5 @@
 | ambient-day | beauty/audio/sfx/ambient-day.ogg | 地图白天环境声（鸟鸣） | "Ambient Bird Sounds" by isaiah658（OpenGameArt） | CC0 | 2026-10-15 | 转 ogg 单声道 |
 | ambient-night | beauty/audio/sfx/ambient-night.ogg | 地图夜晚环境声（虫鸣） | "Crickets Ambient Noise - loopable" by wolfgang（OpenGameArt） | CC0 | 2026-10-15 | 转 ogg 单声道 |
 | ambient-water | beauty/audio/sfx/ambient-water.ogg | 洞府环境声（流水） | "Park ambiences" 的 river 段 by thimras（OpenGameArt） | CC0 | 2026-10-15 | 截取40秒并淡入淡出 |
+| font-noto-serif | beauty/fonts/noto-serif-sc/ | 申论、法考标题字体（--display 前置，仅700粗体分片woff2） | Noto Serif SC（@fontsource/noto-serif-sc） | SIL OFL 1.1（OFL.txt） | 2026-10-15 | 申论 body.guantu、法考默认 --display |
+| bb-badge | web/beauty_badge.js | 境界徽章（8档颜色/形状，纯SVG） | 本项目自绘 | 无限制 | 2026-10-15 | 洞府卡、大典画面 |

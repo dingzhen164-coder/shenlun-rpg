@@ -10,7 +10,7 @@
   --red: #ef6461; --orange: #f09a50; --purple: #c49bff;
   --shadow: 0 8px 28px rgba(0,0,0,.45);
   --radius: 14px;
-  --display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Songti SC", "STSong", "SimSun", serif;
+  --display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
 }
 :root[data-theme="light"] {
   /* 亮色：羊皮纸 */

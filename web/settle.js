@@ -106,6 +106,17 @@
     const leveled = after.realm !== b.realm;
     const xpFrom = leveled ? 0 : b.frac, xpTo = after.frac;
     const catGain = Math.max(0, Math.round((after.ts[kind] || 0) - (b.ts[kind] || 0)));
+    // 战利品式结算（3.2.x）：评级只是本次收功的外观反馈，不改成绩。有“正确率”按正确率（≥90 S，≥75 A，≥60 B，否则 C），没有就按今日功行完成度（≥100% S，≥70% A，≥40% B）
+    const accM = lines.map((l) => /正确率\s*(\d+)\s*%/.exec(String(l))).find(Boolean);
+    const score = accM ? Number(accM[1]) : Math.min(100, after.today / goal * 100);
+    const rank = accM ? (score >= 90 ? "S" : score >= 75 ? "A" : score >= 60 ? "B" : "C") : (score >= 100 ? "S" : score >= 70 ? "A" : score >= 40 ? "B" : "C");
+    const loot = [
+      dXp ? { ic: "✦", name: "修为", n: dXp, unit: "", tier: dXp >= 50 ? "epic" : dXp >= 15 ? "rare" : "common" } : null,
+      dMin ? { ic: "⏱", name: "功行", n: dMin, unit: "分钟", tier: dMin >= 45 ? "epic" : dMin >= 20 ? "rare" : "common" } : null,
+      catGain ? { ic: kind === "practice" ? "⚔" : kind === "lecture" ? "📖" : "📜", name: k.cat, n: catGain, unit: "分钟", tier: "common" } : null,
+      leveled ? { ic: "🌈", name: "境界", n: 0, unit: "", text: esc(after.realm), tier: "epic" } : null,
+    ].filter(Boolean);
+    const lootHtml = loot.length ? `<div class="st-loot" aria-label="本次所得">${loot.map((x, i) => `<div class="st-drop tier-${x.tier}" style="--d:${(1.1 + i * 0.28).toFixed(2)}s"><span class="st-drop-ic">${x.ic}</span><b>${x.text ? x.text : `+<i class="st-count" data-to="${x.n}">0</i>`}</b><small>${x.name}${x.unit ? " · " + x.unit : ""}</small></div>`).join("")}</div>` : "";
     const parts = Array.from({ length: 26 }, (_, i) => {
       const x = 8 + Math.random() * 84, s = 2 + Math.random() * 4, dl = (Math.random() * 3.2).toFixed(2), du = (2.6 + Math.random() * 2.4).toFixed(2);
       return `<i style="left:${x.toFixed(1)}%;width:${s.toFixed(1)}px;height:${s.toFixed(1)}px;animation-delay:${dl}s;animation-duration:${du}s"></i>`;
@@ -130,12 +141,14 @@
           <div class="st-parts">${parts}</div>
         </div>
         <div class="st-panel">
+          <div class="st-rank rank-${rank}" aria-label="评级 ${rank}"><span>${rank}</span></div>
           <div class="st-word">${esc(k.word)}</div>
           <div class="st-title">${esc(title)}</div>
           ${sub ? `<div class="st-sub">${esc(sub)}</div>` : ""}
           ${lines.length ? `<div class="st-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
           ${meter(`今日功行 <b>${Math.round(after.today)}</b> / ${goal} 分钟`, b.today / goal, after.today / goal, "", dMin ? `+${dMin} 分钟` : "", k.glow)}
           ${meter(`修为 · ${esc(after.realm)}`, xpFrom, xpTo, "", dXp ? `+${dXp} 修为` : "", k.glow)}
+          ${lootHtml}
           ${catGain ? `<div class="st-cat">今日${k.cat} <b>${Math.round(after.ts[kind] || 0)}</b> 分钟（本次 +${catGain}）</div>` : ""}
           ${leveled ? `<div class="st-up">✦ 境界精进：${esc(b.realm)} → ${esc(after.realm)} ✦</div>` : ""}
           <button class="primary st-btn">收功</button>
@@ -150,6 +163,15 @@
         const h = s.nextElementSibling; if (h) h.style.left = t + "%";
       }), 900);
     });
+    // 数字滚动：战利品里的 +N 从 0 涨到目标值；减少动画时直接显示
+    const calm = document.documentElement.dataset.motion === "reduced" || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.querySelectorAll(".st-count").forEach((c) => {
+      const to = Number(c.dataset.to) || 0; if (calm || !to) { c.textContent = to; return; }
+      const t0 = performance.now() + 1100, dur = 900;
+      const step = (now) => { if (!c.isConnected) return; const k2 = Math.max(0, Math.min(1, (now - t0) / dur)); c.textContent = Math.round(to * (1 - Math.pow(1 - k2, 3))); if (k2 < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+    if (window.BeautyAudio && !calm) setTimeout(() => BeautyAudio.sfx(rank === "S" ? "levelup" : "reward"), 1000);
     el.querySelector(".st-btn").onclick = close;
     el.querySelector(".st-veil").onclick = close;
     keyFn = (e) => { if (e.key === "Escape") close(); };

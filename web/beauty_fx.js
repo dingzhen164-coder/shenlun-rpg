@@ -75,5 +75,29 @@
     }))).observe(tt, { childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchToasts); else watchToasts();
-  window.BeautyFx = { burst, shake, showCombo };
+  // 大典特效：弹出时全屏微闪 + 冲击环 + 金色火花迸射；渡劫（金色调）再加几道闪电。减少动画时不做
+  function ceremonyBurst(host, opt = {}) {
+    if (still()) return;
+    const cv = document.createElement('canvas'); cv.setAttribute('aria-hidden', 'true');
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5';
+    host.appendChild(cv);
+    const dpr = Math.min(2, devicePixelRatio || 1), W = host.clientWidth || innerWidth, H = host.clientHeight || innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    const badge = host.querySelector('.cer-badge'), r = badge ? badge.getBoundingClientRect() : null, hr = host.getBoundingClientRect();
+    const cx = r ? r.left - hr.left + r.width / 2 : W / 2, cy = r ? r.top - hr.top + r.height / 2 : H * .6;
+    const n = opt.major ? 90 : 46, sp = Array.from({ length: n }, () => { const a = Math.random() * 6.283, v = 1.5 + Math.random() * (opt.major ? 6 : 4); return { a, v, x: cx, y: cy, life: 1, r: 1.5 + Math.random() * 2.5, c: COLORS[Math.floor(Math.random() * COLORS.length)] }; });
+    const bolts = opt.tribulation ? Array.from({ length: 3 }, (_, i) => ({ t: 120 + i * 260, x: W * (.25 + Math.random() * .5) })) : [];
+    const t0 = performance.now(); let raf = 0;
+    const frame = (now) => {
+      const t = now - t0; ctx.clearRect(0, 0, W, H);
+      if (t < 450) { ctx.globalAlpha = (1 - t / 450) * (opt.major ? .55 : .3); ctx.fillStyle = '#fff6d8'; ctx.fillRect(0, 0, W, H); }
+      [0, 160, 320].forEach((d, i) => { const k = (t - d) / 900; if (k > 0 && k < 1) { ctx.globalAlpha = (1 - k) * .7; ctx.strokeStyle = '#f3d98b'; ctx.lineWidth = 3 - i; ctx.beginPath(); ctx.arc(cx, cy, 20 + k * (opt.major ? 420 : 260), 0, 6.283); ctx.stroke(); } });
+      sp.forEach((p) => { p.x += Math.cos(p.a) * p.v; p.y += Math.sin(p.a) * p.v + .06 * (t / 100); p.v *= .975; p.life = Math.max(0, 1 - t / 2200); if (p.life > 0) { ctx.globalAlpha = p.life; ctx.fillStyle = p.c; ctx.shadowColor = p.c; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); ctx.shadowBlur = 0; } });
+      bolts.forEach((b) => { const k = (t - b.t) / 260; if (k > 0 && k < 1) { ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#fffbe8'; ctx.lineWidth = 2.4; ctx.shadowColor = '#bfe0ff'; ctx.shadowBlur = 16; ctx.beginPath(); let x = b.x, y = 0; ctx.moveTo(x, y); while (y < H * .62) { y += 28 + Math.random() * 24; x += (Math.random() - .5) * 46; ctx.lineTo(x, y); } ctx.stroke(); ctx.shadowBlur = 0; } });
+      ctx.globalAlpha = 1;
+      if (t < 2600 && cv.isConnected) raf = requestAnimationFrame(frame); else cv.remove();
+    };
+    raf = requestAnimationFrame(frame);
+  }
+  window.BeautyFx = { burst, shake, showCombo, ceremonyBurst };
 })();

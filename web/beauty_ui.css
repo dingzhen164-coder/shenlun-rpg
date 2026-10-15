@@ -108,3 +108,45 @@
 .narrative-stage.sway-on > img { visibility: hidden; }
 .sway-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 [data-motion="reduced"] .comp-img, [data-motion="reduced"] .narrative-stage > img { translate: none; rotate: none; }
+
+/* ---- 战利品式结算（settle.js）：评级印章 + 掉落格 */
+.st-rank { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 0 var(--ds-sp-8) auto; border-radius: var(--ds-r-pill); border: 3px double var(--stg, var(--ds-gold)); color: var(--stg, var(--ds-gold)); font: 700 34px/1 var(--display, serif); transform: rotate(-8deg) scale(0); animation: st-slam .6s .7s cubic-bezier(.2, 1.6, .4, 1) forwards; box-shadow: 0 0 14px var(--stg, var(--ds-gold)); background: var(--ds-shade-30); }
+.st-rank.rank-S { color: var(--ds-gold); border-color: var(--ds-gold); animation-name: st-slam, st-shine; animation-duration: .6s, 2.4s; animation-delay: .7s, 1.4s; animation-iteration-count: 1, infinite; animation-fill-mode: forwards, none; }
+.st-rank.rank-C { opacity: .85; }
+@keyframes st-slam { from { transform: rotate(-30deg) scale(2.4); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: 1; } }
+@keyframes st-shine { 0%, 100% { box-shadow: 0 0 10px var(--ds-gold); } 50% { box-shadow: 0 0 26px var(--ds-gold), 0 0 4px var(--ds-on-accent); } }
+.st-loot { display: flex; gap: var(--ds-sp-8); justify-content: center; flex-wrap: wrap; margin: var(--ds-sp-12) 0; }
+.st-drop { position: relative; display: grid; justify-items: center; gap: 2px; min-width: 88px; padding: var(--ds-sp-8) var(--ds-sp-12); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); background: var(--ds-shade-30); color: var(--ds-on-accent); opacity: 0; transform: translateY(14px) scale(.9); animation: st-drop .5s var(--d, 1s) cubic-bezier(.2, 1.4, .4, 1) forwards; }
+.st-drop-ic { font-size: var(--ds-fs-20); line-height: 1; color: var(--stg, var(--ds-gold)); }
+.st-drop b { font-size: var(--ds-fs-18); font-variant-numeric: tabular-nums; }
+.st-drop small { font-size: var(--ds-fs-11); opacity: .8; }
+.st-drop.tier-rare { border-color: var(--ds-info); box-shadow: 0 0 10px var(--ds-info); }
+.st-drop.tier-epic { border-color: var(--ds-gold); box-shadow: 0 0 14px var(--ds-gold); }
+.st-drop.tier-epic::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(110deg, transparent 35%, var(--ds-glint) 50%, transparent 65%); background-size: 250% 100%; animation: hud-shine 2.8s linear infinite; pointer-events: none; }
+@keyframes st-drop { to { opacity: 1; transform: none; } }
+[data-motion="reduced"] .st-rank, [data-motion="reduced"] .st-drop { animation: none; opacity: 1; transform: none; }
+[data-motion="reduced"] .st-rank { transform: rotate(-8deg); }
+@media (prefers-reduced-motion: reduce) { .st-rank, .st-drop { animation: none; opacity: 1; transform: none; } .st-rank { transform: rotate(-8deg); } }
+
+
+/* ---- 灵台手札书页质感（只加外观：纸纹、装订阴影、卷角、书脊式列表；手写画布与笔迹不受影响） */
+.nt-side, .nt-book, .nt-reader { background-image: var(--ds-grain); }
+.nt-pages { background-image: var(--ds-grain), radial-gradient(ellipse at center, transparent 55%, var(--ds-shade-30) 140%); }
+.nt-page { box-shadow: 0 1px 2px var(--ds-shade-30), 0 6px 18px var(--ds-shade-30); }
+.nt-page::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 22px; z-index: 2; pointer-events: none; border-radius: var(--ds-r-4) 0 0 var(--ds-r-4); background: linear-gradient(90deg, var(--ds-shade-30), transparent); }
+.nt-page::after { content: ""; position: absolute; right: 0; bottom: 0; width: 34px; height: 34px; z-index: 2; pointer-events: none; background: linear-gradient(315deg, var(--ds-shade-30) 0, transparent 55%); border-bottom-right-radius: var(--ds-r-4); }
+.nt-item, .nt-file { border-left: 3px solid var(--ds-gold-line); transition: transform var(--ds-dur), background var(--ds-dur); }
+.nt-item:hover, .nt-file:hover { transform: translateX(2px); }
+.nt-item.on, .nt-file.on { border-left-color: var(--ds-gold); }
+.nt-reader .nt-md { background-image: var(--ds-grain); }
+.nt-bar { background-image: linear-gradient(to bottom, var(--ds-glint), transparent); }
+
+/* ---- 境界徽章（beauty_badge.js）：洞府卡内联小徽章 + 大典画面里的大徽章 */
+.bb-inline { display: inline-block; vertical-align: -.35em; margin-right: var(--ds-sp-8); }
+.bb { display: block; filter: drop-shadow(0 2px 4px var(--ds-shade-30)); }
+.bb-t7 { animation: bb-glow 2.6s ease-in-out infinite alternate; }
+@keyframes bb-glow { from { filter: drop-shadow(0 0 3px var(--ds-gold)); } to { filter: drop-shadow(0 0 10px var(--ds-gold)); } }
+.cer-badge { display: grid; justify-items: center; margin-bottom: var(--ds-sp-8); animation: cer-badge-in .9s .5s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes cer-badge-in { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+[data-motion="reduced"] .bb-t7, [data-motion="reduced"] .cer-badge { animation: none; }
+@media (prefers-reduced-motion: reduce) { .bb-t7, .cer-badge { animation: none; } }

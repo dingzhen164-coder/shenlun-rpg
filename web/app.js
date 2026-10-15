@@ -513,7 +513,7 @@ const views = {
       <div class="avatar">${avatar}</div>
       <div class="hero-main">
         <div class="hero-name">${esc(p.id)}<small>「${esc(p.call)}」</small></div>
-        <div class="realm-name">${esc(R.name)}${R.bottleneck ? ` <span class="tag cur">${esc(W("bottleneck"))}</span>` : ""}</div>
+        <div class="realm-name">${window.BeautyBadge ? BeautyBadge.inline(R) : ""}${esc(R.name)}${R.bottleneck ? ` <span class="tag cur">${esc(W("bottleneck"))}</span>` : ""}</div>
         ${d.career ? careerHtml(d.career) : ""}
         <div class="hero-title">第 ${d.lap} 个${esc(W("lap"))} · ${d.batch.index ? `第 ${d.batch.index}/${d.batch.count} ${esc(W("batch"))}：${d.batch.boards.map(esc).join("、")}` : "本轮已圆满"}</div>
         <div class="row small muted" style="margin-top:8px"><span>${barLabel}</span><span class="spacer"></span><span>累计 ${d.xp}</span></div>
