@@ -1,5 +1,27 @@
 # DESIGN · 申论官途（申论 RPG）
 
+## 界面规范（3.1.2开发批次：设计系统，2026-10-15）
+
+只做规整，不换视觉语言，不新增功能行为；首要设备是平板（安卓APK、iPad浏览器），不再做手机界面。fakao-rpg与shenlun-rpg两份实现相同。
+
+**文件与加载顺序**：`web/tokens.css`（令牌，最先）→ `style.css` → `web/ds.css`（组件）→ 各页面CSS。
+
+**三层令牌（tokens.css）**
+1. 原语刻度：字号`--ds-fs-10/11/12/13/14/16/18/20/22/26`、间距`--ds-sp-4/8/12/14/16/20/24/32`、圆角`--ds-r-2/3/4/6/8/10/12/pill`、阴影`--ds-shadow-1/2/3`、触控`--ds-touch:42px`、动效`--ds-dur`。按像素命名。
+2. 语义色：`--ds-surface/-2/line/text/muted/accent/gold/ok/warn/danger/info`等，映射style.css的主题变量，随`body.xiuxian/guantu/xuanhuan`取值。
+3. 主题组件色（按主题×明暗给值）：纸笺`--ds-paper*`、状态牌`--ds-plate*`、场景牌`--ds-sign*/scene*/caption*/entry*`、旧角色牌`--ds-hud*`。选择器沿用原页面样式（`[data-theme="dark"]`、`body.portal-home`、`.portal-guantu/.portal-mage`），保证外观不变。
+
+**换肤方法**：只改tokens.css第3层对应主题块；新增主题＝复制一组块。页面与组件不写裸色值、不写硬编码字号和px圆角。
+
+**组件（ds.css，类名统一`ds-`前缀）**：`ds-btn`（`.ds-modal`内按钮自动采用纸笺风格）、`ds-modal`（纸笺弹窗）、`ds-card`、`ds-tag`、`ds-plate`（备考状态牌）、`ds-sign`（地图地点牌）、`ds-empty`、`ds-loading`。组件靠上下文变量（`--ds-btn-*`、`--ds-card-*`）适配容器，不用后代选择器覆盖。已迁移：纪事弹窗与章节卡（ds-modal/ds-card）、委托面板与阶段区域卡（ds-card）、收藏陈列（ds-tag）、备考状态牌（ds-plate）、地图地点牌（ds-sign）。注意：narrative.js靠`details`的className还原展开状态，不要给这些`details`加ds-类。
+
+**新增页面/组件规则**：先看ds.css有没有；新样式用令牌；新类名先搜是否冲突；ds-类只能写在ds.css。
+
+**零散值处理**：字号15/17px等不在阶梯内的值保持原样，圆角5px并入6px、7px并入8px（仅场景牌与阶段区域卡，肉眼差≤1px），其余未迁移页面只对与刻度完全相等的值做机械替换。
+基线（除tokens.css外的裸值）：fakao 颜色729→603、px字号396→83、px圆角257→77；shenlun 颜色811→685、字号470→94、圆角314→94。`tests/test_design_system.py`检查令牌齐全、类名规范、加载顺序，并让裸值只降不升（基线`tests/ds_baseline.json`，减少后`DS_UPDATE_BASELINE=1 python -m unittest tests.test_design_system`刷新）。
+
+**验证做法**：改前后用同一批元素（弹窗、状态牌、地点牌、地区卡）在三主题×明暗×首页/子页×电脑/平板下导出computed style逐项对比，除上述两处圆角并入外零差异；另跑`ui_layout_check`（电脑/平板×明暗，全页面）与纪事、世界、分区、地图导航、状态牌、固定布局等专项交互检查，均通过。
+
 ## 3.1.1统一发布候选（2026-10-14）
 
 - 累积3.0.9、3.1.0界面、分级文档和复习计时改动；版本与更新记录统一为3.1.1。验证分支完成全套单元、浏览器与Windows/Mac/安卓构建后才合main发布。
