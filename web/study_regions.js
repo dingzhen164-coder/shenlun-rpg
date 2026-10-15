@@ -51,5 +51,7 @@
     root.querySelectorAll('[data-study-region]').forEach(el=>el.onclick=async()=>{selected=el.dataset.studyRegion;await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);});
     const back=root.querySelector('[data-study-regions-back]');if(back)back.onclick=async()=>{selected='';await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);};
   }
-  window.STUDY_REGIONS={html,bind,belongs,title:()=>active()?.name||''};
+  // 地图上的五峰入口：直接进入某一峰（行测）；传入未知id则回到分区列表
+  function select(id){chooseSubject();selected=groups().some(g=>g.id===id)?id:'';}
+  window.STUDY_REGIONS={html,bind,belongs,select,title:()=>active()?.name||''};
 })();

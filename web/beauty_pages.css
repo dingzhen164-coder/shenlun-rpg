@@ -2,5 +2,3 @@
    用户自己在 设置→外观 选了背景图（body.has-bg）时不覆盖。 */
 body.xiuxian:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-art); background-position: center 30%; }
 body.xiuxian:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
-html:not([data-theme="dark"]) body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-day.webp"); }
-html[data-theme="dark"] body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-night.webp"); }

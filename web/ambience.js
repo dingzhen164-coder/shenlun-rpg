@@ -43,6 +43,7 @@ const AMB = (() => {
     ql.textContent = pickQuote(cur);
     ql.style.setProperty("--quote-scale", String(cur.quote_size ?? 1));
     BGM.setVolume(cur.volume);
+    window.BeautyAudio?.setBgmVolume(cur.volume ?? 0.35);
   }
 
   async function load() {
@@ -133,12 +134,24 @@ const AMB = (() => {
         <input type="range" id="ambQSize" min="0.5" max="2" step="0.1" value="${c.quote_size ?? 1}"></label></div>
       <p class="small muted">语录在库里的 <b>${esc2(DATA.folders.quotes)}</b>，一行一句（“- ”开头），自己加、改、删，刷新生效。现在共 ${DATA.quotes.length} 句。</p>
       <hr class="soft">
-      ${DATA.music.length ? `<div class="row"><label style="flex:2">背景音乐 <select id="ambTrack">
+      ${musicHtml(c, esc2)}</div>`;
+  }
+
+  // 背景音乐与声音（3.2.x：内置场景音乐、我的音乐、音效合在一起）
+  function musicHtml(c, esc2) {
+    const st = window.BeautyAudio?.settings || { sfx: true, bgm: true, vs: 0.6, src: "builtin" }, has = DATA.music.length > 0;
+    const src = st.src === "mine" && has ? "mine" : "builtin";
+    return `<label class="small muted">背景音乐与音效</label>
+      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baBgm" ${st.bgm ? "checked" : ""} style="width:auto"> 背景音乐</label>
+        <label style="flex:2;min-width:200px">来源 <select id="baSrc"><option value="builtin" ${src === "builtin" ? "selected" : ""}>内置场景音乐（随地图、洞府、答题自动切换）</option>
+          <option value="mine" ${src === "mine" ? "selected" : ""} ${has ? "" : "disabled"}>我的音乐${has ? "" : "（库里还没有）"}</option></select></label>
+        <label style="flex:1;min-width:160px">音乐音量 <input type="range" id="ambVol" min="0" max="1" step="0.05" value="${c.volume}"></label></div>
+      <div class="row" id="ambMine" style="${src === "mine" ? "" : "display:none"}">${has ? `<label style="flex:2">曲目 <select id="ambTrack">
           ${DATA.music.map((p) => `<option value="${esc2(p)}" ${c.track === p ? "selected" : ""}>${esc2(p.split("/").pop())}（顺序循环时从这首开始）</option>`).join("")}</select></label>
-        <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>
-        <label style="flex:1">音量 <input type="range" id="ambVol" min="0" max="1" step="0.05" value="${c.volume}"></label>
-        <button id="ambPlay">${BGM.on ? "■ 停止" : "▶ 播放"}</button></div>` : `<p>背景音乐：还没有音乐。</p>`}
-      <p class="small muted">默认不播放；顶栏的 ♪ 随时开关。音乐放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选；删掉文件就不会再播。</p></div>`;
+        <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : ""}</div>
+      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效（点击、答题、翻页等）</label>
+        <label style="flex:1;min-width:160px">音效音量 <input type="range" id="baSfxVol" min="0" max="1" step="0.05" value="${st.vs}"></label></div>
+      <p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，想换成自己的，同名覆盖即可（见该文件夹说明）。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
   }
 
   function bindSettings(onErr) {
@@ -158,13 +171,19 @@ const AMB = (() => {
       document.getElementById("ambQSizeV").textContent = Math.round(qs.value * 100) + "%"; };
     qs.onchange = () => guard(save({ quote_size: Number(qs.value) }));
     document.getElementById("ambFixed").onchange = (e) => guard(save({ fixed: e.target.value, quote: "fixed" }).then(() => { document.getElementById("ambQuote").value = "fixed"; }));
-    if (!document.getElementById("ambTrack")) return;   // 还没有音乐
-    document.getElementById("ambTrack").onchange = (e) => guard(save({ track: e.target.value }).then(() => BGM.restart()));
-    document.getElementById("ambShuffle").onchange = (e) => guard(save({ shuffle: e.target.value === "1" }).then(() => BGM.restart()));
-    const vol = document.getElementById("ambVol");
-    vol.oninput = () => BGM.setVolume(Number(vol.value));
+    const BA = window.BeautyAudio, vol = document.getElementById("ambVol");
+    vol.oninput = () => { BGM.setVolume(Number(vol.value)); BA?.setBgmVolume(Number(vol.value)); };
     vol.onchange = () => guard(save({ volume: Number(vol.value) }));
-    document.getElementById("ambPlay").onclick = (e) => { BGM.toggle(); e.target.textContent = BGM.on ? "■ 停止" : "▶ 播放"; };
+    const mine = document.getElementById("ambMine");
+    document.getElementById("baBgm").onchange = (e) => BA?.set({ bgm: e.target.checked });
+    document.getElementById("baSrc").onchange = (e) => { if (mine) mine.style.display = e.target.value === "mine" ? "" : "none"; BA?.set({ src: e.target.value }); };
+    document.getElementById("baSfx").onchange = (e) => BA?.set({ sfx: e.target.checked });
+    document.getElementById("baSfxVol").oninput = (e) => BA?.setSfxVolume(Number(e.target.value));
+    const tr = document.getElementById("ambTrack");
+    if (tr) {
+      tr.onchange = (e) => guard(save({ track: e.target.value }).then(() => BGM.restart()));
+      document.getElementById("ambShuffle").onchange = (e) => guard(save({ shuffle: e.target.value === "1" }).then(() => BGM.restart()));
+    }
   }
 
   return { load, apply, save, settingsHtml, bindSettings, bgm: BGM };

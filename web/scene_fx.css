@@ -5,8 +5,8 @@ html[data-scene-time="night"] .portal-landscape.portal-day { display: none; }
 html[data-scene-time="night"] .portal-landscape.portal-night { display: block; }
 .portal-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .portal-tint { position: absolute; inset: 0; opacity: 0; transition: opacity 2s; pointer-events: none; }
-html[data-scene-phase="dawn"] .portal-tint { opacity: 1; background: linear-gradient(to top, #ffb87a40, #ffe3b01a 55%, #fff5d500); }
-html[data-scene-phase="dusk"] .portal-tint { opacity: 1; background: linear-gradient(to top, #ff7a4a52, #b4508a2e 60%, #2a1a5a1a); }
+html[data-scene-phase="dawn"] .portal-tint { opacity: 1; background: var(--ds-tint-dawn); }
+html[data-scene-phase="dusk"] .portal-tint { opacity: 1; background: var(--ds-tint-dusk); }
 
 /* 3.2.4 地点牌：圆形徽章图标 + 悬停抬起发光 + 轻微呼吸光环；状态牌进度条流光 */
 .portal-world .portal-place > .portal-ic {
@@ -25,3 +25,8 @@ html[data-scene-phase="dusk"] .portal-tint { opacity: 1; background: linear-grad
 @keyframes hud-shine { from { background-position: 160% 0; } to { background-position: -60% 0; } }
 [data-motion="reduced"] .study-hud-meter i::after, [data-motion="paused"] .study-hud-meter i::after { animation: none; }
 @media (prefers-reduced-motion: reduce) { .portal-world .portal-place > .portal-ic, .study-hud-meter i::after { animation: none; } }
+
+/* 地图地点牌竖排：图标在上，名字一字一行（像匾额），scene_portal.js 的 signHtml 生成 */
+.portal-world .portal-place { min-width: 0; }
+.portal-world .portal-place > b.portal-sign-v { display: flex; flex-direction: column; align-items: center; padding: var(--ds-sp-12) var(--ds-sp-8); letter-spacing: 0; white-space: nowrap; }
+.portal-world .portal-place > b.portal-sign-v > i { font-style: normal; line-height: 1.3; }

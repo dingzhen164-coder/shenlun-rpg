@@ -77,3 +77,8 @@ body.guantu { --ds-plate-ink: #253f56; --ds-plate-soft: #576977; --ds-plate-meta
   --ds-hud-fill: linear-gradient(90deg, #b86735, #d69647); --ds-hud-fill-xp: linear-gradient(90deg, #277da0, #5ba6af); }
 .xuanhuan { --ds-hud-bg: linear-gradient(110deg, #302543ee, #252d45db); }
 .guantu { --ds-hud-bg: linear-gradient(110deg, #334854ee, #23363edb); --ds-hud-edge: #d0bb84; }
+
+/* 场景（3.2.3）：清晨/黄昏暖色叠层，行测子页背景图（亮色白天、暗色夜晚；见scene_fx.css、beauty_pages.css） */
+:root { --ds-page-art: none; --ds-tint-dawn: linear-gradient(to top, #ffb87a40, #ffe3b01a 55%, #fff5d500); --ds-tint-dusk: linear-gradient(to top, #ff7a4a52, #b4508a2e 60%, #2a1a5a1a); }
+html:not([data-theme="dark"]) body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-day.webp"); }
+html[data-theme="dark"] body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-night.webp"); }

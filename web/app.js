@@ -190,16 +190,18 @@ function configurePortal() {
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
-    {id:'train',label:'问道群峰',view:'train',x:48,y:0,nx:50,ny:6},
+    {id:'peak-chang',label:'万象峰',view:'train',region:'chang',x:20,y:24,nx:28,ny:8},{id:'peak-yan',label:'辨言峰',view:'train',region:'yan',x:34,y:17,nx:72,ny:8},
+    {id:'peak-li',label:'明理峰',view:'train',region:'li',x:48,y:14,nx:28,ny:20},{id:'peak-shu',label:'演数峰',view:'train',region:'shu',x:62,y:17,nx:72,ny:20},
+    {id:'peak-zi',label:'观星峰',view:'train',region:'zi',x:76,y:24,nx:50,ny:32},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:70,y:60,nx:86,ny:52},{id:'bank',label:'试炼塔',view:'bank',x:91,y:64,nx:84,ny:88},
     {id:'contest',label:'演武场',view:'contest',x:34,y:67,nx:14,ny:52},
     {id:'dwelling',label:'洞府',view:'dwelling',x:11,y:80,nx:16,ny:88},
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
-  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?{image:'assets/shenlun/hall.webp'}:{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v2'}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?{image:'assets/shenlun/hall.webp'}:{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
-    else go(p.view);
+    else{if(p.region)window.STUDY_REGIONS?.select(p.region);go(p.view);}
   });
 }
 
