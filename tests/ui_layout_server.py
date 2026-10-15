@@ -50,6 +50,15 @@ def main():
                         im.save(d / ('sl-zhoujingyi-%s.png' % expr))
                 if s2 == '行测':
                     (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
+        if '--art-real' in sys.argv:
+            # 看合成效果用：把程序自带的青衡宗全景当作所有行测子地图的背景
+            from PIL import Image
+            from rpg import art as _art
+            im = Image.open(Path(__file__).resolve().parent.parent / 'web/assets/sect/xc-sect-day.webp').convert('RGB')
+            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            for _f, name, *_r in _art.slots('行测'):
+                if _f == '子地图背景' and not name.endswith(('-白天', '-夜晚')) and '-' not in name:
+                    im.save(d / (name + '.png'))
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards

@@ -28,8 +28,8 @@
     if (hit) { b.style.setProperty('--ds-page-art', `url("${url(hit)}")`); b.classList.add('has-page-art'); }
     else { b.style.removeProperty('--ds-page-art'); b.classList.remove('has-page-art'); }
   }
-  function readView() {
-    const a = document.querySelector('#nav a.active'); const v = a ? a.dataset.view : '';
+  function readView() {                                                       // 当前页取 app.js 的 VIEW（试炼塔 bank 等不在顶栏里，不能靠顶栏判断）
+    let v = ''; try { v = typeof VIEW !== 'undefined' ? VIEW : ''; } catch (e) { v = ''; }
     if (v !== view) { view = v; apply(); }
   }
   const start = () => {
@@ -38,7 +38,7 @@
     new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     readView();
     const v = document.getElementById('view'); let q = 0;                    // 洞府切页签时更新背景
-    if (v) new MutationObserver(() => { if ((view === 'dwelling' || view === 'train') && !q) { q = 1; setTimeout(() => { q = 0; apply(); }, 60); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });
+    if (v) new MutationObserver(() => { if (!q) { q = 1; setTimeout(() => { q = 0; readView(); apply(); }, 60); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   window.BeautyArt = { has, url, files: () => Array.from(F.keys()) };
