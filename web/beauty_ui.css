@@ -65,27 +65,27 @@
 [data-motion="reduced"] #splash img, [data-motion="reduced"] #splash .splash-bar i { animation: none; }
 @media (prefers-reduced-motion: reduce) { #splash img, #splash .splash-bar i { animation: none; } }
 
-/* ---- 十二经经络图（beauty_meridian.js） */
-.mer-wrap { display: grid; gap: var(--ds-sp-8); justify-items: center; }
-.mer-svg { width: min(100%, 520px); height: auto; max-height: 72vh; }
-.mer-body, .mer-user { stroke: var(--ds-line); stroke-width: .9; fill: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
-.mer-body path:first-of-type { fill: color-mix(in srgb, var(--ds-surface-2) 70%, transparent); }
-.mer-lines path { stroke: var(--ds-gold); stroke-width: .5; opacity: .55; stroke-dasharray: 2 2; animation: mer-flow 6s linear infinite; }
-@keyframes mer-flow { to { stroke-dashoffset: -16; } }
-[data-motion="reduced"] .mer-lines path { animation: none; }
-@media (prefers-reduced-motion: reduce) { .mer-lines path { animation: none; } }
-.mer-node { cursor: pointer; outline: none; }
-.mer-dot { fill: var(--c); opacity: .42; stroke: var(--ds-surface); stroke-width: .6; transition: opacity var(--ds-dur); }
-.mer-node.on .mer-dot { opacity: 1; }
-.mer-halo { fill: none; stroke: var(--c); stroke-width: .4; opacity: 0; }
-.mer-node.on .mer-halo { opacity: .7; }
-.mer-node.top .mer-halo { opacity: 1; animation: mer-pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes mer-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
-[data-motion="reduced"] .mer-node.top .mer-halo { animation: none; }
-.mer-node:hover .mer-dot, .mer-node:focus-visible .mer-dot, .mer-node.sel .mer-dot { opacity: 1; stroke: var(--ds-gold); stroke-width: .9; }
-.mer-name { font-weight: 700; fill: var(--ds-text); }
-.mer-time { fill: var(--ds-muted); }
-.mer-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }
+/* ---- 十二经罗盘（beauty_compass.js） */
+.cp-wrap { display: grid; gap: var(--ds-sp-8); justify-items: center; }
+.cp-svg { width: min(100%, 560px); height: auto; max-height: 72vh; }
+.cp-rings circle { fill: none; stroke: var(--ds-line); stroke-width: .5; }
+.cp-rings circle:last-of-type { fill: color-mix(in srgb, var(--ds-surface-2) 80%, transparent); stroke: var(--ds-gold); stroke-width: .7; }
+.cp-ticks { stroke: var(--ds-gold); stroke-width: .4; opacity: .6; transform-origin: 120px 120px; animation: cp-spin 160s linear infinite; }
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+.cp-slot { fill: color-mix(in srgb, var(--ds-surface-2) 60%, transparent); stroke: var(--ds-line); stroke-width: .3; }
+.cp-fill { fill: var(--c); opacity: .35; stroke: var(--c); stroke-width: .5; transform-origin: 120px 120px; animation: cp-grow .8s ease-out both; animation-delay: calc(var(--i) * 50ms); transition: opacity var(--ds-dur); }
+@keyframes cp-grow { from { transform: scale(.4); opacity: 0; } }
+.cp-petal.on .cp-fill { opacity: .82; }
+.cp-petal { cursor: pointer; outline: none; }
+.cp-petal:hover .cp-fill, .cp-petal:focus-visible .cp-fill, .cp-petal.sel .cp-fill { opacity: 1; stroke: var(--ds-gold); stroke-width: 1; }
+.cp-petal.top .cp-fill { filter: drop-shadow(0 0 3px var(--c)); }
+.cp-zhi { fill: var(--ds-gold); paint-order: stroke; stroke: var(--ds-surface); stroke-width: 1.4; stroke-linejoin: round; pointer-events: none; }
+.cp-name { font-weight: 700; fill: var(--ds-text); }
+.cp-time, .cp-sub { fill: var(--ds-muted); }
+.cp-total { font-weight: 700; fill: var(--ds-text); font-family: var(--display); }
+[data-motion="reduced"] .cp-ticks, [data-motion="reduced"] .cp-fill { animation: none; }
+@media (prefers-reduced-motion: reduce) { .cp-ticks, .cp-fill { animation: none; } }
+.cp-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }
 
 /* ---- 同伴站位（beauty_companion.js）：子页面左下角的引导人物 */
 #companion { position: fixed; left: var(--ds-sp-12); bottom: 0; z-index: 40; width: clamp(96px, 8vw, 130px); cursor: pointer; filter: drop-shadow(0 4px 10px var(--ds-shade-30)); }
