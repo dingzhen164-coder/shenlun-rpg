@@ -9,6 +9,7 @@
 - **场景动态层**：`web/scene_fx.js/.css`。时段按真实时钟（5:30晨、8:00昼、17:00黄昏、19:30夜）选日/夜全景并叠暖色；季节按月份飘落物（春樱、夏萤火、秋叶、冬雪）、金色灵光点、白天飞鸟（canvas约30帧）。设置→地点排布顶部可选场景时间（auto/day/night/theme）与季节（auto/四季/off）。减少动画/页面隐藏时不画。地点牌改圆形徽章图标（scene_portal.js PLACE_ICON）并带悬停发光、状态牌进度条流光。
 - **对话与答题反馈**：`beauty_dialog.js/.css`纪事开场白与剧情段落打字机（点正文跳过；textContent不变）、选项悬停样式；`beauty_fx.js`点选项后4秒内重绘出right/wrong时迸光点、连续答对“连击×N”、答错抖动，并派发`beauty:answer`事件；顶栏当前页变化后#view淡入（`beauty:view`事件给音效放翻页声）。
 - **子页背景**：`beauty_pages.css`仅行测非地图页背后淡透青衡宗全景（用户选了自定义背景时不覆盖）。
+- **小更新（2026-10-15）**：①设置→外观与音乐里的背景音乐与内置场景音乐/音效合并：背景音乐开关、来源（内置场景音乐/我的音乐库）、音乐音量（同一个，仍存appearance.volume）、音效开关与音量；右下角喇叭仅作一键静音。BeautyAudio.set/setBgmVolume/setSfxVolume由设置卡调用；来源=我的音乐时内置曲目静音，由AMB.bgm播放。②地图地点牌名字改一字一行竖排（scene_portal.js signHtml，名字>8字或含英文数字仍横排）。③行测“问道群峰”入口拆成五个独立入口（万象/辨言/明理/演数/观星，place.region，STUDY_REGIONS.select直达某峰；子页标题仍用viewTitles.train；layoutId升xingce-v3）；顶栏“修炼”仍进五峰选择页。法考无五峰，其余两项共用。
 - 未做（后续批次）：加载页与启动画面、空状态插画、光标统一；十二经经络图、格子背包、突破仪式；任务大殿告示板、收藏陈列馆；申论领导/同事立绘与政务大厅昼夜全景（待美术）；环境声ambient；申论/法考各自的字体与页面背景。
 - 验证：ui_layout_check（行测home/train/dwelling/notes/settings等，电脑/平板×明暗）通过；test_scene_portal、ui_narrative、test_narrative_dom、ui_map_navigation、test_design_system通过；真实浏览器验证音频请求、控制钮、四季截图、答题反馈事件。`tests/ui_status_navigation.cjs`在2c9edfd基线就超时（等#bankCount），非本批引起，待查。
 
