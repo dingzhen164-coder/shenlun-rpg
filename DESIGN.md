@@ -1,5 +1,17 @@
 # DESIGN · 申论官途（申论 RPG）
 
+## 3.2.x美化系列开发批次（2026-10-15起，未发布，以行测为模板）
+
+计划见4.0版本更新方案.md第4节。素材一律开源/自制，统一放`web/assets/beauty/`（README写更新方法，REGISTRY.md登记来源与授权）。共用文件两仓库相同，由`tools/shared_files.txt`管理。
+- **统一图标**：`web/beauty_icons.js/.css`把界面文字里的emoji换成Lucide线条图标（保留原字符于DOM、仅缩成0宽，textContent与旧测试不变；图标加载失败回退emoji）。对照表`assets/beauty/icons/emoji-map.json`，图标`icons/svg/*.svg`，合集`sprite.svg`由`python3 tools/build_icons.py`生成。
+- **材质与字体**：tokens.css新增`--ds-grain/--ds-gold-line/--ds-jade-hi/--ds-press`；ds.css给纸笺弹窗加纸纹与双线金边、场景牌加内金线、按钮按下反馈。行测`body.xiuxian`的`--display`前置ZCOOL XiaoWei（OFL，分片woff2，`fonts/zcool-xiaowei/`）。
+- **音效与音乐**：`web/beauty_audio.js/.css`。素材Kenney CC0（音效）与OpenGameArt CC0（6首曲）放`assets/beauty/audio/{sfx,bgm}/`，固定文件名见该目录README，缺文件静音。第一次点击后才发声；按场景切换曲目（地图昼/夜、洞府、答题、对话、仪式，淡入淡出）；右下角音量钮可关可调（localStorage `beauty-audio-v1`）。事件：点击/悬停地点/弹窗开关/翻页/奖励toast/答对答错/升级与破境（包装CEREMONY）。
+- **场景动态层**：`web/scene_fx.js/.css`。时段按真实时钟（5:30晨、8:00昼、17:00黄昏、19:30夜）选日/夜全景并叠暖色；季节按月份飘落物（春樱、夏萤火、秋叶、冬雪）、金色灵光点、白天飞鸟（canvas约30帧）。设置→地点排布顶部可选场景时间（auto/day/night/theme）与季节（auto/四季/off）。减少动画/页面隐藏时不画。地点牌改圆形徽章图标（scene_portal.js PLACE_ICON）并带悬停发光、状态牌进度条流光。
+- **对话与答题反馈**：`beauty_dialog.js/.css`纪事开场白与剧情段落打字机（点正文跳过；textContent不变）、选项悬停样式；`beauty_fx.js`点选项后4秒内重绘出right/wrong时迸光点、连续答对“连击×N”、答错抖动，并派发`beauty:answer`事件；顶栏当前页变化后#view淡入（`beauty:view`事件给音效放翻页声）。
+- **子页背景**：`beauty_pages.css`仅行测非地图页背后淡透青衡宗全景（用户选了自定义背景时不覆盖）。
+- 未做（后续批次）：加载页与启动画面、空状态插画、光标统一；十二经经络图、格子背包、突破仪式；任务大殿告示板、收藏陈列馆；申论领导/同事立绘与政务大厅昼夜全景（待美术）；环境声ambient；申论/法考各自的字体与页面背景。
+- 验证：ui_layout_check（行测home/train/dwelling/notes/settings等，电脑/平板×明暗）通过；test_scene_portal、ui_narrative、test_narrative_dom、ui_map_navigation、test_design_system通过；真实浏览器验证音频请求、控制钮、四季截图、答题反馈事件。`tests/ui_status_navigation.cjs`在2c9edfd基线就超时（等#bankCount），非本批引起，待查。
+
 ## 3.4开发批次：半身立绘、白天/夜晚全景（第一批，2026-10-15，未发布）
 
 仅行测接入（申论沿用政务大厅单图与原对话框；法考见fakao-rpg）。素材由用户用Gemini生成，来源见`web/assets/guide/README.md`、`web/assets/sect/README.md`。
