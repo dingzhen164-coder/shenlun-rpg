@@ -12,7 +12,8 @@
 - **小更新（2026-10-15）**：①设置→外观与音乐里的背景音乐与内置场景音乐/音效合并：背景音乐开关、来源（内置场景音乐/我的音乐库）、音乐音量（同一个，仍存appearance.volume）、音效开关与音量；右下角喇叭仅作一键静音。BeautyAudio.set/setBgmVolume/setSfxVolume由设置卡调用；来源=我的音乐时内置曲目静音，由AMB.bgm播放。②地图地点牌名字改一字一行竖排（scene_portal.js signHtml，名字>8字或含英文数字仍横排）。③行测“问道群峰”入口拆成五个独立入口（万象/辨言/明理/演数/观星，place.region，STUDY_REGIONS.select直达某峰；子页标题仍用viewTitles.train；layoutId升xingce-v3）；顶栏“修炼”仍进五峰选择页。法考无五峰，其余两项共用。
 - **第二轮（2026-10-15）**：启动画面（index.html #splash + beauty_splash.js，首屏渲染后淡出，最长6秒，不拦截点击）；储物袋改格子背包（app.js progressParts：图标按名称、稀有度边框common/rare/epic、数量角标、至少12格）；任务大殿委托卡改任务榜（narrative.js给journey-task加data-status/data-unlocked，beauty_ui.css盖“可领取/进行中/待交付/已交付/未开启”印章）；收藏册展开成展柜格。样式在beauty_ui.css（类名bag-/splash-，不用ds-）。
 - **空状态**：beauty_empty.js把“还没有/暂无/空空如也”开头的单行 .muted/.faint 提示自动加ds-empty，ds.css用卷轴小插画（assets/beauty/ui/empty-scroll.svg，CSS mask）装饰。光标素材与位置登记在assets/beauty/cursors/README.md（行测灵光法阵、申论钢笔，逻辑未改）。申论图片需求清单见shenlun-rpg根目录《图片需求清单-申论.md》。
-- 未做（后续批次）：十二经经络人体图（目前仍是十二个法印球）；突破仪式（ceremony.js已很完整，暂不动）；申论领导/同事立绘与政务大厅昼夜全景（待美术）；环境声ambient；申论/法考各自的字体与页面背景；任务大殿的人物场景站位。
+- **第三轮（2026-10-15）**：环境声（assets/beauty/audio/sfx/ambient-day|night|water.ogg，CC0；地图白天鸟鸣、夜晚虫鸣、洞府流水，随“音效”开关，音量取一半，答题/对话不放）；十二经经络图（web/beauty_meridian.js：app.js boardTimeCard可切“经络图/法印”，默认经络图；内置人体剪影与穴位，可用assets/beauty/dongfu/meridian-body.svg与meridian-nodes.json覆盖，见该目录README；法考只有8个模块则点亮前8个穴位）。
+- 未做（后续批次）：突破仪式（ceremony.js已很完整，暂不动）；申论领导/同事立绘与政务大厅昼夜全景（待美术）；申论/法考各自的字体与页面背景；任务大殿的人物场景站位。
 - 验证：ui_layout_check（行测home/train/dwelling/notes/settings等，电脑/平板×明暗）通过；test_scene_portal、ui_narrative、test_narrative_dom、ui_map_navigation、test_design_system通过；真实浏览器验证音频请求、控制钮、四季截图、答题反馈事件。`tests/ui_status_navigation.cjs`在2c9edfd基线就超时（等#bankCount），非本批引起，待查。
 
 ## 3.4开发批次：半身立绘、白天/夜晚全景（第一批，2026-10-15，未发布）
