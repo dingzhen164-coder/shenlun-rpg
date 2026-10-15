@@ -411,3 +411,5 @@ shared web/assets/beauty/icons/svg/volume-x.svg
 shared web/beauty_dialog.js
 shared web/beauty_dialog.css
 shared web/beauty_fx.js
+shared web/assets/beauty/icons/svg/mountain.svg
+shared web/assets/beauty/icons/svg/house.svg

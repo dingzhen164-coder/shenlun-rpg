@@ -7,3 +7,21 @@ html[data-scene-time="night"] .portal-landscape.portal-night { display: block; }
 .portal-tint { position: absolute; inset: 0; opacity: 0; transition: opacity 2s; pointer-events: none; }
 html[data-scene-phase="dawn"] .portal-tint { opacity: 1; background: linear-gradient(to top, #ffb87a40, #ffe3b01a 55%, #fff5d500); }
 html[data-scene-phase="dusk"] .portal-tint { opacity: 1; background: linear-gradient(to top, #ff7a4a52, #b4508a2e 60%, #2a1a5a1a); }
+
+/* 3.2.4 地点牌：圆形徽章图标 + 悬停抬起发光 + 轻微呼吸光环；状态牌进度条流光 */
+.portal-world .portal-place > .portal-ic {
+  display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: var(--ds-sp-4); border-radius: var(--ds-r-pill); font-size: var(--ds-fs-18);
+  color: var(--ds-sign-symbol); background: var(--ds-sign-bg); border: 1px solid var(--ds-sign-line);
+  box-shadow: 0 0 0 3px var(--ds-gold-line), var(--ds-shadow-1); transition: transform var(--ds-dur-slow), box-shadow var(--ds-dur-slow);
+  animation: portal-ring 3.6s ease-in-out infinite;
+}
+.portal-world .portal-place:hover > .portal-ic, .portal-world .portal-place:focus-visible > .portal-ic { transform: translateY(-3px) scale(1.08); box-shadow: 0 0 0 3px var(--ds-sign-focus), 0 0 16px var(--ds-sign-focus); animation: none; }
+.portal-world .portal-place > b { transition: transform var(--ds-dur-slow), background var(--ds-dur); }
+.portal-world .portal-place:hover > b { transform: translateY(-2px); }
+.portal-world .portal-place:active > .portal-ic { transform: scale(.94); }
+@keyframes portal-ring { 0%, 100% { box-shadow: 0 0 0 3px var(--ds-gold-line), var(--ds-shadow-1); } 50% { box-shadow: 0 0 0 5px var(--ds-gold-line), 0 0 12px var(--ds-scene-glow); } }
+[data-motion="reduced"] .portal-world .portal-place > .portal-ic, [data-motion="paused"] .portal-world .portal-place > .portal-ic { animation: none; }
+.study-hud-meter i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, var(--ds-glint) 50%, transparent 70%); background-size: 220% 100%; animation: hud-shine 3.2s linear infinite; }
+@keyframes hud-shine { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+[data-motion="reduced"] .study-hud-meter i::after, [data-motion="paused"] .study-hud-meter i::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .portal-world .portal-place > .portal-ic, .study-hud-meter i::after { animation: none; } }

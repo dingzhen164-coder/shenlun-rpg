@@ -16,6 +16,7 @@
                             y:typeof v?.y==='number'&&Number.isFinite(v.y)?clamp(v.y):fallback.y};
     });return result;
   }
+  const PLACE_ICON = {train:'🗻',skeleton:'📚',bank:'🗼',contest:'⚔',dwelling:'🏠',notes:'📝',tianji:'🔮',journal:'📜',log:'📊'};   // 地点牌上的小图标（emoji会被beauty_icons换成统一线条图标）
   const placeName = (p, layout=load()) => layout.names[p.id] || p.label;
   function title(view) {return view==='home'?config?.title:config?.places.find(p=>p.view===view)&&placeName(config.places.find(p=>p.view===view));}
   const layoutKey = () => 'scene-layout:' + (config.layoutId || config.id);   // 换全景图时用layoutId让旧排布失效（旧位置对新图无意义）
@@ -37,7 +38,7 @@
   }
   function stageHtml(layout, device, editing=false) {
     return `<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${landscapeHtml()}${config.places.map(p=>{
-      const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span aria-hidden="true">◆</span><b class="ds-sign">${esc(placeName(p,layout))}</b></button>`;
+      const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span class="portal-ic" aria-hidden="true">${PLACE_ICON[p.id]||'◆'}</span><b class="ds-sign">${esc(placeName(p,layout))}</b></button>`;
     }).join('')}</div>`;
   }
   function homeHtml() {return `<section class="portal-world portal-${esc(config.id)}" aria-label="${esc(config.title)}">${stageHtml(load(),profile())}</section>`;}
