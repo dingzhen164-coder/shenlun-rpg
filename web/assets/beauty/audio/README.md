@@ -28,3 +28,7 @@
 | `quest-accept.ogg` / `quest-done.ogg` | 接取 / 交付任务 |
 | `type.ogg` | 对话打字机（短促） |
 | `ambient-*.ogg` | 环境声（风、虫鸣、水声，可选） |
+
+## 当前已放入的开源素材（可随时同名覆盖）
+音效来自 Kenney（CC0）：click←Interface click_003，hover←tick_002，open/close←open_001/close_001，page←RPG bookFlip1，correct←confirmation_002，wrong←error_004，combo←select_006，reward←RPG handleCoins，levelup←Hit jingle 05，breakthrough←Steel jingle 12，quest-accept←confirmation_004，quest-done←Pizzicato jingle 08，type←tick_004。
+背景音乐均为 OpenGameArt 的 CC0 曲目，详见 REGISTRY.md。`ambient-*.ogg` 环境声暂未放入（可选）。

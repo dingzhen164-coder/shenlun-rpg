@@ -26,7 +26,7 @@ body.xiuxian {
   --text: #e6ece8; --muted: #9db0a8; --faint: #637770;
   --accent: #3fbf9f; --accent2: #6aa6d8; --gold: #dcb45a; --green: #58cf8e;
   --red: #e0674f; --orange: #e79a52; --purple: #9ad7c4;
-  --display: "STKaiti", "KaiTi", "Kaiti SC", "楷体", "Songti SC", "SimSun", serif;
+  --display: "ZCOOL XiaoWei", "STKaiti", "KaiTi", "Kaiti SC", "楷体", "Songti SC", "SimSun", serif;
 }
 html[data-theme="light"] body.xiuxian {
   --bg: #f3efe4; --panel: #fbf8f0; --panel2: #ede6d5; --line: #d6ccb4;

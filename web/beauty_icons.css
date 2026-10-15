@@ -1,0 +1,7 @@
+/* 3.2.1 统一图标：配合 beauty_icons.js。只有图标合集加载成功（html.has-icons）才隐藏原 emoji，失败时仍显示 emoji。 */
+.ic-e { display: inline-block; position: relative; vertical-align: -.16em; line-height: 1; }
+html.has-icons .ic-e { width: 1.1em; height: 1.1em; }
+html.has-icons .ic-e .ic-t { position: absolute; width: 0; height: 0; overflow: hidden; font-size: 0; }
+html:not(.has-icons) .ic-e .ic { display: none; }
+.ic-e .ic { position: absolute; left: 0; top: 0; width: 1.1em; height: 1.1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.ic-e .ic use { pointer-events: none; }
