@@ -69,3 +69,60 @@ class ArtTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PortraitTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        v = Path(self.tmp.name) / "库"
+        (v / "copilot/skills").mkdir(parents=True)
+        self.p = paths.Paths(v)
+        self.p.ensure_train_dir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _fig(self, name, bg=(255, 0, 255)):
+        from PIL import Image, ImageDraw
+        im = Image.new("RGB", (300, 400), bg)
+        ImageDraw.Draw(im).ellipse((80, 60, 220, 340), fill=(40, 90, 120))
+        d = art.art_dir(self.p)
+        d.mkdir(parents=True, exist_ok=True)           # 根目录也能放，别名英文编号也认
+        im.save(d / name)
+        return d / name
+
+    def test_alias_in_root_and_chroma_key(self):
+        f = self._fig("sl-zhoujingyi-calm.png")
+        self.assertEqual(art.lookup(self.p, "申论", "beauty/portrait/sl-zhoujingyi-calm.webp"), f)
+        self.assertIsNone(art.lookup(self.p, "行测", "beauty/portrait/sl-zhoujingyi-calm.webp"))
+        data, ct = art.processed(f)
+        self.assertEqual(ct, "image/webp")
+        from PIL import Image
+        import io
+        im = Image.open(io.BytesIO(data)).convert("RGBA")
+        self.assertEqual(im.getpixel((5, 5))[3], 0)               # 洋红底变透明
+        self.assertEqual(im.getpixel((150, 200))[3], 255)         # 人物不透明
+        self.assertTrue((f.parent / ".cache").is_dir())
+
+    def test_green_background_and_no_key_for_busy_corners(self):
+        g = self._fig("g.png", (0, 255, 0))
+        from PIL import Image, ImageDraw
+        import io
+        im = Image.open(io.BytesIO(art.processed(g)[0])).convert("RGBA")
+        self.assertEqual(im.getpixel((5, 5))[3], 0)
+        busy = Image.new("RGB", (200, 200), (255, 255, 255))
+        ImageDraw.Draw(busy).rectangle((0, 0, 99, 199), fill=(10, 10, 10))   # 四角颜色不一致
+        f = art.art_dir(self.p) / "b.png"
+        busy.save(f)
+        out = Image.open(io.BytesIO(art.processed(f)[0])).convert("RGBA")
+        self.assertEqual(out.getpixel((5, 5))[3], 255)
+
+    def test_character_portraits_needs_calm(self):
+        self._fig("sl-zhoujingyi-cheer.png")
+        self.assertIsNone(art.character_portraits(self.p, "申论", "zhoujingyi"))
+        self._fig("sl-zhoujingyi-calm.png")
+        self._fig("sl-zhoujingyi-blink.png")
+        por = art.character_portraits(self.p, "申论", "zhoujingyi")
+        self.assertIn("calm", por)
+        self.assertIn("cheer", por)
+        self.assertEqual(por["blink"]["w"], 1)

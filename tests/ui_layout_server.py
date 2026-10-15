@@ -43,6 +43,11 @@ def main():
                 (d / '首页全景').mkdir(parents=True, exist_ok=True); (d / '子地图背景').mkdir(parents=True, exist_ok=True)
                 (d / '首页全景' / '白天.png').write_bytes(png)
                 (d / '子地图背景' / (place + '.png')).write_bytes(png)
+                if s2 == '申论':      # 申论领导立绘：洋红底的假人物，根目录英文编号即可
+                    from PIL import Image, ImageDraw
+                    for expr in ('calm', 'cheer', 'blink'):
+                        im = Image.new('RGB', (600, 800), (255, 0, 255)); ImageDraw.Draw(im).ellipse((150, 120, 450, 700), fill=(30, 70, 110))
+                        im.save(d / ('sl-zhoujingyi-%s.png' % expr))
                 if s2 == '行测':
                     (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
         if '--journey-fixture' in sys.argv:

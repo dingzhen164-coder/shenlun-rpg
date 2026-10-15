@@ -6,7 +6,10 @@
 子文件夹与文件名（扩展名随意：图片 webp/png/jpg，音频 ogg/mp3/wav/m4a/opus）：
   首页全景/      白天、夜晚
   子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚；洞府另有每个页签一套：洞府-<页签名>[-白天|-夜晚]；修炼页选中的分区（行测五峰、申论五题型、法考八科）也各一套：<分区名>[-白天|-夜晚]      （地点名随科目：行测 洞府/问道群峰/试炼塔/…，申论 办公室/知识办理中心/…，法考 营地/冒险大厅/…）
-  人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼          （只对有半身立绘的科目；眨眼图的位置由程序固定，换图请保持同样的取景）
+  人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼          （行测沈清禾、法考艾琳：眨眼图只含眼部，位置由程序固定，换图请保持同样的取景）
+                 申论：<姓名>-<表情>，如 周静宜-平静、周静宜-眨眼（九位：周静宜 陈知微 林清岚 秦书瑶 韩明慧 沈清妍 顾清宁 许知宁 林悦；眨眼图是整幅同取景的闭眼图）
+                 生成时用纯色底（洋红或绿）的图会自动去底并缩放（需要 Pillow；打包好的程序自带）；申论清单里的英文编号名（sl-zhoujingyi-calm.png、sl-hall-day.png）也认，
+                 并且这些文件直接放在美术文件夹根目录也行，不用分子文件夹、不用改名
   音乐/          地图白天、地图夜晚、洞府、学习、突破仪式、对话
   音效/          点击、悬停、打开弹窗、关闭弹窗、翻页、答对、答错、连击、奖励、升级、突破、接取任务、完成任务、打字、环境声白天、环境声夜晚、环境声流水
 子地图背景的优先级：<地点>[-页签]-白天/夜晚（按亮暗主题）→ <地点>[-页签] → 洞府页签回退到洞府整体背景 → 程序默认的淡透全景。
@@ -39,6 +42,9 @@ PLACES = {
 }
 HOME = {"行测": ("sect/xc-sect-day.webp", "sect/xc-sect-night.webp"), "申论": ("shenlun/hall.webp", None),
         "法考": ("academy/scene/mg-academy-day.webp", "academy/scene/mg-academy-night.webp")}
+# 申论的人物：七位阶段领导（按职务履历里的领导姓名对应）与两位同事（同伴支线）
+SL_CHARS = [("周静宜", "zhoujingyi"), ("陈知微", "chenzhiwei"), ("林清岚", "linqinglan"), ("秦书瑶", "qinshuyao"), ("韩明慧", "hanminghui"),
+            ("沈清妍", "shenqingyan"), ("顾清宁", "guqingning"), ("许知宁", "xuzhining"), ("林悦", "linyue")]
 EXPR = [("calm", "平静"), ("cheer", "鼓励"), ("explain", "讲解"), ("concern", "关切"), ("proud", "欣慰"), ("blink", "眨眼")]
 PORTRAIT = {"行测": "guide/xc-qinghe-%s.webp", "法考": "academy/portrait/mg-eileen-%s.webp"}
 BGM = [("map-day", "地图白天"), ("map-night", "地图夜晚"), ("dongfu", "洞府"), ("study", "学习"), ("ceremony", "突破仪式"), ("dialog", "对话")]
@@ -55,47 +61,55 @@ def art_dir(paths):
 
 
 def slots(subject):
-    """[(子文件夹, 文件名主干, 网页资源相对路径 assets/ 之后, 程序自带文件相对路径或 None, 'image'|'audio')]"""
+    """[(子文件夹, 文件名主干, 网页资源相对路径 assets/ 之后, 程序自带文件相对路径或 None, 'image'|'audio', 别名主干元组)]
+    别名：申论图片清单里用的英文编号（sl-zhoujingyi-calm、sl-hall-day…）也认，所以可以直接把生成的文件放进美术文件夹，不用改名。"""
     out = []
     day, night = HOME.get(subject, HOME["行测"])
-    out.append(("首页全景", "白天", day, day, "image"))
-    out.append(("首页全景", "夜晚", night or "beauty/page/home-night.webp", night, "image"))
+    sl = subject == "申论"
+    out.append(("首页全景", "白天", day, day, "image", ("sl-hall-day",) if sl else ()))
+    out.append(("首页全景", "夜晚", night or "beauty/page/home-night.webp", night, "image", ("sl-hall-night",) if sl else ()))
     for view, place in zip(VIEWS, PLACES.get(subject, PLACES["行测"])):
-        out.append(("子地图背景", place, "beauty/page/%s.webp" % view, None, "image"))
-        out.append(("子地图背景", place + "-白天", "beauty/page/%s-day.webp" % view, None, "image"))
-        out.append(("子地图背景", place + "-夜晚", "beauty/page/%s-night.webp" % view, None, "image"))
+        out.append(("子地图背景", place, "beauty/page/%s.webp" % view, None, "image", ()))
+        out.append(("子地图背景", place + "-白天", "beauty/page/%s-day.webp" % view, None, "image", ()))
+        out.append(("子地图背景", place + "-夜晚", "beauty/page/%s-night.webp" % view, None, "image", ()))
     for key, name in REGIONS.get(subject, []):
-        out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image"))
-        out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image"))
-        out.append(("子地图背景", name + "-夜晚", "beauty/page/train-%s-night.webp" % key, None, "image"))
+        out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image", ()))
+        out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image", ()))
+        out.append(("子地图背景", name + "-夜晚", "beauty/page/train-%s-night.webp" % key, None, "image", ()))
     place0 = PLACES.get(subject, PLACES["行测"])[0]
     for key, label in DWELLING_TABS.get(subject, []):
         n = "%s-%s" % (place0, label)
-        out.append(("子地图背景", n, "beauty/page/dwelling-%s.webp" % key, None, "image"))
-        out.append(("子地图背景", n + "-白天", "beauty/page/dwelling-%s-day.webp" % key, None, "image"))
-        out.append(("子地图背景", n + "-夜晚", "beauty/page/dwelling-%s-night.webp" % key, None, "image"))
+        out.append(("子地图背景", n, "beauty/page/dwelling-%s.webp" % key, None, "image", ()))
+        out.append(("子地图背景", n + "-白天", "beauty/page/dwelling-%s-day.webp" % key, None, "image", ()))
+        out.append(("子地图背景", n + "-夜晚", "beauty/page/dwelling-%s-night.webp" % key, None, "image", ()))
     if subject in PORTRAIT:
         for key, cn in EXPR:
             rel = PORTRAIT[subject] % key
-            out.append(("人物立绘", cn, rel, rel, "image"))
+            out.append(("人物立绘", cn, rel, rel, "image", ()))
+    if subject == "申论":
+        for cname, cid in SL_CHARS:
+            for key, cn in EXPR:
+                out.append(("人物立绘", "%s-%s" % (cname, cn), "beauty/portrait/sl-%s-%s.webp" % (cid, key), None, "image", ("sl-%s-%s" % (cid, key),)))
     for key, cn in BGM:
         rel = "beauty/audio/bgm/%s.ogg" % key
-        out.append(("音乐", cn, rel, rel, "audio"))
+        out.append(("音乐", cn, rel, rel, "audio", ()))
     for key, cn in SFX:
         rel = "beauty/audio/sfx/%s.ogg" % key
-        out.append(("音效", cn, rel, rel, "audio"))
+        out.append(("音效", cn, rel, rel, "audio", ()))
     return out
 
 
-def _find(paths, folder, stem, kind):
-    d = art_dir(paths) / folder
-    if not d.is_dir():
-        return None
+def _find(paths, folder, stem, kind, aliases=()):
+    """先在对应子文件夹找，再在美术文件夹根目录找（方便直接把一批文件丢进来）；主干名或别名都行"""
     exts = IMG if kind == "image" else AUD
-    for ext in exts:
-        p = d / (stem + ext)
-        if p.is_file():
-            return p
+    for d in (art_dir(paths) / folder, art_dir(paths)):
+        if not d.is_dir():
+            continue
+        for st in (stem,) + tuple(aliases):
+            for ext in exts:
+                p = d / (st + ext)
+                if p.is_file():
+                    return p
     return None
 
 
@@ -107,9 +121,9 @@ def known(subject):
 def lookup(paths, subject, asset_rel):
     if not paths or not paths.vault or not paths.train:
         return None
-    for folder, stem, rel, _b, kind in slots(subject):
+    for folder, stem, rel, _b, kind, al in slots(subject):
         if rel == asset_rel:
-            return _find(paths, folder, stem, kind)
+            return _find(paths, folder, stem, kind, al)
     return None
 
 
@@ -118,8 +132,8 @@ def files(paths, subject):
     if not paths or not paths.vault or not paths.train:
         return []
     out = []
-    for folder, stem, rel, _b, kind in slots(subject):
-        p = _find(paths, folder, stem, kind)
+    for folder, stem, rel, _b, kind, al in slots(subject):
+        p = _find(paths, folder, stem, kind, al)
         if p:
             out.append([rel, p.stat().st_mtime_ns])
     return out
@@ -132,7 +146,9 @@ README = """美术文件夹说明
 首页全景/      白天、夜晚                         （地图首页的全景图）
 子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚   （每个子页面背后的背景；不放就用程序默认的淡透全景）
                洞府还可以每个页签单独一张：洞府-<页签名>、洞府-<页签名>-白天、洞府-<页签名>-夜晚（行测页签：修为与突破、十二经、修行记录、储物袋、修行日志）
-人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼     （引导人物半身立绘；眨眼图只含眼部，位置由程序固定）
+人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼     （引导人物半身立绘；行测、法考的眨眼图只含眼部，位置由程序固定）
+               申论每个人单独一套：<姓名>-<表情>，例如 周静宜-平静.png（九位人物见 rpg/art.py）。纯色底（洋红/绿）的图会自动去底。
+               小技巧：把图片清单生成的文件（sl-zhoujingyi-calm.png、sl-hall-day.png 这样的英文名）整批直接丢进美术文件夹根目录就行。
 音乐/          地图白天、地图夜晚、洞府、学习、突破仪式、对话
 音效/          点击、悬停、打开弹窗、关闭弹窗、翻页、答对、答错、连击、奖励、升级、突破、接取任务、完成任务、打字、环境声白天、环境声夜晚、环境声流水
 
@@ -148,7 +164,7 @@ def export(paths, subject, assets_dir):
     root = art_dir(paths)
     root.mkdir(parents=True, exist_ok=True)
     copied = skipped = missing = 0
-    for folder, stem, rel, builtin, kind in slots(subject):
+    for folder, stem, rel, builtin, kind, al in slots(subject):
         (root / folder).mkdir(parents=True, exist_ok=True)
         if not builtin:
             continue
@@ -156,7 +172,7 @@ def export(paths, subject, assets_dir):
         if not src.is_file():
             missing += 1
             continue
-        if _find(paths, folder, stem, kind):
+        if _find(paths, folder, stem, kind, al):
             skipped += 1
             continue
         shutil.copyfile(src, root / folder / (stem + src.suffix.lower()))
@@ -165,3 +181,85 @@ def export(paths, subject, assets_dir):
     if not readme.exists():
         readme.write_text(README, encoding="utf-8")
     return {"copied": copied, "skipped": skipped, "missing": missing, "folder": "训练/外观/美术/"}
+
+
+# ---------------------------------------------------------------- 人物立绘的去底与缩放
+def is_portrait(subject, asset_rel):
+    return any(rel == asset_rel and folder == "人物立绘" for folder, _s, rel, _b, _k, _a in slots(subject))
+
+
+def processed(path):
+    """立绘（表情图、眨眼图）：生成时背景是纯色（洋红 #FF00FF / 绿 #00FF00）而不是透明的，这里自动去底，并缩到最长边 1200 以内。
+    返回 (字节, content-type)；结果缓存在 美术/.cache/ 里（文件改了自动重做）。没有 Pillow、图本来带透明、四角不是同一种纯色时，原样返回（None 表示用原文件）。"""
+    try:
+        from PIL import Image, ImageChops, ImageFilter
+    except Exception:
+        return None
+    cache = path.parent / ".cache"
+    key = cache / ("%s-%d-%d.webp" % (path.stem, path.stat().st_mtime_ns, path.stat().st_size))
+    if key.is_file():
+        return key.read_bytes(), "image/webp"
+    try:
+        im = Image.open(path)
+        im.load()
+    except Exception:
+        return None
+    im = im.convert("RGBA")
+    w, h = im.size
+    if min(im.getchannel("A").getextrema()) < 250:                 # 本来就有透明：只缩放
+        out = im
+    else:
+        n = max(3, min(w, h) // 100)
+        pts = [(x, y) for x0, y0 in ((0, 0), (w - n, 0), (0, h - n), (w - n, h - n)) for x in range(x0, x0 + n) for y in range(y0, y0 + n)]
+        cols = sorted(im.getpixel(p)[:3] for p in pts)
+        bg = cols[len(cols) // 2]
+        if max(max(abs(c[i] - bg[i]) for i in range(3)) for c in (im.getpixel(p)[:3] for p in pts[::max(1, len(pts) // 16)])) > 40:
+            out = im                                                  # 四角颜色不一致：不是纯色背景，不去底
+        else:
+            rgb = im.convert("RGB")
+            d = None
+            for ch, v in zip(rgb.split(), bg):
+                diff = ImageChops.difference(ch, Image.new("L", (w, h), v))
+                d = diff if d is None else ImageChops.lighter(d, diff)
+            alpha = d.point(lambda v: 0 if v < 38 else 255 if v > 96 else int((v - 38) * 255 / 58))
+            alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.7))     # 收一圈再羽化，去掉底色毛边
+            out = im.copy()
+            out.putalpha(alpha)
+            if bg[0] > 180 and bg[2] > 180 and bg[1] < 90:               # 洋红底：边缘去粉紫色溢出
+                r, g, b, a = out.split()
+                r = ImageChops.darker(r, ImageChops.lighter(g, ImageChops.multiply(b, g)))
+                out = Image.merge("RGBA", (r, g, b, a))
+    if max(out.size) > 1200:
+        s = 1200 / max(out.size)
+        out = out.resize((max(1, round(out.size[0] * s)), max(1, round(out.size[1] * s))), Image.LANCZOS)
+    import io
+    buf = io.BytesIO()
+    out.save(buf, "WEBP", quality=88)
+    data = buf.getvalue()
+    try:
+        cache.mkdir(exist_ok=True)
+        for old in cache.glob(path.stem + "-*.webp"):
+            old.unlink()
+        key.write_bytes(data)
+    except OSError:
+        pass
+    return data, "image/webp"
+
+
+def character_portraits(paths, subject, cid):
+    """申论某个人物的立绘表：{calm, cheer, …, blink:{src,x,y,w,h}}；没有 calm（基础图）就返回 None。
+    眨眼图是整幅同取景的闭眼图（不是只含眼部），所以叠满整个画面。"""
+    if not paths or not paths.vault or not paths.train:
+        return None
+    got = {}
+    for key, _cn in EXPR:
+        rel = "beauty/portrait/sl-%s-%s.webp" % (cid, key)
+        p = lookup(paths, subject, rel)
+        if p:
+            got[key] = "assets/%s?v=%d" % (rel, p.stat().st_mtime_ns)
+    if "calm" not in got:
+        return None
+    blink = got.pop("blink", None)
+    if blink:
+        got["blink"] = {"src": blink, "x": 0, "y": 0, "w": 1, "h": 1}
+    return got

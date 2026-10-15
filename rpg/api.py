@@ -1836,7 +1836,13 @@ class Handler(BaseHTTPRequestHandler):
             ov = art.lookup(Paths(find_vault()), subjects.active(), rel[7:]) if find_vault() else None
             if ov:
                 ct = mimetypes.guess_type(ov.name)[0] or "application/octet-stream"
-                return self._send_range(ov, ct) if ov.suffix.lower() in art.AUD else self._send(200, ov.read_bytes(), ct)
+                if ov.suffix.lower() in art.AUD:
+                    return self._send_range(ov, ct)
+                if art.is_portrait(subjects.active(), rel[7:]):              # 立绘：纯色底自动去底并缩放
+                    done = art.processed(ov)
+                    if done:
+                        return self._send(200, done[0], done[1])
+                return self._send(200, ov.read_bytes(), ct)
         f = (WEB_DIR / rel).resolve()
         if WEB_DIR.resolve() not in f.parents or not f.is_file():
             return self._send(404, {"error": "not found"})
