@@ -33,8 +33,8 @@
       const left = x < 49 ? true : x > 51 ? false : i % 2 === 1, side = left ? 'end' : 'start', tx = x + (left ? -(r + 2) : r + 2);
       return `<g class="mer-node${b.total ? ' on' : ''}${b.total === top && total ? ' top' : ''}" style="--c:${colors[i % colors.length]}" data-mer="${i}" tabindex="0" role="button" aria-label="${esc(b.board)} ${mins} 分钟">
         <circle class="mer-halo" cx="${x}" cy="${y}" r="${r + 2.4}"/><circle class="mer-dot" cx="${x}" cy="${y}" r="${r}"/>
-        <text x="${tx}" y="${y - 0.6}" text-anchor="${side}" class="mer-name">${esc(b.board)}</text>
-        <text x="${tx}" y="${y + 3.6}" text-anchor="${side}" class="mer-time">${mins} 分${total ? ' · ' + Math.round(share * 100) + '%' : ''}</text></g>`;
+        <text x="${tx}" y="${y - 0.6}" text-anchor="${side}" class="mer-name" font-size="3.4">${esc(b.board)}</text>
+        <text x="${tx}" y="${y + 3.6}" text-anchor="${side}" class="mer-time" font-size="2.8">${mins} 分${total ? ' · ' + Math.round(share * 100) + '%' : ''}</text></g>`;
     }).join('');
     return `<div class="mer-wrap"><svg class="mer-svg" viewBox="-12 0 124 122" role="img" aria-label="十二经经络图">${body}<g class="mer-lines" fill="none" stroke-linecap="round">${lines(P)}</g>${dots}</svg>
       <div class="mer-detail" data-mer-detail aria-live="polite">点一个穴位，看这个模块的听课 / 做题 / 复习分钟。</div></div>`;

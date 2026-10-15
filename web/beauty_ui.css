@@ -83,6 +83,6 @@
 @keyframes mer-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
 [data-motion="reduced"] .mer-node.top .mer-halo { animation: none; }
 .mer-node:hover .mer-dot, .mer-node:focus-visible .mer-dot, .mer-node.sel .mer-dot { opacity: 1; stroke: var(--ds-gold); stroke-width: .9; }
-.mer-name { font-size: 3.4px; font-weight: 700; fill: var(--ds-text); }
-.mer-time { font-size: 2.8px; fill: var(--ds-muted); }
+.mer-name { font-weight: 700; fill: var(--ds-text); }
+.mer-time { fill: var(--ds-muted); }
 .mer-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }
