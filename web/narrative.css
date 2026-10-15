@@ -24,3 +24,18 @@
 @keyframes narrative-arrival{from{opacity:.55}to{opacity:1}}
 [data-motion="reduced"] .narrative-dialog *,[data-motion="paused"] .narrative-dialog *{animation:none}
 @media(prefers-reduced-motion:reduce){.narrative-dialog *{animation:none}}
+
+/* 3.4半身立绘舞台：基础图+表情叠层+眼部眨眼叠层；呼吸/摆动只用translate/scale/rotate，减少动画、页面隐藏或简短模式下静止。 */
+.narrative-staged .narrative-body{grid-template-columns:clamp(220px,32%,340px) minmax(0,1fr)}
+.narrative-stage{position:relative;width:100%;aspect-ratio:3/4;transform-origin:50% 100%;animation:narrative-breathe 5.2s ease-in-out infinite,narrative-sway 9s ease-in-out infinite}
+.narrative-stage>.narrative-portrait{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:contain;object-position:bottom}
+.narrative-expr{opacity:0;animation:none;transition:opacity .35s ease}
+.narrative-expr.on{opacity:1}
+.narrative-blink{position:absolute;opacity:0;pointer-events:none;transition:opacity .06s linear}
+.narrative-stage.blinking .narrative-blink{opacity:1}
+@keyframes narrative-breathe{0%,100%{translate:0 0;scale:1}50%{translate:0 -3px;scale:1.012}}
+@keyframes narrative-sway{0%,100%{rotate:-.25deg}50%{rotate:.25deg}}
+[data-motion="reduced"] .narrative-stage,[data-motion="paused"] .narrative-stage{animation:none}
+@media(prefers-reduced-motion:reduce){.narrative-stage{animation:none}.narrative-expr{transition:none}}
+@media(max-width:650px){.narrative-staged .narrative-body{grid-template-columns:1fr}.narrative-stage{width:64px;height:85px;aspect-ratio:auto;grid-row:1/4;animation:none}}
+

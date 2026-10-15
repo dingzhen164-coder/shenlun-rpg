@@ -5,7 +5,7 @@
   'use strict';
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const cache=new Map();
-  let dashboard,handlers,data,dialog,epoch=0,pending=false,focusBack,brief=false;
+  let dashboard,handlers,data,dialog,epoch=0,pending=false,focusBack,brief=false,shown='calm',want=null,blinkTimer,holdTimer;
   function homeHtml(d) {
     if(!d)return '';
     const j=d.journey,display=j&&!j.error?Object.values(j.placements).map(id=>j.collection.find(c=>c.id===id)).filter(Boolean):[];
@@ -13,17 +13,52 @@
   }
   function mount(d,view,h) {dashboard=d;handlers=h;if(!['home','dwelling'].includes(view))close();}
   function close() {
-    epoch++;
+    epoch++;clearTimeout(blinkTimer);clearTimeout(holdTimer);
     if(!dialog)return false;
 dialog.close();dialog.remove();dialog=null;
     if(focusBack?.isConnected)focusBack.focus();
     return true;
   }
+  // 3.4半身立绘：基础图+表情叠层+眼部眨眼叠层。呼吸/摆动只用CSS，减少动画与页面隐藏时静止；表情只由本地事件决定，不影响成绩。
+  const motionOn=()=>document.documentElement.dataset.motion!=='reduced'&&!document.hidden;
+  function portraitHtml(p) {
+    const ex=p.portraits;
+    if(ex?.calm){
+      const b=ex.blink,names=Object.keys(ex).filter(k=>k!=='calm'&&k!=='blink');
+      return `<div class="narrative-stage" data-expr="calm" role="img" aria-label="${esc(p.character)}"><img class="narrative-portrait" src="${esc(ex.calm)}" alt="">${names.map(k=>`<img class="narrative-portrait narrative-expr" data-expr-img="${esc(k)}" src="${esc(ex[k])}" alt="" aria-hidden="true">`).join('')}${b?`<img class="narrative-blink" src="${esc(b.src)}" alt="" aria-hidden="true" style="left:${b.x*100}%;top:${b.y*100}%;width:${b.w*100}%;height:${b.h*100}%">`:''}</div>`;
+    }
+    return p.portrait?`<img class="narrative-portrait" src="${esc(p.portrait)}" alt="${esc(p.character)}">`:`<div class="narrative-seal" aria-hidden="true">${esc(p.mark)}</div>`;
+  }
+  function setExpr(st,expr) {st.dataset.expr=expr;st.querySelectorAll('[data-expr-img]').forEach(i=>i.classList.toggle('on',i.dataset.exprImg===expr));}
+  // 鼓励/欣慰/关切只停留几秒，随后回到平静（讲解表情在阅读剧情时保持）。
+  function holdThenCalm() {
+    clearTimeout(holdTimer);
+    if(shown==='calm'||shown==='explain')return;
+    holdTimer=setTimeout(()=>{const s=dialog?.querySelector('.narrative-stage');if(s){setExpr(s,'calm');shown='calm';}},6000);
+  }
+  function applyMood() {
+    const st=dialog?.querySelector('.narrative-stage');if(!st)return;
+    const target=want||(data.scene?'explain':data.justDelivered?'proud':'calm');want=null;
+    setExpr(st,shown);
+    const raf=window.requestAnimationFrame?f=>window.requestAnimationFrame(f):f=>setTimeout(f,16);
+    if(target!==shown)raf(()=>raf(()=>{if(st.isConnected)setExpr(st,target);}));
+    shown=target;holdThenCalm();
+  }
+  function scheduleBlink() {
+    clearTimeout(blinkTimer);
+    blinkTimer=setTimeout(()=>{
+      const st=dialog?.querySelector('.narrative-stage');
+      if(st&&st.dataset.expr==='calm'&&st.querySelector('.narrative-blink')&&motionOn()){st.classList.add('blinking');setTimeout(()=>st.classList.remove('blinking'),150);}
+      if(dialog)scheduleBlink();
+    },2800+Math.random()*3200);
+  }
   function frame(body) {
     const p=data.profile;
-    const image=p.portrait?`<img class="narrative-portrait" src="${esc(p.portrait)}" alt="${esc(p.character)}">`:`<div class="narrative-seal" aria-hidden="true">${esc(p.mark)}</div>`;
+    const image=portraitHtml(p);
     dialog.innerHTML=`<header class="narrative-heading"><div><small>${esc(p.title)} · 人物对话</small><h2 id="narrative-title">${esc(p.character)}</h2><span>${esc(p.role)}</span></div><button data-narrative="close" aria-label="保存进度并收起对话">收起 ×</button></header><div class="narrative-body"><aside class="narrative-person">${image}<p>${esc(p.intro)}</p><label><input type="checkbox" data-narrative-brief ${brief?'checked':''}> 简短模式</label><small>内置对话 · 无需AI</small></aside><section class="narrative-paper" aria-label="对话内容">${body}<p class="narrative-error" role="alert"></p></section></div>`;
     dialog.querySelectorAll('button:not([data-narrative="close"])').forEach(b=>b.disabled=pending||b.disabled);
+    dialog.classList.toggle('narrative-staged',!!p.portraits?.calm);
+    applyMood();
   }
   function memoriesHtml() {
     return `<details class="narrative-memory"><summary>人物记忆 · ${data.memories.length}件真实记录</summary>${data.memories.length?data.memories.map(m=>`<p>${esc(m.text)}<small>${esc(m.date)} · ${esc(m.source)}</small></p>`).join(''):'<p>还没有学习事件。可以直接开始学习。</p>'}</details>`;
@@ -63,7 +98,7 @@ dialog.close();dialog.remove();dialog=null;
       const result=action==='refresh'?(await handlers.api('/api/narrative')).journey:await handlers.api('/api/journey',body);
       if(token!==epoch||!dialog)return;
       data.journey=result;if(dashboard?.narrative)dashboard.narrative.journey=result;
-      delete data.scene;data.justDelivered=action==='deliver';pending=false;catalogue();
+      delete data.scene;data.justDelivered=action==='deliver';if(action==='claim')want='cheer';pending=false;catalogue();
       if(action!=='refresh')handlers.updated?.();
     } catch(e){if(token===epoch)failure(e);}
     finally{pending=false;}
@@ -92,7 +127,7 @@ dialog.close();dialog.remove();dialog=null;
     frame(`<div class="narrative-chapter-title"><h3>${esc(scene.title)}</h3><span>${scene.read?'已读 · 重读不改学习记录':'进度自动保存'}</span></div><div class="narrative-text">${readLines.map(s=>`<p>${esc(s)}</p>`).join('')}</div><div class="narrative-choices">${pairs.map(p=>`<button data-narrative-choice="${esc(p.server.id)}">${esc(p.ink.text)}</button>`).join('')}</div><div class="narrative-actions">${scene.end&&!scene.read?'<button class="primary" data-narrative="finish">记入纪事</button>':''}${!scene.end?'<button data-narrative="skip">跳过本章</button>':''}${scene.read||scene.end?'<button data-narrative="replay">从头重读</button>':''}<button data-narrative="back">章节目录</button><button data-narrative="study">${esc(data.profile.study)}</button></div><details class="narrative-transcript"><summary>对话记录</summary>${transcript.map(t=>`<div>${t.lines.map(s=>`<p>${esc(s)}</p>`).join('')}<p class="narrative-your-choice">我的选择：${esc(t.choice)}</p></div>`).join('')||'<p>尚未选择分支。</p>'}</details>${memoriesHtml()}`);
     dialog.querySelector('.narrative-paper').scrollTop=0;
   }
-  function failure(e) {const el=dialog?.querySelector('.narrative-error');if(el)el.textContent=e.message||String(e);else handlers?.error?.(e);}
+  function failure(e) {const el=dialog?.querySelector('.narrative-error');if(el){el.textContent=e.message||String(e);const st=dialog.querySelector('.narrative-stage');if(st){setExpr(st,'concern');shown='concern';holdThenCalm();}}else handlers?.error?.(e);}
   async function open() {
     if(pending||!dashboard?.narrative)return;
     window.XC_GUIDE?.close();
@@ -105,7 +140,7 @@ dialog.close();dialog.remove();dialog=null;
       try{brief=localStorage.getItem('narrative-brief:'+data.world)==='1';}catch(e){brief=false;}
       dialog=document.createElement('dialog');dialog.className='narrative-dialog ds-modal';dialog.setAttribute('aria-labelledby','narrative-title');
       document.body.appendChild(dialog);dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
-      pending=false;catalogue();dialog.showModal();dialog.querySelector('[data-narrative="close"]').focus();
+      shown='calm';want=null;pending=false;catalogue();dialog.showModal();scheduleBlink();dialog.querySelector('[data-narrative="close"]').focus();
     } catch(e){if(token===epoch)failure(e);}
     finally{pending=false;}
   }

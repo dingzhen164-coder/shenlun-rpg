@@ -19,3 +19,7 @@ body.guantu.portal-home #view{padding:0;width:100%;margin:0;max-width:none}
 @keyframes portal-drift{from{transform:translateX(0)}to{transform:translateX(35%)}}@keyframes portal-lamp{from{opacity:.4}to{opacity:.85}}
 [data-motion="reduced"] .portal-atmosphere *{animation:none;will-change:auto}[data-motion="paused"] .portal-atmosphere *{animation-play-state:paused}
 @media(prefers-reduced-motion:reduce){.portal-atmosphere *{animation:none;will-change:auto}}
+
+/* 3.4白天/夜晚全景：按主题明暗切换，不影响单图场景 */
+html[data-theme="dark"] .portal-landscape.portal-day{display:none}
+html:not([data-theme="dark"]) .portal-landscape.portal-night{display:none}
