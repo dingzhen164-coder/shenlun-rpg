@@ -32,12 +32,21 @@
   // 老一些的平板浏览器内核不认 color-mix()：打个记号，style.css 末尾给这些地方换成普通颜色（不然圆框、底色整个不画）
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
 <link rel="stylesheet" href="scene_portal.css">
+<link rel="stylesheet" href="scene_fx.css">
 <link rel="stylesheet" href="narrative.css">
+<link rel="stylesheet" href="beauty_dialog.css">
 <link rel="stylesheet" href="map_navigation.css">
 <link rel="stylesheet" href="fixed_layout.css">
 <link rel="stylesheet" href="study_hud.css">
+<link rel="stylesheet" href="beauty_icons.css">
+<link rel="stylesheet" href="beauty_audio.css">
+<link rel="stylesheet" href="beauty_pages.css">
+<link rel="stylesheet" href="beauty_ui.css">
+<link rel="stylesheet" href="assets/beauty/fonts/zcool-xiaowei/font.css">
+<link rel="stylesheet" href="assets/beauty/fonts/noto-serif-sc/font.css">
 </head>
 <body class="xiuxian">
+<div id="splash" aria-hidden="true"><img src="icons/icon-192.png?v=2.5.1" alt=""><b>公考模拟器</b><small></small><div class="splash-bar"><i></i></div></div>
 <div id="bgLayer"></div>
 <div id="quoteLayer"></div>
 <header class="topbar" hidden aria-hidden="true" inert>
@@ -77,14 +86,27 @@
 <script src="xiuxian_guide.js"></script>
 <script src="shenlun_training.js"></script>
 <script src="shenlun.js"></script>
+<script src="beauty_motion.js"></script>
+<script src="scene_fx.js"></script>
 <script src="scene_portal.js"></script>
 <script src="vendor/inkjs/ink.js"></script>
 <script src="narrative.js"></script>
+<script src="beauty_dialog.js"></script>
+<script src="beauty_sway.js"></script>
 <script src="map_navigation.js"></script>
 <script src="study_regions.js"></script>
 <script src="study_hud.js"></script>
 <script src="fixed_layout.js"></script>
 <script src="mock_rewards.js"></script>
+<script src="beauty_icons.js"></script>
+<script src="beauty_art.js"></script>
+<script src="beauty_splash.js"></script>
+<script src="beauty_empty.js"></script>
+<script src="beauty_badge.js"></script>
+<script src="beauty_compass.js"></script>
+<script src="beauty_companion.js"></script>
+<script src="beauty_audio.js"></script>
+<script src="beauty_fx.js"></script>
 <script src="app.js"></script>
 <script src="contest.js"></script>
 <script src="contest_sl.js"></script>

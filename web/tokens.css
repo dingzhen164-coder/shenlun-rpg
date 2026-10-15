@@ -19,6 +19,8 @@
   /* 阴影三级与通用遮罩 */
   --ds-shadow-1: 0 4px 10px #0004; --ds-shadow-2: var(--shadow); --ds-shadow-3: 0 20px 80px #0006;
   --ds-shade-30: #0003; --ds-glint: #fff3;
+  /* 材质（3.2.1）：纸纹贴图在assets/beauty/materials/，缺文件时只是少一层纹理；金边、玉面高光统一在此取值 */
+  --ds-empty-art: url("assets/beauty/ui/empty-scroll.svg"); --ds-grain: url("assets/beauty/materials/paper-grain.svg"); --ds-gold-line: #d7b96a66; --ds-jade-hi: #ffffff40; --ds-press: translateY(1px) scale(.985);
 }
 
 /* ② 语义色：映射style.css里随主题变化的变量。定义在:root与body两处，body上的主题类（xiuxian等）覆盖后也能取到新值 */
@@ -75,3 +77,16 @@ body.guantu { --ds-plate-ink: #253f56; --ds-plate-soft: #576977; --ds-plate-meta
   --ds-hud-fill: linear-gradient(90deg, #b86735, #d69647); --ds-hud-fill-xp: linear-gradient(90deg, #277da0, #5ba6af); }
 .xuanhuan { --ds-hud-bg: linear-gradient(110deg, #302543ee, #252d45db); }
 .guantu { --ds-hud-bg: linear-gradient(110deg, #334854ee, #23363edb); --ds-hud-edge: #d0bb84; }
+
+/* 场景（3.2.3）：清晨/黄昏暖色叠层，行测子页背景图（亮色白天、暗色夜晚；见scene_fx.css、beauty_pages.css） */
+:root { --ds-page-art: none; --ds-tint-dawn: linear-gradient(to top, #ffb87a40, #ffe3b01a 55%, #fff5d500); --ds-tint-dusk: linear-gradient(to top, #ff7a4a52, #b4508a2e 60%, #2a1a5a1a); }
+html:not([data-theme="dark"]) body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-day.webp"); }
+html[data-theme="dark"] body.xiuxian { --ds-page-art: url("assets/sect/xc-sect-night.webp"); }
+html:not([data-theme="dark"]) body.guantu { --ds-page-art: url("assets/shenlun/hall.webp"); }
+html[data-theme="dark"] body.guantu { --ds-page-art: url("assets/shenlun/night.webp"); }
+html:not([data-theme="dark"]) body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-day.webp"); }
+html[data-theme="dark"] body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-night.webp"); }
+
+/* 动态感（beauty_motion / scene_fx）：光束与云雾颜色，随白天/夜晚全景取值 */
+:root { --ds-ray: #fff0c84d; --ds-mist: #ffffff3a; }
+html[data-scene-time="night"] { --ds-ray: #a8c8ff1a; --ds-mist: #8fb4d02e; }

@@ -34,6 +34,31 @@ def main():
             vaults[s] = str(v)
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
+        if '--art-fixture' in sys.argv:
+            # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
+            import base64
+            png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+            for s2, place in (('行测', '洞府'), ('申论', '办公室')):
+                d = Path(vaults[s2]) / '训练/外观/美术'
+                (d / '首页全景').mkdir(parents=True, exist_ok=True); (d / '子地图背景').mkdir(parents=True, exist_ok=True)
+                (d / '首页全景' / '白天.png').write_bytes(png)
+                (d / '子地图背景' / (place + '.png')).write_bytes(png)
+                if s2 == '申论':      # 申论领导立绘：洋红底的假人物，根目录英文编号即可
+                    from PIL import Image, ImageDraw
+                    for expr in ('calm', 'cheer', 'blink'):
+                        im = Image.new('RGB', (600, 800), (255, 0, 255)); ImageDraw.Draw(im).ellipse((150, 120, 450, 700), fill=(30, 70, 110))
+                        im.save(d / ('sl-zhoujingyi-%s.png' % expr))
+                if s2 == '行测':
+                    (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
+        if '--art-real' in sys.argv:
+            # 看合成效果用：把程序自带的青衡宗全景当作所有行测子地图的背景
+            from PIL import Image
+            from rpg import art as _art
+            im = Image.open(Path(__file__).resolve().parent.parent / 'web/assets/sect/xc-sect-day.webp').convert('RGB')
+            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            for _f, name, *_r in _art.slots('行测'):
+                if _f == '子地图背景' and not name.endswith(('-白天', '-夜晚')) and '-' not in name:
+                    im.save(d / (name + '.png'))
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards

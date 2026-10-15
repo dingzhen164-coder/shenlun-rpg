@@ -184,22 +184,24 @@ function applyTheme() {
 function configurePortal() {
   const official=isSL();
   const places=official?[
-    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'知识办理中心',view:'train',x:48,y:38},
-    {id:'bank',label:'实操训练中心',view:'bank',x:48,y:60},
+    {id:'dwelling',label:'办公室',view:'dwelling',x:23,y:55},{id:'train',label:'知识办理中心',view:'train',x:48,y:31},
+    {id:'bank',label:'实操训练中心',view:'bank',x:48,y:66},
     {id:'skeleton',label:'档案室',view:'skeleton',x:75,y:42},{id:'notes',label:'公务手账',view:'notes',x:68,y:73},
     {id:'contest',label:'年度考核',view:'contest',x:37,y:74},{id:'tianji',label:'天机台',view:'tianji',x:16,y:79},
     {id:'log',label:'政绩录',view:'log',x:86,y:66},{id:'journal',label:'工作纪事与委托',view:'journal',x:88,y:31},
   ]:[
-    {id:'train',label:'问道群峰',view:'train',x:48,y:0,nx:50,ny:6},
+    {id:'peak-chang',label:'万象峰',view:'train',region:'chang',x:20,y:24,nx:28,ny:8},{id:'peak-yan',label:'辨言峰',view:'train',region:'yan',x:34,y:17,nx:72,ny:8},
+    {id:'peak-li',label:'明理峰',view:'train',region:'li',x:48,y:14,nx:28,ny:20},{id:'peak-shu',label:'演数峰',view:'train',region:'shu',x:62,y:17,nx:72,ny:20},
+    {id:'peak-zi',label:'观星峰',view:'train',region:'zi',x:76,y:24,nx:50,ny:32},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:70,y:60,nx:86,ny:52},{id:'bank',label:'试炼塔',view:'bank',x:91,y:64,nx:84,ny:88},
     {id:'contest',label:'演武场',view:'contest',x:34,y:67,nx:14,ny:52},
     {id:'dwelling',label:'洞府',view:'dwelling',x:11,y:80,nx:16,ny:88},
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
-  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?{image:'assets/shenlun/hall.webp'}:{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v2'}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
-    else go(p.view);
+    else{if(p.region)window.STUDY_REGIONS?.select(p.region);go(p.view);}
   });
 }
 
@@ -476,7 +478,11 @@ function progressParts(d) {
         <div class="small muted">${r.acc != null ? `正确率 ${pct(r.acc)}%` : "暂无数据"}${r.on && r.bonus ? ` · ${esc(W("xp"))} +${pct(r.bonus)}%` : ""}${!r.on ? ` · 觉醒：${r.route === "功法" ? `${esc(W("skeleton"))}全部圆满` : "两季正确率达线"}` : ""}</div></div>`).join("");
     const demon = d.demon.slice(0, 6).map((r, i) => `<div class="row small"><span class="rank">${i + 1}</span><span>${esc(r.board)}</span><span class="spacer"></span><b style="color:${i < 2 ? "var(--red)" : "var(--muted)"}">${pct(r.acc)}%</b></div>`).join("") || '<div class="muted small">还没有模考数据</div>';
     const weekly = d.weekly.map((q) => `<div class="small"><div class="row"><span>${q.done ? "✅" : "⬜"} ${esc(q.name)}</span><span class="spacer"></span><span class="muted">${q.progress}/${q.target}</span></div>${bar(q.progress / q.target, "thin " + (q.done ? "green" : ""))}</div>`).join("");
-    const bag = d.bag.length ? d.bag.map((b) => `<div class="small row"><b>${esc(b.name)}</b><span class="muted">×${b.count}</span><span class="spacer"></span><span class="faint">${esc(b.desc)}</span></div>`).join("") : `<div class="muted small">空空如也。${esc(W("boss"))}达到${esc(W("tribulation"))}线得突破信物，${esc(W("weekly"))}全勤得护身之物。</div>`;
+    // 储物袋做成格子背包（3.2.6）：每件物品一格，图标按名称、边框按稀有度，数量角标；至少显示12格
+    const bagIcon = (n) => /信物|令|印/.test(n) ? "📿" : /护|盾|甲/.test(n) ? "🛡" : /丹|药|露/.test(n) ? "⚗" : /符|卷|书|简/.test(n) ? "📜" : /剑|刃|器/.test(n) ? "⚔" : "🎒";
+    const bagTier = (n) => /突破|信物|渡劫/.test(n) ? "epic" : /护|周|全勤/.test(n) ? "rare" : "common";
+    const bagSlots = d.bag.map((b) => `<div class="bag-slot tier-${bagTier(b.name)}" tabindex="0" title="${esc(b.name)} ×${b.count}：${esc(b.desc)}"><span class="bag-ic">${bagIcon(b.name)}</span><b>${esc(b.name)}</b><i class="bag-n">×${b.count}</i><small>${esc(b.desc)}</small></div>`);
+    const bag = `<div class="bag-grid">${bagSlots.concat(Array.from({ length: Math.max(0, 12 - bagSlots.length) }, () => '<div class="bag-slot empty" aria-hidden="true"></div>')).join("")}</div>` + (d.bag.length ? "" : `<div class="muted small">空空如也。${esc(W("boss"))}达到${esc(W("tribulation"))}线得突破信物，${esc(W("weekly"))}全勤得护身之物。</div>`);
     const boss = d.boss.length ? d.boss.slice().reverse().map((b) => `${esc(b.name)} <b>${b.score}</b> <span class="faint small">${b.d}</span>`).join(" · ") : `<span class="muted">还没有战绩。模考出分后在上面「记录${esc(W("boss"))}」里记。</span>`;
     const ascend = d.ascend.length ? `<div class="ascend">🌈 ${esc(W("ascend"))}：${d.ascend.map((b) => `${esc(b.name)} ${b.score} 分`).join("；")}</div>` : "";
   return { tasks, doneN, totalMin, tree, roots, demon, weekly, bag, boss, ascend };
@@ -507,7 +513,7 @@ const views = {
       <div class="avatar">${avatar}</div>
       <div class="hero-main">
         <div class="hero-name">${esc(p.id)}<small>「${esc(p.call)}」</small></div>
-        <div class="realm-name">${esc(R.name)}${R.bottleneck ? ` <span class="tag cur">${esc(W("bottleneck"))}</span>` : ""}</div>
+        <div class="realm-name">${window.BeautyBadge ? BeautyBadge.inline(R) : ""}${esc(R.name)}${R.bottleneck ? ` <span class="tag cur">${esc(W("bottleneck"))}</span>` : ""}</div>
         ${d.career ? careerHtml(d.career) : ""}
         <div class="hero-title">第 ${d.lap} 个${esc(W("lap"))} · ${d.batch.index ? `第 ${d.batch.index}/${d.batch.count} ${esc(W("batch"))}：${d.batch.boards.map(esc).join("、")}` : "本轮已圆满"}</div>
         <div class="row small muted" style="margin-top:8px"><span>${barLabel}</span><span class="spacer"></span><span>累计 ${d.xp}</span></div>
@@ -780,6 +786,7 @@ function bindTimeCard() {
 }
 // ------------------------------------------------------------ 十二经：各模块的时辰（同三才法印，一排四枚，每个模块一种颜色）
 const BOARD_COLORS = ["#c2463a", "#d9822b", "#c9a227", "#6e9f3a", "#2e9d6b", "#b03a5b", "#3f9e8f", "#2f7fb8", "#5b5fc7", "#8a4fbf", "#b85fa6", "#8c6d46"];
+let BOARD_VIEW = (() => { try { return localStorage.getItem("boardView") || "map"; } catch { return "map"; } })();   // map＝罗盘（beauty_compass.js），orbs＝法印球
 let BOARD_SPAN = (() => { try { return localStorage.getItem("boardSpan") || "week"; } catch { return "week"; } })();
 function boardTimeCard(d) {
   const bt = d.boardtime; if (!bt) return "";
@@ -799,11 +806,19 @@ function boardTimeCard(d) {
   }).join("");
   return `<div class="card sancai shier" style="margin-top:14px">
     <div class="sancai-head"><h3>☸ 十二经 · 各模块时辰 <small>听课（记听道时选了模块的）· 做题（含自练）· 复习，单位分钟</small></h3><span class="spacer"></span>
-      <div class="sancai-tabs">${[["today", "今日"], ["week", "近七日"], ["all", "累计"]].map(([k, n]) => `<a data-bspan="${k}" class="${k === BOARD_SPAN ? "on" : ""}">${n}</a>`).join("")}</div></div>
-    <div class="orbs orbs4">${orbs}</div>
+      <div class="sancai-tabs">${[["today", "今日"], ["week", "近七日"], ["all", "累计"]].map(([k, n]) => `<a data-bspan="${k}" class="${k === BOARD_SPAN ? "on" : ""}">${n}</a>`).join("")}</div>
+      ${window.BeautyCompass ? `<div class="sancai-tabs">${[["map", "罗盘"], ["orbs", "法印"]].map(([k, n]) => `<a data-bview="${k}" class="${k === BOARD_VIEW ? "on" : ""}">${n}</a>`).join("")}</div>` : ""}</div>
+    ${window.BeautyCompass && BOARD_VIEW === "map" ? BeautyCompass.html(list, total, top, BOARD_COLORS) : `<div class="orbs orbs4">${orbs}</div>`}
     <p class="small muted" style="margin:6px 0 0">共 ${Math.round(total)} 分钟${cur.loose ? `，另有 ${cur.loose} 分钟认不出模块（三才时辰里照算）` : ""}。修炼时间按当时在练的模块记；早先没记模块的，按那天修炼记录里各模块练了几次分摊。听道没选模块的，从“讲的什么”里认（写了“图形推理”“图推”“资料”等），认错了在近 7 天听道记录里改。</p></div>`;
 }
 function bindBoardTime() {
+  document.querySelectorAll("[data-bview]").forEach((a) => (a.onclick = () => {
+    BOARD_VIEW = a.dataset.bview;
+    try { localStorage.setItem("boardView", BOARD_VIEW); } catch {}
+    const el = document.querySelector(".shier");
+    if (el) { el.outerHTML = boardTimeCard(DASH); bindBoardTime(); }
+  }));
+  if (window.BeautyCompass && BOARD_VIEW === "map") { const w = document.querySelector(".shier .cp-wrap"); if (w) BeautyCompass.bind(w, ((DASH.boardtime || {})[BOARD_SPAN] || (DASH.boardtime || {}).week || {}).boards || []); }
   document.querySelectorAll("[data-bspan]").forEach((a) => (a.onclick = () => {
     BOARD_SPAN = a.dataset.bspan;
     try { localStorage.setItem("boardSpan", BOARD_SPAN); } catch {}

@@ -95,7 +95,7 @@ function inspect() {
       const errors = [];
       page.on('pageerror', (e) => errors.push('脚本报错：' + e.message.slice(0, 160)));
       page.on('console', (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text())) errors.push('控制台报错：' + m.text().slice(0, 160)); });
-      await page.addInitScript((t) => { try { localStorage.setItem('xrpg-theme', t); } catch (e) { /* 无痕模式 */ } }, theme);
+      await page.addInitScript(([k, t]) => { try { localStorage.setItem(k, t); } catch (e) { /* 无痕模式 */ } }, [arg('subject', '') === '申论' ? 'srpg-theme' : 'xrpg-theme', theme]);
       await page.goto(base + '/');
       await page.waitForTimeout(1500);
       await page.evaluate(() => document.querySelectorAll('.cer-ok').forEach((b) => b.click()));   // 首次进入的大典画面先关掉

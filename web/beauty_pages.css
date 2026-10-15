@@ -1,0 +1,15 @@
+/* 3.2.6 子页面氛围：非地图页（洞府、修炼等）背后淡淡透出本科目全景（行测青衡宗、申论政务大厅、法考学院；亮色白天、暗色夜晚）。
+   用户自己在 设置→外观 选了背景图（body.has-bg）时不覆盖。 */
+body:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-art); background-position: center 30%; }
+body:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
+/* 美术文件夹里给了本页背景（beauty_art.js）：本页图比全站背景优先；遮罩调到很淡让图清楚（选择器要比上面的默认遮罩更具体）；
+   卡片改成较透的磨砂，只让内容所需的高度占位，把下面的景物留出来；标题条也做成磨砂牌，保证压在图上也看得清 */
+body.has-page-art, html.theme-gc body.has-page-art { background: transparent; }    /* body 自己的底色会盖住 z-index 为负的背景层（与选了全站背景时同理） */
+body.has-page-art #bgLayer { background-image: var(--ds-page-art) !important; background-position: center; background-size: cover; }
+body.has-page-art:not(.portal-home) #bgLayer::after { opacity: .2; }
+body.has-page-art .card { background: color-mix(in srgb, var(--panel) 80%, transparent); backdrop-filter: blur(4px); }
+html:not(.in-notes) body.has-page-art .fx-region-work { align-items: start; }
+html:not(.in-notes) body.has-page-art .fx-region-work > .fx-frame { height: auto; max-height: 100%; }
+body.has-page-art .study-region-heading > div, body.has-page-art .study-region-heading > button { background: color-mix(in srgb, var(--panel) 72%, transparent); backdrop-filter: blur(3px); border-radius: var(--ds-r-8); padding: var(--ds-sp-4) var(--ds-sp-12); }
+/* 分页面板本身（试炼塔、演武场、设置、藏经阁等的大块底板）透明，只让里面的卡片半透明，景物才能从卡片之间露出来 */
+html:not(.in-notes) body.has-page-art .fx-panel { background: transparent; border-color: transparent; box-shadow: none; }

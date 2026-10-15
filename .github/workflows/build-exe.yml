@@ -27,7 +27,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install pyinstaller pywebview segno pymupdf certifi
+        run: pip install pyinstaller pywebview segno pymupdf pillow certifi
 
       - name: Tests
         run: python -m unittest discover -s tests

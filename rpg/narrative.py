@@ -10,7 +10,7 @@ import json
 import math
 from pathlib import Path
 
-from . import themes
+from . import art, themes
 
 DEFINITIONS = json.loads((Path(__file__).parent / 'data/narrative.json').read_text(encoding='utf-8'))
 
@@ -101,11 +101,16 @@ def _profile(g, dashboard):
         leader = (dashboard.get('career') or {}).get('leader') or {}
         p['character'] = leader.get('name') or g.persona['导师名'] or p['character']
         p['role'] = leader.get('title') or p['role']
+        cid = dict(art.SL_CHARS).get(p['character'])            # 美术文件夹里有这位领导的立绘就用（rpg/art.py）
+        por = art.character_portraits(getattr(g, 'paths', None), '申论', cid) if cid else None
+        if por:
+            p['portraits'], p['portrait'], p['art_portraits'] = por, por['calm'], True
     if world_id(g) != 'xingce':
         custom = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
-        if custom or not p.get('portraits'):
-            p['portrait'] = custom          # 用户自定义导师头像优先，此时不用内置表情立绘
+        if (custom or not p.get('portraits')) and not p.get('art_portraits'):
+            p['portrait'] = custom          # 用户自定义导师头像优先，此时不用内置表情立绘（美术文件夹里按姓名放的申论人物立绘除外）
             p.pop('portraits', None)
+    p.pop('art_portraits', None)
     return p
 
 
@@ -165,8 +170,11 @@ def _scene(g, dashboard, cid):
     n = c['nodes'][node]
     if c.get('character'):
         person = next(p for p in out['companions'] if p['id'] == c['character'])
+        pid = dict(art.SL_CHARS).get(person['name']) if out['world'] == 'office' else None
+        por = art.character_portraits(getattr(g, 'paths', None), '申论', pid) if pid else None
         out['profile'] = dict(out['guide_profile'], character=person['name'], role=person['role'],
-                              intro=person['intro'], greeting=person['feedback'], mark=person['mark'], portrait='', portraits=None)
+                              intro=person['intro'], greeting=person['feedback'], mark=person['mark'],
+                              portrait=por['calm'] if por else '', portraits=por)
     choices = [x for x in n['choices'] if not x.get('when') or out['facts'].get(x['when'])]
     trail = saved.get('trail', [])
     transcript = []

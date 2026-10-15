@@ -41,7 +41,7 @@
       const sync=()=>{const h=document.documentElement;h.classList.toggle('study-workspace',['in-chat','nt-full','yj-on','in-sl-exam','focus'].some(c=>h.classList.contains(c))||!!document.querySelector('.sl-writing.sl-card-expanded'));measure();};
       new ResizeObserver(measure).observe(root);
       new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
-      new MutationObserver(sync).observe(document.getElementById('view'),{subtree:true,attributes:true,attributeFilter:['class']});
+      new MutationObserver(sync).observe(document.getElementById('view')||document.body,{subtree:true,attributes:true,attributeFilter:['class']});
       sync();}
     const p=data.persona||{},r=data.realm||{},m=data.minutes||{},s=data.study_status||{};
     const terms=data.theme?.terms||{},xp=terms.xp||'修为',realm=terms.realm||'境界';

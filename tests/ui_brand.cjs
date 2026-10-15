@@ -96,14 +96,14 @@ async function main(){
    // 3.1.3：行测地图不再有清禾静室、宗门纪事、照心台；人物纪事与委托改为任务大殿，修行手札改为灵台手札
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    for(const gone of ['guide','story','log'])assert.equal(await page.locator(`[data-portal-go="${gone}"]`).count(),0,gone+'入口已删除');
-   assert.equal((await page.locator('[data-portal-go="journal"]').textContent()).trim().replace(/^◆/,''),'任务大殿');
-   assert.equal((await page.locator('[data-portal-go="notes"]').textContent()).trim().replace(/^◆/,''),'灵台手札');
-   await page.locator('[data-portal-go="train"]').click();await page.locator('.study-peaks').waitFor();
+   assert.equal((await page.locator('[data-portal-go="journal"]').textContent()).trim().replace(/^[^\u4e00-\u9fff]+/,''),'任务大殿');
+   assert.equal((await page.locator('[data-portal-go="notes"]').textContent()).trim().replace(/^[^\u4e00-\u9fff]+/,''),'灵台手札');
+   await page.evaluate(()=>go('train'));await page.locator('.study-peaks').waitFor();
    assert.equal(await page.locator('[data-study-region]').count(),5);
    for(const region of ['chang','yan','li','shu','zi']){
     const entry=page.locator(`[data-study-region="${region}"]`);while(!await entry.isVisible())await page.locator('.fx-pager button').filter({hasText:'下一页'}).click();await entry.click();await page.locator('.study-region-heading').waitFor();
     assert.equal(await page.locator('.xc-sect-chamber,#bankCount').count(),0);
-    await page.locator('[data-study-regions-back]').click();await page.locator('.study-peaks').waitFor();
+    await page.locator('[data-study-regions-back]').click();await page.locator('.portal-world').waitFor();await page.evaluate(()=>go('train'));await page.locator('.study-peaks').waitFor();   // 行测五峰：返回回到地图
    }
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
    await page.locator('[data-portal-go="bank"]').click();await page.locator('#bankCount').waitFor();assert.equal(await page.locator('#xcGuideAvatar').count(),0);

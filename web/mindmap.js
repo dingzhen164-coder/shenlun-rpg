@@ -139,7 +139,7 @@
         el: document.getElementById("lnCanvas"),
         readonly: !manage,
         // 等完整节点绘制后适应画布，不能用固定100ms猜测慢浏览器的渲染完成时间。
-        fit: !manage || !data.view,
+        fit: false,   // 库自带的绘制后适应在画布已关闭/隐藏时会抛错，改成下面带保护的版本
         data: plain(data.root || { data: { text: board }, children: [] }),
         layout: data.layout || "logicalStructure",
         theme: data.theme?.template || "default",
@@ -151,6 +151,9 @@
         mousewheelAction: "zoom", mousewheelZoomActionReverse: true,
       });
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
+      if (!manage || !data.view) { const inst = mm, cv = document.getElementById('lnCanvas'); let fitted = false;
+        inst.on('node_tree_render_end', () => { if (fitted) return; fitted = true;
+          try { if (mm === inst && cv.isConnected && cv.offsetWidth && cv.offsetHeight) inst.view.fit(); } catch (_) {} }); }
     } catch (e) { showError(e); return; }
     if (!manage) {
       s.querySelectorAll('[data-ln-mode]').forEach(b=>b.onclick=()=>setViewMode(b.dataset.lnMode));

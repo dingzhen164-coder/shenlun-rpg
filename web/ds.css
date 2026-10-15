@@ -16,7 +16,8 @@
 }
 .ds-btn:hover, .ds-modal button:hover { border-color: var(--ds-btn-hover, var(--ds-accent)); }
 .ds-btn:disabled, .ds-modal button:disabled { opacity: var(--ds-btn-off, .5); cursor: default; }
-.ds-btn--primary { background: linear-gradient(135deg, var(--ds-accent), var(--ds-accent-2)); color: var(--ds-on-accent); border: 0; }
+.ds-btn--primary { background: linear-gradient(135deg, var(--ds-accent), var(--ds-accent-2)); color: var(--ds-on-accent); border: 0; box-shadow: inset 0 1px 0 var(--ds-jade-hi), var(--ds-shadow-1); }
+.ds-btn:not(:disabled):active, .ds-modal button:not(:disabled):active { transform: var(--ds-press); }
 .ds-btn--ghost { background: transparent; }
 
 /* 弹窗 .ds-modal：纸笺底、墨色字、细线框；内部按钮、卡片、标签继承纸笺上下文 */
@@ -24,8 +25,8 @@
   --ds-btn-bg: transparent; --ds-btn-ink: var(--ds-paper-ink); --ds-btn-line: var(--ds-paper-line); --ds-btn-hover: var(--ds-paper-accent);
   --ds-btn-radius: var(--ds-r-6); --ds-btn-pad: 9px 13px; --ds-btn-min: var(--ds-touch); --ds-btn-off: .45;
   --ds-card-line: var(--ds-paper-line);
-  color: var(--ds-paper-ink); background: var(--ds-paper); border: 1px solid var(--ds-paper-line); border-radius: var(--ds-r-12);
-  padding: 0; box-shadow: var(--ds-shadow-3); overflow: auto; overscroll-behavior: contain;
+  color: var(--ds-paper-ink); background-color: var(--ds-paper); background-image: var(--ds-grain); border: 1px solid var(--ds-paper-line); border-radius: var(--ds-r-12);
+  padding: 0; box-shadow: var(--ds-shadow-3), inset 0 0 0 4px var(--ds-paper), inset 0 0 0 5px var(--ds-gold-line); overflow: auto; overscroll-behavior: contain;
 }
 .ds-modal::backdrop { background: var(--ds-scrim); }
 .ds-modal button:hover, .ds-modal button:focus-visible { outline: 2px solid var(--ds-paper-accent); outline-offset: 2px; }
@@ -57,13 +58,17 @@
 /* 场景牌 .ds-sign：全景地图上的地点名牌（深底、细金边、衬线字） */
 .ds-sign {
   background: var(--ds-sign-bg); border: 1px solid var(--ds-sign-line); color: var(--ds-sign-ink); padding: var(--ds-sign-pad);
-  border-radius: var(--ds-r-6); font-family: serif; letter-spacing: 1px; box-shadow: var(--ds-shadow-1);
+  border-radius: var(--ds-r-6); font-family: serif; letter-spacing: 1px; box-shadow: var(--ds-shadow-1), inset 0 0 0 2px var(--ds-sign-bg), inset 0 0 0 3px var(--ds-gold-line);
 }
 
 /* 空状态 .ds-empty：一句引导，不放插画；加载状态 .ds-loading：文字+呼吸，减少动画时静止 */
 .ds-empty {
   padding: var(--ds-sp-16); text-align: center; color: var(--ds-muted); font-size: var(--ds-fs-13);
   border: 1px dashed var(--ds-line); border-radius: var(--ds-r-8);
+}
+.ds-empty::before {
+  content: ""; display: block; width: 44px; height: 44px; margin: 0 auto var(--ds-sp-8); opacity: .38; background: currentColor;
+  -webkit-mask: var(--ds-empty-art) center / contain no-repeat; mask: var(--ds-empty-art) center / contain no-repeat;
 }
 .ds-loading { color: var(--ds-muted); font-size: var(--ds-fs-13); animation: ds-breathe 1.4s ease-in-out infinite alternate; }
 @keyframes ds-breathe { from { opacity: .45; } to { opacity: 1; } }

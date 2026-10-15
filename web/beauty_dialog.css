@@ -1,0 +1,10 @@
+/* 3.2.5 对话打字机与选项样式（beauty_dialog.js） */
+.tw-on .tw-c { opacity: 0; }
+.tw-on .tw-c.tw-v { opacity: 1; transition: opacity .12s; }
+[data-motion="reduced"] .tw-on .tw-c { opacity: 1; }
+.narrative-choices button { position: relative; padding-left: var(--ds-sp-24); transition: transform var(--ds-dur), border-color var(--ds-dur); }
+.narrative-choices button::before { content: "\25B8"; position: absolute; left: var(--ds-sp-8); color: var(--narr-accent); opacity: .55; transition: opacity var(--ds-dur), transform var(--ds-dur); }
+.narrative-choices button:hover, .narrative-choices button:focus-visible { transform: translateX(var(--ds-sp-4)); }
+.narrative-choices button:hover::before, .narrative-choices button:focus-visible::before { opacity: 1; transform: translateX(var(--ds-sp-4)); }
+.narrative-heading h2 { letter-spacing: .12em; }
+.narrative-heading h2::after { content: ""; display: block; width: 3em; height: 2px; margin-top: var(--ds-sp-4); background: linear-gradient(90deg, var(--narr-accent), transparent); }
