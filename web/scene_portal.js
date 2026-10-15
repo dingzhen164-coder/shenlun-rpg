@@ -57,7 +57,7 @@
     if(x)x.value=xy.x;if(y)y.value=xy.y;if(select)select.value=edit.selected;
     const name=document.querySelector('[data-portal-name]');if(name&&document.activeElement!==name)name.value=edit.layout.names[edit.selected]||'';
     document.querySelectorAll('[data-portal-selected] option').forEach(o=>{const p=config.places.find(p=>p.id===o.value);if(p)o.textContent=placeName(p,edit.layout);});
-    document.querySelectorAll('[data-portal-point]').forEach(b=>{const p=edit.layout[edit.device][b.dataset.portalPoint];b.style.setProperty('--px',p.x+'%');b.style.setProperty('--py',p.y+'%');b.setAttribute('aria-pressed',String(b.dataset.portalPoint===edit.selected));const label=b.querySelector('b');if(label)label.textContent=placeName(config.places.find(p=>p.id===b.dataset.portalPoint),edit.layout);});
+    document.querySelectorAll('[data-portal-point]').forEach(b=>{const p=edit.layout[edit.device][b.dataset.portalPoint];b.style.setProperty('--px',p.x+'%');b.style.setProperty('--py',p.y+'%');b.setAttribute('aria-pressed',String(b.dataset.portalPoint===edit.selected));const label=b.querySelector('b'),nm=placeName(config.places.find(p=>p.id===b.dataset.portalPoint),edit.layout);if(label&&label.textContent!==nm)label.outerHTML=signHtml(nm);});
   }
   function redrawEditor() {const slot=document.querySelector('[data-portal-preview]');if(slot)slot.innerHTML=stageHtml(edit.layout,edit.device,true);syncEditor();}
   function cancelDrag() {if(drag){if(edit)edit.layout[edit.device][drag.id]=drag.before;drag=null;syncEditor();}}

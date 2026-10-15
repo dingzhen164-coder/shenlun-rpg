@@ -51,7 +51,7 @@
     if(!g)return `<section class="study-regions ${xingce?'study-peaks':office()?'study-offices':'study-towers'}" aria-label="${esc(title)}分区选择"><header class="study-regions-heading"><span class="small muted">${xingce?'青衡宗 · 五脉同修':office()?'分题型办理':'分科目研习'}</span><h2>${esc(title)}</h2><p>${xingce?'择一峰而入，专心温简、梳理灵脉。':'选择一个板块，查看对应的记忆卡片与知识导图。'}</p></header><div class="study-region-grid">${groups().map((r,i)=>`<button class="study-region" data-study-region="${esc(r.id)}">${images[r.name]?`<img class="study-region-image" src="${esc(images[r.name])}" alt="${esc(r.name)}" data-region-image="${i}">`:xingce?mountain(i):`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`}<span class="study-region-copy"><b>${esc(r.name)}</b><span>${esc(r.subject)}</span><small>${esc(r.hint)}</small></span></button>`).join('')}</div></section>`;
     const boards=[...g.boards,...(g.aliases||[])];
     const [cards,maps]=await Promise.all([CARDS.hubHtml({id:g.id,label:g.name,deck:g.boards[0]}),MINDMAP.hubHtml(boards)]);
-    return `<header class="study-region-heading"><button data-study-regions-back>← ${xingce?'返回五峰': '返回分区'}</button><div><h2>${esc(g.name)}</h2><p class="small muted">${esc(g.subject)} · ${esc(g.hint)}</p></div></header>${cards}${maps}`;
+    return `<header class="study-region-heading"><button data-study-regions-back>← ${xingce?'返回地图': '返回分区'}</button><div><h2>${esc(g.name)}</h2><p class="small muted">${esc(g.subject)} · ${esc(g.hint)}</p></div></header>${cards}${maps}`;
   }
   function bind(root){
     root.querySelectorAll('[data-region-image]').forEach(img=>img.addEventListener('error',()=>{
@@ -59,7 +59,7 @@
       else img.outerHTML=`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`;
     },{once:true}));
     root.querySelectorAll('[data-study-region]').forEach(el=>el.onclick=async()=>{selected=el.dataset.studyRegion;await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);});
-    const back=root.querySelector('[data-study-regions-back]');if(back)back.onclick=async()=>{selected='';await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);};
+    const back=root.querySelector('[data-study-regions-back]');if(back)back.onclick=async()=>{selected='';if(peaksMode()){go('home');return;}await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);};   // 行测五峰在地图上各有入口：返回就回地图，不再经过“问道群峰”选择页
   }
   // 地图上的五峰入口：直接进入某一峰（行测）；传入未知id则回到分区列表
   function select(id){chooseSubject();selected=groups().some(g=>g.id===id)?id:'';}
