@@ -48,9 +48,11 @@
     if (atm.dataset.fx) return; atm.dataset.fx = '1';
     const cv = document.createElement('canvas'); cv.className = 'portal-fx'; cv.setAttribute('aria-hidden', 'true'); atm.appendChild(cv);
     const tint = document.createElement('i'); tint.className = 'portal-tint'; atm.insertBefore(tint, atm.firstChild);
+    const rays = document.createElement('div'); rays.className = 'portal-rays'; rays.innerHTML = '<i></i><i></i><i></i>'; atm.insertBefore(rays, tint.nextSibling);
+    ['m1', 'm2'].forEach((c) => { const m = document.createElement('i'); m.className = 'portal-mist ' + c; atm.insertBefore(m, cv); });
     const ctx = cv.getContext('2d'); if (!ctx) return;
     const indoor = !atm.parentElement?.querySelector('.portal-night');   // 单图室内场景（申论政务大厅）：不飘樱叶雪、不放飞鸟，只留灵光点
-    let W = 0, H = 0, parts = [], motes = [], birds = [], key = '', raf = 0, last = 0, nextBird = Date.now() + rnd(6000, 14000);
+    let W = 0, H = 0, parts = [], motes = [], birds = [], stars = [], shoot = null, nextShoot = Date.now() + rnd(12000, 30000), key = '', raf = 0, last = 0, nextBird = Date.now() + rnd(6000, 14000);
     const still = () => root.dataset.motion === 'reduced' || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
     function size() {
       const r = atm.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -63,6 +65,7 @@
       parts = k ? Array.from({ length: Math.round(k.n * (W < 700 ? .6 : 1)) }, () => Object.assign(k.make(W, H), { c: k.color[Math.floor(Math.random() * k.color.length)] })) : [];
       // 夏季萤火夜里才明显：白天减半
       if (r.se === 'summer' && r.ph !== 'night' && r.ph !== 'dusk') parts = parts.slice(0, 6);
+      stars = r.ph === 'night' ? Array.from({ length: 34 }, () => ({ x: rnd(0, W), y: rnd(0, H * .38), r: rnd(.5, 1.3), p: rnd(0, 6.28), s: rnd(.0006, .0018) })) : [];
       motes = Array.from({ length: r.ph === 'night' ? 26 : 14 }, () => ({ x: rnd(0, W), y: rnd(H * .2, H), r: rnd(.8, 2.2), vy: -rnd(.08, .3), vx: rnd(-.08, .08), p: rnd(0, 6.28) }));
     }
     function draw(dt, t) {
@@ -80,6 +83,11 @@
         else { ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 6.28); ctx.fill(); }
         ctx.restore();
       });
+      // 夜空：星点闪烁，偶尔划过流星
+      stars.forEach((s) => { ctx.globalAlpha = .25 + .55 * Math.abs(Math.sin(t * s.s * 6 + s.p)); ctx.fillStyle = '#fff8e0'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); });
+      if (r.ph === 'night' && !shoot && Date.now() > nextShoot) { shoot = { x: rnd(W * .3, W * .9), y: rnd(0, H * .2), t0: t }; nextShoot = Date.now() + rnd(18000, 40000); }
+      if (shoot) { const k = (t - shoot.t0) / 800; if (k > 1) shoot = null; else { const x1 = shoot.x - k * 220, y1 = shoot.y + k * 90; const g = ctx.createLinearGradient(x1, y1, x1 + 70, y1 - 28); g.addColorStop(0, 'rgba(255,248,224,0.9)'); g.addColorStop(1, 'rgba(255,248,224,0)'); ctx.globalAlpha = 1 - k; ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + 70, y1 - 28); ctx.stroke(); } }
+      ctx.globalAlpha = 1;
       // 金色灵光点：缓慢上浮并呼吸
       motes.forEach((m) => {
         m.x += m.vx * dt * .06 + Math.sin(t / 2000 + m.p) * .1; m.y += m.vy * dt * .06; if (m.y < -6) { m.y = H + 6; m.x = rnd(0, W); }

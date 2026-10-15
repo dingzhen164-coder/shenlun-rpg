@@ -86,3 +86,7 @@ html:not([data-theme="dark"]) body.guantu { --ds-page-art: url("assets/shenlun/h
 html[data-theme="dark"] body.guantu { --ds-page-art: url("assets/shenlun/night.webp"); }
 html:not([data-theme="dark"]) body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-day.webp"); }
 html[data-theme="dark"] body.xuanhuan { --ds-page-art: url("assets/academy/scene/mg-academy-night.webp"); }
+
+/* 动态感（beauty_motion / scene_fx）：光束与云雾颜色，随白天/夜晚全景取值 */
+:root { --ds-ray: #fff0c84d; --ds-mist: #ffffff3a; }
+html[data-scene-time="night"] { --ds-ray: #a8c8ff1a; --ds-mist: #8fb4d02e; }

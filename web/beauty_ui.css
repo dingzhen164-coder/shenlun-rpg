@@ -101,3 +101,7 @@
 .comp-x { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--ds-r-pill); font-size: var(--ds-fs-14); line-height: 1; color: var(--ds-text); background: var(--ds-surface); border: 1px solid var(--ds-line); opacity: 0; transition: opacity var(--ds-dur); }
 #companion:hover .comp-x, #companion:focus-within .comp-x { opacity: .85; }
 @media (max-width: 1099px) { #companion { display: none; } }
+
+/* ---- 人物“看向光标”：随鼠标/倾斜轻微平移与偏转（独立的 translate/rotate 属性，不影响原有呼吸、摇摆动画） */
+.narrative-stage, .comp-img { translate: calc(var(--mx, 0) * 5px) calc(var(--my, 0) * 2px); rotate: calc(var(--mx, 0) * 1.1deg); }
+[data-motion="reduced"] .narrative-stage, [data-motion="reduced"] .comp-img { translate: none; rotate: none; }
