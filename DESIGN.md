@@ -14,6 +14,7 @@
 - **空状态**：beauty_empty.js把“还没有/暂无/空空如也”开头的单行 .muted/.faint 提示自动加ds-empty，ds.css用卷轴小插画（assets/beauty/ui/empty-scroll.svg，CSS mask）装饰。光标素材与位置登记在assets/beauty/cursors/README.md（行测灵光法阵、申论钢笔，逻辑未改）。申论图片需求清单见shenlun-rpg根目录《图片需求清单-申论.md》。
 - **第三轮（2026-10-15）**：环境声（assets/beauty/audio/sfx/ambient-day|night|water.ogg，CC0；地图白天鸟鸣、夜晚虫鸣、洞府流水，随“音效”开关，音量取一半，答题/对话不放）；十二经罗盘（web/beauty_compass.js，纯代码，不需要人体图：十二瓣玫瑰图，花瓣长度＝模块时长开方缩放，外圈十二时辰，中心总时长与最勤模块，点花瓣看听课/做题/复习；app.js boardTimeCard可切“罗盘/法印”，默认罗盘；法考只有8个模块则前8瓣有数据）。
 - **第四轮（2026-10-15）**：同伴站位（beauty_companion.js：子页面左下角的引导人物半身立绘，呼吸，按时段冒通用问候，点开人物对话；仅宽屏≥1100px、有立绘、非答题/手写/对话时显示，可点×或在设置→地点排布关闭，localStorage companion）；奖励飘字（beauty_fx.js，经验toast出现时飘“+N”）；子页背景扩到申论（政务大厅hall/night）与法考（学院昼夜），tokens.css按body.guantu/xuanhuan取--ds-page-art；申论地点牌竖排后调整知识办理中心/实操训练中心间距；单图室内场景（无portal-night，申论）不飘樱叶雪与飞鸟。
+- **动态感（2026-10-15）**：beauty_motion.js把鼠标位置/设备倾斜变成<html>上的--mx/--my（-1…1，缓动）；地图全景缓慢推拉（portal-kb）并随它视差偏移，云雾/粒子层偏移更大；scene_fx加光束（portal-rays，仅白天/清晨/黄昏）、两层漂移云雾（portal-mist，申论室内隐藏）、夜空星点闪烁与偶发流星；人物立绘（narrative-stage、companion）用独立translate/rotate属性“看向光标”，不与原呼吸/摇摆动画冲突。减少动画时全部静止。
 - 未做（后续批次）：突破仪式（ceremony.js已很完整，暂不动）；申论领导/同事立绘与政务大厅昼夜全景（待美术）；申论/法考各自的字体；
 - 验证：ui_layout_check（行测home/train/dwelling/notes/settings等，电脑/平板×明暗）通过；test_scene_portal、ui_narrative、test_narrative_dom、ui_map_navigation、test_design_system通过；真实浏览器验证音频请求、控制钮、四季截图、答题反馈事件。`tests/ui_status_navigation.cjs`在2c9edfd基线就超时（等#bankCount），非本批引起，待查。
 
