@@ -88,7 +88,7 @@
 .cp-detail { min-height: 2.6em; padding: var(--ds-sp-8) var(--ds-sp-14); border: 1px solid var(--ds-line); border-radius: var(--ds-r-8); font-size: var(--ds-fs-13); text-align: center; background: var(--ds-surface-2); }
 
 /* ---- 同伴站位（beauty_companion.js）：子页面左下角的引导人物 */
-#companion { position: fixed; left: var(--ds-sp-12); bottom: 0; z-index: 40; width: clamp(96px, 8vw, 130px); cursor: pointer; filter: drop-shadow(0 4px 10px var(--ds-shade-30)); }
+#companion { position: fixed; left: var(--ds-sp-12); bottom: 0; z-index: 40; width: clamp(84px, 6.5vw, 112px); cursor: pointer; filter: drop-shadow(0 4px 10px var(--ds-shade-30)); }
 #companion[hidden] { display: none; }
 .comp-img { display: block; width: 100%; height: auto; transform-origin: 50% 100%; animation: comp-breathe 4.6s ease-in-out infinite; pointer-events: none; }
 #companion.comp-still .comp-img { animation: none; }

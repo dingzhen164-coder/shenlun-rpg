@@ -1,4 +1,4 @@
-/* 3.2.5 同伴站位：在洞府等子页面左下角站着本科目的引导人物（半身立绘，缓慢呼吸），偶尔冒一句话；点一下打开人物对话（任务大殿）。
+/* 3.2.5 同伴站位：在洞府页面左下角站着本科目的引导人物（半身立绘，缓慢呼吸），偶尔冒一句话；点一下打开人物对话（任务大殿）。
  * 只在有半身立绘（profile.portraits.calm）、电脑宽屏、非答题/手写/对话时出现；可在 设置→地点排布 里关掉（localStorage companion=0）。
  * 只是陪伴外观，台词是按时段的通用问候，不涉及成绩与学习判断。 */
 (() => {
@@ -29,7 +29,8 @@
   function update() {
     const p = profile(), portrait = p?.portraits?.calm;
     const busy = document.body.classList.contains('portal-home') || document.querySelector('.tj-opt, #modal:not(.hidden), .narrative-dialog[open]') || document.documentElement.matches('.in-notes,.in-chat,.in-sl-exam');
-    const show = !!portrait && on() && window.innerWidth >= 1100 && !busy && !document.hidden;
+    const onPage = typeof VIEW !== 'undefined' && VIEW === 'dwelling';   // 只在洞府出现，别的页面不遮挡内容
+    const show = onPage && !!portrait && on() && window.innerWidth >= 1100 && !busy && !document.hidden;
     if (!el && show) build();
     if (!el) return;
     if (show && img !== portrait) { img = portrait; el.querySelector('.comp-img').src = portrait; }
@@ -48,5 +49,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   // 设置页开关（scene_fx 的设置卡里放一个勾选框）
   document.addEventListener('change', (e) => { if (e.target.matches?.('[data-companion-toggle]')) { try { localStorage.setItem(KEY, e.target.checked ? '1' : '0'); } catch (err) { /* ok */ } update(); } });
-  window.BeautyCompanion = { on, update, settingsHtml: () => `<label class="small"><input type="checkbox" data-companion-toggle ${on() ? 'checked' : ''} style="width:auto"> 子页面里显示引导人物站位（宽屏电脑）</label>` };
+  window.BeautyCompanion = { on, update, settingsHtml: () => `<label class="small"><input type="checkbox" data-companion-toggle ${on() ? 'checked' : ''} style="width:auto"> 洞府里显示引导人物站位（宽屏电脑）</label>` };
 })();

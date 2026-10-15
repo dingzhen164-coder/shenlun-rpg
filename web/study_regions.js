@@ -33,7 +33,17 @@
   }
   function mountain(i){
     const summit=[110,94,119,102,112][i],snow=[25,34,20,28,24][i];
-    return `<svg class="study-peak-art" viewBox="0 0 240 240" aria-hidden="true"><circle cx="174" cy="43" r="22" class="peak-sun"/><path d="M0 178 48 85 96 140 164 66 240 170V240H0Z" class="peak-far"/><path d="M5 234 ${summit} ${snow} 227 234Z" class="peak-mountain"/><path d="M${summit} ${snow} ${summit+23} ${snow+42} ${summit+4} ${snow+29} ${summit-7} ${snow+43} ${summit-22} ${snow+43}Z" class="peak-snow"/><path d="M${summit} ${snow+36} ${summit-13} 128 71 175 37 234H5Z" class="peak-shade"/><path d="M150 232Q76 202 114 172T126 125" class="peak-path"/><path d="M0 199Q62 174 121 201T240 189M0 220Q80 204 147 222T240 213" class="peak-mist"/><path d="M84 185h37m-33-4 15-8 14 8m-22 1v9m15-9v9" class="peak-pavilion"/></svg>`;
+    // 每座峰一点自己的特征（3.2.x）：万象＝山腰旗幡，辨言＝瀑布，明理＝棋盘平台，演数＝齿轮，观星＝观星台与星点
+    const gear=(cx,cy,r)=>`<circle cx="${cx}" cy="${cy}" r="${r}"/><circle cx="${cx}" cy="${cy}" r="${r*.35}"/>`+Array.from({length:8},(_,k)=>{const t=k*Math.PI/4;return `<path d="M${(cx+Math.cos(t)*r).toFixed(1)} ${(cy+Math.sin(t)*r).toFixed(1)}L${(cx+Math.cos(t)*(r+4)).toFixed(1)} ${(cy+Math.sin(t)*(r+4)).toFixed(1)}"/>`;}).join('');
+    const extra=[
+      `<path d="M${summit-34} 150v-18M${summit-34} 132l12 4-12 4M${summit+26} 168v-16M${summit+26} 152l11 4-11 4"/>`,
+      `<path d="M${summit+14} ${snow+48}V196M${summit+20} ${snow+52}V190" stroke-width="3" opacity=".7"/>`,
+      `<path d="M${summit-27} ${snow+16}h54v8h-54zM${summit-14} ${snow+16}v8M${summit} ${snow+16}v8M${summit+14} ${snow+16}v8"/>`,
+      gear(summit+26,150,13)+gear(summit-22,176,8),
+      `<path d="M${summit-11} ${snow+24}a11 11 0 0 1 22 0zM${summit} ${snow+13}v-8M${summit+36} ${snow-4}h8M${summit+40} ${snow-8}v8M${summit-44} ${snow+10}h6M${summit-41} ${snow+7}v6"/>`
+    ][i]||'';
+    const extraSvg=`<g class="peak-extra" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".85">${extra}</g>`;
+    return `<svg class="study-peak-art" viewBox="0 0 240 240" aria-hidden="true"><circle cx="174" cy="43" r="22" class="peak-sun"/><path d="M0 178 48 85 96 140 164 66 240 170V240H0Z" class="peak-far"/><path d="M5 234 ${summit} ${snow} 227 234Z" class="peak-mountain"/><path d="M${summit} ${snow} ${summit+23} ${snow+42} ${summit+4} ${snow+29} ${summit-7} ${snow+43} ${summit-22} ${snow+43}Z" class="peak-snow"/><path d="M${summit} ${snow+36} ${summit-13} 128 71 175 37 234H5Z" class="peak-shade"/><path d="M150 232Q76 202 114 172T126 125" class="peak-path"/><path d="M0 199Q62 174 121 201T240 189M0 220Q80 204 147 222T240 213" class="peak-mist"/><path d="M84 185h37m-33-4 15-8 14 8m-22 1v9m15-9v9" class="peak-pavilion"/>${extraSvg}</svg>`;
   }
   async function html(){
     const g=active(),title=SCENE_PORTAL.title('train'),xingce=peaksMode();
