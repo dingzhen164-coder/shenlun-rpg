@@ -132,7 +132,10 @@
   }
   function pageBar(root) {
     const slot=root.querySelector('#studyHud .subpage-nav');if(!slot)return;
-    root.querySelectorAll('.fx-shell>.fx-tabs,.lib-head>.lib-tabs,.sl-ui-section-tabs>.lib-tabs').forEach(nav=>slot.append(nav));
+    // 手账重绘左栏会产生新的分类节点，替换旧节点，避免展开/收起后叠出重复按钮。
+    const noteTabs=root.querySelector('.sl-ui-section-tabs>.nt-tabs');
+    if(noteTabs)slot.querySelectorAll(':scope>.nt-tabs').forEach(old=>{if(old!==noteTabs)old.remove();});
+    root.querySelectorAll('.fx-shell>.fx-tabs,.lib-head>.lib-tabs,.sl-ui-section-tabs>.lib-tabs,.sl-ui-section-tabs>.nt-tabs').forEach(nav=>slot.append(nav));
     root.querySelectorAll('.lib-head,.sl-ui-masthead').forEach(h=>{if(!h.querySelector('button')||h.matches('.sl-ui-masthead'))h.hidden=true;});
   }
   function paginate(grid,key,kind) {

@@ -235,9 +235,9 @@ html.drawing .page-settings-gear{display:none}
 
 .fixed-app dialog.narrative-dialog,.fixed-app dialog.sl-topic-dialog{inset:0}
 .fixed-app .xc-guide-mask{padding:0}
-.fixed-app .xc-guide-dialogue{position:fixed;inset:0;display:flex;width:100%;max-width:none;height:var(--fx-height,100dvh)}
+.fixed-app .xc-guide-dialogue{position:fixed;inset:0;transform:none;display:flex;align-items:stretch;width:100%;max-width:none;max-height:none;height:var(--fx-height,100dvh)}
 .fixed-app .xc-guide-dialogue>.xc-guide-bust{display:none}
-.fixed-app .xc-guide-dialogue>.xc-guide-paper{flex:1;border-radius:0;border:0;margin:0}
+.fixed-app .xc-guide-dialogue>.xc-guide-paper{flex:1;min-width:0;max-height:none;border-radius:0;border:0;margin:0}
 
 /* 3.1.0：卷轴式只读文档与并排导图，工作区固定，正文独立滚动。 */
 .ln-reading-body{display:grid;grid-template-columns:minmax(0,1fr);flex:1;min-height:0;overflow:hidden;background:var(--panel)}
