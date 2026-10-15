@@ -20,7 +20,7 @@
   --ds-shadow-1: 0 4px 10px #0004; --ds-shadow-2: var(--shadow); --ds-shadow-3: 0 20px 80px #0006;
   --ds-shade-30: #0003; --ds-glint: #fff3;
   /* 材质（3.2.1）：纸纹贴图在assets/beauty/materials/，缺文件时只是少一层纹理；金边、玉面高光统一在此取值 */
-  --ds-grain: url("assets/beauty/materials/paper-grain.svg"); --ds-gold-line: #d7b96a66; --ds-jade-hi: #ffffff40; --ds-press: translateY(1px) scale(.985);
+  --ds-empty-art: url("assets/beauty/ui/empty-scroll.svg"); --ds-grain: url("assets/beauty/materials/paper-grain.svg"); --ds-gold-line: #d7b96a66; --ds-jade-hi: #ffffff40; --ds-press: translateY(1px) scale(.985);
 }
 
 /* ② 语义色：映射style.css里随主题变化的变量。定义在:root与body两处，body上的主题类（xiuxian等）覆盖后也能取到新值 */

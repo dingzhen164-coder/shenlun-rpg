@@ -1,3 +1,13 @@
 # 光标
 
-按主题放：`xingce-pointer.svg`、`xingce-outer.svg` 等。现有行测光标仍在 `web/assets/xiuxian-cursor/`，3.2.2 统一时再迁入。
+光标已经按科目做好，素材与逻辑位置如下（3.2.2 起统一登记在这里；程序逻辑不变，同名覆盖即可换）：
+
+| 科目 | 效果 | 素材位置 | 代码 |
+|---|---|---|---|
+| 行测（灵光法阵） | 法阵指针、拖尾、点击涟漪；可从本机 WikiCursor ZIP 导入三张 PNG（只存本机） | `web/assets/xiuxian-cursor/pointer.svg`、`inner.svg`、`outer.svg` | `web/xiuxian_cursor.js/.css` |
+| 申论（公文批示） | 钢笔指针、短墨迹、朱红“阅”章，纯代码绘制，无贴图 | 无 | `web/shenlun_cursor.js/.css` |
+| 法考 | 沿用玄幻风格的灵光法阵（同行测代码，`body.xuanhuan`） | 同行测 | 同行测 |
+
+- 换行测光标：覆盖 `assets/xiuxian-cursor/` 里的同名 svg（保持透明背景、尺寸建议 64×64），或在设置→灵光法阵·鼠标外观里导入 PNG。
+- 开关、大小、拖尾都在设置→灵光法阵·鼠标外观（申论在对应设置里）。
+- 光标只在电脑鼠标上生效，触屏、手写、输入框内不显示。

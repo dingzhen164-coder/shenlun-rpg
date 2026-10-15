@@ -66,6 +66,10 @@
   padding: var(--ds-sp-16); text-align: center; color: var(--ds-muted); font-size: var(--ds-fs-13);
   border: 1px dashed var(--ds-line); border-radius: var(--ds-r-8);
 }
+.ds-empty::before {
+  content: ""; display: block; width: 44px; height: 44px; margin: 0 auto var(--ds-sp-8); opacity: .38; background: currentColor;
+  -webkit-mask: var(--ds-empty-art) center / contain no-repeat; mask: var(--ds-empty-art) center / contain no-repeat;
+}
 .ds-loading { color: var(--ds-muted); font-size: var(--ds-fs-13); animation: ds-breathe 1.4s ease-in-out infinite alternate; }
 @keyframes ds-breathe { from { opacity: .45; } to { opacity: 1; } }
 [data-motion="reduced"] .ds-loading, [data-motion="paused"] .ds-loading { animation: none; }

@@ -18,3 +18,5 @@
 | bgm-ceremony | beauty/audio/bgm/ceremony.ogg | 突破/升级仪式 | "Forgotten Victory" by yd（OpenGameArt） | CC0 | 2026-10-15 | 截取前120秒 |
 | bgm-dialog | beauty/audio/bgm/dialog.ogg | 对话/剧情 | "A New Town (RPG Theme)" by cynicmusic（OpenGameArt） | CC0 | 2026-10-15 | 约62秒，循环 |
 | scene-fx | web/scene_fx.js、scene_fx.css | 时段切换、季节飘落物、光点、飞鸟（纯代码，无贴图） | 本项目自写 | 无限制 | 2026-10-15 | 设置→地点排布里可调 |
+| empty-scroll | beauty/ui/empty-scroll.svg | 空状态小插画（CSS mask，随文字色） | 本项目自绘 | 无限制 | 2026-10-15 | ds.css .ds-empty::before |
+| cursors | xiuxian-cursor/*.svg 等 | 行测灵光法阵光标 | 本项目原创SVG | 无限制 | 2.x | 见 cursors/README.md |
