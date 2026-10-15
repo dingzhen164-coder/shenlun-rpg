@@ -1,0 +1,15 @@
+/* 声音控制钮（beauty_audio.js）：放在右下角设置齿轮左边，不挡操作 */
+.beauty-audio { position: fixed; right: calc(var(--ds-sp-16) + 52px); bottom: var(--ds-sp-16); z-index: 60; }
+.beauty-audio-btn {
+  width: 44px; height: 44px; border-radius: var(--ds-r-pill); cursor: pointer; font-size: var(--ds-fs-18);
+  color: var(--ds-text); background: var(--ds-surface); border: 1px solid var(--ds-line); box-shadow: var(--ds-shadow-1); opacity: .72; transition: opacity var(--ds-dur);
+}
+.beauty-audio-btn:hover, .beauty-audio-btn:focus-visible { opacity: 1; }
+.beauty-audio-pop {
+  position: absolute; right: 0; bottom: 52px; min-width: 200px; display: grid; gap: var(--ds-sp-8); padding: var(--ds-sp-12);
+  color: var(--ds-paper-ink); background: var(--ds-paper); border: 1px solid var(--ds-paper-line); border-radius: var(--ds-r-8); box-shadow: var(--ds-shadow-2); font-size: var(--ds-fs-13);
+}
+.beauty-audio-pop[hidden] { display: none; }
+.beauty-audio-pop label { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: var(--ds-sp-8); white-space: nowrap; text-align: left; margin: 0; }
+.beauty-audio-pop input[type=checkbox] { width: auto; flex: none; margin: 0; }
+.beauty-audio-pop input[type=range] { width: 100%; }

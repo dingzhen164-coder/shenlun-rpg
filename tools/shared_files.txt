@@ -402,3 +402,5 @@ shared web/assets/beauty/icons/svg/waypoints.svg
 shared web/assets/beauty/icons/svg/x.svg
 shared web/assets/beauty/icons/svg/zap.svg
 shared web/assets/beauty/materials/paper-grain.svg
+shared web/beauty_audio.js
+shared web/beauty_audio.css
