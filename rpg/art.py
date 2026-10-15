@@ -5,11 +5,11 @@
 
 子文件夹与文件名（扩展名随意：图片 webp/png/jpg，音频 ogg/mp3/wav/m4a/opus）：
   首页全景/      白天、夜晚
-  子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚      （地点名随科目：行测 洞府/问道群峰/试炼塔/…，申论 办公室/知识办理中心/…，法考 营地/冒险大厅/…）
+  子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚；洞府另有每个页签一套：洞府-<页签名>[-白天|-夜晚]；修炼页选中的分区（行测五峰、申论五题型、法考八科）也各一套：<分区名>[-白天|-夜晚]      （地点名随科目：行测 洞府/问道群峰/试炼塔/…，申论 办公室/知识办理中心/…，法考 营地/冒险大厅/…）
   人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼          （只对有半身立绘的科目；眨眼图的位置由程序固定，换图请保持同样的取景）
   音乐/          地图白天、地图夜晚、洞府、学习、突破仪式、对话
   音效/          点击、悬停、打开弹窗、关闭弹窗、翻页、答对、答错、连击、奖励、升级、突破、接取任务、完成任务、打字、环境声白天、环境声夜晚、环境声流水
-子地图背景的优先级：<地点>-白天/夜晚（按亮暗主题）→ <地点> → 程序默认的淡透全景。
+子地图背景的优先级：<地点>[-页签]-白天/夜晚（按亮暗主题）→ <地点>[-页签] → 洞府页签回退到洞府整体背景 → 程序默认的淡透全景。
 
 实现：网页请求 assets/<相对路径> 时，api.py 先问 art.lookup()；网页首页（index.html）里注入 window.ART_FILES（有覆盖的文件及修改时间）供前端判断。
 所有名字写死在下面的表里，不接受任意路径，不会读到美术文件夹以外的文件。
@@ -19,6 +19,18 @@ import shutil
 FOLDER_REL = ("外观", "美术")
 IMG = (".webp", ".png", ".jpg", ".jpeg")
 AUD = (".ogg", ".mp3", ".wav", ".m4a", ".opus")
+# 洞府（个人空间）的页签：每页可以有自己的背景（beauty_art.js 读 .fx-tab 的当前页签名对应到下面的 key）
+DWELLING_TABS = {
+    "行测": [("growth", "修为与突破"), ("shier", "十二经"), ("records", "修行记录"), ("bag", "储物袋"), ("diary", "修行日志")],
+    "申论": [("growth", "仕途与晋升"), ("daily", "学时与出勤"), ("records", "学习记录")],
+    "法考": [("growth", "成长与晋升"), ("daily", "时辰与日课"), ("records", "学习记录")],
+}
+# 修炼页选中某个分区后的页面：行测五峰、申论五个题型、法考八科，每个可以单独配背景（beauty_art.js 读 STUDY_REGIONS.title() 对应到 key）
+REGIONS = {
+    "行测": [("chang", "万象峰"), ("yan", "辨言峰"), ("li", "明理峰"), ("shu", "演数峰"), ("zi", "观星峰")],
+    "申论": [("guina", "归纳概括"), ("zonghe", "综合分析"), ("duice", "提出对策"), ("guanche", "贯彻执行"), ("dazuowen", "大作文")],
+    "法考": [("minfa", "民法"), ("xingfa", "刑法"), ("minsu", "民诉"), ("xingsu", "刑诉"), ("xingzheng", "行政法"), ("shangjing", "商经知"), ("sanguo", "三国法"), ("lilun", "理论法")],
+}
 VIEWS = ["dwelling", "train", "bank", "contest", "skeleton", "notes", "tianji", "settings"]
 PLACES = {
     "行测": ["洞府", "问道群峰", "试炼塔", "演武场", "藏经阁", "灵台手札", "天机台", "设置"],
@@ -52,6 +64,16 @@ def slots(subject):
         out.append(("子地图背景", place, "beauty/page/%s.webp" % view, None, "image"))
         out.append(("子地图背景", place + "-白天", "beauty/page/%s-day.webp" % view, None, "image"))
         out.append(("子地图背景", place + "-夜晚", "beauty/page/%s-night.webp" % view, None, "image"))
+    for key, name in REGIONS.get(subject, []):
+        out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image"))
+        out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image"))
+        out.append(("子地图背景", name + "-夜晚", "beauty/page/train-%s-night.webp" % key, None, "image"))
+    place0 = PLACES.get(subject, PLACES["行测"])[0]
+    for key, label in DWELLING_TABS.get(subject, []):
+        n = "%s-%s" % (place0, label)
+        out.append(("子地图背景", n, "beauty/page/dwelling-%s.webp" % key, None, "image"))
+        out.append(("子地图背景", n + "-白天", "beauty/page/dwelling-%s-day.webp" % key, None, "image"))
+        out.append(("子地图背景", n + "-夜晚", "beauty/page/dwelling-%s-night.webp" % key, None, "image"))
     if subject in PORTRAIT:
         for key, cn in EXPR:
             rel = PORTRAIT[subject] % key
@@ -109,6 +131,7 @@ README = """美术文件夹说明
 
 首页全景/      白天、夜晚                         （地图首页的全景图）
 子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚   （每个子页面背后的背景；不放就用程序默认的淡透全景）
+               洞府还可以每个页签单独一张：洞府-<页签名>、洞府-<页签名>-白天、洞府-<页签名>-夜晚（行测页签：修为与突破、十二经、修行记录、储物袋、修行日志）
 人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼     （引导人物半身立绘；眨眼图只含眼部，位置由程序固定）
 音乐/          地图白天、地图夜晚、洞府、学习、突破仪式、对话
 音效/          点击、悬停、打开弹窗、关闭弹窗、翻页、答对、答错、连击、奖励、升级、突破、接取任务、完成任务、打字、环境声白天、环境声夜晚、环境声流水

@@ -4,3 +4,5 @@ body:not(.portal-home):not(.has-bg) #bgLayer { background-image: var(--ds-page-a
 body:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
 /* 美术文件夹里给了本页背景（beauty_art.js）：遮罩调淡，让图更清楚 */
 body.has-page-art:not(.has-bg) #bgLayer::after { opacity: .3; }
+/* 有本页背景图时，卡片改半透明磨砂，背景才看得出来（同选了自定义全站背景时的做法） */
+body.has-page-art:not(.has-bg) .card { background: color-mix(in srgb, var(--panel) 80%, transparent); backdrop-filter: blur(6px); }

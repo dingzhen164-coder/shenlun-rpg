@@ -43,6 +43,8 @@ def main():
                 (d / '首页全景').mkdir(parents=True, exist_ok=True); (d / '子地图背景').mkdir(parents=True, exist_ok=True)
                 (d / '首页全景' / '白天.png').write_bytes(png)
                 (d / '子地图背景' / (place + '.png')).write_bytes(png)
+                if s2 == '行测':
+                    (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards
