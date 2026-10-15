@@ -153,3 +153,21 @@ diverged web/poster.js
 diverged web/settle.js
 diverged web/style.css
 diverged web/tianji.js
+
+# ---- 美化素材目录（3.2.x）----
+shared web/assets/beauty/README.md
+diverged web/assets/beauty/REGISTRY.md
+shared web/assets/beauty/audio/README.md
+shared web/assets/beauty/characters/fakao/README.md
+shared web/assets/beauty/characters/shenlun/README.md
+shared web/assets/beauty/characters/xingce/README.md
+shared web/assets/beauty/cursors/README.md
+shared web/assets/beauty/dongfu/README.md
+shared web/assets/beauty/effects/README.md
+shared web/assets/beauty/fonts/README.md
+shared web/assets/beauty/icons/README.md
+shared web/assets/beauty/materials/README.md
+shared web/assets/beauty/scenes/fakao/README.md
+shared web/assets/beauty/scenes/shenlun/README.md
+shared web/assets/beauty/scenes/xingce/README.md
+shared web/assets/beauty/ui/README.md
