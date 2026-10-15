@@ -42,7 +42,7 @@
   }
   function context() {
     if (override) return override;
-    var d = document, dark = d.documentElement.dataset.theme === "dark";
+    var d = document, dark = (d.documentElement.dataset.sceneTime || d.documentElement.dataset.theme) === "dark" || d.documentElement.dataset.sceneTime === "night";
     if (d.querySelector(".tj-opt, .study-session, .train-active")) return "study";
     if (d.querySelector("#modal:not(.hidden) .narrative-stage, dialog[open] .narrative-stage, .narrative-dialog[open]")) return "dialog";
     if (d.body.classList.contains("portal-home")) return dark ? "map-night" : "map-day";
@@ -88,7 +88,7 @@
       soon();
     }).observe(v, { attributes: true, attributeFilter: ["class"], subtree: true, childList: true });
     new MutationObserver(soon).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-scene-time"] });
   }
   window.addEventListener("hashchange", function () { sfx("page", 0.7); });
   document.addEventListener("visibilitychange", function () {
