@@ -263,3 +263,19 @@ def character_portraits(paths, subject, cid):
     if blink:
         got["blink"] = {"src": blink, "x": 0, "y": 0, "w": 1, "h": 1}
     return got
+
+
+def diagnose(paths, subject):
+    """给设置页看的自检：各申论人物立绘找到几张、是否装了 Pillow（去底要用）"""
+    try:
+        import PIL  # noqa: F401
+        pillow = True
+    except Exception:
+        pillow = False
+    chars = []
+    if subject == "申论" and paths and paths.vault and paths.train:
+        for cname, cid in SL_CHARS:
+            n = sum(1 for key, _cn in EXPR if lookup(paths, subject, "beauty/portrait/sl-%s-%s.webp" % (cid, key)))
+            if n:
+                chars.append("%s %d/6" % (cname, n))
+    return {"pillow": pillow, "characters": chars}

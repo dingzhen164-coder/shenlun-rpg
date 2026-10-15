@@ -818,7 +818,7 @@ def art_info(body):
         return {"folder": "训练/外观/美术/", "count": 0, "exists": False}
     p = Paths(vp)
     d = art.art_dir(p)
-    return {"folder": "训练/外观/美术/", "count": len(art.files(p, subjects.active())), "exists": d.is_dir(), "path": str(d)}
+    return {"folder": "训练/外观/美术/", "count": len(art.files(p, subjects.active())), "exists": d.is_dir(), "path": str(d), **art.diagnose(p, subjects.active())}
 
 
 def art_export(body):

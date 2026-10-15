@@ -104,12 +104,13 @@ def _profile(g, dashboard):
         cid = dict(art.SL_CHARS).get(p['character'])            # 美术文件夹里有这位领导的立绘就用（rpg/art.py）
         por = art.character_portraits(getattr(g, 'paths', None), '申论', cid) if cid else None
         if por:
-            p['portraits'], p['portrait'] = por, por['calm']
+            p['portraits'], p['portrait'], p['art_portraits'] = por, por['calm'], True
     if world_id(g) != 'xingce':
         custom = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
-        if custom or not p.get('portraits'):
-            p['portrait'] = custom          # 用户自定义导师头像优先，此时不用内置表情立绘
+        if (custom or not p.get('portraits')) and not p.get('art_portraits'):
+            p['portrait'] = custom          # 用户自定义导师头像优先，此时不用内置表情立绘（美术文件夹里按姓名放的申论人物立绘除外）
             p.pop('portraits', None)
+    p.pop('art_portraits', None)
     return p
 
 

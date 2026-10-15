@@ -166,7 +166,7 @@ const AMB = (() => {
     }))));
     const th = document.getElementById("ambTheme");
     if (th) th.onchange = () => { setTheme(th.value); apply(); if (typeof render === "function") render(); };
-    fetch("/api/art").then((r) => r.json()).then((d) => { const el = document.getElementById("artState"); if (el) el.textContent = d.path ? `${d.path}，已有 ${d.count} 个覆盖文件` : (d.exists ? `已有 ${d.count} 个覆盖文件` : "还没创建，点下面导出会自动创建"); }).catch(() => {});
+    fetch("/api/art").then((r) => r.json()).then((d) => { const el = document.getElementById("artState"); if (el) el.textContent = d.path ? `${d.path}，已有 ${d.count} 个覆盖文件${d.characters && d.characters.length ? "；人物立绘：" + d.characters.join("、") : ""}${d.pillow === false ? "；⚠ 没装 Pillow，纯色底立绘无法自动去底（pip install pillow）" : ""}` : (d.exists ? `已有 ${d.count} 个覆盖文件` : "还没创建，点下面导出会自动创建"); }).catch(() => {});
     const ex = document.getElementById("artExport");
     if (ex) ex.onclick = () => { ex.disabled = true; fetch("/api/art/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((d) => { const m = document.getElementById("artMsg"); if (d.error) throw new Error(d.error); if (m) m.textContent = `已复制 ${d.copied} 个，已有 ${d.skipped} 个未覆盖。到 ${d.folder} 里看看。`; }).catch((e) => { const m = document.getElementById("artMsg"); if (m) m.textContent = "导出失败：" + e.message; }).finally(() => { ex.disabled = false; }); };
     const dim = document.getElementById("ambDim");
