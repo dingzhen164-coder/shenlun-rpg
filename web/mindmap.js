@@ -9,7 +9,7 @@
     ["catalogOrganization", "目录组织"], ["timeline", "时间轴"], ["fishbone", "鱼骨图"]];
   let LIST = null, CUR = null, mm = null, saveT = null, dirty = false, libP = null;
   let saveP = null;
-  let opening = false, openSeq = 0, fitT = null, editing = false, lastRead = 0, viewMode = "map";
+  let opening = false, openSeq = 0, editing = false, lastRead = 0, viewMode = "map";
 
   function loadLib() {
     if (window.simpleMindMap) return Promise.resolve();
@@ -138,6 +138,8 @@
       mm = new Mind({
         el: document.getElementById("lnCanvas"),
         readonly: !manage,
+        // 等完整节点绘制后适应画布，不能用固定100ms猜测慢浏览器的渲染完成时间。
+        fit: !manage || !data.view,
         data: plain(data.root || { data: { text: board }, children: [] }),
         layout: data.layout || "logicalStructure",
         theme: data.theme?.template || "default",
@@ -150,7 +152,6 @@
       });
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
     } catch (e) { showError(e); return; }
-    if (!data.view) fitT=setTimeout(() => { if(seq!==openSeq)return;try { mm.view.fit(); } catch (_) {} }, 100);
     if (!manage) {
       s.querySelectorAll('[data-ln-mode]').forEach(b=>b.onclick=()=>setViewMode(b.dataset.lnMode));
       document.getElementById('lnReload').onclick=async()=>{const mode=viewMode;await open(board, CUR.name, false);setViewMode(mode);};
@@ -205,7 +206,7 @@
     const ok=await saveP;saveP=null;return ok&&dirty?flush():ok;
   }
   async function close() {
-    ++openSeq; opening=false;clearTimeout(fitT);
+    ++openSeq; opening=false;
     if(!(await flush()))return false;
     const closing=CUR; await finishReading();
     if(CUR!==closing)return;
