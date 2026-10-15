@@ -170,8 +170,8 @@ def _scene(g, dashboard, cid):
     n = c['nodes'][node]
     if c.get('character'):
         person = next(p for p in out['companions'] if p['id'] == c['character'])
-        cid = dict(art.SL_CHARS).get(person['name']) if wid == 'office' else None
-        por = art.character_portraits(getattr(g, 'paths', None), '申论', cid) if cid else None
+        pid = dict(art.SL_CHARS).get(person['name']) if out['world'] == 'office' else None
+        por = art.character_portraits(getattr(g, 'paths', None), '申论', pid) if pid else None
         out['profile'] = dict(out['guide_profile'], character=person['name'], role=person['role'],
                               intro=person['intro'], greeting=person['feedback'], mark=person['mark'],
                               portrait=por['calm'] if por else '', portraits=por)
