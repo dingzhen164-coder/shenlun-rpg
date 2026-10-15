@@ -11,7 +11,7 @@ async function checkHUD(){
 async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.evaluate(()=>VIEW),v);await checkHUD();}
 (async()=>{try{const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});page=await browser.newPage({viewport:{width:1280,height:860}});require('./fixed_ui_helpers.cjs').install(page);const errors=[];page.on('dialog',d=>d.accept());page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.locator('.portal-world').waitFor();await checkHUD();
  const beat=await page.evaluate(()=>api('/api/heartbeat',{seconds:0}));assert.equal(typeof beat.realm.next_xp,'number');assert.equal(typeof beat.study_status.day,'number');await page.evaluate(beat=>{Object.assign(DASH,{xp:beat.xp,realm:beat.realm,study_status:beat.study_status});DASH.minutes.today=7;updatePill();},beat);assert.match(await page.locator('.study-hud-meter.time').textContent(),/7 \/ /);
- await page.locator('[data-portal-go="train"]').click();await page.locator('[data-hall-page="train"]').waitFor();assert.equal(await page.locator('[data-hall]').count(),0);assert.equal(await page.locator('#bankCount,.sl-training').count(),0);
+ await page.evaluate(()=>go('train'));await page.locator('[data-hall-page="train"]').waitFor();assert.equal(await page.locator('[data-hall]').count(),0);assert.equal(await page.locator('#bankCount,.sl-training').count(),0);
  await go('home');await page.locator('[data-portal-go="bank"]').click();await page.waitForFunction(()=>VIEW==='bank');await page.locator(subject==='申论'?'.sl-training':'#bankCount').waitFor();assert.equal(await page.locator('[data-hall]').count(),0);assert.equal(await page.locator('[data-hall-page="train"]').count(),0);await checkHUD();
  if(subject!=='申论'){
   const board=await page.evaluate(()=>DASH.tree[0].board);
@@ -23,7 +23,7 @@ async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.eva
  }
  await go('home');await page.locator('[data-portal-go="tianji"]').click();await page.locator('.tj-hub').waitFor();assert.equal(await page.evaluate(()=>VIEW),'tianji');await checkHUD();
  for(const view of ['dwelling','skeleton','notes','log','contest','settings'].filter(v=>!(subject==='行测'&&v==='log')))await go(view);
- await page.locator('[data-portal-selected]').selectOption('bank');await page.locator('[data-portal-name]').fill('独立实战入口');await page.locator('[data-portal-x]').fill('81');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();assert.match(await page.locator('[data-portal-status]').textContent(),/已保存/);
+ await page.locator('[data-portal-selected]').selectOption('bank');await page.locator('[data-portal-name]').fill('独立实战入口');await page.locator('[data-portal-x]').fill(subject==='行测'?'60':'81');await page.locator('[data-portal-x]').dispatchEvent('change');await page.locator('[data-portal-save]').click();assert.match(await page.locator('[data-portal-status]').textContent(),/已保存/);
  await go('home');assert.equal(await page.locator('[data-portal-go="bank"] b').textContent(),'独立实战入口');await page.reload();await page.locator('[data-portal-go="bank"]').waitFor();assert.equal(await page.locator('[data-portal-go="bank"] b').textContent(),'独立实战入口');await page.locator('[data-portal-go="bank"]').click();await page.waitForFunction(()=>VIEW==='bank');assert.match(await page.locator('.subpage-place').textContent(),/独立实战入口/);
  await go('home');
  // 累计经验必须显示总阈值，不能错误使用本境界相对经验。

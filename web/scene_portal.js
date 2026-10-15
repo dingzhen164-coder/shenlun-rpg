@@ -17,7 +17,7 @@
     });return result;
   }
   // 名牌竖排：每个字一行（不用writing-mode，各平台字体都稳）；名字太长（>8字）或含英文数字时仍横排
-  const signHtml=n=>{const cs=[...n];return cs.length>8||/[\x00-\x7f]/.test(n)?`<b class="ds-sign">${esc(n)}</b>`:`<b class="ds-sign portal-sign-v">${cs.map(c=>`<i>${esc(c)}</i>`).join('')}</b>`;};
+  const signHtml=n=>{const cs=[...n];return cs.length>5||/[\x00-\x7f]/.test(n)?`<b class="ds-sign">${esc(n)}</b>`:`<b class="ds-sign portal-sign-v">${cs.map(c=>`<i>${esc(c)}</i>`).join('')}</b>`;};
   const PLACE_ICON = {train:'🗻','peak-chang':'🌿','peak-yan':'📖','peak-li':'🧠','peak-shu':'🎲','peak-zi':'🌙',skeleton:'📚',bank:'🗼',contest:'⚔',dwelling:'🏠',notes:'📝',tianji:'🔮',journal:'📜',log:'📊'};   // 地点牌上的小图标（emoji会被beauty_icons换成统一线条图标）
   const placeName = (p, layout=load()) => layout.names[p.id] || p.label;
   function title(view) {return view==='home'?config?.title:config?.viewTitles?.[view]||config?.places.find(p=>p.view===view)&&placeName(config.places.find(p=>p.view===view));}
