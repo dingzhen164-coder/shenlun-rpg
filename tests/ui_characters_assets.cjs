@@ -42,8 +42,10 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
       await page.getByRole('button',{name:'交流',exact:true}).click();
       await page.locator('.npc-portrait-image').evaluate(img=>img.decode());await inspect();
       assert.match(await page.locator('.npc-portrait-image').getAttribute('src'),/bust/);
-      await page.locator('.npc-input').fill('今天我们聊聊学习。');await page.getByRole('button',{name:'发送',exact:true}).click();
-      await page.waitForFunction(()=>document.querySelector('.npc-messages')?.textContent.includes('自编交流'));
+      const message=label+' 今天我们聊聊学习。';
+      await page.locator('.npc-input').fill(message);await page.getByRole('button',{name:'发送',exact:true}).click();
+      await page.waitForFunction(text=>document.querySelector('.npc-messages')?.textContent.includes('自编交流：'+text),message);
+      await page.getByRole('button',{name:'发送',exact:true}).waitFor();
       if(label==='tablet'){fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'tablet-chat.png')});}
       assert.deepEqual(errors,[]);await page.close();console.log(label+'：24张实际立绘解码、中央舞台与底部聊天通过');
     }
