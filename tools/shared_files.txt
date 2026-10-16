@@ -534,3 +534,13 @@ shared web/beauty_badge.js
 shared rpg/art.py
 shared tests/test_art.py
 shared web/beauty_art.js
+
+# 3.3.1用户限定本批仅行测；申论/法考后续加入阵容时再迁移共用机制。
+diverged rpg/characters.py
+diverged web/characters.js
+diverged web/characters.css
+diverged defaults/人物/*
+diverged tests/test_characters.py
+diverged tests/ui_characters.cjs
+diverged tests/ui_characters_server.py
+diverged tests/ui_characters_assets.cjs

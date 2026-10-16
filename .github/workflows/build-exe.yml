@@ -22,6 +22,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Isolate test HOME
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          home = Path(os.environ['RUNNER_TEMP']) / 'gongkao-isolated-home'
+          home.mkdir(parents=True, exist_ok=True)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as f:
+              for key in ('HOME', 'USERPROFILE'):
+                  f.write(key + '=' + str(home) + '\n')
+          PY
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -111,6 +124,12 @@ jobs:
     runs-on: macos-latest          # Apple 芯片（M / A 系列）
     steps:
       - uses: actions/checkout@v4
+
+      - name: Isolate test HOME
+        run: |
+          mkdir -p "$RUNNER_TEMP/gongkao-isolated-home"
+          echo "HOME=$RUNNER_TEMP/gongkao-isolated-home" >> "$GITHUB_ENV"
+          echo "USERPROFILE=$RUNNER_TEMP/gongkao-isolated-home" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
