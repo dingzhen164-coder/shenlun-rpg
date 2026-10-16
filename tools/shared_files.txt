@@ -17,6 +17,11 @@ shared rpg/mdconf.py
 shared rpg/mock_rewards.py
 shared rpg/narrative.py
 shared rpg/net.py
+shared rpg/download.py
+shared tests/test_download.py
+diverged tools/mac_update_repair.py
+diverged tools/mac-update-repair.command
+diverged tests/test_mac_update_repair.py
 shared rpg/report.py
 shared rpg/skeleton.py
 shared rpg/study_status.py
