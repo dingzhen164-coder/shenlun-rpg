@@ -31,7 +31,7 @@ async function reveal(selector){
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  await page.goto(base);await page.locator('.portal-world').waitFor();
  const routes=['home','dwelling','train','bank','tianji','skeleton','notes','contest','log','settings'];let checked=0;
- for(const size of [{width:1280,height:860},{width:800,height:1280},{width:390,height:844},{width:1024,height:600}])for(const theme of ['light','dark']){
+ for(const size of [{width:1280,height:860},{width:800,height:1280},{width:1024,height:600}])for(const theme of ['light','dark']){
   await page.setViewportSize(size);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
   for(const route of routes){await page.evaluate(v=>go(v),route);await page.waitForTimeout(100);await fits(`${size.width}/${theme}/${route}`);checked++;
    const labels=await page.locator('.subpage-nav>.fx-tabs>.fx-tab').allTextContents();

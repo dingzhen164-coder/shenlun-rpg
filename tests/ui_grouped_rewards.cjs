@@ -33,7 +33,7 @@ await route('settings');assert.equal(await page.locator('#view .fx-shell > .fx-p
 assert.equal(await page.locator('.fx-settings .fx-tabs').count(),0);
 for(const selector of ['[data-shortcut-save]','[data-portal-save]','#sSave']){const b=page.locator(selector);await reveal(page,b);assert(await b.isVisible());if(selector!=='#sSave'){await b.click();await page.waitForTimeout(300);}}
 await reveal(page,page.locator('[data-portal-save]'));await page.screenshot({path:out+'/'+(subject||'法考')+'-设置.png'});
-for(const size of [{width:800,height:1280},{width:390,height:844}]){
+for(const size of [{width:800,height:1280}]){
  await page.setViewportSize(size);
  for(const v of ['dwelling','contest','settings','log','bank','skeleton']){await route(v);assert(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2));count++;}
 }

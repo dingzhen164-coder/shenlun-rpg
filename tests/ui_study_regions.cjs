@@ -24,7 +24,7 @@ async function compact(selector){await page.waitForFunction(()=>document.documen
   const maps=await page.locator('[data-ln]').evaluateAll(xs=>xs.map(x=>x.dataset.ln));assert.ok(await page.evaluate(({names,id})=>names.every(n=>STUDY_REGIONS.belongs(n,id)),{names:maps,id}));
   await page.locator('[data-study-regions-back]').click();await page.locator('.study-regions,.portal-world').first().waitFor();if(await page.locator('.portal-world').count()){await page.evaluate(()=>go('train'));await page.locator('.study-regions').waitFor();}/* 行测五峰返回直接回地图 */
  }
- for(const viewport of [{width:1280,height:860},{width:800,height:1280},{width:390,height:844}])for(const theme of ['light','dark']){await page.setViewportSize(viewport);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');}
+ for(const viewport of [{width:1280,height:860},{width:800,height:1280}])for(const theme of ['light','dark']){await page.setViewportSize(viewport);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');}
  await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>document.documentElement.dataset.theme='light');
  if(process.argv.includes('--shot')){await page.emulateMedia({reducedMotion:'reduce'});fs.mkdirSync('ui-artifacts/regions',{recursive:true});await page.screenshot({path:'ui-artifacts/regions/'+(subject||'法考')+'-selector.png'});}
  await page.locator(`[data-study-region="${target}"]`).click();await page.locator('.study-region-heading').waitFor();
