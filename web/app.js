@@ -1130,26 +1130,6 @@ async function doAction(act) {
   catch (e) { T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
   renderTrain();
 }
-// 整套试炼：练习册按“前缀-套-题”编号，一次刷完一整套（跨板块，如言语书一套里有片段阅读和逻辑填空）
-function setsHtml(books) {
-  if (!books?.length) return '';
-  // 练习册：第NN套；历年真题：卷子名去掉“《行测》…”这类尾巴
-  const short = (x) => x.year !== undefined ? x.name.replace(/ · [^·]*$/, '').replace(/公务员录用考试|录用公务员考试|《行测》|行政职业能力测验|试卷|试题|题|（网友回忆版）|（精选）/g, '').slice(0, 30) : `第${x.set}套`;
-  const btn = (book, x, cls, verb = '') => `<button class="${cls}" data-bank="套:${esc(x.name)}" data-mode="new" data-title="${esc(x.year !== undefined ? x.name : book + ' 第' + x.set + '套')}"
-      title="${esc(x.name)}" ${!x.active && x.done >= x.total ? 'disabled' : ''}>${x.active ? '▶ ' : x.done >= x.total ? '✓ ' : ''}${verb}${esc(short(x))} <span class="small">${x.done}/${x.total}</span></button>`;
-  const grid = (b) => {
-    if (!b.paper) return `<div class="set-grid">${b.sets.map(x => btn(b.book, x, 'ghost')).join('')}</div>`;
-    const years = [...new Set(b.sets.map(x => x.year))];
-    return years.map(y => `<p class="small muted">${esc(y)} 年</p><div class="set-grid">${b.sets.filter(x => x.year === y).map(x => btn(b.book, x, 'ghost')).join('')}</div>`).join('');
-  };
-  return `<div class="card set-card"><h3>📚 整套试炼 <span class="small muted">一次刷完一整套，做完再看下一套；答案待补的题不出</span></h3>
-    ${books.map(b => {
-      const nx = b.sets.find(x => x.name === b.next);
-      return `<div class="set-book"><div class="row"><b>${esc(b.book)}</b><span class="small muted">共 ${b.sets.length} ${b.paper ? '张卷子（新卷在前）' : '套'} · 已完成 ${b.finished}</span><span class="spacer"></span>
-        ${nx ? btn(b.book, nx, 'primary', nx.active ? '继续 ' : '开始 ') : '<span class="tag ok">全部完成</span>'}</div>
-        <details><summary class="small">选择其他${b.paper ? '卷子' : '套'}</summary>${grid(b)}</details></div>`;
-    }).join('')}</div>`;
-}
 // ------------------------------------------------------------ 修炼殿：两个独立页面（修炼 / 实战），没在做功课时显示
 let TRAIN_ROUTE = "train";       // 当前训练会话所属页面，进入另一个独立板块时不展示它
 let HALL = 'xiulian';            // xiulian 修炼（自选功法练习）| shizhan 实战（真题试炼，原试炼塔）
@@ -1178,97 +1158,30 @@ async function xiulianHtml() {
   return STUDY_REGIONS.html();
 }
 
-let KP_BOARD = '';               // 知识点试炼里选中的板块
-function orderSel(o) {
-  return `<label class="small">出题 <select class="bankOrder"><option value="seq" ${o !== 'shuffle' ? 'selected' : ''}>按顺序</option><option value="shuffle" ${o === 'shuffle' ? 'selected' : ''}>🔀 乱序</option></select></label>`;
-}
-function pointHtml(c, count, order) {
-  const boards = (c.boards || []).filter(b => b.total);
-  if (!boards.length) return '';
-  if (!boards.find(b => b.board === KP_BOARD)) KP_BOARD = boards[0].board;
-  const b = boards.find(x => x.board === KP_BOARD);
-  return `<div class="card kp-card"><div class="row"><h3 style="margin:0">📖 知识点试炼</h3><span class="small muted">挑一类考点连着刷，一组 ${count} 道没做过的，交卷判分</span><span class="spacer"></span>${orderSel(order)}</div>
-    <div class="board-seals small-seals">${boards.map(x => `<a class="seal ${x.board === KP_BOARD ? 'on' : ''}" data-kpboard="${esc(x.board)}">${esc(x.board)}</a>`).join('')}</div>
-    <div class="toc">${b.topics.map(t => `<a class="toc-chip kp ${t.left ? '' : 'done'}" data-kp="${esc(b.board)}" data-kptopic="${esc(t.name)}" title="未做 ${t.left} / 共 ${t.count}">${esc(t.name)} <span>${t.left}/${t.count}</span></a>`).join('')}
-      ${b.more_topics ? `<span class="small muted">…另有 ${b.more_topics} 个小类，可在藏经阁经卷里搜</span>` : ''}</div>
-    ${b.topics.length <= 2 ? '<p class="small muted">这个板块的知识点还很粗（只有大类）：用导入页「⑨ 补蒸馏解析」后会细分成考点。</p>' : ''}</div>`;
-}
+// 3.3.3套卷与板块共用场景；原抽题、续做、评分与复盘接口保持。
 async function shizhanHtml() {
-  const [d, c] = await Promise.all([api('/api/bank'), api('/api/library')]);
-  const rate = (ok, n) => n ? `${(ok / n * 100).toFixed(0)}%` : '—';
-  const done = d.boards.reduce((n, b) => n + b.first_total, 0);
-  const wrong = d.boards.reduce((n, b) => n + b.wrong, 0);
-  const firstOk = d.boards.reduce((n, b) => n + b.first_correct, 0);
-  const boards = d.boards.filter(b => b.total || b.pending || b.wrong);
-  return `${pagodaHtml(d.tower, done, wrong, rate(firstOk, done))}
-    ${pointHtml(c, d.count, d.order)}
-    ${setsHtml(d.sets)}
-    <div class="card"><div class="row"><h3 style="margin:0">⚔ 板块试炼</h3><span class="small muted">${d.order === 'shuffle' ? '从没做过的题里随机抽' : '按题库顺序'}一组 ${d.count} 关，交卷判分（做过的不再出）</span><span class="spacer"></span>
-      ${orderSel(d.order)} <label class="small">每组 <select id="bankCount"><option value="10" ${d.count === 10 ? 'selected' : ''}>10 关</option><option value="15" ${d.count === 15 ? 'selected' : ''}>15 关</option></select></label></div>
-      <div class="arena-grid">${boards.map(b => `<div class="arena ${b.active ? 'active' : ''}">
-        <div class="row"><b>${esc(b.board)}</b><span class="spacer"></span>${b.active ? '<span class="tag cur">进行中</span>' : ''}</div>
-        <div class="small muted">余 ${b.remaining}/${b.total} · 首次正确率 ${rate(b.first_correct, b.first_total)}${b.pending ? ` · 待补 ${b.pending}` : ''}</div>
-        ${bar(b.total ? (b.total - b.remaining) / b.total : 0, 'thin yellow')}
-        ${b.errors.length ? `<div class="warn small">${b.errors.slice(0, 2).map(esc).join('<br>')}</div>` : ''}
-        <div class="row"><button class="primary small" data-bank="${esc(b.board)}" data-mode="new" ${!b.active && (!b.remaining || b.errors.length) ? 'disabled' : ''}>${b.active ? '续闯' : '闯关'}</button>
-          <button class="small" data-bank="${esc(b.board)}" data-mode="review" ${b.active || !b.wrong ? 'disabled' : ''}>回炉${b.wrong ? ' ' + b.wrong : ''}</button></div></div>`).join('')
-        || '<p class="muted">题库还是空的：到藏经阁「📖 经卷 · 题库」最下面的「📥 导入真题」入库。</p>'}</div></div>
-    <details class="card"><summary><b>📜 ${esc(W('bank_history'))}</b> <span class="small muted">最近 ${d.groups.length} 组</span></summary>${d.groups.map(x => `<div class="row"><span>${esc(x.date)} · ${esc(x.label || x.board)} · ${esc(W(x.mode === 'new' ? 'bank' : 'bank_review'))}</span><span class="spacer"></span><span class="tag ok">${esc(W('bank_rank.' + x.rank))}</span><span>${x.correct}/${x.total}</span>${x.seconds ? `<span class="small muted">⏱ ${clock(x.seconds)}</span>` : ''}</div>`).join('') || '<p class="muted small">尚未留下试炼战绩。</p>'}</details>
-    <p class="small muted">点选项的组按考试来：全部选完交卷才揭晓对错，再逐题复盘，看不懂点「🧙 师傅解惑」。首次作答得${esc(W('xp'))}，回炉连续答对 ${d.streak_need} 次消除残影。</p>`;
-}
-
-// 试炼塔：一座宝塔只画当前层上下几层，塔身发光的是正在攀登的那层
-function pagodaHtml(t, done, wrong, acc) {
-  if (!t) return '';
-  const top = Math.min(t.layers, t.current + 2);
-  const tiers = [];
-  for (let n = top; n >= Math.max(1, top - 4); n--) {
-    const cls = n === t.current && !t.summit ? 'cur' : n <= t.cleared ? 'clear' : 'up';
-    tiers.push(`<div class="tier ${cls}" style="--w:${62 + (top - n) * 9}%"><div class="roof"></div><div class="tier-body"><span>第 ${n} 层</span></div></div>`);
-  }
-  return `<div class="card pagoda-card"><div class="pagoda">
-      <div class="spire">✦</div>${tiers.join('')}<div class="pagoda-base">试 炼 塔</div></div>
-    <div class="pagoda-info"><div class="rune">${t.layers} 层 · ${t.total} 道真题</div>
-      <div class="floor-big">${t.summit ? '✦ 百层登顶' : `第 <b>${t.current}</b> 层`}</div>
-      ${towerProgress(t)}
-      <div class="pagoda-stats"><div><b>${done}</b><span>已闯新题</span></div><div><b>${acc}</b><span>首次正确率</span></div><div><b>${wrong}</b><span>${esc(W('bank_wrong'))}</span></div></div>
-      <div class="npc">${tutorFace()}<div class="small"><b>${esc(DASH?.persona?.tutor || '')}</b>：${esc(W('bank_intro'))}</div></div></div></div>`;
+  const [d,c]=await Promise.all([api('/api/bank'),api('/api/library')]);
+  return TRIAL_HALL.html(d,c,{scope:DASH?.vault||'',subject:DASH?.subject||'',
+    title:SCENE_PORTAL.title('bank'),mage:document.body.classList.contains('xuanhuan'),
+    wrong:W('bank_wrong'),rank:code=>W('bank_rank.'+code)});
 }
 
 function bindHub() {
+  if ($('#view .trial-hall')) {
+    TRIAL_HALL.bind($('#view'),{api,error:showError,start:task=>startTask({task})});
+    return;
+  }
   window.STUDY_REGIONS?.bind($("#view"));
   document.querySelectorAll('[data-xlboard]').forEach(a => a.onclick = () => { XL_BOARD = a.dataset.xlboard; renderTrain(); });
   document.querySelectorAll('[data-xlwrong]').forEach(b => b.onclick = () =>
     startTask({ task: { type: 'wrong', board: b.dataset.xlwrong, target: '', title: `👹 ${W('kill')} · ${b.dataset.xlwrong}` } }));
-  document.querySelectorAll('[data-kpboard]').forEach(a => a.onclick = () => { KP_BOARD = a.dataset.kpboard; renderTrain(); });
-  document.querySelectorAll('[data-kp]').forEach(a => a.onclick = () => startTask({ task: {
-    type: 'bank', board: `点:${a.dataset.kp}:${a.dataset.kptopic}`, target: '', title: `📖 ${a.dataset.kp} · ${a.dataset.kptopic}` } }));
   document.querySelectorAll('[data-xlpill]').forEach(b => b.onclick = () =>
     startTask({ task: { type: 'alchemy', board: b.dataset.xlpill, target: b.dataset.xlpill, title: `⚗ ${W('alchemy')} · ${b.dataset.xlpill}` } }));
   bindTaskClicks($('#view'));
   if (window.CARDS) CARDS.bindHub($('#view'));
   if (window.MINDMAP) MINDMAP.bindHub($('#view'));
   bindSkeleton();   // 大项练习按钮、编撰功法
-  if ($('#bankCount')) bindBank();
   if (isSL() && HALL === 'shizhan' && window.SHENLUN) SHENLUN.bindHall($('#view'));
-}
-function bindBank() {
-  $('#bankCount').onchange = async (e) => {
-    try { await api('/api/bank/count', { count: Number(e.target.value) }); toast('已保存，下一组生效'); }
-    catch (err) { showError(err); }
-  };
-  document.querySelectorAll('.bankOrder').forEach(sel => sel.onchange = async (e) => {
-    try {
-      await api('/api/bank/count', { order: e.target.value });
-      toast(e.target.value === 'shuffle' ? '已改成乱序：下一组从没做过的题里随机抽' : '已改回按顺序');
-      renderTrain();
-    } catch (err) { showError(err); }
-  });
-  if ($('#importCard')) $('#importCard').ontoggle = (e) => { if (e.target.open) loadImport(); };
-  document.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => startTask({ task: {
-    type: b.dataset.mode === 'review' ? 'bank_review' : 'bank', board: b.dataset.bank,
-    target: b.dataset.bank, title: `⚔ ${b.dataset.title || b.dataset.bank} · ${W(b.dataset.mode === 'review' ? 'bank_review' : 'bank')}`
-  } }));
 }
 // ------------------------------------------------------------ 导入真题（rpg/importer.py）
 let IMPORT_TEXT = null;   // 选中的 txt 内容（只在浏览器里读，导入时发给本机程序）

@@ -147,6 +147,19 @@ class BankTest(unittest.TestCase):
         self.assertEqual(ev['xp'], 15)  # 只奖励本组一半的新记录
         self.assertEqual(len(bank.state(self.g)['records']), 2)
 
+    def test_active_run_summary_exposes_only_progress_without_mutation(self):
+        import copy
+        self.file.write_text(question('01'), encoding='utf-8')
+        run = bank.begin(self.g, '点:论证逻辑:削弱论证', 'new')
+        run['phase'] = 'review'
+        run['results'] = [{'ok': True, 'first': True}]
+        before = copy.deepcopy(self.g.state)
+        rows = bank.summary(self.g)['active_runs']
+        self.assertEqual(rows, [{'board': '点:论证逻辑:削弱论证', 'mode': 'new',
+                                 'phase': 'review', 'total': 1, 'answered': 1}])
+        self.assertEqual(self.g.state, before)
+        self.assertFalse({'questions', 'answer', 'analysis', 'results'} & set(rows[0]))
+
     def test_tower_boundaries_and_old_records(self):
         def fill(n):
             bank.state(self.g)['records'] = {str(i): {'history': [{'ok': False}]} for i in range(n)}

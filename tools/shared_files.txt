@@ -20,6 +20,11 @@ shared rpg/net.py
 shared rpg/download.py
 shared tests/test_download.py
 shared web/scene_panels.js
+shared web/trial_hall.js
+shared web/trial_hall.css
+shared tests/ui_trial_hall.cjs
+diverged tests/ui_trial_server.py
+diverged web/assets/beauty/trial/*
 shared web/scene_panels.css
 shared tests/ui_scene_panels.cjs
 diverged tools/mac_update_repair.py
