@@ -557,3 +557,11 @@ diverged tests/test_characters.py
 diverged tests/ui_characters.cjs
 diverged tests/ui_characters_server.py
 diverged tests/ui_characters_assets.cjs
+
+# 3.3.4 宗门大比/学院竞技场，共用交互，各自场景美术。
+shared web/contest_scene.js
+shared web/contest_scene.css
+diverged web/assets/beauty/contest/*
+diverged rpg/peak_tutors.py
+diverged tests/test_peak_tutors.py
+shared tests/ui_contest_scene.cjs

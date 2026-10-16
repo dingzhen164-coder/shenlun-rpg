@@ -30,6 +30,15 @@ class ArtTest(unittest.TestCase):
         self.assertNotIn("guide/xc-qinghe-calm.webp", art.known("申论"))     # 申论还没有立绘
         self.assertIn("academy/portrait/mg-eileen-calm.webp", art.known("法考"))
 
+    def test_contest_rename_keeps_old_page_backgrounds(self):
+        d = art.art_dir(self.p) / '子地图背景';d.mkdir(parents=True)
+        for suffix, rel in [('', 'contest.webp'), ('-白天', 'contest-day.webp'), ('-夜晚', 'contest-night.webp')]:
+            old = d / ('演武场' + suffix + '.png');old.write_bytes(b'old')
+            self.assertEqual(art.lookup(self.p, '行测', 'beauty/page/' + rel), old)
+            new = d / ('宗门大比' + suffix + '.png');new.write_bytes(b'new')
+            self.assertEqual(art.lookup(self.p, '行测', 'beauty/page/' + rel), new)
+            self.assertEqual(old.read_bytes(), b'old')
+
     def test_lookup_uses_fixed_names_only(self):
         d = art.art_dir(self.p)
         (d / "首页全景").mkdir(parents=True)

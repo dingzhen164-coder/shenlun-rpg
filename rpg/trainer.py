@@ -24,7 +24,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import question_bank, ai, idioms, prompts, skeleton, subjects, tutor, vault, wording
+from . import question_bank, ai, idioms, prompts, skeleton, subjects, tutor, vault, wording, peak_tutors
 
 SESSIONS = {}
 FINISHED = {}   # 刚结束的会话 {id: (类型, 结束时间)}：结束后看解析的几分钟也算修炼时间
@@ -229,7 +229,7 @@ def _log(g, sid, user_text, r):
     f = _log_file(g, s["iid"])
     if not f:
         return
-    who = {"me": "🧑 我", "npc": "🌸 " + g.persona["导师名"]}
+    who = {"me": "🧑 我", "npc": "🌸 " + (r.get("mentor", {}).get("name") or g.persona["导师名"])}
     body = "\n\n".join("**%s**：\n%s" % (who[w], t) if w in who else "> " + t.replace("\n", "\n> ") for w, t in log)
     sid = s.get("log_sid", sid)       # 接着上次聊的：写回上次那一段
     head = "## %s · %s <!-- sid:%s -->" % (s.setdefault("started", time.strftime("%Y-%m-%d %H:%M")), g.label(s["type"]), sid)
@@ -322,8 +322,8 @@ def start(g, task):
         if last:
             if g.resting():
                 raise TrainError(f"{g.T('qi')}预警：还需调息 {g.resting()} 分钟。去喝口水、走两步，回来再修炼。")
-            return _resume(g, task, last)
-    r = _start(g, task)
+            return peak_tutors.attach(g, _resume(g, task, last), ALL)
+    r = peak_tutors.attach(g, _start(g, task), ALL)
     s = ALL.get(r.get("session"))
     if s and s["type"] in LOG_TYPES and s.get("iid"):
         _log(g, s["id"], "", r)
@@ -334,13 +334,13 @@ def start(g, task):
 
 
 def reply(g, sid, text):
-    r = _reply(g, sid, text)
+    r = peak_tutors.attach(g, _reply(g, sid, text), ALL)
     _log(g, sid, (text or "").strip(), r)
     return r
 
 
 def action(g, sid, act):
-    r = _action(g, sid, act)
+    r = peak_tutors.attach(g, _action(g, sid, act), ALL)
     _log(g, sid, "", r)
     return r
 
@@ -365,7 +365,7 @@ def _start(g, task):
         _need_ai(g.T("feynman"))
         it = _item(g, task["target"])
         s = new_session(typ, task["title"], task, iid=it["id"], board=task["board"], history=[], asked=0)
-        return _resp(s, [_msg("npc", f"{g.T('feynman')}。把「{it['name']}」讲给{g.persona['导师名']}听：它是什么、题目里怎么认出来、"
+        return _resp(s, [_msg("npc", f"{g.T('feynman')}。把「{it['name']}」讲给{peak_tutors.persona(g, task['board'])['导师名']}听：它是什么、题目里怎么认出来、"
                                      "怎么用、容易错在哪。就当对方完全不懂。")],
                      input=_remember(s, _text_input("像给别人讲课一样讲出来")))
     if typ == "example":
@@ -378,7 +378,7 @@ def _start(g, task):
     if typ == "apply":
         _need_ai(g.T("apply"))
         it = _item(g, task["target"])
-        q = ai.chat_json(prompts.apply_question(g.persona, task["board"], it), temperature=0.7)
+        q = ai.chat_json(prompts.apply_question(peak_tutors.persona(g, task["board"]), task["board"], it), temperature=0.7)
         s = new_session(typ, task["title"], task, iid=it["id"], board=task["board"], q=q)
         return _resp(s, [_msg("npc", f"{g.T('apply')}：\n\n{q.get('题目', '')}")],
                      input=_remember(s, _text_input("先说你认出的考点和思路，再给答案")))
@@ -484,7 +484,7 @@ def _judge_recite(g, board, it, text):
         return vhit, vmiss, None, "", []
     if not it["terms"] and not it["thoughts"]:
         return vhit, vmiss, 1.0, "", []
-    r = ai.chat_json(prompts.recite_grade(g.persona, board, it, text, []))
+    r = ai.chat_json(prompts.recite_grade(peak_tutors.persona(g, board), board, it, text, []))
     names = r.get("清单")
     marks = r.get("答到")
     if (not isinstance(names, list) or len(names) != len(it["terms"])
@@ -552,7 +552,7 @@ def _feynman(g, s, text):
     it = _item(g, s["iid"])
     s["history"].append({"role": "user", "content": text})
     left = max(0, int(g.rules.num("费曼追问轮数")) - s["asked"])
-    r = ai.chat_json(prompts.feynman_turn(g.persona, s["board"], it, s["history"], left), temperature=0.5)
+    r = ai.chat_json(prompts.feynman_turn(peak_tutors.persona(g, s["board"]), s["board"], it, s["history"], left), temperature=0.5)
     reply_text = r.get("reply", "")
     s["history"].append({"role": "assistant", "content": reply_text})
     if not bool(r.get("done")) and left > 0:
@@ -570,7 +570,7 @@ def _feynman(g, s, text):
 def _example(g, s, text):
     it = _item(g, s["iid"])
     digest = vault.skill_digest(g.paths, g.boards[s["board"]].get("skill"))
-    r = ai.chat_json(prompts.example_grade(g.persona, s["board"], it, text, digest))
+    r = ai.chat_json(prompts.example_grade(peak_tutors.persona(g, s["board"]), s["board"], it, text, digest))
     if type(r.get("通过")) is not bool:
         raise TrainError("举例判分格式不完整，尚未记录，请重试")
     ok = r["通过"]
@@ -633,7 +633,7 @@ def _discuss_ask(g, s, text):
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
-        r = ai.chat(prompts.discuss(g.persona, d, _skill_digest(g, d["board"]), text), temperature=0.6, max_tokens=1500)
+        r = ai.chat(prompts.discuss(peak_tutors.persona(g, d["board"]), d, _skill_digest(g, d["board"]), text), temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     d["history"] += [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
@@ -708,7 +708,7 @@ def _start_teach(g, task):
                         + ["【思路】" + t for t in it.get("thoughts", [])] + ["【举例】" + t for t in it.get("examples", [])])
     if ai.available():
         try:
-            lecture = ai.chat(prompts.teach(g.persona, board, it, content, _skill_digest(g, board),
+            lecture = ai.chat(prompts.teach(peak_tutors.persona(g, board), board, it, content, _skill_digest(g, board),
                                             [dict(q, stem=_plain(q["stem"]), analysis=_plain(q["analysis"])[:600]) for q in examples]),
                               temperature=0.6, max_tokens=2200)
         except ai.AIError as e:
@@ -734,7 +734,7 @@ def _start_teach(g, task):
 
 # ---------------------------------------------------------------- 试剑（应用）
 def _grade_apply(g, board, it, q, text):
-    r = ai.chat_json(prompts.apply_grade(g.persona, board, it, q.get("题目", ""), q.get("参考答案", ""),
+    r = ai.chat_json(prompts.apply_grade(peak_tutors.persona(g, board), board, it, q.get("题目", ""), q.get("参考答案", ""),
                                          q.get("参考思路", ""), text))
     return bool(r.get("通过")), r.get("点评", "")
 
@@ -770,7 +770,7 @@ def _grade_wrong(g, key, board, text):
                           _msg("sys", q["analysis"] or "（这题还没有解析）", fold="复盘解析"),
                           _msg("npc", "没连 AI，对照解析自己判断：思路和答案都对吗？")], None, answer_ok
     qtext = "\n".join(b["v"] for b in vault.render_blocks(g.paths, q) if b["t"] == "text")
-    r = ai.chat_json(prompts.wrong_grade(g.persona, board, qtext, q["correct"], q["mine"], q["analysis"], names, text))
+    r = ai.chat_json(prompts.wrong_grade(peak_tutors.persona(g, board), board, qtext, q["correct"], q["mine"], q["analysis"], names, text))
     ok = bool(r.get("答案正确")) and bool(r.get("思路正确"))
     iname = (r.get("对应大项") or "").strip()
     iid = skeleton.item_id(board, iname) if iname in names else ""
@@ -854,7 +854,7 @@ def _gauntlet_next(g, s, msgs, events=None):
         msgs += [_wrong_intro(g, q, f"{head}："), _msg("npc", "题型 → 方法 → 依据 → 答案。")]
         return _resp(s, msgs, events, input=_remember(s, _text_input("题型 → 方法 → 依据 → 答案")))
     it = _item(g, step["target"])
-    q = ai.chat_json(prompts.apply_question(g.persona, step["board"], it), temperature=0.7)
+    q = ai.chat_json(prompts.apply_question(peak_tutors.persona(g, step["board"]), step["board"], it), temperature=0.7)
     step["q"] = q
     msgs.append(_msg("npc", f"{head}（考点：{it['name']}）：\n\n{q.get('题目', '')}"))
     return _resp(s, msgs, events, input=_remember(s, _text_input("先说考点和思路，再给答案")))
@@ -1430,7 +1430,7 @@ def _explain_group(g, board, material, items):
     skill = _skill_name(g, board)
     digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ("", [])
     try:
-        text = ai.chat(prompts.group_explain(g.persona, material, items, digest, skill), temperature=0.5, max_tokens=2800)
+        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest, skill), temperature=0.5, max_tokens=2800)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
@@ -1473,7 +1473,7 @@ def _explain(g, q, r):
     skill = _skill_name(g, q['board'])
     digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ('', [])
     try:
-        text = ai.chat(prompts.bank_explain(g.persona, q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
+        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     return text, skill, used
@@ -1506,7 +1506,7 @@ def _review_chat(g, s, run, text):
            "question": q["stem"] + "\n" + "\n".join("%s. %s" % kv for kv in q["options"].items()),
            "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
     try:
-        reply = ai.chat(prompts.discuss(g.persona, ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500)
+        reply = ai.chat(prompts.discuss(peak_tutors.persona(g, q["board"]), ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
@@ -1532,7 +1532,7 @@ def _bank_reply(g, s, text):
     method_ok, feedback = None, "未连接AI，请提交后对照解析自行核对方法；正确率只表示答案正确率。"
     if ai.available():
         digest = vault.skill_digest(g.paths, g.boards.get(s["board"], {}).get("skill"))
-        r = ai.chat_json(prompts.bank_method_grade(g.persona, s["board"], q, text, digest))
+        r = ai.chat_json(prompts.bank_method_grade(peak_tutors.persona(g, q["board"]), s["board"], q, text, digest))
         dims = r.get("维度")
         if type(r.get("通过")) is not bool or not isinstance(dims, dict) or any(
                 type(dims.get(k)) is not bool for k in ("方向", "结论论据", "结构", "选项分析")):
@@ -1747,7 +1747,7 @@ def _mreview_chat(g, s, text):
     ctx = {"kind": "大比复盘", "title": "第%s季第%s题" % (s["season"], q["num"]), "board": pq["board"], "history": hist[-10:],
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
-        reply = ai.chat(prompts.discuss(g.persona, ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500)
+        reply = ai.chat(prompts.discuss(peak_tutors.persona(g, pq["board"]), ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]

@@ -257,7 +257,7 @@
     pending=false;window.STUDY_HUD?.ensure();const root=document.getElementById('view');if(!root)return;
     if(!document.documentElement.classList.contains('fixed-app'))document.documentElement.classList.add('fixed-app');root.dataset.fxRoute=route;measure();
     if(route!=='home'&&!root.querySelector('.fx-shell')){
-      if(root.querySelector('.trial-hall')){} // 双模式试炼入口自管场景和有界列表。
+      if(root.querySelector('.trial-hall,.contest-scene')){} // 试炼塔/大比场景自管卷宗和有界内容。
       else if(root.querySelector('.train')){} // 会话由原消息/输入工作区处理。
       else if(root.querySelector('.notes'))notes(root);
       else if(root.querySelector('.tj-hub,.tj-issue'))tianji(root);

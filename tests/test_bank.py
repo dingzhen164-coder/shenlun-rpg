@@ -338,7 +338,8 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.ai, 'available', return_value=False):
             r = trainer.action(self.g, sid, 'exam_explain:2')
         self.assertIn('API key', str(r))
-        self.assertIn('师傅解惑', str(r))                              # 没连 AI 不算讲过
+        self.assertEqual(r['mentor']['name'], '薛睿')
+        self.assertTrue(any(b['id']=='exam_explain:2' and '解惑' in b['label'] for b in r['input']['buttons']))  # 没连AI不算讲过
         sent = {}
         def fake_chat(messages, **kw):
             sent['prompt'] = messages[-1]['content']
@@ -355,7 +356,7 @@ class BankTest(unittest.TestCase):
         self.assertIn('【师傅解惑】', block)
         self.assertLess(block.index('秘密解析'), block.index('选C？坑都写脸上了。'))
         self.assertEqual(text.count('【师傅解惑】'), 1)
-        self.assertIn('再问师傅', str(r))
+        self.assertTrue(any(b['id']=='exam_explain:2' and '再问薛睿' in b['label'] for b in r['input']['buttons']))
         # 再问一次：替换，不叠加
         with patch.object(trainer.ai, 'available', return_value=True), patch.object(trainer.ai, 'chat', return_value='第二次讲法'):
             trainer.action(self.g, sid, 'exam_explain:2')

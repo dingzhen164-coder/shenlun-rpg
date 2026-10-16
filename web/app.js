@@ -42,9 +42,9 @@ function toast(html, cls = "", ms = 4200) {
   $("#toasts").appendChild(el);
   setTimeout(() => el.remove(), ms);
 }
-function tutorFace() {
-  const u = DASH?.persona?.tutor_avatar;
-  return u ? `<div class="face"><img src="${esc(u)}" alt=""></div>` : `<div class="face">${esc(DASH?.theme?.face || "🌸")}</div>`;
+function tutorFace(mentor = null) {
+  const u = mentor ? mentor.avatar : DASH?.persona?.tutor_avatar;
+  return u ? `<div class="face"><img src="${esc(u)}" alt=""></div>` : `<div class="face">${esc(mentor?.name?.slice(0,1) || DASH?.theme?.face || "🌸")}</div>`;
 }
 function npcToast(msg) {
   if (window.FOCUS && FOCUS.isOn()) return;          // ◎ 专注时导师不打扰
@@ -196,7 +196,7 @@ function configurePortal() {
     {id:'peak-li',label:'明理峰',view:'train',region:'li',x:48,y:14,nx:28,ny:20},{id:'peak-shu',label:'演数峰',view:'train',region:'shu',x:62,y:17,nx:72,ny:20},
     {id:'peak-zi',label:'观星峰',view:'train',region:'zi',x:76,y:24,nx:50,ny:32},
     {id:'skeleton',label:'藏经阁',view:'skeleton',x:70,y:60,nx:86,ny:52},{id:'bank',label:'试炼塔',view:'bank',x:91,y:64,nx:84,ny:88},
-    {id:'contest',label:'演武场',view:'contest',x:34,y:67,nx:14,ny:52},
+    {id:'contest',label:'宗门大比',view:'contest',x:34,y:67,nx:14,ny:52},
     {id:'dwelling',label:'洞府',view:'dwelling',x:11,y:80,nx:16,ny:88},
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
@@ -367,7 +367,7 @@ function blocksHtml(list, trim = false, question = false) {
 function msgHtml(m) {
   const blocks = blocksHtml(m.blocks, false, !!m.pin);
   if (m.fold) return `<details class="fold"><summary>${esc(m.fold)}</summary><div>${md(m.text)}</div></details>`;
-  if (m.who === "npc") return `<div class="npc">${tutorFace()}<div class="say"><div class="who">${esc(DASH?.persona?.tutor || "导师")}</div>${md(m.text)}</div></div>`;
+  if (m.who === "npc") { const mentor=m.mentor||T.mentor;return `<div class="npc">${tutorFace(mentor)}<div class="say"><div class="who">${esc(mentor?.name || DASH?.persona?.tutor || "导师")}</div>${md(m.text)}</div></div>`; }
   if (m.who === "me") return `<div class="msg me">${esc(m.text)}</div>`;
   if (m.pin) return `<div class="q-pin ${PIN_MINI ? "mini" : ""}"><div class="msg sys pin-body"><span class="pin-tools">${m.material?.length
       ? `<button class="pin-btn mat-btn ${MAT_OPEN ? "on" : ""}" title="材料放在左边，对照着看">📄 ${MAT_OPEN ? "收起材料" : "弹出材料"}</button>` : ""}<button class="pin-btn pin-fold" title="${PIN_MINI ? "展开题目" : "把题目收成一行"}">📌 ${PIN_MINI ? "展开" : "收起"}</button></span>${md(m.text)}${blocks}</div>
@@ -569,11 +569,11 @@ const views = {
     }
     const inp = T.input;
     let composer = "";
-    if (T.busy) composer = `<div class="thinking">${esc(DASH?.persona?.tutor || "导师")}正在判定</div>`;
+    if (T.busy) composer = `<div class="thinking">${esc(T.mentor?.name || DASH?.persona?.tutor || "导师")}正在判定</div>`;
     else if (inp.mode === "text" && inp.buttons) {
       // 复盘类（试炼复盘 / 大比复盘 / 题后讨论）：打字框默认收起，点左下角「师傅求助」才打开，题目区域更大
       composer = `${ASK_OPEN ? `<textarea id="answer" placeholder="${esc(inp.placeholder || "")}"></textarea>` : ""}
-        <div class="row composer-row" style="margin-top:${ASK_OPEN ? 8 : 0}px"><button class="${ASK_OPEN ? "" : "ghost"} ask-btn" id="askToggle">🙋 ${ASK_OPEN ? "收起" : "师傅求助"}</button>${ASK_OPEN ? `<button class="primary" id="send">问师傅</button>` : ""}<span class="spacer"></span>
+        <div class="row composer-row" style="margin-top:${ASK_OPEN ? 8 : 0}px"><button class="${ASK_OPEN ? "" : "ghost"} ask-btn" id="askToggle">🙋 ${ASK_OPEN ? "收起" : esc(T.mentor ? T.mentor.name + "求助" : "师傅求助")}</button>${ASK_OPEN ? `<button class="primary" id="send">${esc(T.mentor ? "问" + T.mentor.name : "问师傅")}</button>` : ""}<span class="spacer"></span>
         ${inp.buttons.map((b) => `<button class="ghost" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
     }
     else if (inp.mode === "text") composer = `<textarea id="answer" placeholder="${esc(inp.placeholder || "")}"></textarea>
@@ -1024,7 +1024,7 @@ function mountGuide() {
 async function startTask(body) {
   window.XC_GUIDE?.close();
   SESSION_SNAP = window.SETTLE ? SETTLE.snap() : null;
-  Object.assign(T, { session: null, title: "准备中…", msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
+  Object.assign(T, { session: null, title: "准备中…", mentor: null, msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
   TRAIN_ROUTE = ["bank", "bank_review"].includes(body.task?.type) ? "bank" : "train";
   await go(TRAIN_ROUTE);
   try { applyResp(await api("/api/session/start", body)); }
@@ -1033,6 +1033,7 @@ async function startTask(body) {
 }
 let ASK_OPEN = false;     // 复盘时“师傅求助”打字框开着没有（换题就收起，追问中保持打开）
 function applyResp(r) {
+  T.mentor = r.mentor || null;
   T.session = r.session; T.title = r.title; T.busy = false; T_TYPE = r.type;
   if (r.replace && r.scroll !== 'bottom') ASK_OPEN = false;
   // 试炼答题 / 复盘：每一屏只显示当前这道题（不在聊天里越堆越长），从顶上看起

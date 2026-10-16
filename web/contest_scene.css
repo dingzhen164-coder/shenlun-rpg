@@ -1,0 +1,47 @@
+/* 大比整景与卷宗：只在当前科目的模考页生效，申论年度考核保留原工作区。 */
+.fixed-app #view:has(.contest-scene){max-width:none;padding:0}
+.contest-scene{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;container-type:inline-size}
+.cs-world,.cs-landscape{position:absolute;inset:0}
+.cs-world{overflow:hidden;background:var(--ds-paper)}
+.cs-landscape{background:url('assets/beauty/contest/arena.png') center/cover no-repeat}
+body.has-page-art .cs-landscape{background-image:var(--ds-page-art)}
+.cs-landscape:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--ds-sign-shadow),transparent 28%,transparent 75%,var(--ds-glint));pointer-events:none}
+.cs-heading{position:absolute;top:5%;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;color:var(--ds-sign-ink);text-shadow:0 2px 6px var(--ds-sign-symbol-shadow),0 0 14px var(--ds-sign-symbol-shadow);pointer-events:none}
+.cs-heading p,.cs-heading>span{margin:0;font-size:var(--ds-fs-11);letter-spacing:.2em}
+.cs-heading h2{font:400 clamp(var(--ds-fs-26),4cqw,calc(var(--ds-fs-26)*2))/1.5 var(--display);letter-spacing:.3em;margin:var(--ds-sp-8) 0;color:var(--ds-sign-symbol)}
+.cs-mist{position:absolute;bottom:4%;left:-10%;width:120%;height:18%;background:radial-gradient(ellipse at 30% 40%,var(--ds-paper),transparent 55%),radial-gradient(ellipse at 75% 60%,var(--ds-paper),transparent 50%);opacity:.35;filter:blur(20px);pointer-events:none;animation:cs-clouds 38s ease-in-out infinite alternate}
+.cs-entrances{position:absolute;inset:0}
+.contest-scene .cs-entrance{position:absolute;width:112px;height:150px;transform:translate(-50%,-50%);border:0;border-radius:0;background:none;box-shadow:none;color:var(--ds-sign-symbol);display:grid;place-items:center;padding:var(--ds-sp-12);font:400 clamp(var(--ds-fs-26),3cqw,calc(var(--ds-fs-26)*1.5))/1.4 var(--display);text-shadow:0 2px 3px var(--ds-sign-symbol-shadow),0 0 10px var(--ds-sign-symbol-shadow)}
+.cs-entrance span{writing-mode:vertical-rl;letter-spacing:.3em;pointer-events:none;transition:transform var(--ds-dur-slow)}
+.contest-scene .cs-entrance:hover{background:none;color:var(--ds-sign-ink)}
+.cs-entrance:hover span{transform:translateY(-4px)}
+.cs-entrance:focus-visible{outline:2px solid var(--ds-sign-focus);outline-offset:var(--ds-sp-4)}
+.cs-overview{left:17%;top:42%}.cs-review{left:83%;top:42%}.cs-trends{left:29%;top:79%}.cs-entry{left:71%;top:79%}
+.cs-pane{min-width:0;min-height:0;width:100%;padding:var(--ds-sp-16);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.cs-pane[hidden]{display:none!important}
+.cs-pane>.card{background:transparent;box-shadow:none;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;margin:0 0 var(--ds-sp-16);padding:var(--ds-sp-12) 0}
+.cs-pane .contest-grid{grid-template-columns:minmax(0,1fr);margin-top:0!important}
+.cs-pane .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ds-sp-8)}
+.cs-pane .kpi{min-width:0;padding:var(--ds-sp-12);background:transparent;border-color:var(--ds-line);box-shadow:none}
+.cs-pane .kpi .v{font-size:var(--ds-fs-26)}
+.cs-pane .contest-hero h2{font-size:var(--ds-fs-20)}
+.cs-pane h3{font-size:var(--ds-fs-18)}
+.cs-pane h3 small{display:block;font:var(--ds-fs-12)/1.7 var(--font,serif);letter-spacing:0;margin-top:var(--ds-sp-8)}
+.cs-pane .row{min-width:0;flex-wrap:wrap}
+.cs-pane .mk-row input,.cs-pane .mk-row select,.cs-pane textarea{max-width:100%;min-width:0}
+.cs-pane .mods{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cs-pane .chart,.cs-pane .tbl-wrap{min-width:0;max-width:100%;overflow:auto}
+.cs-pane input[type=file]{width:100%}
+.cs-foot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--ds-sp-12);padding:var(--ds-sp-12) var(--ds-sp-16);border-top:1px solid var(--ds-line);color:var(--ds-muted);font-size:var(--ds-fs-11)}
+.cs-foot button{min-height:42px;flex:none;font-size:var(--ds-fs-13)}
+.cs-pane #mkSave{display:none}
+.cs-tabs{gap:var(--ds-sp-8);padding:0 var(--ds-sp-12)}
+.cs-tabs button{font-size:var(--ds-fs-13)}
+[data-theme=dark] .cs-landscape{filter:brightness(.5) saturate(.8)}
+[data-theme=dark] .cs-mist{opacity:.15}
+.contest-scene:has(dialog[open]) .cs-mist{animation-play-state:paused}
+@keyframes cs-clouds{from{transform:translateX(-3%)}to{transform:translateX(3%)}}
+@media(prefers-reduced-motion:reduce){.contest-scene *{animation:none!important;transition:none!important}}
+[data-motion=reduced] .contest-scene *,[data-motion=paused] .contest-scene *{animation:none!important;transition:none!important}
+@container(max-width:900px){.cs-overview{left:15%;top:42%}.cs-review{left:85%;top:42%}.cs-trends{left:25%;top:76%}.cs-entry{left:75%;top:76%}}
+@container(max-width:460px){.cs-pane{padding:var(--ds-sp-12)}.cs-pane .kpis,.cs-pane .mods{grid-template-columns:minmax(0,1fr)}.cs-foot{flex-wrap:wrap}.cs-pane .rv-board{min-width:0}}

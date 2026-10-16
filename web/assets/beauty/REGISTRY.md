@@ -28,3 +28,4 @@
 | trial-tower | beauty/trial/tower.png | 青衡宗古塔建筑立绘 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 透明PNG，两仓库保留各自世界观；见trial/README.md |
 | trial-gate | beauty/trial/gate.png | 试炼场景石门 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 透明PNG，左右入口共用；世界观各自保留 |
 | trial-landscape | beauty/trial/landscape.png | 云海石台场景 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 横向PNG，见trial/README.md |
+| contest-arena | beauty/contest/arena.png | 大比/学院竞技场场景 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 1536×1024，世界观各自保留；见contest/README.md |
