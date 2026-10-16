@@ -12,16 +12,28 @@ function server(subject){
     child.on('exit',code=>{clearTimeout(timer);reject(Error('人物服务退出'+code+'\n'+logs));});});
   return {child,ready};
 }
+async function expandDrawer(page){
+  const toggle=page.locator('.npc-drawer-toggle');await toggle.waitFor();
+  if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
+  await page.waitForSelector('.npc-person');
+}
 async function inspect(page){
   const problems=await page.evaluate(()=>{
     const out=[],d=document.querySelector('.npc-dialog');
     if(document.documentElement.scrollHeight>innerHeight+2||document.documentElement.scrollWidth>innerWidth+2)out.push('整页溢出');
+    const drawer=document.querySelector('.npc-encounters'),host=document.querySelector('#view');
+    if(drawer&&host){const a=drawer.getBoundingClientRect(),h=host.getBoundingClientRect();
+      if(a.left<h.left||a.left>h.left+40||a.right>h.right+1||a.bottom>h.bottom+1)out.push('左侧抽屉越界');}
     if(!d)return out;
     for(const el of [d,...d.querySelectorAll('button,textarea,select')]){
       const r=el.getBoundingClientRect();if(!r.width||!r.height)continue;
       if(r.left<0||r.right>innerWidth+1||r.top<0||r.bottom>innerHeight+1)out.push('控件伸出屏幕：'+el.className);
     }
     const r=d.getBoundingClientRect();if(r.width<400||r.height<400)out.push('人物框异常');
+    if(getComputedStyle(d).backgroundColor!=='rgba(0, 0, 0, 0)'||getComputedStyle(d).borderTopWidth!=='0px')out.push('人物舞台仍有外框');
+    const portrait=d.querySelector('.npc-portrait-image').getBoundingClientRect();
+    if(Math.abs((portrait.left+portrait.right)/2-innerWidth/2)>2)out.push('立绘未居中');
+    const dock=d.querySelector('.npc-chat-content');if(dock&&dock.getBoundingClientRect().top<portrait.bottom-1)out.push('聊天未位于立绘下方');
     return out;
   });assert.deepEqual(problems,[]);
 }
@@ -37,7 +49,14 @@ async function inspect(page){
    for(const theme of ['light','dark']){
     const context=await browser.newContext({viewport});const page=await context.newPage();activePage=page;
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.goto(base);await page.waitForSelector('.npc-person');
+    await page.goto(base);await page.waitForSelector('.npc-drawer-toggle');
+    assert.equal(await page.locator('.npc-drawer-toggle').getAttribute('aria-expanded'),'false');
+    const mapBefore=await page.locator('.portal-stage').boundingBox();
+    await expandDrawer(page);assert.deepEqual(await page.locator('.portal-stage').boundingBox(),mapBefore);
+    const peopleBefore=await page.locator('.npc-person').evaluateAll(nodes=>nodes.map(n=>n.dataset.npcId));
+    await page.locator('.npc-drawer-toggle').click();assert.equal(await page.locator('.npc-person:visible').count(),0);
+    await page.locator('.npc-drawer-toggle').click();
+    assert.deepEqual(await page.locator('.npc-person').evaluateAll(nodes=>nodes.map(n=>n.dataset.npcId)),peopleBefore);
     await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
     const first=page.locator('.npc-person').first();const cid=await first.getAttribute('data-npc-id');
     await first.click();await page.waitForSelector('.npc-dialog[open]');
@@ -50,6 +69,10 @@ async function inspect(page){
     await page.waitForFunction(expected=>document.querySelector('.npc-messages')?.textContent.includes(expected),'自编交流：'+message);
     assert.equal(await page.locator('.npc-messages img').count(),0);
     assert.equal(await page.locator('.npc-input').inputValue(),'');await inspect(page);
+    const sides=await page.evaluate(()=>{const u=document.querySelector('.npc-message.npc-user'),r=document.querySelector('.npc-message.npc-reply');return{user:getComputedStyle(u).alignSelf,reply:getComputedStyle(r.parentElement).alignItems}});
+    assert.deepEqual(sides,{user:'flex-end',reply:'flex-start'});
+    await page.evaluate(()=>document.documentElement.style.setProperty('--fx-height','640px'));await inspect(page);
+    await page.evaluate(()=>document.documentElement.style.removeProperty('--fx-height'));
     await page.locator('.npc-input').fill('草稿要保留');
     await page.getByRole('button',{name:'← 返回人物'}).click();await page.getByRole('button',{name:'交流',exact:true}).click();
     assert.equal(await page.locator('.npc-input').inputValue(),'草稿要保留');
@@ -64,7 +87,9 @@ async function inspect(page){
     await page.locator('.npc-memory').fill('自编约定：先讲一个例子。');await page.locator('.npc-save-memory').click();
     await page.waitForFunction(()=>document.querySelector('.npc-status')?.textContent.includes('记忆已保存'));
     await inspect(page);await page.keyboard.press('Escape');assert.equal(await page.locator('.npc-dialog').count(),0);
-    await page.reload();await page.waitForSelector('.npc-person');
+    await page.reload();await page.waitForSelector('.npc-drawer-toggle');
+    assert.equal(await page.locator('.npc-drawer-toggle').getAttribute('aria-expanded'),'true');
+    await page.waitForSelector('.npc-person');
     await page.locator(`[data-npc-id="${cid}"]`).click();await page.getByRole('button',{name:'交流',exact:true}).click();
     assert.match(await page.locator('.npc-messages').textContent(),/自编交流/);
     // 失败保留输入且不追加；主动离开后迟到回复不重新弹窗。
@@ -76,7 +101,7 @@ async function inspect(page){
     await page.waitForTimeout(900);assert.equal(await page.locator('.npc-dialog,.npc-encounters').count(),0);
     await page.evaluate(()=>go('notes'));assert.equal(await page.locator('.npc-encounters').count(),0);
     await page.evaluate(()=>{STUDY_REGIONS.select('yan');return go('train');});
-    await page.waitForSelector('.npc-person');await inspect(page);
+    await expandDrawer(page);await inspect(page);
     await page.evaluate(()=>CARDS.review(''));
     await page.waitForSelector('.yj-stage');
     await page.waitForFunction(()=>!document.querySelector('.npc-encounters'));

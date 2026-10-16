@@ -1,9 +1,11 @@
 /* 宗门相遇与人物交互。api.py提供相遇凭据和每人独立记录；无后台AI或计时奖励。
-   configure接入当前公共场景；四分之三身用于菜单，半身用于交流/论道。 */
+   configure接入当前公共场景；左侧抽屉只保存本机开合偏好，中央立绘与底部聊天沿用独立人物记录。 */
 (() => {
   'use strict';
   let options = null, sceneKey = '', sequence = 0, opening = 0, meeting = null, panel = null, focusBack = null, queued = false;
   const drafts = new Map();
+  let drawerExpanded = false;
+  try { drawerExpanded = localStorage.getItem('npc-drawer-v1') === 'open'; } catch (_) {}
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const requestId = () => crypto.randomUUID ? crypto.randomUUID() : 'npc-' + Date.now() + '-' + Math.random().toString(36).slice(2);
   const draftKey = p => p.scope + ':' + p.body.id + ':' + p.mode;
@@ -43,10 +45,12 @@
       content = `<h3>赠送物品</h3><p>送出后，储物袋扣除1件，该物品将不能再用于护心或渡劫。</p>${data.bag.length ? `<label>选择礼物<select class="npc-gift-select" ${busy}>${data.bag.map(x => `<option value="${esc(x.name)}">${esc(x.name)} · 持有${x.count}件</option>`).join('')}</select></label><button class="npc-give" ${busy}>赠送所选物品 ×1</button>` : '<p>储物袋暂无可赠送物品，先继续原有学习与任务即可。</p>'}<h3>送礼记录</h3><div class="npc-gift-history">${data.gifts.slice().reverse().map(x => `<p>${esc(x.date)} · ${esc(x.item)} ×1 · ${esc(x.feeling)}</p>`).join('') || '<p>还没有送过礼物。</p>'}</div>`;
     } else if (p.mode === 'memory') {
       content = `<h3>人物记忆</h3><p>留下希望对方记住的偏好和约定，只用于这位人物的后续对话。留空保存即可清除。</p><textarea class="npc-input npc-memory" aria-label="人物记忆" maxlength="3000" rows="10" ${busy}>${esc(drafts.has(draftKey(p)) ? drafts.get(draftKey(p)) : data.memory)}</textarea><button class="npc-save-memory" ${busy}>保存记忆</button>`;
-    } else {
-      content = `<p class="npc-greeting">${esc(data.greeting)}</p><div class="npc-choices"><button data-npc-mode="chat">交流</button><button data-npc-mode="dao">论道</button><button data-npc-mode="gift">赠礼</button><button data-npc-mode="memory">人物记忆</button></div><p class="npc-folder">人物卡、语录和立绘可自行修改：<br>${esc(data.folder)}</p><p class="npc-folder">${data.messages.length ? `已保存${data.messages.length}条对话与收礼消息。` : '首次交谈，尚无对话记录。'} 游戏对话由AI生成。</p>`;
     }
-    dialog.innerHTML = `<header class="npc-header"><div><h2 id="npc-name">${esc(person.name)}</h2><span>${esc(person.role)} · ${esc(data.scene)}</span></div><button class="npc-close" aria-label="告辞，关闭人物界面">告辞 ×</button></header><div class="npc-main"><aside class="npc-portrait">${image(person, chatting ? 'bust' : 'three_quarter', 'npc-portrait-image')}</aside><section class="npc-content ${chatting ? 'npc-chat-content' : ''}">${content}</section></div><footer class="npc-footer"><span class="npc-status" role="status">${esc(p.status || '')}</span>${p.mode !== 'menu' ? `<button class="npc-return" ${busy}>← 返回人物</button>` : ''}<button class="npc-reload" ${busy}>重新读取</button></footer>`;
+    dialog.classList.toggle('npc-talking', chatting);
+    const choices = [['chat', '交流'], ['dao', '论道'], ['gift', '赠礼'], ['memory', '人物记忆']]
+      .map(([mode, label]) => `<button data-npc-mode="${mode}" aria-pressed="${p.mode === mode}" ${busy}>${label}</button>`).join('');
+    if (p.mode === 'menu') content = `<p class="npc-greeting">${esc(data.greeting)}</p><details class="npc-folder"><summary>人物资料</summary><p>人物卡、语录和立绘可自行修改：<br>${esc(data.folder)}</p><p>${data.messages.length ? `已保存${data.messages.length}条对话与收礼消息。` : '首次交谈，尚无对话记录。'} 游戏对话由AI生成。</p></details>`;
+    dialog.innerHTML = `<header class="npc-header"><div class="npc-nameplate"><h2 id="npc-name">${esc(person.name)}</h2><span>${esc(person.role)} · ${esc(data.scene)}</span></div><button class="npc-close" aria-label="告辞，关闭人物界面">告辞 ×</button></header><div class="npc-main"><aside class="npc-portrait">${image(person, chatting ? 'bust' : 'three_quarter', 'npc-portrait-image')}</aside>${!chatting ? `<nav class="npc-choices" aria-label="与${esc(person.name)}互动">${choices}</nav>` : ''}</div><section class="npc-content ${chatting ? 'npc-chat-content' : p.mode === 'menu' ? 'npc-intro' : 'npc-utility-dock'}">${content}</section><footer class="npc-footer"><span class="npc-status" role="status">${esc(p.status || '')}</span>${p.mode !== 'menu' ? `<button class="npc-return" ${busy}>← 返回人物</button>` : ''}<button class="npc-reload" ${busy}>重新读取</button></footer>`;
     dialog.querySelectorAll('img').forEach(img => img.addEventListener('error', () => { const mark = document.createElement('span'); mark.className = img.className + ' npc-monogram'; mark.textContent = person.name.slice(0, 2); img.replaceWith(mark); }, {once: true}));
     dialog.querySelector('.npc-close').onclick = close;
     dialog.querySelectorAll('[data-npc-mode]').forEach(b => b.onclick = () => { rememberDraft(); p.mode = b.dataset.npcMode; p.status = ''; renderPanel(true); });
@@ -106,8 +110,17 @@
   function renderMeeting(root, data) {
     root.querySelector('.npc-encounters')?.remove();
     if (!data.characters?.length && !data.warnings?.length) return;
+    root.classList.add('npc-map-host');
     const bar = document.createElement('section'); bar.className = 'npc-encounters'; bar.setAttribute('aria-label', '此处偶遇');
-    bar.innerHTML = `<span class="npc-encounter-label">此处偶遇</span><div class="npc-encounter-people">${data.characters.map(p => `<button class="npc-person" data-npc-id="${esc(p.id)}" aria-label="与${esc(p.name)}交谈">${image(p, 'bust', 'npc-avatar')}<span><b>${esc(p.name)}</b><small>${esc(p.role)}</small></span></button>`).join('')}</div>`;
+    bar.innerHTML = `<button class="npc-drawer-toggle" aria-expanded="${drawerExpanded}" aria-controls="npc-encounter-body"><span>此处偶遇 · ${data.characters.length}${data.warnings?.length ? ' !' : ''}</span><span class="npc-drawer-arrow" aria-hidden="true">${drawerExpanded ? '‹' : '›'}</span></button><div class="npc-encounter-body" id="npc-encounter-body" ${drawerExpanded ? '' : 'hidden'}><div class="npc-encounter-people">${data.characters.map(p => `<button class="npc-person" data-npc-id="${esc(p.id)}" aria-label="与${esc(p.name)}交谈">${image(p, 'bust', 'npc-avatar')}<span><b>${esc(p.name)}</b><small>${esc(p.role)}</small></span></button>`).join('')}</div>${data.warnings?.length ? `<p class="npc-config-warning">人物配置提示：${esc(data.warnings.join('；'))}</p>` : ''}</div>`;
+    const toggle = bar.querySelector('.npc-drawer-toggle');
+    toggle.onclick = () => {
+      drawerExpanded = !drawerExpanded;
+      toggle.setAttribute('aria-expanded', String(drawerExpanded));
+      bar.querySelector('.npc-encounter-body').hidden = !drawerExpanded;
+      bar.querySelector('.npc-drawer-arrow').textContent = drawerExpanded ? '‹' : '›';
+      try { localStorage.setItem('npc-drawer-v1', drawerExpanded ? 'open' : 'closed'); } catch (_) {}
+    };
     bar.querySelectorAll('[data-npc-id]').forEach(b => b.onclick = () => open(b.dataset.npcId, b));
     bar.querySelectorAll('img').forEach(img => img.addEventListener('error', () => { const mark=document.createElement('span'); mark.className='npc-avatar npc-monogram'; mark.textContent='人'; img.replaceWith(mark); }, {once:true}));
     (root.querySelector(':scope > .portal-world') || root).append(bar);
@@ -118,7 +131,7 @@
     const scope = options.scope(), key = scope + ':' + scene;
     if (!scene || !root) {
       if (sceneKey) { ++sequence; sceneKey = ''; meeting = null; close(); }
-      root?.querySelectorAll('.npc-encounters').forEach(x => x.remove()); return;
+      root?.querySelectorAll('.npc-encounters').forEach(x => x.remove()); root?.classList.remove('npc-map-host'); return;
     }
     if (key === sceneKey) {
       if (meeting && (meeting.characters.length || meeting.warnings?.length) && !root.querySelector('.npc-encounters')) renderMeeting(root, meeting);
@@ -130,7 +143,6 @@
       const data = await options.api('/api/characters/encounter', {scene});
       if (seq !== sequence || options.context() !== scene || options.scope() !== scope) return;
       meeting = data; renderMeeting(root, data);
-      if (data.warnings?.length) { const warning=document.createElement('p'); warning.className='npc-config-warning'; warning.textContent='人物配置提示：'+data.warnings.join('；'); root.querySelector('.npc-encounters')?.append(warning); }
     } catch (e) { if (seq === sequence) options.error(e); }
   }
   function queueMount() { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mount(); }); } }

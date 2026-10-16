@@ -7,7 +7,7 @@
 - 原存档懒增`characters={schema:1,people:{ID:{revision,messages,memory,gifts,receipts}},encounters:{场景:{slot,token,ids}}}`。每个人物历史完整保留，消息含role/content/mode/date，赠礼含item/date/feeling；每人revision与操作ID/内容摘要用于CAS与幂等。未知schema、损坏人物记录拒绝操作并保留，不改存档全局version、XP、成绩、秒数或题库。沿用Store全局锁、原子保存与每日备份。
 - POST `/api/characters/encounter`携scene，仅允许home/train/五峰/bank/contest/skeleton/tianji；默认30分钟、最多2人、25%空场。同地图同slot只抽一次，刷新、心跳不重抽。响应token绑定场景与服务端人物名单，停用/修改活动地图会即时过滤。POST view/action/chat携id/scene/token；action为memory/gift，修改需revision与request_id。赠礼校验原bag真实库存，固定扣1件，反应取该人物“收礼喜欢/普通/不喜欢”语录，不自动调用AI，不额外发学习奖励。
 - chat为chat/dao两模式，发送1—3000字。锁内取快照、锁外调用AI、锁内再次校验科目/库/人物revision再落盘；AI失败、空回复与冲突不追加半条聊天、不覆盖新记录。进程内聊天请求互斥以避免重复并发调用；同操作ID重试已成功请求直接返回历史结果。全部原文存档，提示词只放该人物最近12条、手动记忆、近期收礼、当前地点与对应骨架目录；无自动摘要或跨人物私聊共享。
-- `web/characters.js/css`接入app的公开场景回调。地图固定工作区底部的偶遇栏不遮挡地点；点头像进入四分之三身交互菜单，交流/论道改半身。使用原生dialog焦点约束与Esc/安卓返回关闭，长聊天在框内滚动，输入与按钮保持可见。草稿按学习库/人物/模式隔离；异步响应核验场景代次，关闭/离页不重开弹窗。卡片、导图、手写、正式训练和私人空间移除相遇栏。模板/图片变更可主动重新读取。
+- `web/characters.js/css`接入app的公开场景回调。偶遇改为地图左侧内嵌抽屉，默认收起，仅本机localStorage的`npc-drawer-v1`记录开合偏好，不进存档；开合不重新请求相遇、不挤压地图。首页挂在portal-world里，子页挂在定位后的#view内，避开顶部导航。点头像后使用透明、无外框的全屏人物舞台：四分之三身立绘居中，互动选项在右侧；交流/论道改半身、底部聊天框，双方消息左右分列。赠礼和记忆使用底部操作面板，人物资料说明折叠在菜单问候下。原生dialog仅负责焦点约束与Esc/安卓返回关闭，整页固定，长聊天在框内滚动，输入与按钮保持可见，并沿用--fx-height适应平板键盘。草稿按学习库/人物/模式隔离；异步响应核验场景代次，关闭/离页不重开弹窗。卡片、导图、手写、正式训练和私人空间移除抽屉。模板/图片变更可主动重新读取。
 - 相关检查：test_characters.py验证模板不覆盖、相遇稳定、私人/跨科限制、双图路径与符号链接、赠礼幂等及重启持久化、独立上下文、记忆与坏schema保留；ui_characters.cjs在假HOME/临时库/假AI上实际完成双立绘、交流/论道/赠礼/记忆、续聊、草稿、失败和迟到响应，以及电脑/平板明暗边界。标准ui_layout_check只查改动公共页面；不做手机或无关全套发布检查。
 
 
