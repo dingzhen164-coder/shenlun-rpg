@@ -35,7 +35,7 @@ def main():
                     g.state['bag']={'护心丹':20}
                     # 自编小图片用于核验两条资源映射与HTTP请求，不使用真人素材。
                     png=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
-                    for d in folder.iterdir():
+                    for d in ([] if '--real-portraits' in sys.argv else folder.iterdir()):
                         if d.is_dir() and d.name.startswith('xc-'):
                             for kind in ('three-quarter','bust'):
                                 (d/'立绘'/(d.name+'-'+kind+'.png')).write_bytes(png)

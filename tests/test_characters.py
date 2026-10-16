@@ -49,6 +49,19 @@ class CharactersTest(unittest.TestCase):
         self.assertEqual(characters.profiles(self.g)[0]['xc-wenjie']['name'], '自定义师姐')
         self.assertFalse((self.root/'home').exists())
 
+    def test_packaged_portraits_install_as_binary_without_overwriting_edits(self):
+        root=characters._root(self.g)
+        for cid in characters.profiles(self.g)[0]:
+            for kind in ('three-quarter','bust'):
+                rel=Path(cid)/'立绘'/(cid+'-'+kind+'.png')
+                data=(characters.DEFAULT_ROOT/rel).read_bytes()
+                self.assertTrue(data.startswith(b'\x89PNG\r\n\x1a\n'))
+                self.assertEqual((root/rel).read_bytes(),data)
+        photo=root/'xc-wenjie/立绘/xc-wenjie-bust.png'
+        photo.write_bytes(b'my-custom-image')
+        characters.install(self.g)
+        self.assertEqual(photo.read_bytes(),b'my-custom-image')
+
     def test_other_subjects_and_private_scenes_do_not_initialize_state(self):
         for scene in ('notes','dwelling','settings','../home','chat'):
             with self.assertRaises(ValueError): characters.encounter(self.g, scene)

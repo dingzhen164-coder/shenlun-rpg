@@ -59,12 +59,16 @@ def install(g):
     for src in DEFAULT_ROOT.rglob('*'):
         if not src.is_file():
             continue
-        dst = _inside(root, root / src.relative_to(DEFAULT_ROOT))
-        _inside(root, dst.parent) if dst.parent != root else None
+        try:
+            dst = _inside(root, root / src.relative_to(DEFAULT_ROOT))
+            _inside(root, dst.parent) if dst.parent != root else None
+        except ValueError:
+            # 单个人物的越界链接不阻断其他人物补缺，由profiles单独报告坏配置。
+            continue
         dst.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with dst.open('x', encoding='utf-8') as out:
-                out.write(src.read_text(encoding='utf-8'))
+            with dst.open('xb') as out:
+                out.write(src.read_bytes())
         except FileExistsError:
             pass
     return root

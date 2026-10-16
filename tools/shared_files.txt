@@ -543,3 +543,4 @@ diverged defaults/人物/*
 diverged tests/test_characters.py
 diverged tests/ui_characters.cjs
 diverged tests/ui_characters_server.py
+diverged tests/ui_characters_assets.cjs

@@ -13,6 +13,12 @@ assert FROZEN, "not frozen"
 assert (WEB_DIR / "index.html").exists(), WEB_DIR
 assert (WEB_DIR / "device.js").exists()
 assert DEFAULTS_DIR.exists(), DEFAULTS_DIR
+from PIL import Image
+portraits=list((DEFAULTS_DIR/'人物'/'行测').glob('xc-*/立绘/*.png'))
+assert len(portraits)==24, '人物双立绘打包不完整'
+for portrait in portraits:
+    with Image.open(portrait) as img:
+        img.verify()
 assert zhenti.FIX_FILE.exists(), zhenti.FIX_FILE
 assert "<svg" in lan.qr_svg("http://192.168.1.2:8765/")
 if sys.platform == "darwin":                   # Mac：苹果 Vision 能认出成绩截图里的中文和数字
