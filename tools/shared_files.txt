@@ -19,6 +19,9 @@ shared rpg/narrative.py
 shared rpg/net.py
 shared rpg/download.py
 shared tests/test_download.py
+shared web/scene_panels.js
+shared web/scene_panels.css
+shared tests/ui_scene_panels.cjs
 diverged tools/mac_update_repair.py
 diverged tools/mac-update-repair.command
 diverged tests/test_mac_update_repair.py

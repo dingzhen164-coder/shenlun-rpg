@@ -5,7 +5,7 @@ const {spawn}=require('node:child_process');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const out=path.resolve('ui-artifacts/characters');
 function server(subject){
-  const child=spawn(process.env.PYTHON||'python3',['tests/ui_characters_server.py',subject],{env:{...process.env,PYTHONIOENCODING:'utf-8'}});
+  const child=spawn(process.env.PYTHON||'python3',['tests/ui_characters_server.py',subject,...(process.argv.includes('--shots')?['--real-portraits']:[])],{env:{...process.env,PYTHONIOENCODING:'utf-8'}});
   let logs='';child.stderr.on('data',x=>logs+=x);
   const ready=new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()=>reject(Error('人物服务未启动：'+logs)),20000);
     child.stdout.on('data',x=>{text+=x;const m=text.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});
@@ -22,8 +22,8 @@ async function inspect(page){
     const out=[],d=document.querySelector('.npc-dialog');
     if(document.documentElement.scrollHeight>innerHeight+2||document.documentElement.scrollWidth>innerWidth+2)out.push('整页溢出');
     const drawer=document.querySelector('.npc-encounters'),host=document.querySelector('#view');
-    if(drawer&&host){const a=drawer.getBoundingClientRect(),h=host.getBoundingClientRect();
-      if(a.left<h.left||a.left>h.left+40||a.right>h.right+1||a.bottom>h.bottom+1)out.push('左侧抽屉越界');}
+    if(drawer&&host){const a=drawer.querySelector('.npc-drawer-toggle').getBoundingClientRect();
+      if(a.left<0||a.right>260||Math.abs((a.top+a.bottom)/2-innerHeight/2)>2||a.width>30)out.push('偶遇入口未靠左居中或过大 '+JSON.stringify({left:a.left,right:a.right,top:a.top,bottom:a.bottom,width:a.width,viewport:innerHeight}));}
     if(!d)return out;
     for(const el of [d,...d.querySelectorAll('button,textarea,select')]){
       const r=el.getBoundingClientRect();if(!r.width||!r.height)continue;
@@ -31,6 +31,7 @@ async function inspect(page){
     }
     const r=d.getBoundingClientRect();if(r.width<400||r.height<400)out.push('人物框异常');
     if(getComputedStyle(d).backgroundColor!=='rgba(0, 0, 0, 0)'||getComputedStyle(d).borderTopWidth!=='0px')out.push('人物舞台仍有外框');
+    const backdrop=getComputedStyle(d,'::backdrop');if(backdrop.backgroundColor!=='rgba(0, 0, 0, 0)'||backdrop.backdropFilter!=='none')out.push('人物背景仍被遮暗或虚化');
     const portrait=d.querySelector('.npc-portrait-image').getBoundingClientRect();
     if(Math.abs((portrait.left+portrait.right)/2-innerWidth/2)>2)out.push('立绘未居中');
     const dock=d.querySelector('.npc-chat-content');if(dock&&dock.getBoundingClientRect().top<portrait.bottom-1)out.push('聊天未位于立绘下方');
@@ -54,7 +55,7 @@ async function inspect(page){
     const mapBefore=await page.locator('.portal-stage').boundingBox();
     await expandDrawer(page);assert.deepEqual(await page.locator('.portal-stage').boundingBox(),mapBefore);
     const peopleBefore=await page.locator('.npc-person').evaluateAll(nodes=>nodes.map(n=>n.dataset.npcId));
-    await page.locator('.npc-drawer-toggle').click();assert.equal(await page.locator('.npc-person:visible').count(),0);
+    await page.locator('.npc-drawer-toggle').click();await page.locator('.npc-person').first().waitFor({state:'hidden'});assert.equal(await page.locator('.npc-person:visible').count(),0);
     await page.locator('.npc-drawer-toggle').click();
     assert.deepEqual(await page.locator('.npc-person').evaluateAll(nodes=>nodes.map(n=>n.dataset.npcId)),peopleBefore);
     await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
@@ -62,6 +63,7 @@ async function inspect(page){
     await first.click();await page.waitForSelector('.npc-dialog[open]');
     assert.match(await page.locator('.npc-portrait-image').getAttribute('src'),/three-quarter/);
     await inspect(page);
+    if(process.argv.includes('--shots')&&label==='desktop'&&theme==='light'){fs.mkdirSync(out,{recursive:true});await page.locator('.npc-portrait-image').evaluate(img=>img.decode());await page.screenshot({path:path.join(out,'clear-map-portrait.png')});}
     await page.getByRole('button',{name:'交流',exact:true}).click();
     assert.match(await page.locator('.npc-portrait-image').getAttribute('src'),/bust/);
     const message=label+'-'+theme+' <img src=x onerror=alert(1)> 自编闲聊';

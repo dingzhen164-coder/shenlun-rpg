@@ -78,9 +78,8 @@
         else if(has('#ambTheme,#cwR,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
         else if(has('#sSave'))group('ai','AI与资料',n);
         else if(has('#scheduleSave,[data-subject]')||/改规则/.test(name))group('learning','学习与成长',n);
-        else if(has('#updCheck'))group('updates','版本与更新',n);
-        else if(has('#lanOn,.scene-utility-tools'))group('device','设备与工具',n);
-        else group('other','其他设置',n);
+        else if(has('#updCheck')||/版本/.test(name))group('updates','版本与更新',n);
+        else group('device','设备与工具',n);
       }else if(route==='contest'){
         if(has('#chScore,#chAcc,#mkPick')||/走势/.test(name))group('charts','成绩走势',n,true);
         else if(has('#mkForm,#mkMarksCard,#ctGo'))group('entry','成绩录入',n);
@@ -128,7 +127,18 @@
     const settings=route==='settings',shell=make('section','fx-shell'+(settings?' fx-settings':'')),area=make('div','fx-panels');
     if(settings){
       const panel=make('section','fx-panel'),scroll=make('div','fx-scroll fx-settings-list');scroll.tabIndex=0;
-      for(const entry of entries){const group=make('section','fx-settings-group');group.dataset.fxGroup=entry.id;const h=make('h3');h.textContent=entry.label;group.append(h);entry.nodes.forEach((n,i)=>group.append(folding(n,key+':'+entry.id+':'+i)));scroll.append(group);}
+      const order=[['navigation','地图与操作'],['device','设备与工具'],['updates','版本与更新'],['appearance','外观与声音'],['learning','学习与成长'],['ai','AI与资料']];
+      for(const [id,label] of order){
+        const entry=entries.find(e=>e.id===id)||{nodes:[]};
+        const group=make('details','fx-settings-group'),summary=make('summary'),h=make('h3'),body=make('div','fx-settings-group-body');
+        group.dataset.fxGroup=id;h.textContent=label;summary.append(h);group.append(summary,body);
+        group.open=folds.get(key+':group:'+id)??false;
+        group.addEventListener('toggle',()=>{folds.set(key+':group:'+id,group.open);window.dispatchEvent(new Event('resize'));});
+        if(id==='appearance'&&window.SCENE_PANELS)entry.nodes.unshift(SCENE_PANELS.controls());
+        entry.nodes.forEach((n,i)=>body.append(folding(n,key+':'+id+':'+i)));
+        if(!entry.nodes.length){const empty=make('p','small muted');empty.textContent='此设备暂无需要调整的项目。';body.append(empty);}
+        scroll.append(group);
+      }
       panel.append(scroll);area.append(panel);shell.append(area);root.append(shell);return;
     }
     const items=entries.map(entry=>{
@@ -255,7 +265,7 @@
       else if(regions(root)){}
       else {let host=root;while(true){const children=[...host.children].filter(n=>!n.matches('.subpage-heading'));if(children.length!==1||children[0].matches('.card,details,.grid')||!children[0].children.length)break;host=children[0];}host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
     }
-    pageBar(root);overlays();
+    pageBar(root);overlays();window.SCENE_PANELS?.mount(root,route);
   }
   function schedule(){if(!pending){pending=true;requestAnimationFrame(apply);}}
   const observer=new MutationObserver(schedule);observer.observe(document.body,{childList:true,subtree:true});

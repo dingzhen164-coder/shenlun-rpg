@@ -1,13 +1,15 @@
 /* 地图左侧可收起偶遇抽屉；中央立绘、侧边操作与底部聊天，只覆盖电脑和平板。 */
 .npc-map-host{position:relative}
-.npc-encounters{position:absolute;top:160px;left:var(--ds-sp-16);z-index:6;display:flex;flex-direction:column;max-width:calc(100% - 32px);max-height:calc(100% - 176px);box-sizing:border-box;border:1px solid var(--ds-line);border-radius:var(--ds-r-8);background:var(--ds-surface);color:var(--ds-text);box-shadow:var(--ds-shadow-1);overflow:hidden}
-.portal-world>.npc-encounters{top:112px;max-height:calc(100% - 128px)}
-.npc-map-host:has(.study-regions,.study-region-heading)>.npc-encounters{top:var(--ds-sp-16);max-height:calc(100% - 32px)}
-.npc-map-host:has(>.npc-encounters) .study-regions-heading,.npc-map-host:has(>.npc-encounters) .study-region-heading{padding-left:144px}
-.npc-drawer-toggle{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-sp-16);min-height:var(--ds-touch);padding:var(--ds-sp-8) var(--ds-sp-12);border:0;border-radius:0;background:transparent;font-size:var(--ds-fs-13)}
-.npc-drawer-arrow{font-size:var(--ds-fs-22)}
-.npc-encounter-body{width:228px;max-width:100%;min-height:0;overflow:auto;padding:var(--ds-sp-8);box-sizing:border-box;border-top:1px solid var(--ds-line);overscroll-behavior:contain}
-.npc-encounter-body[hidden]{display:none}
+.npc-map-host .study-regions{padding-left:40px}
+.npc-encounters{position:fixed;top:50%;left:env(safe-area-inset-left,0px);transform:translateY(-50%);z-index:60;width:0;height:0;max-height:min(70dvh,480px);color:var(--ds-text)}
+.npc-drawer-toggle{position:absolute;top:50%;left:0;transform:translateY(-50%);display:grid;place-items:center;width:28px;min-width:28px;height:44px;min-height:44px;padding:0;border:1px solid var(--ds-line);border-left:0;border-radius:0 var(--ds-r-8) var(--ds-r-8) 0;background:var(--ds-surface);color:var(--ds-accent);box-shadow:var(--ds-shadow-1);z-index:1;transition:left .2s}
+.npc-drawer-arrow{display:block;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:7px solid currentColor}
+.npc-encounters[data-expanded=true] .npc-drawer-arrow{border-left:0;border-right:7px solid currentColor}
+.npc-encounters[data-expanded=true] .npc-drawer-toggle{left:228px}
+.npc-encounter-body{position:absolute;top:0;width:228px;max-height:min(70dvh,480px);overflow:auto;padding:var(--ds-sp-12) var(--ds-sp-8);box-sizing:border-box;border:1px solid var(--ds-line);border-left:0;border-radius:0 var(--ds-r-8) var(--ds-r-8) 0;background:var(--ds-surface);box-shadow:var(--ds-shadow-1);overscroll-behavior:contain;transform:translate(-100%,-50%);visibility:hidden;transition:transform .2s,visibility .2s}
+.npc-encounters[data-expanded=true] .npc-encounter-body{transform:translate(0,-50%);visibility:visible}
+.npc-encounter-heading{margin:0 var(--ds-sp-8) var(--ds-sp-12);font-size:var(--ds-fs-14);color:var(--ds-muted)}
+@media(prefers-reduced-motion:reduce){.npc-drawer-toggle,.npc-encounter-body{transition:none}}
 .npc-encounter-people{display:flex;flex-direction:column;gap:var(--ds-sp-8);min-width:0}
 .npc-person{display:flex;align-items:center;gap:var(--ds-sp-8);flex:none;min-height:var(--ds-touch);width:100%;padding:var(--ds-sp-8);border-radius:var(--ds-r-8)}
 .npc-person span:not(.npc-avatar){display:flex;flex-direction:column;min-width:0;text-align:left}
@@ -17,7 +19,7 @@
 /* dialog仅提供焦点约束和Esc关闭；透明舞台不画外框，地图保留在人物背后。 */
 .npc-dialog{position:fixed;inset:0 auto auto 0;transform:none;margin:0;width:100vw;height:var(--fx-height,100dvh);max-width:none;max-height:none;box-sizing:border-box;padding:var(--ds-sp-12) var(--ds-sp-16);border:0;border-radius:0;background:transparent;color:var(--ds-text);overflow:hidden}
 .npc-dialog[open]{display:flex;flex-direction:column;gap:var(--ds-sp-8)}
-.npc-dialog::backdrop{background:color-mix(in srgb,var(--ds-scene-bg) 55%,transparent);backdrop-filter:blur(3px)}
+.npc-dialog::backdrop{background:transparent;backdrop-filter:none}
 .npc-header,.npc-footer{display:flex;align-items:center;justify-content:space-between;flex:none;gap:var(--ds-sp-12);width:100%;max-width:1180px;margin:0 auto;box-sizing:border-box}
 .npc-nameplate{padding:var(--ds-sp-8) var(--ds-sp-16);background:var(--ds-surface);border:1px solid var(--ds-line);border-radius:var(--ds-r-8);max-width:75%}
 .npc-header h2{font-size:var(--ds-fs-22);margin:0}
