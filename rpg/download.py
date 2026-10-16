@@ -19,13 +19,26 @@ class DownloadError(Exception):
     pass
 
 
-def archive(url, destination, size=0, digest='', user_agent='rpg', attempts=3, max_seconds=300, progress=None):
+def archive(url, destination, size=0, digest='', user_agent='rpg', attempts=3, max_seconds=None, progress=None, resume=False, idle_timeout=60):
     total = int(size or 0)
     expected = digest[7:].lower() if digest.startswith('sha256:') else ''
     if total < 0 or (expected and not re.fullmatch(r'[0-9a-f]{64}', expected)):
         raise DownloadError('发布校验信息不正确')
-    destination.write_bytes(b'')
-    deadline = time.monotonic() + max_seconds
+    if not resume or not expected or not total or not destination.exists():
+        destination.write_bytes(b'')
+    elif destination.stat().st_size >= total:
+        if destination.stat().st_size == total:
+            checksum = hashlib.sha256()
+            with destination.open('rb') as source:
+                for chunk in iter(lambda: source.read(1 << 16), b''):
+                    checksum.update(chunk)
+            if checksum.hexdigest() == expected:
+                if progress:
+                    progress(total, total, 0)
+                return total
+        destination.write_bytes(b'')
+    # 默认只限制网络无数据等待；慢但持续有数据的连接不被固定总时长打断。
+    deadline = time.monotonic() + max_seconds if max_seconds is not None else None
     last_error = ''
     for attempt in range(attempts):
         last_error = ''
@@ -34,12 +47,12 @@ def archive(url, destination, size=0, digest='', user_agent='rpg', attempts=3, m
         if offset:
             headers['Range'] = 'bytes=%d-' % offset
         restart = False
-        remaining = deadline - time.monotonic()
+        remaining = deadline - time.monotonic() if deadline is not None else idle_timeout
         if remaining <= 0:
             raise DownloadError('下载超时，已停止；请稍后重试或更换网络')
         try:
             req = urllib.request.Request(url, headers=headers)
-            with net.urlopen(req, timeout=min(30, remaining)) as response:
+            with net.urlopen(req, timeout=min(idle_timeout, remaining)) as response:
                 status = getattr(response, 'status', None) or 200
                 fields = getattr(response, 'headers', {})
                 if status == 206:
@@ -65,7 +78,7 @@ def archive(url, destination, size=0, digest='', user_agent='rpg', attempts=3, m
                 with destination.open('ab' if offset else 'wb') as output:
                     def write(chunk):
                         nonlocal offset, restart
-                        if time.monotonic() >= deadline:
+                        if deadline is not None and time.monotonic() >= deadline:
                             raise DownloadError('下载超时')
                         if limit and offset + len(chunk) > limit:
                             restart = True
@@ -95,7 +108,7 @@ def archive(url, destination, size=0, digest='', user_agent='rpg', attempts=3, m
         if restart:
             destination.write_bytes(b'')
         actual = destination.stat().st_size
-        if time.monotonic() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             raise DownloadError('下载超时（已收到%d字节，应收%s）；已停止，请稍后重试或更换网络' % (actual, str(total)+'字节' if total else '完整安装包'))
         if not restart and (actual == total if total else actual > 0):
             if expected:

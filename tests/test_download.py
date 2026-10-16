@@ -107,6 +107,36 @@ class DownloadTest(unittest.TestCase):
             download.archive('https://example.test/new.zip',self.file,10,self.digest,progress=progress)
         progress.assert_called_once_with(10,10,1)
 
+    def test_default_allows_slow_continuous_download_beyond_five_minutes(self):
+        class Slow(Response):
+            def read(self,size=-1):
+                return super().read(2 if size else size)
+        with patch.object(download.time,'monotonic',side_effect=[0,1000,2000,3000,4000]),patch.object(download.net,'urlopen',return_value=Slow(self.data)) as request:
+            download.archive('https://example.test/new.zip',self.file,10,self.digest)
+            self.assertEqual(request.call_args.kwargs['timeout'],60)
+            self.assertEqual(self.file.read_bytes(),self.data)
+
+    def test_partial_cache_survives_failed_run_and_next_run_resumes(self):
+        with patch.object(download.net,'urlopen',return_value=Response(b'0123')):
+            with self.assertRaises(download.DownloadError):
+                download.archive('https://example.test/new.zip',self.file,10,self.digest,attempts=1,resume=True)
+        self.assertEqual(self.file.read_bytes(),b'0123')
+        with patch.object(download.net,'urlopen',return_value=Response(b'456789',206,{'Content-Range':'bytes 4-9/10'})) as request:
+            download.archive('https://example.test/new.zip',self.file,10,self.digest,resume=True)
+            self.assertEqual(request.call_args.args[0].get_header('Range'),'bytes=4-')
+        self.assertEqual(self.file.read_bytes(),self.data)
+
+    def test_complete_cache_is_verified_before_reuse_or_restart(self):
+        self.file.write_bytes(self.data)
+        with patch.object(download.net,'urlopen') as request:
+            download.archive('https://example.test/new.zip',self.file,10,self.digest,resume=True)
+            request.assert_not_called()
+        self.file.write_bytes(b'XXXXXXXXXX')
+        with patch.object(download.net,'urlopen',return_value=Response(self.data)) as request:
+            download.archive('https://example.test/new.zip',self.file,10,self.digest,resume=True)
+            self.assertIsNone(request.call_args.args[0].get_header('Range'))
+        self.assertEqual(self.file.read_bytes(),self.data)
+
     def test_oversize_or_bad_checksum_never_succeeds(self):
         for data in (b'overlong data',b'XXXXXXXXXX'):
             with patch.object(download.net,'urlopen',side_effect=lambda *a,**k:Response(data)):

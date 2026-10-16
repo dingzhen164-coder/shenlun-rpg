@@ -31,5 +31,28 @@ class RepairTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'不要使用系统Python'):self.repair.main()
             load.assert_not_called()
 
+    def test_bootstrap_cache_is_outside_disposable_update_stage(self):
+        import rpg
+        from rpg import paths,version
+        with tempfile.TemporaryDirectory() as folder:
+            here=Path(folder);stage=here/'stage';stage.mkdir();destination=stage/'download.zip'
+            raw=Mock(side_effect=lambda url,file,*a,**k:file.write_bytes(b'verified file'))
+            def apply():
+                rpg.download.archive('https://example.test/mac.zip',destination,13,'sha256:test','rpg')
+                return {'version':'3.3.1'}
+            updater=SimpleNamespace(check=lambda:dict(current='3.3.0',latest='3.3.1',newer=True),apply=apply)
+            previous=getattr(rpg,'download',None)
+            try:
+                with patch.object(self.repair,'__file__',str(here/'repair.py')),patch.object(self.repair.sys,'platform','darwin'),patch.object(paths,'FROZEN',True),patch.object(version,'REPO','dingzhen164-coder/shenlun-rpg'),patch.object(self.repair,'load_module',side_effect=[SimpleNamespace(archive=raw),updater]),patch.object(self.repair.time,'sleep'):
+                    self.repair.main()
+                self.assertEqual(destination.read_bytes(),b'verified file')
+                destination.unlink();stage.rmdir()
+                cache=list((here/'.update-cache').glob('*.part'));self.assertEqual(len(cache),1)
+                self.assertEqual(cache[0].read_bytes(),b'verified file')
+                self.assertTrue(raw.call_args.kwargs['resume'])
+            finally:
+                if previous is not None:rpg.download=previous
+                else:delattr(rpg,'download')
+
 
 if __name__=='__main__':unittest.main()

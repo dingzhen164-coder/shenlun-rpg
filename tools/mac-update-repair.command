@@ -20,6 +20,6 @@ echo '使用现有App的运行环境进行更新，无需安装Python。'
 if "$APP/Contents/MacOS/$BIN" --run-script "$SCRIPT_DIR/mac_update_repair.py"; then
   echo '流程结束。如果下载成功，应用会自动重新打开；如果已是最新版则保持不变。'
 else
-  echo '更新未完成，请保留上方报错。旧应用和学习资料未删除。'
+  echo '更新未完成。已下载内容保留在本工具目录，再次运行可以续传；请保留上方报错。旧应用和学习资料未删除。'
 fi
 read -r -p '按回车关闭此窗口：' ANSWER
