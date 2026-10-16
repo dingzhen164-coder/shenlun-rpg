@@ -120,6 +120,7 @@ function realmUp(e) {
 
 // ------------------------------------------------------------ 导航 / 风格
 async function go(view) {
+  window.CHARACTERS?.close();
   window.NARRATIVE?.close();
   if (window.SHENLUN && !(await SHENLUN.flush())) return;
   if (window.NOTES && NOTES.embedded() && !(await NOTES.leaveArticle())) return;
@@ -144,6 +145,7 @@ window.MAP_NAVIGATION?.configure({go, current:()=>VIEW, room:()=>W("nav.home").r
 document.querySelectorAll("#nav a").forEach((a) => (a.onclick = () => go(a.dataset.view)));
 // 平板 App 的返回键（android/…/MainActivity.java 调这个）：先关画面、弹窗、草稿，再回地图；返回 false 表示没得退了
 window.xcBack = () => {
+  if (window.CHARACTERS?.close()) return true;
   if (window.NARRATIVE?.close()) return true;
   if (window.XC_GUIDE?.close(true)) return true;
   const click = (sel) => { const b = document.querySelector(sel); if (b) b.click(); return !!b; };
@@ -237,6 +239,21 @@ function banner() {
   $("#banner").innerHTML = w.map((x) => `<div class="warn">${x}</div>`).join("");
 }
 
+// 人物只在行测公共地图和第一层子地图出现，独立于原训练会话。
+window.CHARACTERS?.configure({api, error:showError, scope:()=>DASH?.vault||'', ai:()=>!!DASH?.ai, context:()=>{
+  if(isSL()||!DASH?.features?.bank||!DASH?.vault)return null;
+  if(document.documentElement.matches('.in-chat,.in-sl-exam,.in-notes,.drawing')
+    ||window.CARDS?.isOpen()||window.MINDMAP?.isOpen()
+    ||document.querySelector('.narrative-dialog,.yj-stage,.ln-stage'))return null;
+  if(VIEW==='train'||VIEW==='bank'){
+    if(VIEW===TRAIN_ROUTE&&(T.session||T.busy||T.msgs.length))return null;
+    if(VIEW==='bank')return 'bank';
+    return {'万象峰':'peak-chang','辨言峰':'peak-yan','明理峰':'peak-li','演数峰':'peak-shu','观星峰':'peak-zi'}[window.STUDY_REGIONS?.title()]||'train';
+  }
+  if(VIEW==='tianji'&&window.TIANJI?.isOpen())return null;
+  return ['home','contest','skeleton','tianji'].includes(VIEW)?VIEW:null;
+}});
+
 async function render() {
   window.STUDY_HUD?.suspend(true);
   window.STUDY_HUD?.beforeRender();
@@ -265,6 +282,7 @@ async function render() {
     window.MAP_NAVIGATION?.mount(VIEW);
     window.STUDY_HUD?.mount(DASH,VIEW);
     window.FIXED_LAYOUT?.mount(VIEW);
+    window.CHARACTERS?.mount();
   } catch (e) { showError(e); }
   finally { window.STUDY_HUD?.suspend(false);window.STUDY_HUD?.mount(DASH,VIEW); }
 }
@@ -1069,6 +1087,7 @@ async function renderTrain() {
   bindTrain();
   window.STUDY_HUD?.mount(DASH,VIEW);
   window.FIXED_LAYOUT?.mount(VIEW);
+  window.CHARACTERS?.mount();
   if(isSL())window.SL_UI?.mount(VIEW);
   mountGuide();
   fitChat();

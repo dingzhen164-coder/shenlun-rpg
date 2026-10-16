@@ -171,6 +171,58 @@ def narrative_view(body):
             raise ApiError(str(e))
 
 
+def characters_encounter(body):
+    from . import characters
+    if subjects.active() != '行测':
+        return {'enabled': False, 'characters': []}
+    with open_game() as g:
+        try:
+            return characters.encounter(g, body.get('scene'))
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def characters_view(body):
+    from . import characters
+    with open_game() as g:
+        try:
+            return characters.view(g, body)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def characters_action(body):
+    from . import characters
+    with open_game() as g:
+        try:
+            return characters.action(g, body)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def characters_chat(body):
+    from . import characters
+    if not characters.CHAT_LOCK.acquire(False):
+        raise ApiError('人物正在回复，请稍后再试')
+    try:
+        with open_game(save=False) as g:
+            try:
+                prepared = characters.prepare_chat(g, body)
+                if prepared['duplicate']:
+                    return characters.view(g, body)
+            except ValueError as e:
+                raise ApiError(str(e))
+        # 网络调用不持有全局存档锁，其他页面和学习心跳照常处理。
+        reply = ai.chat(prepared['messages'], temperature=0.7, max_tokens=1600)
+        with open_game() as g:
+            try:
+                return characters.finish_chat(g, body, prepared, reply)
+            except ValueError as e:
+                raise ApiError(str(e))
+    finally:
+        characters.CHAT_LOCK.release()
+
+
 def narrative_action(body):
     from . import narrative
     with open_game() as g:
@@ -1020,6 +1072,10 @@ def settings_test(body):
 
 
 ROUTES = {
+    ("POST", "/api/characters/encounter"): characters_encounter,
+    ("POST", "/api/characters/view"): characters_view,
+    ("POST", "/api/characters/action"): characters_action,
+    ("POST", "/api/characters/chat"): characters_chat,
     ("GET", "/api/narrative"): narrative_view,
     ("POST", "/api/narrative"): narrative_action,
     ("POST", "/api/journey"): journey_action,
