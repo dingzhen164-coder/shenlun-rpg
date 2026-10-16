@@ -16,7 +16,7 @@ async function go(v){await page.evaluate(v=>go(v),v);assert.equal(await page.eva
  if(subject!=='申论'){
   const board=await page.evaluate(()=>DASH.tree[0].board);
   await page.evaluate(board=>api('/api/bank/add',{board,topic:'自编条件验证',source:'UI夹具',stem:'自编题：哪项是甲？',options:{A:'甲',B:'乙',C:'丙',D:'丁'},answer:'A',analysis:'选项甲对应题干条件。'}),board);
-  await go('bank');await page.locator('[data-th-tab=blocks]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>VIEW==='bank'&&T_TYPE==='bank'&&!T.busy);await page.locator('.train').waitFor();await checkHUD();
+  await go('bank');await page.locator('[data-th-enter=blocks]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>VIEW==='bank'&&T_TYPE==='bank'&&!T.busy);await page.locator('.train').waitFor();await checkHUD();
   const chatTop=await page.locator('.train').evaluate(x=>x.getBoundingClientRect().top);const hudBottom=await page.locator('#studyHud').evaluate(x=>x.getBoundingClientRect().bottom);assert.ok(chatTop>=hudBottom-1,'试炼聊天区避开紧凑信息带');
   await go('train');await page.locator('[data-hall-page="train"]').waitFor();assert.equal(await page.locator('.train').count(),0);
   await go('bank');await page.locator('.train').waitFor();assert.equal(await page.locator('#toHall').count(),0);await page.keyboard.press('Escape');await page.waitForFunction(()=>VIEW==='home');await page.locator('.portal-world').waitFor();await checkHUD();await go('bank');await page.locator('.train').waitFor();

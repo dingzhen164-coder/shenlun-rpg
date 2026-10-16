@@ -6,11 +6,12 @@ const ready=new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()
 const out=path.resolve('ui-artifacts/trial-hall');
 async function fits(page){
  const problems=await page.evaluate(()=>{
-  const bad=[],frame=document.querySelector('.trial-hall'),r=frame.getBoundingClientRect();
+  const bad=[],scene=document.querySelector('.trial-hall'),frame=scene.querySelector('dialog[open]')||scene,r=frame.getBoundingClientRect();
   if(document.documentElement.scrollHeight>innerHeight+2||document.documentElement.scrollWidth>innerWidth+2||scrollY)bad.push('整页溢出');
   if(r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1)bad.push('框越界');
   if(frame.scrollWidth>frame.clientWidth+2)bad.push('框横向溢出');
-  for(const selector of ['.th-tabs','.th-actions','.th-hero']){const e=frame.querySelector(selector),b=e.getBoundingClientRect();if(b.top<r.top||b.bottom>r.bottom+1||!b.height)bad.push('固定区域越界 '+selector);}
+  if(frame===scene){const view=scene.parentElement.getBoundingClientRect();if(Math.abs(r.height-view.height)>2)bad.push('塔景未铺满高度');return bad;}
+  for(const selector of ['.th-tabs','.th-actions','.th-dialog-head']){const e=frame.querySelector(selector),b=e.getBoundingClientRect();if(b.top<r.top||b.bottom>r.bottom+1||!b.height)bad.push('固定区域越界 '+selector);}
   for(const button of frame.querySelectorAll('.th-actions button')){const b=button.getBoundingClientRect();if(b.width&&b.height&&(b.left<r.left||b.right>r.right+1||b.bottom>r.bottom+1))bad.push('操作不可达');}
   const pane=frame.querySelector('.th-pane:not([hidden])');if(pane.scrollWidth>pane.clientWidth+2)bad.push('面板横向溢出');
   return bad;
@@ -22,6 +23,7 @@ async function pause(page){
  await page.locator('.st-btn').waitFor();await page.locator('.st-btn').click();await page.locator('.settle').waitFor({state:'detached'});
  await page.locator('#backHome').click();
  await page.locator('.trial-hall').waitFor();
+ const mode=await page.locator('[data-th-tab][aria-selected=true]').getAttribute('data-th-tab');await page.locator('[data-th-enter='+mode+']').click();
 }
 async function choose(page,selector,index){await page.locator(selector).selectOption(String(index));}
 (async()=>{try{
@@ -30,13 +32,25 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   const page=await browser.newPage({viewport});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
   await page.locator('.th-tower-art').evaluate(img=>img.decode());assert(await page.locator('.th-tower-art').evaluate(img=>img.naturalHeight>1000));
+  assert.equal(await page.locator('dialog[open]').count(),0);await fits(page);
+  await page.locator('.th-gate img').first().evaluate(img=>img.decode());
+  if(process.argv.includes('--shots')){fs.mkdirSync(out,{recursive:true});await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');await page.screenshot({path:path.join(out,label+'-scene.png')});}
+  const noTraining=[];const track=req=>{if(/\/api\/session\/start/.test(req.url()))noTraining.push(req.url());};page.on('request',track);
+  await page.locator('[data-th-enter=sets]').click();assert(await page.locator('.th-dialog').evaluate(d=>d.open));
+  assert.equal(await page.locator('.th-dialog').evaluate(d=>getComputedStyle(d,'::backdrop').backgroundColor),'rgba(0, 0, 0, 0)');
+  await page.keyboard.press('Escape');await page.locator('.th-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('dialog[open]').count(),0);assert(await page.locator('[data-th-enter=sets]').evaluate(b=>b===document.activeElement));
+  await page.locator('[data-th-motion]').click();assert(await page.locator('.trial-hall').evaluate(h=>h.classList.contains('th-still')));assert.equal(await page.locator('.th-cloud').first().evaluate(e=>getComputedStyle(e).animationName),'none');
+  await page.locator('[data-th-motion]').click();await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.locator('[data-th-enter=blocks]').click();await page.locator('[data-th-close]').click();assert.equal(await page.locator('dialog[open]').count(),0);
+  await page.locator('[data-th-enter=history]').click();await fits(page);await page.locator('[data-th-close]').click();assert.deepEqual(noTraining,[]);page.off('request',track);
+  await page.locator('[data-th-enter=sets]').click();
   for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);for(const tab of ['sets','blocks','history']){await page.locator(`[data-th-tab="${tab}"]`).click();await fits(page);}}
   if(process.argv.includes('--shots')){await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.mouse.move(viewport.width-70,viewport.height/2);await page.waitForTimeout(500);await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');fs.mkdirSync(out,{recursive:true});await page.locator('[data-th-tab="sets"]').click();await page.screenshot({path:path.join(out,label+'-sets.png')});if(label==='desktop'){await page.locator('[data-th-tab="blocks"]').click();await page.screenshot({path:path.join(out,'desktop-blocks.png')});}}
   await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.locator('[data-th-tab="sets"]').click();
   await choose(page,'[data-th-book]',0);await page.locator('[data-th-paper="22"]').click();const selected=await page.locator('#th-pane-sets .th-selection h3').textContent();
   await page.locator('[data-th-tab="blocks"]').click();await choose(page,'[data-th-board]',1);await choose(page,'[data-th-topic]',0);
   const chosenTopic=await page.locator('[data-th-topic]').inputValue();await page.locator('[data-th-tab="sets"]').click();assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
-  await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
+  await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();assert.equal(await page.locator('dialog[open]').count(),0);await page.locator('[data-th-enter=sets]').click();assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
   await page.locator('[data-th-tab="blocks"]').click();assert.equal(await page.locator('[data-th-topic]').inputValue(),chosenTopic);
   // 续做已经没有剩余新题的知识点复盘，按钮仍应可用，接口沿用原点:板块:知识点。
   await choose(page,'[data-th-topic]',2);assert.equal(await page.locator('.th-start').textContent().then(x=>x.trim()),'继续练习 →');assert(await page.locator('.th-start').isEnabled());
@@ -56,6 +70,6 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.evaluate(()=>{document.querySelector('#view').style.setProperty('--scene-panel-width','100%');document.querySelector('#view').style.setProperty('--scene-panel-height','310px');});await fits(page);
   await page.evaluate(()=>{document.querySelector('#view').style.removeProperty('--scene-panel-width');FIXED_LAYOUT.refresh();});
 
-  assert.deepEqual(errors,[]);await page.close();console.log(label+'：双模式/知识点、偏好保存、真实续做、套卷题数、板块错题和边界通过');
+  assert.deepEqual(errors,[]);await page.close();console.log(label+'：全高塔景/双门/透明卷宗/键盘返回/减弱动画、双模式/知识点、偏好保存、真实续做、套卷题数、板块错题和边界通过');
  }
 }catch(error){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure.png')}).catch(()=>{});}throw error;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,5 +1,5 @@
 /* 试炼塔统一入口：app.shizhanHtml供给bank/library只读目录，bind接原训练接口。
-   套卷/板块共享场景与操作区；本机trial-hall-v1按科目/资料库记选择，不写学习存档。
+   全高塔景通过左右石门打开原生dialog卷宗；本机trial-hall-v1按科目/资料库记选择，不写学习存档。
    计分、抽题、复盘、续做全部交回原bank训练流程，不在此处生成成绩。 */
 (() => {
   'use strict';
@@ -9,7 +9,7 @@
   const pct=(n,d)=>d?Math.round(n/d*100)+'%':'—';
   const meter=(n,d,label)=>`<div class="th-meter" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${d||1}" aria-valuenow="${Math.min(n,d)||0}"><i style="width:${ratio(n,d)*100}%"></i></div>`;
   const empty=text=>`<div class="th-empty"><span aria-hidden="true">◇</span><p>${esc(text)}</p><p class="small muted">可前往资料库导入题目，再回来选择练习。</p></div>`;
-  function read(key){try{const p=JSON.parse(localStorage.getItem(key));if(p&&typeof p==='object')return {mode:p.mode==='blocks'?'blocks':'sets',...Object.fromEntries(['book','paper','board','topic'].map(k=>[k,typeof p[k]==='string'?p[k]:'']))};}catch(_){}return {mode:'sets',book:'',paper:'',board:'',topic:''};}
+  function read(key){try{const p=JSON.parse(localStorage.getItem(key));if(p&&typeof p==='object')return {mode:p.mode==='blocks'?'blocks':'sets',motion:p.motion==='still'?'still':'auto',...Object.fromEntries(['book','paper','board','topic'].map(k=>[k,typeof p[k]==='string'?p[k]:'']))};}catch(_){}return {mode:'sets',book:'',paper:'',board:'',topic:''};}
   function save(m){try{localStorage.setItem(m.key,JSON.stringify(m.pref));}catch(_){} }
   const books=m=>(m.d.sets||[]).filter(b=>b.sets?.length);
   const boards=m=>m.d.boards.filter(b=>b.total||b.pending||b.wrong||b.active);
@@ -25,10 +25,14 @@
     if(!board(m))m.pref.board=(rs.find(b=>b.active)||rs.find(b=>b.remaining)||rs[0])?.board||'';
     if(!topics(m).some(t=>t.name===m.pref.topic))m.pref.topic='';
   }
-  function hero(m){
-    const t=m.d.tower||{layers:100,total:0,current:1,completed:0,floor_done:0,floor_total:0,remaining:0};
+  function tower(m){return m.d.tower||{layers:100,total:0,current:1,completed:0,floor_done:0,floor_total:0,remaining:0};}
+  function stats(m){
     const done=m.d.boards.reduce((n,b)=>n+b.first_total,0),ok=m.d.boards.reduce((n,b)=>n+b.first_correct,0),wrong=m.d.boards.reduce((n,b)=>n+b.wrong,0);
-    return `<header class="th-hero"><div class="th-art" aria-hidden="true"><div class="th-art-halo"></div><img src="assets/beauty/trial/tower.png" alt="" class="th-tower-art"><i class="th-current-light" style="--th-light:${82-ratio(t.current,t.layers)*65}%"></i><i class="th-art-ring"></i></div><div class="th-hero-info"><p class="th-eyebrow">${esc(m.env.mage?'王立学院 · 知识试炼':'青衡宗 · 百层问道')}</p><h2>${esc(m.env.title)}</h2><div class="th-floor">${t.summit?'已登顶':`第 <strong>${t.current}</strong> 层`}</div><p class="th-floor-detail">${t.summit?`已完成 ${t.completed} 道新题`:`本层 ${t.floor_done} / ${t.floor_total} 道 · 再做 ${t.remaining} 道升层`}</p>${meter(t.summit?1:t.floor_done,t.summit?1:t.floor_total,'本层进度')}<p class="th-capacity">${t.layers} 层 · 目标 ${t.total} 道新题</p></div><div class="th-stats"><span><b>${done}</b> 已闯新题</span><span><b>${pct(ok,done)}</b> 首次正确率</span><span><b>${wrong}</b> ${esc(m.env.wrong)}</span></div></header>`;
+    return `<div class="th-stats"><span><b>${done}</b> 已闯新题</span><span><b>${pct(ok,done)}</b> 首次正确率</span><span><b>${wrong}</b> ${esc(m.env.wrong)}</span></div>`;
+  }
+  function scene(m){
+    const t=tower(m),gate=(mode,title,sub)=>`<button type="button" class="th-gate th-gate-${mode}" data-th-enter="${mode}" aria-haspopup="dialog" aria-controls="th-dialog"><img src="assets/beauty/trial/gate.png" alt="" aria-hidden="true"><span class="th-gate-label"><b>${title}</b><small>${sub}</small><span class="th-gate-invite">进入试炼 <i aria-hidden="true">→</i></span></span></button>`;
+    return `<div class="th-world"><div class="th-landscape" aria-hidden="true"></div><div class="th-cloud th-cloud-back" aria-hidden="true"></div><div class="th-art" aria-hidden="true"><div class="th-art-halo"></div><img src="assets/beauty/trial/tower.png" alt="" class="th-tower-art"><i class="th-current-light" style="--th-light:${82-ratio(t.current,t.layers)*65}%"></i></div><div class="th-cloud th-cloud-front" aria-hidden="true"></div><div class="th-world-title"><p>${esc(m.env.mage?'王立学院 · 知识试炼':'青衡宗 · 百层问道')}</p><h2>${esc(m.env.title)}</h2><span>${t.layers} 层 · ${t.total} 道新题</span></div><div class="th-scene-tools"><button type="button" data-th-motion aria-pressed="${m.pref.motion==='still'}">${m.pref.motion==='still'?'开启动效':'暂停动效'}</button><button type="button" data-th-enter="history" aria-haspopup="dialog" aria-controls="th-dialog">练习记录 ↗</button></div>${gate('sets','套卷试炼','整卷推演 · 连贯作答')}${gate('blocks','板块试炼','分门精进 · 逐项突破')}<div class="th-stele"><span>${t.summit?'已登顶':`正在攀登 · 第 <b>${t.current}</b> 层`}</span><p>${t.summit?`已完成 ${t.completed} 道新题`:`本层 ${t.floor_done} / ${t.floor_total} 道 · 再做 ${t.remaining} 道升层`}</p>${meter(t.summit?1:t.floor_done,t.summit?1:t.floor_total,'本层进度')}</div></div>`;
   }
   function setsPane(m){
     const bs=books(m),b=book(m),p=paper(m);
@@ -53,23 +57,30 @@
   }
   function html(d,c,env){
     const key='trial-hall-v1:'+encodeURIComponent(env.subject+':'+env.scope),pref=read(key),m={d,c,env,key,pref,view:pref.mode,busy:false};normalize(m);model=m;
-    return `<section class="trial-hall scene-panel ${env.mage?'th-mage':'th-sect'}" aria-label="${esc(env.title)}">${hero(m)}<nav class="th-tabs" role="tablist" aria-label="刷题模式"><button role="tab" id="th-tab-sets" data-th-tab="sets" aria-controls="th-pane-sets">套卷刷题</button><button role="tab" id="th-tab-blocks" data-th-tab="blocks" aria-controls="th-pane-blocks">板块刷题</button><button role="tab" id="th-tab-history" data-th-tab="history" aria-controls="th-pane-history" class="th-history-tab">练习记录</button></nav><div class="th-panels">${[['sets',setsPane],['blocks',blocksPane],['history',historyPane]].map(([id,render])=>`<section id="th-pane-${id}" class="th-pane" role="tabpanel" aria-labelledby="th-tab-${id}" ${m.view===id?'':'hidden'}>${render(m)}</section>`).join('')}</div><footer class="th-actions">${footer(m)}</footer></section>`;
+    return `<section class="trial-hall ${env.mage?'th-mage':'th-sect'} ${pref.motion==='still'?'th-still':''}" aria-label="${esc(env.title)}">${scene(m)}<dialog id="th-dialog" class="th-dialog scene-panel" aria-labelledby="th-dialog-title"><header class="th-dialog-head"><div><p class="th-eyebrow">${esc(env.mage?'学院试炼卷宗':'试炼塔 · 修习卷宗')} · 第 ${tower(m).current} 层</p><h2 id="th-dialog-title">选择试炼</h2></div><button type="button" data-th-close aria-label="关闭练习面板，返回塔前">返回塔前 ×</button></header>${stats(m)}<nav class="th-tabs" role="tablist" aria-label="刷题模式"><button role="tab" id="th-tab-sets" data-th-tab="sets" aria-controls="th-pane-sets">套卷试炼</button><button role="tab" id="th-tab-blocks" data-th-tab="blocks" aria-controls="th-pane-blocks">板块试炼</button><button role="tab" id="th-tab-history" data-th-tab="history" aria-controls="th-pane-history" class="th-history-tab">练习记录</button></nav><div class="th-panels">${[['sets',setsPane],['blocks',blocksPane],['history',historyPane]].map(([id,render])=>`<section id="th-pane-${id}" class="th-pane" role="tabpanel" aria-labelledby="th-tab-${id}" ${m.view===id?'':'hidden'}>${render(m)}</section>`).join('')}</div><footer class="th-actions">${footer(m)}</footer></dialog></section>`;
   }
   function bind(root,hooks){
     const host=root.querySelector('.trial-hall'),m=model;if(!host||!m||host.dataset.thBound)return;host.dataset.thBound='1';
-    function tabState(){host.querySelectorAll('[data-th-tab]').forEach(b=>{const active=b.dataset.thTab===m.view;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});host.querySelectorAll('.th-pane').forEach(p=>p.hidden=p.id!=='th-pane-'+m.view);}
+    const dialog=host.querySelector('.th-dialog');let opener=null;
+    function close(){dialog.close();opener?.focus({preventScroll:true});}
+    dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+    function tabState(){host.querySelector('#th-dialog-title').textContent={sets:'套卷试炼',blocks:'板块试炼',history:'练习记录'}[m.view];host.querySelectorAll('[data-th-tab]').forEach(b=>{const active=b.dataset.thTab===m.view;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});host.querySelectorAll('.th-pane').forEach(p=>p.hidden=p.id!=='th-pane-'+m.view);}
     function actions(){host.querySelector('.th-actions').innerHTML=footer(m);host.querySelectorAll('.th-start,[data-th-review],.bankOrder,#bankCount').forEach(b=>{if(m.busy)b.disabled=true;});}
     function refreshPane(id){host.querySelector('#th-pane-'+id).innerHTML=(id==='sets'?setsPane:blocksPane)(m);actions();}
     function scrollChoice(){const list=host.querySelector('#th-pane-sets .th-choice-list'),choice=list?.querySelector('[aria-pressed=true]');if(choice&&list.clientHeight)list.scrollTop+=choice.getBoundingClientRect().top-list.getBoundingClientRect().top;}
     function selectTab(id){m.view=id;if(id!=='history'){m.pref.mode=id;save(m);}tabState();actions();if(id==='sets')scrollChoice();}
     host.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b||b.disabled)return;
+      if(b.hasAttribute('data-th-enter')){opener=b;selectTab(b.dataset.thEnter);measure();dialog.showModal();scrollChoice();host.querySelector('[data-th-close]').focus();return;}
+      if(b.hasAttribute('data-th-close'))return close();
+      if(b.hasAttribute('data-th-motion')){m.pref.motion=m.pref.motion==='still'?'auto':'still';save(m);host.classList.toggle('th-still',m.pref.motion==='still');b.setAttribute('aria-pressed',String(m.pref.motion==='still'));b.textContent=m.pref.motion==='still'?'开启动效':'暂停动效';return;}
       if(b.hasAttribute('data-th-tab'))return selectTab(b.dataset.thTab);
       if(b.hasAttribute('data-th-return'))return selectTab(m.pref.mode);
       if(b.hasAttribute('data-th-paper')){const p=book(m)?.sets[Number(b.dataset.thPaper)];if(!p)return;m.pref.paper=p.name;save(m);const list=host.querySelector('#th-pane-sets .th-choice-list'),top=list.scrollTop;refreshPane('sets');host.querySelector('#th-pane-sets .th-choice-list').scrollTop=top;host.querySelector(`[data-th-paper="${b.dataset.thPaper}"]`)?.focus({preventScroll:true});return;}
       if(!b.hasAttribute('data-th-start')&&!b.hasAttribute('data-th-review'))return;
       const review=b.hasAttribute('data-th-review'),p=paper(m),r=board(m);
       const slot=m.pref.mode==='sets'?'套:'+p.name:!review&&m.pref.topic?'点:'+r.board+':'+m.pref.topic:r.board;
+      dialog.close();
       hooks.start({type:review?'bank_review':'bank',board:slot,target:slot,title:m.pref.mode==='sets'?p.name:r.board+(m.pref.topic&&!review?' · '+m.pref.topic:'')});
     });
     host.addEventListener('keydown',e=>{
@@ -90,7 +101,13 @@
       }
     });
     tabState();
-    let positioned=false;const resize=new ResizeObserver(()=>{if(!host.isConnected)return resize.disconnect();host.classList.toggle('th-compact',host.clientHeight<520);if(!positioned&&m.view==='sets'){scrollChoice();positioned=true;}});resize.observe(host);
+    function measure(){
+      const r=host.getBoundingClientRect(),style=getComputedStyle(host),width=Math.min(r.width-32,Math.max(360,r.width*(parseFloat(style.getPropertyValue('--scene-panel-width'))||50)/100)),height=Math.min(r.height-32,parseFloat(style.getPropertyValue('--scene-panel-height'))||r.height);
+      dialog.style.setProperty('--th-width',width+'px');dialog.style.setProperty('--th-height',Math.max(0,height)+'px');dialog.style.setProperty('--th-left',r.left+(r.width-width)/2+'px');dialog.style.setProperty('--th-top',r.top+(r.height-height)/2+'px');dialog.classList.toggle('th-compact',height<520);
+    }
+    const resize=new ResizeObserver(()=>{if(!host.isConnected)return resize.disconnect();measure();});resize.observe(host);
+    // 尺寸偏好改变只影响卷宗，整幅塔景保持铺满；离开路由后原生dialog随DOM销毁。
+    new MutationObserver((_,observer)=>{if(!host.isConnected)return observer.disconnect();measure();}).observe(root,{attributes:true,attributeFilter:['style']});
     host.querySelector('.th-tower-art').addEventListener('error',()=>host.classList.add('th-art-missing'),{once:true});
   }
   window.TRIAL_HALL={html,bind};
