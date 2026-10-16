@@ -9,6 +9,10 @@ const api=ctx.window.SCENE_PORTAL,places=[{id:'dwelling',label:'洞府',view:'dw
 const raw={desktop:{dwelling:{x:Infinity,y:'10'},train:{x:-20,y:150}},narrow:{dwelling:{x:33,y:44}},names:{dwelling:'  新洞府  ',train:42,unknown:'忽略'},extra:'bad'};
 const n=api.normalize(raw,places);assert.equal(n.desktop.dwelling.x,12);assert.equal(n.desktop.dwelling.y,78);assert.equal(n.desktop.train.x,5);assert.equal(n.desktop.train.y,95);assert.equal(n.narrow.dwelling.x,33);
 assert.equal(n.names.dwelling,'新洞府');assert.equal(n.names.train,undefined);assert.equal(n.names.unknown,undefined);
+// 法考天机台内置0%坐标：保存其他地点时，未调整的边缘默认位置不应被裁到5%。
+const edge=[{id:'edge',label:'边缘地点',x:59,y:0,nx:72,ny:2}];
+const defaults=api.normalize(null,edge),roundtrip=api.normalize(JSON.parse(JSON.stringify(defaults)),edge);
+assert.equal(roundtrip.desktop.edge.y,0);assert.equal(roundtrip.narrow.edge.y,2);
 api.configure({id:'xingce',title:'宗门',image:'map.webp',places},()=>{});api.settingsHtml();api.mount('settings');
 const changed={matches:s=>s.includes('data-portal-x'),valueAsNumber:37};listeners.change({target:changed});
 const click=selector=>listeners.click({target:{closest:s=>s===selector?{}:null}});

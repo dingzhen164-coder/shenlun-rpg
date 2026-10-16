@@ -565,3 +565,7 @@ diverged web/assets/beauty/contest/*
 diverged rpg/peak_tutors.py
 diverged tests/test_peak_tutors.py
 shared tests/ui_contest_scene.cjs
+
+# 3.3.5：地图预览、角落工具与时政书架检查。
+shared tests/layout335_fixture.py
+shared tests/ui_layout335.cjs

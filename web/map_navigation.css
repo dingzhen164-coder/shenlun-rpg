@@ -21,7 +21,7 @@ body.portal-home #view,body.guantu.portal-home #view{width:100%;max-width:none;m
 .study-hud-profile small{display:block;color:var(--ds-hud-soft);font-size:var(--ds-fs-11);margin-top:2px}.study-hud-cap{margin:6px 0}
 .study-hud-world{padding:10px 18px;max-width:40%;text-align:right;min-width:270px}.study-hud-calendar{display:flex;justify-content:flex-end;gap:18px;flex-wrap:wrap}.study-hud-calendar b{color:var(--ds-hud-gold)}.study-hud-average{margin-top:4px}.study-hud-location{margin-top:6px;color:var(--ds-hud-loc);overflow-wrap:anywhere}.study-hud-location>span:first-child{font-size:var(--ds-fs-22);margin-right:8px}.study-hud-location strong{font-family:var(--display);font-size:17px}
 
-.portal-world .portal-place{top:calc(var(--study-hud-height) + 44px + (100% - var(--study-hud-height) - 100px) * var(--portal-y))}
+.portal-world .portal-place,.portal-stage-editor .portal-place{top:calc(var(--study-hud-height) + 44px + (100% - var(--study-hud-height) - 100px) * var(--portal-y))}
 html.in-chat .train{top:max(var(--study-hud-height),var(--chat-top,0px))}
 html.nt-full .nt-book,.yj-stage,.ln-stage{top:var(--study-hud-height)!important}
 html.in-sl-exam .sl-full-grid{height:calc(100dvh - var(--study-hud-height) - var(--sl-exam-heading-height,142px) - 90px);min-height:300px}

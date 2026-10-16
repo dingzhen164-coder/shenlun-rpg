@@ -278,3 +278,16 @@ html.drawing .page-settings-gear{display:none}
 .fx-records-list.fx-records-fill>.card>details:not(.form-fold){flex:1;min-height:0}
 @media(max-width:1100px){.fx-records-list.fx-records-fill{display:grid}}
 @media(max-width:1100px) and (orientation:portrait){.fx-records-list.fx-records-fill{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr))}}
+
+/* 3.3.5：月半刊固定区内横向滚动，专题标题和实际文件数共同居中。 */
+.fixed-app .tj-year.tj-month-group,.fixed-app .tj-year.tj-topic-group{height:auto;min-width:0;flex:none;margin:0 0 var(--ds-sp-24)}
+.fixed-app .tj-grid.tj-shelf{display:grid;grid-template-columns:none;grid-template-rows:repeat(var(--tj-rows,1),minmax(0,1fr));grid-auto-flow:column;grid-auto-columns:var(--tj-cover-width,220px);height:var(--tj-shelf-height,350px);gap:var(--ds-sp-20);padding:var(--ds-sp-12);box-sizing:border-box;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:thin;scroll-padding:var(--ds-sp-12);align-content:stretch;flex:none}
+.fixed-app .tj-shelf .tj-cover{width:100%;height:100%;max-height:none;min-width:0;aspect-ratio:auto}
+.tj-shelf .tj-qs-name{font-size:var(--ds-fs-20);letter-spacing:.04em}
+.tj-shelf:focus-visible{outline:2px solid var(--ds-accent);outline-offset:-2px}
+.fixed-app .tj-topic-group>h3{text-align:center}
+.fixed-app .tj-topic-group .tj-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--ds-sp-20);padding:var(--ds-sp-12);min-width:0}
+.fixed-app .tj-topic-group .tj-cover{flex:0 1 calc((100% - (var(--tj-files,1) - 1)*20px)/var(--tj-files,1));width:220px;max-width:220px;max-height:none;min-width:min(160px,100%);aspect-ratio:3/4}
+
+/* 固定书架不持续浮动，鼠标和触控均能稳定点选；保留悬停光影。 */
+.fixed-app .tj-shelf .tj-cover,.fixed-app .tj-topic-group .tj-cover{animation:none}

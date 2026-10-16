@@ -199,7 +199,16 @@
     const hub=root.querySelector('.tj-hub');
     if(hub&&!hub.querySelector(':scope > .fx-scroll')){
       const body=make('div','fx-scroll');[...hub.children].filter(x=>!x.matches('.tj-head,.tj-drop')).forEach(x=>body.append(x));hub.append(body);
-      body.querySelectorAll('.tj-grid').forEach((g,i)=>paginate(g,'tianji:'+i,'covers'));
+      // 月半刊按年份横向书架滚动，专题按实际文件数居中；不隐藏或分页任何封面。
+      body.querySelectorAll('.tj-grid').forEach(g=>{
+        const group=g.closest('.tj-year');
+        if(g.querySelector('.tj-hd')){group.classList.add('tj-topic-group');g.style.setProperty('--tj-files',Math.min(3,g.children.length));return;}
+        group.classList.add('tj-month-group');g.classList.add('tj-shelf');g.tabIndex=0;g.setAttribute('aria-label','月半时政书架，左右滚动浏览');
+        const update=()=>{if(!g.isConnected)return resize.disconnect();const available=Math.max(260,body.clientHeight-(group.querySelector('h3')?.offsetHeight||30)-24),rows=window.innerWidth>=1000&&available>=540?2:1,height=Math.min(310,Math.max(220,(available-40-(rows-1)*20)/rows));g.style.setProperty('--tj-rows',rows);g.style.setProperty('--tj-cover-width',Math.round(height*.75)+'px');g.style.setProperty('--tj-shelf-height',(height*rows+(rows-1)*20+40)+'px');};
+        // 普通鼠标滚轮也能翻阅横向书架；到边缘时交回年份列表滚动。
+        g.addEventListener('wheel',e=>{if(e.ctrlKey||Math.abs(e.deltaX)>=Math.abs(e.deltaY))return;const before=g.scrollLeft,step=e.deltaY*(e.deltaMode===1?20:e.deltaMode===2?g.clientWidth:1);g.scrollLeft+=step;if(g.scrollLeft!==before)e.preventDefault();},{passive:false});
+        const resize=new ResizeObserver(update);resize.observe(body);update();
+      });
     }
     const issue=root.querySelector('.tj-issue');if(!issue)return;
     issue.querySelectorAll('.tj-news').forEach(n=>frame(n,'#tjRead'));
