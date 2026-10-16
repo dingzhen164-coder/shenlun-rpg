@@ -3,7 +3,6 @@
 rpg.api 的本机接口调用 check/apply；Windows 交给 PowerShell，Mac 交给
 mac_update 的独立助手替换并确认重启。源码版仍手工更新；日常开发不触发发布。
 """
-import hashlib
 import json
 import shutil
 import os
@@ -16,7 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from . import mac_update, net
+from . import download, mac_update, net
 from .paths import FROZEN
 from .version import REPO, VERSION
 
@@ -115,20 +114,7 @@ def _apply_mac(info):
         app = mac_update.writable_bundle()
         stage = Path(tempfile.mkdtemp(prefix=".rpg-update-", dir=str(app.parent)))
         archive = stage / "download.zip"
-        req = urllib.request.Request(info["asset_url"], headers={"User-Agent": REPO.split("/")[-1]})
-        digest = hashlib.sha256()
-        with net.urlopen(req, timeout=60) as r, archive.open("wb") as f:
-            while True:
-                chunk = r.read(1 << 16)
-                if not chunk:
-                    break
-                f.write(chunk)
-                digest.update(chunk)
-        if info.get("size") and archive.stat().st_size != info["size"]:
-            raise UpdateError("下载不完整，再试一次；旧应用未改动")
-        expected = info.get("digest") or ""
-        if expected.startswith("sha256:") and digest.hexdigest() != expected[7:]:
-            raise UpdateError("下载校验不通过，再试一次；旧应用未改动")
+        download.archive(info['asset_url'], archive, info.get('size'), info.get('digest') or '', REPO.split('/')[-1])
         new = mac_update.prepare(stage, archive, app, info["latest"])
         mac_update.launch(os.getpid(), new, app, stage, clean_env())
     except Exception as e:
@@ -173,14 +159,8 @@ def _apply():
         return _apply_mac(info)
     exe = Path(sys.executable).resolve()
     new = exe.with_name(exe.stem + ".new.exe")
-    req = urllib.request.Request(info["asset_url"], headers={"User-Agent": "shenlun-rpg"})
     try:
-        with net.urlopen(req, timeout=60) as r, open(new, "wb") as f:
-            while True:
-                chunk = r.read(1 << 16)
-                if not chunk:
-                    break
-                f.write(chunk)
+        download.archive(info['asset_url'], new, info.get('size'), info.get('digest') or '', REPO.split('/')[-1])
     except Exception as e:
         try:
             new.unlink()

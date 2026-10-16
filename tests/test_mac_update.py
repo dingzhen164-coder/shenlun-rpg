@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from rpg import mac_update, update
+from rpg import download, mac_update, update
 
 
 def bundle(root, name="程序 空格'中文.app", version="9.9.9", executable="Run", body="#!/bin/sh\nexit 0\n", identity="test.rpg"):
@@ -52,6 +52,8 @@ class MacUpdateTest(unittest.TestCase):
         for p in (self.platform, self.frozen, self.executable): self.addCleanup(p.stop)
         self.addCleanup(self.tmp.cleanup)
         update._APPLY_PENDING = False
+        delay = patch.object(download, 'RETRY_DELAY', 0)
+        delay.start(); self.addCleanup(delay.stop)
         self.addCleanup(setattr, update, "_APPLY_PENDING", False)
 
     def stage(self):
@@ -112,7 +114,7 @@ class MacUpdateTest(unittest.TestCase):
         self.assertEqual(self.exe.read_text(), "#!/bin/sh\nexit 0\n")
 
     def assert_download_rejected(self, info, message):
-        with patch.object(update, "check", return_value=info), patch.object(update.net, "urlopen", return_value=io.BytesIO(b"fake")), patch.object(mac_update, "launch") as launch, patch.object(update.threading, "Timer") as timer:
+        with patch.object(update, "check", return_value=info), patch.object(update.net, "urlopen", side_effect=lambda *a, **k: io.BytesIO(b"fake")), patch.object(mac_update, "launch") as launch, patch.object(update.threading, "Timer") as timer:
             with self.assertRaisesRegex(update.UpdateError, message): update.apply()
             launch.assert_not_called(); timer.assert_not_called()
         self.assertTrue(self.exe.is_file())

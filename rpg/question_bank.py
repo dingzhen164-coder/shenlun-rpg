@@ -348,7 +348,11 @@ def summary(g):
                        'wrong': len(wrong), 'errors': errors, 'active': bool(run),
                        'wrong_items': [{'id': r['question']['id'], 'topic': r['question']['topic'],
                                         'last': r['history'][-1], 'tries': len(r['history'])} for r in wrong]})
-    return {'boards': result, 'count': count(g), 'order': order(g),
+    # 只读续做目录，帮助新界面识别套卷/知识点已答完但尚未结束的复盘；不暴露答案。
+    active_runs = [{'board': r['board'], 'mode': r['mode'], 'phase': r.get('phase', 'answer'),
+                    'total': len(r.get('questions', [])), 'answered': len(r.get('results', []))}
+                   for r in data['runs'].values()]
+    return {'boards': result, 'count': count(g), 'order': order(g), 'active_runs': active_runs,
             'groups': [dict(x, rank=rank(g, x['correct'], x['total']), label=label(x['board'])) for x in data['groups'][-20:][::-1]],
             'streak_need': max(1, int(g.rules.num('回炉连续判对'))),
             'bonus': g.rules.xp('实战通关'), 'tower': tower(g), 'sets': sets(g)}

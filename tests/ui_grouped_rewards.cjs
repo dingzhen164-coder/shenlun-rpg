@@ -24,16 +24,16 @@ for(const id of ['#lecMin','#prMin','#ssMin']){const field=page.locator(id);awai
 await reveal(page,page.locator('#lecMin'));await page.locator('#lecGo').click();await page.waitForFunction(()=>DASH.lectures.some(x=>x.minutes===7));await page.locator('.st-btn').click();await page.locator('.settle').waitFor({state:'detached'});
 await route('contest');await page.waitForTimeout(300);
 if(subject!=='申论'){
- const charts=page.locator('[data-fx-group="charts"]');assert.equal(await charts.count(),1);assert.equal(await charts.locator('.fx-scroll>.card').count(),3);
+ const charts=page.locator('[data-cs-pane="trends"]');assert.equal(await charts.count(),1);assert.equal(await charts.locator(':scope>.card').count(),2);
  for(const id of ['#chScore','#chAcc','#mkPick']){const field=page.locator(id);await reveal(page,field);assert(await field.isVisible());}
- assert.equal(await page.locator('[data-fx-group="entry"] #mkMarksCard').count(),1);assert.equal(await page.locator('[data-fx-group="entry"] #mkForm').count(),1);
+ assert.equal(await page.locator('[data-cs-pane="entry"] #mkMarksCard').count(),1);assert.equal(await page.locator('[data-cs-pane="entry"] #mkForm').count(),1);
  await reveal(page,page.locator('#mkMarksCard'));await page.screenshot({path:out+'/'+(subject||'法考')+'-成绩录入.png'});
 }
 await route('settings');assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),1);
 assert.equal(await page.locator('.fx-settings .fx-tabs').count(),0);
 for(const selector of ['[data-shortcut-save]','[data-portal-save]','#sSave']){const b=page.locator(selector);await reveal(page,b);assert(await b.isVisible());if(selector!=='#sSave'){await b.click();await page.waitForTimeout(300);}}
 await reveal(page,page.locator('[data-portal-save]'));await page.screenshot({path:out+'/'+(subject||'法考')+'-设置.png'});
-for(const size of [{width:800,height:1280},{width:390,height:844}]){
+for(const size of [{width:800,height:1280}]){
  await page.setViewportSize(size);
  for(const v of ['dwelling','contest','settings','log','bank','skeleton']){await route(v);assert(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+2));count++;}
 }

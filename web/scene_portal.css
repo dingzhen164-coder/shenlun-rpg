@@ -23,3 +23,12 @@ body.guantu.portal-home #view{padding:0;width:100%;margin:0;max-width:none}
 /* 3.4白天/夜晚全景：按主题明暗切换，不影响单图场景 */
 html[data-theme="dark"] .portal-landscape.portal-day{display:none}
 html:not([data-theme="dark"]) .portal-landscape.portal-night{display:none}
+
+/* 编辑器缩放同尺寸地图画布，底图裁切、状态牌避让和地点字号均与实际主页一致。 */
+.portal-preview-frame{position:relative;width:100%;overflow:hidden;box-sizing:content-box;border:1px solid var(--ds-line);border-radius:var(--ds-r-8);background:var(--ds-scene-edit-bg)}
+.portal-preview-frame .portal-stage-editor{position:absolute;inset:0;min-height:0;max-width:none!important;width:var(--preview-width)!important;height:var(--preview-height)!important;aspect-ratio:auto!important;border:0;border-radius:0;margin:0!important;transform-origin:top left;transform:scale(var(--preview-scale,1))}
+.portal-preview-frame .portal-place,.portal-preview-frame .portal-stage-editor .portal-place>.portal-ic,.portal-preview-frame .portal-stage-editor .portal-place>b{transition:none;animation:none}
+.portal-preview-frame .portal-stage-editor .portal-place>.portal-ic,.portal-preview-frame .portal-stage-editor .portal-place>b{transform:none}
+
+/* 地点坐标随HUD测量即时更新，避免通用按钮过渡造成主页与编辑预览漂移。 */
+.portal-place{transition:none}

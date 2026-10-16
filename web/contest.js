@@ -367,7 +367,7 @@
     const pick = document.getElementById("mkPick");
     if (pick) pick.onchange = () => { PICK = pick.value; rerender(); };
     document.querySelectorAll("[data-mk-edit]").forEach((b) => (b.onclick = () => {
-      EDIT = b.dataset.mkEdit; rerender();
+      EDIT = b.dataset.mkEdit; rerender("entry");
       document.getElementById("mkForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }));
     const sel = document.getElementById("mkSeason");
@@ -393,17 +393,23 @@
       } catch (e) { showError(e); }
     };
   }
-  function rerender() {
+  function mountScene(v,state=null){
+    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),state});
+  }
+  function rerender(view=null) {
     const v = document.getElementById("view");
-    if (!MOCK || !v) return;
-    v.innerHTML = html(MOCK);
+    if (!MOCK || !v || typeof VIEW!=='undefined'&&VIEW!=='contest') return;
+    let state=window.CONTEST_SCENE?.capture(v);
+    if(view)state={...state,view,open:true};
+    v.innerHTML = html(MOCK);mountScene(v,state);
     bind();
   }
   async function render(v) {
     MOCK = await api("/api/mock");
     if (AN == null && MOCK.seasons.length) AN = MOCK.seasons[MOCK.seasons.length - 1].season;
     await loadConv(AN);
-    v.innerHTML = html(MOCK);
+    if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
+    v.innerHTML = html(MOCK);mountScene(v);
     bind();
   }
   window.CONTEST = { render };

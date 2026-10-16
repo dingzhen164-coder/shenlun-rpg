@@ -147,6 +147,19 @@ class BankTest(unittest.TestCase):
         self.assertEqual(ev['xp'], 15)  # 只奖励本组一半的新记录
         self.assertEqual(len(bank.state(self.g)['records']), 2)
 
+    def test_active_run_summary_exposes_only_progress_without_mutation(self):
+        import copy
+        self.file.write_text(question('01'), encoding='utf-8')
+        run = bank.begin(self.g, '点:论证逻辑:削弱论证', 'new')
+        run['phase'] = 'review'
+        run['results'] = [{'ok': True, 'first': True}]
+        before = copy.deepcopy(self.g.state)
+        rows = bank.summary(self.g)['active_runs']
+        self.assertEqual(rows, [{'board': '点:论证逻辑:削弱论证', 'mode': 'new',
+                                 'phase': 'review', 'total': 1, 'answered': 1}])
+        self.assertEqual(self.g.state, before)
+        self.assertFalse({'questions', 'answer', 'analysis', 'results'} & set(rows[0]))
+
     def test_tower_boundaries_and_old_records(self):
         def fill(n):
             bank.state(self.g)['records'] = {str(i): {'history': [{'ok': False}]} for i in range(n)}
@@ -325,7 +338,8 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.ai, 'available', return_value=False):
             r = trainer.action(self.g, sid, 'exam_explain:2')
         self.assertIn('API key', str(r))
-        self.assertIn('师傅解惑', str(r))                              # 没连 AI 不算讲过
+        self.assertEqual(r['mentor']['name'], '薛睿')
+        self.assertTrue(any(b['id']=='exam_explain:2' and '解惑' in b['label'] for b in r['input']['buttons']))  # 没连AI不算讲过
         sent = {}
         def fake_chat(messages, **kw):
             sent['prompt'] = messages[-1]['content']
@@ -342,7 +356,7 @@ class BankTest(unittest.TestCase):
         self.assertIn('【师傅解惑】', block)
         self.assertLess(block.index('秘密解析'), block.index('选C？坑都写脸上了。'))
         self.assertEqual(text.count('【师傅解惑】'), 1)
-        self.assertIn('再问师傅', str(r))
+        self.assertTrue(any(b['id']=='exam_explain:2' and '再问薛睿' in b['label'] for b in r['input']['buttons']))
         # 再问一次：替换，不叠加
         with patch.object(trainer.ai, 'available', return_value=True), patch.object(trainer.ai, 'chat', return_value='第二次讲法'):
             trainer.action(self.g, sid, 'exam_explain:2')

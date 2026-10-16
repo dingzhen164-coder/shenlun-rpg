@@ -106,7 +106,7 @@ async function main(){
     await page.locator('[data-study-regions-back]').click();await page.locator('.portal-world').waitFor();await page.evaluate(()=>go('train'));await page.locator('.study-peaks').waitFor();   // 行测五峰：返回回到地图
    }
    await page.evaluate(()=>go('home'));await page.locator('.portal-world').waitFor();
-   await page.locator('[data-portal-go="bank"]').click();await page.locator('#bankCount').waitFor();assert.equal(await page.locator('#xcGuideAvatar').count(),0);
+   await page.locator('[data-portal-go="bank"]').click();await page.locator('.trial-hall').waitFor();assert.equal(await page.locator('#xcGuideAvatar').count(),0);
    assert.equal(await page.evaluate(()=>HALL),'shizhan');
    await page.setViewportSize({width:1280,height:860});await settings();
    assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('xc-spirit-cursor')&&!el.classList.contains('sl-office-cursor')));

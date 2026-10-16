@@ -1,0 +1,31 @@
+/* 3.3.4：隔离假HOME/自编模考，电脑和平板场景、卷宗、真实录分和峰主求助；不连AI。 */
+const {chromium}=require('playwright'),{spawn}=require('node:child_process'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const subject=process.argv.find(x=>x.startsWith('--subject='))?.split('=')[1];
+const service=spawn('python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--merge-fixture'],{env:process.env});let browser,active,logs='';service.stderr.on('data',x=>logs+=x);
+const out=path.resolve('ui-artifacts/contest-scene');
+const ready=new Promise((resolve,reject)=>{let s='';const t=setTimeout(()=>reject(Error(logs||'临时服务未启动')),20000);service.stdout.on('data',x=>{s+=x;const m=s.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(t);resolve(m[1]);}});service.on('exit',c=>{clearTimeout(t);reject(Error(c+' '+logs));});});
+async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[],d=document.querySelector('.cs-dialog'),pane=d.querySelector('.cs-pane:not([hidden])'),r=d.getBoundingClientRect();if(document.documentElement.scrollWidth>innerWidth+2||document.documentElement.scrollHeight>innerHeight+2||scrollY)bad.push('整页溢出');if(d.open){if(r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1)bad.push('卷宗越界');if(pane.scrollWidth>pane.clientWidth+2)bad.push('卷宗横向溢出');for(const e of d.querySelectorAll('.th-dialog-head,.cs-tabs,.cs-foot')){const a=e.getBoundingClientRect();if(a.top<r.top||a.bottom>r.bottom+1)bad.push('固定区域越界');}if(!d.contains(document.activeElement))bad.push('焦点未约束');}return bad;}),[]);}
+(async()=>{try{
+ const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
+ for(const [size,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}]]){
+  const p=await browser.newPage({viewport});active=p;p.setDefaultTimeout(12000);const errors=[],analyses=[];p.on('pageerror',e=>errors.push(e.message));p.on('request',r=>{if(r.url().includes('/api/mock/analyze'))analyses.push(r.url());});
+  await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());await p.evaluate(()=>go('contest'));await p.locator('.contest-scene').waitFor();assert.equal(await p.locator('dialog[open]').count(),0);await p.evaluate(async()=>{const i=new Image();i.src='assets/beauty/contest/arena.png';await i.decode();});
+  if(subject==='行测')assert.equal(await p.locator('.cs-heading h2').textContent(),'宗门大比');
+  for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);for(const mode of ['overview','review','trends','entry']){await p.locator('[data-cs-enter='+mode+']').click();await fits(p);assert.equal(await p.locator('.cs-dialog').evaluate(d=>getComputedStyle(d,'::backdrop').backgroundColor),'rgba(0, 0, 0, 0)');await p.keyboard.press('Escape');await p.locator('.cs-dialog').waitFor({state:'hidden'});assert.equal(await p.evaluate(()=>VIEW),'contest');}}
+  assert.deepEqual(analyses,[],'打开面板不调用AI');await p.evaluate(()=>document.documentElement.dataset.theme='light');
+  if(process.argv.includes('--shots')){fs.mkdirSync(out,{recursive:true});await p.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');await p.mouse.move(viewport.width-50,viewport.height/2);await p.evaluate(()=>document.activeElement?.blur());await p.waitForTimeout(350);await p.screenshot({path:path.join(out,size+'-scene.png')});}
+  await require('./fixed_ui_helpers.cjs').reveal(p,p.locator('#mkScore'));await p.locator('#mkScore').fill('77.7');await p.locator('[data-cs-close]').click();await p.locator('[data-cs-enter=entry]').click();assert.equal(await p.locator('#mkScore').inputValue(),'77.7');
+  if(size==='desktop'){
+   await p.evaluate(()=>{if(window.CEREMONY)CEREMONY.contest=async()=>{};});
+   const saved=p.waitForResponse(r=>r.url().includes('/api/mock/save')&&r.request().method()==='POST');await p.locator('[data-cs-save]').click();assert.equal((await saved).status(),200);await p.waitForFunction(()=>document.querySelector('.cs-dialog')?.open&&document.querySelector('#mkScore')?.value==='77.7');
+   const latest=await p.evaluate(()=>api('/api/mock'));assert(latest.seasons.some(s=>s.score===77.7));await fits(p);
+  }
+  await p.locator('[data-cs-tab=trends]').click();await p.locator('[data-mk-edit]').first().click();await p.waitForFunction(()=>document.querySelector('.contest-scene')?.dataset.csView==='entry');await fits(p);
+  await p.locator('[data-cs-tab=review]').click();
+  if(process.argv.includes('--shots')&&size==='desktop')await p.screenshot({path:path.join(out,'desktop-review.png')});
+  const reviewBoard=await p.locator('[data-rv]').first().getAttribute('data-rv');await p.locator('[data-rv]').first().click();await p.waitForFunction(()=>T_TYPE==='mock_review'&&!T.busy);await p.locator('.train').waitFor();assert.equal(await p.locator('.cs-dialog').count(),0);
+  if(subject==='行测'){const expected={'政治理论':'小黑','论证逻辑':'薛睿'}[reviewBoard];assert(expected,'自编板块须有明确峰主');assert.equal(await p.evaluate(()=>T.mentor.name),expected);assert((await p.locator('#askToggle').textContent()).includes(expected+'求助'));await p.locator('#askToggle').click();assert.equal(await p.locator('#send').textContent(),'问'+expected);await p.locator('[data-act^=mr_explain]').click();await p.waitForFunction(()=>!T.busy);assert(await p.locator('.npc .who').filter({hasText:expected}).count());assert(await p.locator('.npc .face img').count());}
+  await p.locator('[data-act=mr_pause]').click();await p.waitForFunction(()=>!T.busy&&T.finished);await p.locator('.st-btn').waitFor();await p.locator('.st-btn').click();await p.locator('.settle').waitFor({state:'detached'});await p.locator('#backContest').click();await p.locator('.contest-scene').waitFor();assert.equal(await p.locator('dialog[open]').count(),0);
+  assert.deepEqual(errors,[]);await p.close();console.log(size+'：四入口/明暗边界/草稿保留/录分/战绩跳转/真实复盘/导师身份/返回场景通过');
+ }
+}catch(e){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure.png')}).catch(()=>{});}throw e;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -108,6 +108,10 @@ def main():
             from image_fixture311 import install
             with api.open_game() as g:
                 install(g)
+        if '--layout335-fixture' in sys.argv:
+            from layout335_fixture import install
+            with api.open_game() as g:
+                install(g)
         srv = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
         api.RUNTIME.update(port=srv.server_port, lan=False)
         print('UI-READY http://127.0.0.1:%d' % srv.server_port, flush=True)

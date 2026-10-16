@@ -25,3 +25,7 @@
 | ambient-water | beauty/audio/sfx/ambient-water.ogg | 洞府环境声（流水） | "Park ambiences" 的 river 段 by thimras（OpenGameArt） | CC0 | 2026-10-15 | 截取40秒并淡入淡出 |
 | font-noto-serif | beauty/fonts/noto-serif-sc/ | 申论、法考标题字体（--display 前置，仅700粗体分片woff2） | Noto Serif SC（@fontsource/noto-serif-sc） | SIL OFL 1.1（OFL.txt） | 2026-10-15 | 申论 body.guantu、法考默认 --display |
 | bb-badge | web/beauty_badge.js | 境界徽章（8档颜色/形状，纯SVG） | 本项目自绘 | 无限制 | 2026-10-15 | 洞府卡、大典画面 |
+| trial-tower | beauty/trial/tower.png | 青衡宗古塔建筑立绘 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 透明PNG，两仓库保留各自世界观；见trial/README.md |
+| trial-gate | beauty/trial/gate.png | 试炼场景石门 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 透明PNG，左右入口共用；世界观各自保留 |
+| trial-landscape | beauty/trial/landscape.png | 云海石台场景 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 横向PNG，见trial/README.md |
+| contest-arena | beauty/contest/arena.png | 大比/学院竞技场场景 | 本项目提示词，OpenAI imagegen生成，无第三方参考图 | 生成素材，项目内使用 | 2026-10-16 | 1536×1024，世界观各自保留；见contest/README.md |

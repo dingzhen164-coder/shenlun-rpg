@@ -2,7 +2,7 @@
 
 每人一个固定ID目录，可修改人物卡、语录和立绘。程序仅补缺失文件，不覆盖已有内容。
 
-有效活动地图：home青衡宗、train问道群峰第一层、peak-chang万象峰、peak-yan辨言峰、peak-li明理峰、peak-shu演数峰、peak-zi观星峰、bank试炼塔、contest演武场、skeleton藏经阁、tianji天机台。
+有效活动地图：home青衡宗、train问道群峰第一层、peak-chang万象峰、peak-yan辨言峰、peak-li明理峰、peak-shu演数峰、peak-zi观星峰、bank试炼塔、contest宗门大比、skeleton藏经阁、tianji天机台。
 
 洞府、手札、设置、答题与手写等深层界面不出现人物。地图上的“偶遇”人物头像可点击；主界面为四分之三身，交流/论道为半身。没有图时使用姓名标记，之后再放图片即可。
 

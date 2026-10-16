@@ -22,7 +22,7 @@ DEFAULT_ROOT = DEFAULTS_DIR / '人物' / '行测'
 CHAT_LOCK = threading.Lock()
 SCENES = {'home': '青衡宗', 'train': '问道群峰', 'peak-chang': '万象峰',
           'peak-yan': '辨言峰', 'peak-li': '明理峰', 'peak-shu': '演数峰',
-          'peak-zi': '观星峰', 'bank': '试炼塔', 'contest': '演武场',
+          'peak-zi': '观星峰', 'bank': '试炼塔', 'contest': '宗门大比',
           'skeleton': '藏经阁', 'tianji': '天机台'}
 
 

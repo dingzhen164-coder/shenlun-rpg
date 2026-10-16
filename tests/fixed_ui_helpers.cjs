@@ -4,6 +4,8 @@ async function reveal(page,locator){
   await page.waitForTimeout(60);
   if(await locator.count())await locator.first().evaluate(el=>{for(let p=el;p;p=p.parentElement)if(p.tagName==='DETAILS'&&p!==el.closest('summary')?.parentElement)p.open=true;});
   if(!await locator.count())return;
+  const scene=await locator.first().evaluate(el=>{const p=el.closest('.cs-pane');return p?{mode:p.dataset.csPane,open:!!p.closest('dialog')?.open}:null;});
+  if(scene)await page.locator(`[data-cs-${scene.open?'tab':'enter'}="${scene.mode}"]`).click();
   const ids=await locator.first().evaluate(el=>{const ids=[];for(let p=el;p;p=p.parentElement)if(p.hidden&&getComputedStyle(p).display==='none'&&p.getAttribute('role')==='tabpanel')ids.unshift(p.id);return ids;});
   for(const id of ids){const tab=page.locator(`[role="tab"][aria-controls="${id}"]`);if(await tab.count())await tab.click();}
 }

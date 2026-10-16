@@ -36,7 +36,7 @@ REGIONS = {
 }
 VIEWS = ["dwelling", "train", "bank", "contest", "skeleton", "notes", "tianji", "settings"]
 PLACES = {
-    "行测": ["洞府", "问道群峰", "试炼塔", "演武场", "藏经阁", "灵台手札", "天机台", "设置"],
+    "行测": ["洞府", "问道群峰", "试炼塔", "宗门大比", "藏经阁", "灵台手札", "天机台", "设置"],
     "申论": ["办公室", "知识办理中心", "实操训练中心", "年度考核", "档案室", "公务手账", "天机台", "设置"],
     "法考": ["营地", "冒险大厅", "试炼塔", "竞技场", "咒文书馆", "魔法手记", "天机台", "设置"],
 }
@@ -69,9 +69,9 @@ def slots(subject):
     out.append(("首页全景", "白天", day, day, "image", ("sl-hall-day",) if sl else ()))
     out.append(("首页全景", "夜晚", night or "beauty/page/home-night.webp", night, "image", ("sl-hall-night",) if sl else ()))
     for view, place in zip(VIEWS, PLACES.get(subject, PLACES["行测"])):
-        out.append(("子地图背景", place, "beauty/page/%s.webp" % view, None, "image", ()))
-        out.append(("子地图背景", place + "-白天", "beauty/page/%s-day.webp" % view, None, "image", ()))
-        out.append(("子地图背景", place + "-夜晚", "beauty/page/%s-night.webp" % view, None, "image", ()))
+        legacy = '演武场' if subject == '行测' and view == 'contest' else ''
+        for suffix, rel in [('', 'beauty/page/%s.webp' % view), ('-白天', 'beauty/page/%s-day.webp' % view), ('-夜晚', 'beauty/page/%s-night.webp' % view)]:
+            out.append(("子地图背景", place + suffix, rel, None, "image", (legacy + suffix,) if legacy else ()))
     for key, name in REGIONS.get(subject, []):
         out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image", ()))
         out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image", ()))

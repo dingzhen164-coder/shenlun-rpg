@@ -108,22 +108,24 @@
     } catch (e) { if (sequence === currentSequence) options.error(e); }
   }
   function renderMeeting(root, data) {
-    root.querySelector('.npc-encounters')?.remove();
+    document.querySelector('.npc-encounters')?.remove();
     if (!data.characters?.length && !data.warnings?.length) return;
     root.classList.add('npc-map-host');
-    const bar = document.createElement('section'); bar.className = 'npc-encounters'; bar.setAttribute('aria-label', '此处偶遇');
-    bar.innerHTML = `<button class="npc-drawer-toggle" aria-expanded="${drawerExpanded}" aria-controls="npc-encounter-body"><span>此处偶遇 · ${data.characters.length}${data.warnings?.length ? ' !' : ''}</span><span class="npc-drawer-arrow" aria-hidden="true">${drawerExpanded ? '‹' : '›'}</span></button><div class="npc-encounter-body" id="npc-encounter-body" ${drawerExpanded ? '' : 'hidden'}><div class="npc-encounter-people">${data.characters.map(p => `<button class="npc-person" data-npc-id="${esc(p.id)}" aria-label="与${esc(p.name)}交谈">${image(p, 'bust', 'npc-avatar')}<span><b>${esc(p.name)}</b><small>${esc(p.role)}</small></span></button>`).join('')}</div>${data.warnings?.length ? `<p class="npc-config-warning">人物配置提示：${esc(data.warnings.join('；'))}</p>` : ''}</div>`;
+    const bar = document.createElement('section'); bar.className = 'npc-encounters'; bar.setAttribute('aria-label', '此处偶遇');bar.dataset.expanded=String(drawerExpanded);
+    bar.innerHTML = `<button class="npc-drawer-toggle" aria-label="${drawerExpanded ? '收起' : '展开'}此处偶遇，${data.characters.length}位人物" title="此处偶遇" aria-expanded="${drawerExpanded}" aria-controls="npc-encounter-body"><span class="npc-drawer-arrow" aria-hidden="true"></span></button><div class="npc-encounter-body" id="npc-encounter-body" ${drawerExpanded ? '' : 'inert'}><h3 class="npc-encounter-heading">此处偶遇 · ${data.characters.length}${data.warnings?.length ? ' !' : ''}</h3><div class="npc-encounter-people">${data.characters.map(p => `<button class="npc-person" data-npc-id="${esc(p.id)}" aria-label="与${esc(p.name)}交谈">${image(p, 'bust', 'npc-avatar')}<span><b>${esc(p.name)}</b><small>${esc(p.role)}</small></span></button>`).join('')}</div>${data.warnings?.length ? `<p class="npc-config-warning">人物配置提示：${esc(data.warnings.join('；'))}</p>` : ''}</div>`;
     const toggle = bar.querySelector('.npc-drawer-toggle');
     toggle.onclick = () => {
       drawerExpanded = !drawerExpanded;
       toggle.setAttribute('aria-expanded', String(drawerExpanded));
-      bar.querySelector('.npc-encounter-body').hidden = !drawerExpanded;
-      bar.querySelector('.npc-drawer-arrow').textContent = drawerExpanded ? '‹' : '›';
+      bar.dataset.expanded=String(drawerExpanded);
+      toggle.setAttribute('aria-label',(drawerExpanded ? '收起' : '展开')+'此处偶遇，'+data.characters.length+'位人物');
+      bar.querySelector('.npc-encounter-body').toggleAttribute('inert',!drawerExpanded);
       try { localStorage.setItem('npc-drawer-v1', drawerExpanded ? 'open' : 'closed'); } catch (_) {}
     };
     bar.querySelectorAll('[data-npc-id]').forEach(b => b.onclick = () => open(b.dataset.npcId, b));
     bar.querySelectorAll('img').forEach(img => img.addEventListener('error', () => { const mark=document.createElement('span'); mark.className='npc-avatar npc-monogram'; mark.textContent='人'; img.replaceWith(mark); }, {once:true}));
-    (root.querySelector(':scope > .portal-world') || root).append(bar);
+    // 固定在窗口边缘；不放进带过场transform的#view，避免切地图时偏移、被内容框裁切。
+    document.body.append(bar);
   }
   async function mount() {
     if (!options) return;
@@ -131,14 +133,14 @@
     const scope = options.scope(), key = scope + ':' + scene;
     if (!scene || !root) {
       if (sceneKey) { ++sequence; sceneKey = ''; meeting = null; close(); }
-      root?.querySelectorAll('.npc-encounters').forEach(x => x.remove()); root?.classList.remove('npc-map-host'); return;
+      document.querySelectorAll('.npc-encounters').forEach(x => x.remove()); root?.classList.remove('npc-map-host'); return;
     }
     if (key === sceneKey) {
-      if (meeting && (meeting.characters.length || meeting.warnings?.length) && !root.querySelector('.npc-encounters')) renderMeeting(root, meeting);
+      if (meeting && (meeting.characters.length || meeting.warnings?.length) && !document.querySelector('.npc-encounters')) renderMeeting(root, meeting);
       return;
     }
     close(); sceneKey = key; const seq = ++sequence; meeting = null;
-    root.querySelectorAll('.npc-encounters').forEach(x => x.remove());
+    document.querySelectorAll('.npc-encounters').forEach(x => x.remove());
     try {
       const data = await options.api('/api/characters/encounter', {scene});
       if (seq !== sequence || options.context() !== scene || options.scope() !== scope) return;

@@ -1,0 +1,23 @@
+/* 普通功能框居中留景；答题、手写与阅读编辑器由原固定工作区管理。 */
+.fixed-app body:not(.portal-home),html.fixed-app.theme-gc body:not(.portal-home){background:transparent}
+.fixed-app .scene-panel{align-self:center;flex:0 1 auto!important;box-sizing:border-box;width:min(calc(100% - 32px),max(360px,var(--scene-panel-width,50%)));height:var(--scene-panel-height);max-height:var(--scene-panel-height);margin:auto!important;min-width:0;min-height:0;border:1px solid var(--ds-line);border-radius:var(--ds-r-12);overflow:hidden}
+.fixed-app .scene-panel.fx-settings{height:auto;flex-shrink:1}
+.fixed-app .fx-settings .fx-panel{background:transparent}
+.fixed-app .fx-settings-list{display:flex;flex-direction:column;gap:var(--ds-sp-8);padding:var(--ds-sp-8)!important}
+.fx-settings-list>.fx-settings-group{flex:none;margin:0;border:1px solid var(--ds-line);border-radius:var(--ds-r-8);background:var(--ds-surface);min-width:0}
+.fx-settings-group>summary{cursor:pointer;padding:var(--ds-sp-12) var(--ds-sp-16);min-height:48px;box-sizing:border-box;color:var(--ds-text);font-size:var(--ds-fs-16)}
+.fx-settings-group>summary h3{display:inline;margin:0;font-size:inherit}
+.fx-settings-group-body{padding:0 var(--ds-sp-8) var(--ds-sp-8);min-width:0}
+.fixed-app .fx-settings .portal-stage-editor{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.scene-panel.fx-settings .row>label,.scene-panel.fx-settings .ai-switch select{min-width:0;max-width:100%}
+.scene-panel-sliders{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ds-sp-16);margin-bottom:var(--ds-sp-12)}
+.scene-panel-sliders input{display:block;width:100%}
+.scene-panel-sliders output{color:var(--ds-accent)}
+.fixed-app .scene-panel.fx-region-detail{gap:var(--ds-sp-8);padding:var(--ds-sp-12);background:transparent}
+.fixed-app .scene-panel.fx-region-detail>.fx-tabs{display:none}
+.fixed-app .scene-panel .fx-region-work{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:var(--ds-sp-12);width:100%}
+.fixed-app .scene-panel .fx-region-work>[hidden]{display:flex!important}
+.fixed-app .scene-panel .fx-region-work>.card{min-width:0;min-height:0;width:100%;box-sizing:border-box}
+.scene-panel .study-region-heading{flex-wrap:wrap;gap:var(--ds-sp-8)}
+.scene-panel .study-region-heading h2{font-size:var(--ds-fs-22)}
+.scene-panel .study-region-heading p{margin:var(--ds-sp-4) 0}
