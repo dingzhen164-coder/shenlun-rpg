@@ -155,6 +155,9 @@
         ${d.document_path ? `<button id="lnDocument" title="${esc(d.document_path)}">本地文档</button>` : ''}</div>`}
       <div class="ln-reading-body" data-mode="${manage?'map':'split'}"><div class="ln-canvas" id="lnCanvas"></div><article class="ln-document" id="lnMarkdown" ${manage?'hidden':''}>${outline(plain(JSON.parse(JSON.stringify(data.root || {data:{text:board}}))))}</article></div>
       ${manage ? '<div class="ln-tip small faint">点节点选中 · 双击改字 · 拖动节点换位置 · 改了自动保存</div>' : ''}`;
+    // 只读工具与返回/图名共用一栏；移动原节点，保留按钮和阅读视口。
+    s.classList.toggle('ln-compact',!manage);
+    if(!manage)s.querySelector('.yj-top').append(s.querySelector('.ln-reading-tabs'));
     document.getElementById("lnBack").onclick = close;
     const Mind = M(), palette=getComputedStyle(document.body), color=k=>palette.getPropertyValue(k).trim();
     try {

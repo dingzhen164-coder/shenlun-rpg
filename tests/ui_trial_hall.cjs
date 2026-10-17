@@ -41,8 +41,7 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.locator('[data-th-enter=sets]').click();assert(await page.locator('.th-dialog').evaluate(d=>d.open));
   assert.equal(await page.locator('.th-dialog').evaluate(d=>getComputedStyle(d,'::backdrop').backgroundColor),'rgba(0, 0, 0, 0)');
   await page.keyboard.press('Escape');await page.locator('.th-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('dialog[open]').count(),0);assert(await page.locator('[data-th-enter=sets]').evaluate(b=>b===document.activeElement));
-  await page.locator('[data-th-motion]').click();assert(await page.locator('.trial-hall').evaluate(h=>h.classList.contains('th-still')));assert.equal(await page.locator('.th-cloud').first().evaluate(e=>getComputedStyle(e).animationName),'none');
-  await page.locator('[data-th-motion]').click();await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
+  assert.equal(await page.locator('[data-th-motion]').count(),0);await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
   await page.locator('[data-th-enter=blocks]').click();await page.locator('[data-th-close]').click();assert.equal(await page.locator('dialog[open]').count(),0);
   await page.locator('[data-th-enter=history]').click();await fits(page);await page.locator('[data-th-close]').click();assert.deepEqual(noTraining,[]);page.off('request',track);
   await page.locator('[data-th-enter=sets]').click();
@@ -59,11 +58,11 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.phase),'review');await pause(page);
   // 修改顺序/每组数量仅影响下一组；两模式切换不发新的训练请求。
   await choose(page,'[data-th-topic]','');await page.locator('.bankOrder').selectOption('shuffle');await page.waitForFunction(()=>document.querySelector('.th-save-status')?.textContent.includes('已保存'));
-  await page.locator('#bankCount').selectOption('15');await page.waitForFunction(()=>document.querySelector('.th-save-status')?.textContent.includes('已保存'));
-  await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),15);
+  await page.locator('#bankCount').selectOption('20');await page.waitForFunction(()=>document.querySelector('.th-save-status')?.textContent.includes('已保存'));
+  await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),20);
   await page.locator('[data-act^="exam_pick"]').first().click();await page.waitForFunction(()=>!T.busy);const before=await page.evaluate(()=>({answered:T.battle.answered,position:T.battle.position}));await pause(page);
   await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.deepEqual(await page.evaluate(()=>({answered:T.battle.answered,position:T.battle.position})),before);await pause(page);
-  // 套卷题数不受15题设置限制；此夹具一套跨两板块共6题。
+  // 套卷题数不受20题设置限制；此夹具一套跨两板块共6题。
   await enter(page,'sets');await page.locator('[data-th-paper="23"]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),6);await pause(page);
   await enter(page,'blocks');await choose(page,'[data-th-topic]',0);
   // 回炉按整个板块，避免用户误以为只复习当前知识点。

@@ -78,7 +78,7 @@
         if(has('.shortcut-settings,.portal-settings'))group('navigation','地图与操作',n,true);
         else if(has('#ambTheme,#cwR,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
         else if(has('#sSave'))group('ai','AI与资料',n);
-        else if(has('#scheduleSave,[data-subject],.qb-settings')||/改规则/.test(name))group('learning','学习与成长',n);
+        else if(has('#scheduleSave,[data-subject],.qb-settings,.cc-settings')||/改规则/.test(name))group('learning','学习与成长',n);
         else if(has('#updCheck')||/版本/.test(name))group('updates','版本与更新',n);
         else group('device','设备与工具',n);
       }else if(route==='contest'){
@@ -152,6 +152,8 @@
   }
   function pageBar(root) {
     const slot=root.querySelector('#studyHud .subpage-nav');if(!slot)return;
+    const head=root.querySelector('.chat>.bank-head');
+    if(head){slot.querySelector('.bank-head')?.remove();head.closest('.chat').classList.add('compact-bank');slot.append(head);}
     // 手账重绘左栏会产生新的分类节点，替换旧节点，避免展开/收起后叠出重复按钮。
     const noteTabs=root.querySelector('.sl-ui-section-tabs>.nt-tabs');
     if(noteTabs)slot.querySelectorAll(':scope>.nt-tabs').forEach(old=>{if(old!==noteTabs)old.remove();});

@@ -312,7 +312,7 @@ def sets(g):
 
 def count(g):
     n = g.rules.num('实战每组题数')
-    return 15 if n == 15 else 10
+    return int(n) if n in (10, 15, 20) else 10
 
 
 ORDERS = ('seq', 'shuffle')
@@ -405,7 +405,11 @@ def begin(g, board, mode):
     else:
         qs = [r['question'] for r in data['records'].values()
               if r['question']['board'] == board and r.get('wrong')]
-    qs = _pick(g, qs) if mode == 'new' else qs[:count(g)]
+    if mode == 'review' and board == '资料分析':
+        # 资料复习随机抽十道独立错题，不按材料补题；已开始的快照仍直接续做。
+        qs = random.sample(qs, min(10, len(qs)))
+    else:
+        qs = _pick(g, qs) if mode == 'new' else qs[:count(g)]
     if not qs:
         raise BankError(g.T('bank_empty') if mode == 'new' else g.T('bank_no_wrong'))
     run = {'token': uuid.uuid4().hex, 'board': board, 'mode': mode, 'questions': qs,

@@ -5,7 +5,7 @@
    - 大比复盘：选一季，按板块逐题复盘（和试炼交卷后的复盘一样；时间记进“修炼 · 复习”，见 rpg/trainer.py mock_review）
    - 历次模考一览 + 录入成绩单（粉笔成绩单上的数字照抄） */
 (function () {
-  let MOCK = null;
+  let MOCK = null, CALENDAR = null;
   let PICK = "avg";          // 模块统计看哪一季："avg" = 历次平均
   let EDIT = null;           // 正在录入的季
   let AN = null;             // 考情分析看哪一季
@@ -394,7 +394,7 @@
     };
   }
   function mountScene(v,state=null){
-    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),state});
+    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),calendar:CALENDAR,state});
   }
   function rerender(view=null) {
     const v = document.getElementById("view");
@@ -405,7 +405,7 @@
     bind();
   }
   async function render(v, beforeCommit=()=>true) {
-    MOCK = await api("/api/mock");
+    [MOCK,CALENDAR] = await Promise.all([api("/api/mock"),api("/api/contest/calendar",{})]);
     if (AN == null && MOCK.seasons.length) AN = MOCK.seasons[MOCK.seasons.length - 1].season;
     await loadConv(AN);
     if(typeof VIEW!=='undefined'&&VIEW!=='contest'||!beforeCommit())return;
