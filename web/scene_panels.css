@@ -27,3 +27,9 @@
 .fx-settings-group-body>.fx-settings-section+.fx-settings-section{border-top:1px solid var(--ds-line)}
 .fx-settings-section>h3{font-size:var(--ds-fs-16);margin:0 0 12px}
 .fx-settings-section .sv-vision{margin-top:16px;border-top:1px solid var(--ds-line);padding-top:12px}
+
+/* 分区名称统一在左上地点栏，资料区从顶栏下铺至底边。 */
+.fixed-app .scene-panel.fx-region-detail{height:100%;max-height:100%;padding:0;border:0;gap:0}
+.fixed-app .fx-region-detail>.study-region-heading{display:none}
+.fixed-app .scene-panel.fx-region-detail .fx-region-work{height:100%;align-items:stretch;gap:var(--ds-sp-12)}
+html:not(.in-notes) body.has-page-art .scene-panel.fx-region-detail .fx-region-work>.fx-frame{height:100%;max-height:100%}

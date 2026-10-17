@@ -123,7 +123,16 @@
     const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!delta)return;
     e.preventDefault();edit.selected=point.dataset.portalPoint;const p=edit.layout[edit.device][edit.selected],step=e.shiftKey?5:1;p.x=clamp(p.x+delta[0]*step);p.y=clamp(p.y+delta[1]*step);syncEditor();status('尚未保存');
   });
-  window.addEventListener('resize',()=>{cancelDrag();if(document.body.classList.contains('portal-home')){const root=document.getElementById('view');if(root)root.innerHTML=homeHtml();mount('home');}else if(edit&&document.querySelector('[data-portal-preview]'))redrawEditor();});
+  let viewportKey='';
+  window.addEventListener('resize',()=>{
+    const key=innerWidth+'x'+innerHeight;if(key===viewportKey)return;viewportKey=key;cancelDrag();
+    if(document.body.classList.contains('portal-home')){
+      const stage=document.querySelector('[data-portal-stage="home"]');if(!stage)return;
+      const device=profile(),geo=geometry(device),layout=load();stage.dataset.profile=device;
+      stage.dataset.mapHeight=geo.height;stage.dataset.mapTop=geo.top;stage.dataset.mapSpan=geo.span;
+      stage.querySelectorAll('[data-portal-go]').forEach(b=>{const p=layout[device][b.dataset.portalGo];b.style.setProperty('--px',p.x+'%');b.style.setProperty('--py',p.y+'%');b.style.setProperty('--portal-y',p.y/100);});mount('home');
+    }else if(edit&&document.querySelector('[data-portal-preview]'))redrawEditor();
+  });
   document.addEventListener('visibilitychange',syncMotion);
   window.SCENE_PORTAL={configure,homeHtml,settingsHtml,mount,normalize,profile,title};
 })();

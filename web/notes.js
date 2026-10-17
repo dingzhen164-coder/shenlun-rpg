@@ -31,13 +31,14 @@
   const touchDev = () => document.documentElement.classList.contains("touch") || matchMedia("(pointer: coarse)").matches;
 
   // ---------------------------------------------------------------- 页面
-  async function render(v) {
+  async function render(v, beforeCommit=()=>true) {
     if (!(await flush())) return;
     EMBED = false;
     try {
       const r = await api("/api/notes");
       BOOKS = r.notebooks; INFO = r;
-    } catch (e) { v.innerHTML = `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; return; }
+    } catch (e) { if(!beforeCommit())return;v.innerHTML = `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; return; }
+    if(!beforeCommit())return;
     v.innerHTML = `<div class="notes" id="notesRoot">${side()}<section class="nt-main" id="ntMain"></section></div>`;
     if((typeof isSL==='function'&&isSL()))window.SL_UI?.mount('notes');
     fit();

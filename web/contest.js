@@ -404,11 +404,11 @@
     v.innerHTML = html(MOCK);mountScene(v,state);
     bind();
   }
-  async function render(v) {
+  async function render(v, beforeCommit=()=>true) {
     MOCK = await api("/api/mock");
     if (AN == null && MOCK.seasons.length) AN = MOCK.seasons[MOCK.seasons.length - 1].season;
     await loadConv(AN);
-    if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
+    if(typeof VIEW!=='undefined'&&VIEW!=='contest'||!beforeCommit())return;
     v.innerHTML = html(MOCK);mountScene(v);
     bind();
   }

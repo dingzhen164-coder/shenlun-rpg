@@ -45,3 +45,13 @@ body.has-page-art .cs-landscape{background-image:var(--ds-page-art)}
 [data-motion=reduced] .contest-scene *,[data-motion=paused] .contest-scene *{animation:none!important;transition:none!important}
 @container(max-width:900px){.cs-overview{left:15%;top:42%}.cs-review{left:85%;top:42%}.cs-trends{left:25%;top:76%}.cs-entry{left:75%;top:76%}}
 @container(max-width:460px){.cs-pane{padding:var(--ds-sp-12)}.cs-pane .kpis,.cs-pane .mods{grid-template-columns:minmax(0,1fr)}.cs-foot{flex-wrap:wrap}.cs-pane .rv-board{min-width:0}}
+
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
+ .contest-scene .cs-heading p,.contest-scene .cs-heading>span,.cs-dialog.cs-dialog .cs-foot,.cs-dialog.cs-dialog .cs-foot button,.cs-dialog.cs-dialog h3 small,.cs-dialog.cs-dialog .kpi .k,.cs-dialog.cs-dialog .kpi .s,.cs-dialog.cs-dialog .mods,.cs-dialog.cs-dialog .an-conv,.cs-dialog.cs-dialog .tbl,.cs-dialog.cs-dialog .rv-board,.cs-dialog.cs-dialog .rv-board small{font-size:var(--ds-fs-16);font-weight:600}
+ .contest-scene .cs-entrance{font-size:calc(var(--ds-fs-26)*1.5);font-weight:700}
+ .cs-dialog.cs-dialog h3,.cs-dialog.cs-dialog .contest-hero h2{font-size:var(--ds-fs-22);font-weight:700}
+}
+
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
+ .cs-dialog.cs-dialog .chart .legend,.cs-dialog.cs-dialog .chart .cy,.cs-dialog.cs-dialog .chart .cx,.cs-dialog.cs-dialog table,.cs-dialog.cs-dialog .ctable{font-size:var(--ds-fs-16);font-weight:600}
+}

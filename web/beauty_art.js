@@ -13,33 +13,41 @@
     '民法': 'minfa', '刑法': 'xingfa', '民诉': 'minsu', '刑诉': 'xingsu', '行政法': 'xingzheng', '商经知': 'shangjing', '三国法': 'sanguo', '理论法': 'lilun' };
   const regionName = () => { try { return window.STUDY_REGIONS ? STUDY_REGIONS.title() : ''; } catch (e) { return ''; } };
   const tabLabel = () => { const t = document.querySelector('.fx-tab[aria-selected="true"]'); return t ? t.textContent.trim() : ''; };
-  let view = '';
-  function apply() {
-    const b = document.body; if (!b) return;
+  let view = '', applied='';
+  function findHit(page) {
     const dark = document.documentElement.dataset.theme === 'dark', dn = dark ? 'night' : 'day', want = [];
-    if (view && view !== 'home') {
-      const tk = view === 'dwelling' ? TAB_KEY[tabLabel()] : '';              // 洞府每个页签可单独配背景，没有就回退洞府整体背景
+    if (page && page !== 'home') {
+      const tk = page === 'dwelling' ? TAB_KEY[tabLabel()] : '';              // 洞府每个页签可单独配背景，没有就回退洞府整体背景
       if (tk) want.push(`beauty/page/dwelling-${tk}-${dn}.webp`, `beauty/page/dwelling-${tk}.webp`);
-      const rk = view === 'train' ? REGION_KEY[regionName()] : '';          // 修炼页选中某个分区（五峰等）时可单独配背景
+      const rk = page === 'train' ? REGION_KEY[regionName()] : '';          // 修炼页选中某个分区（五峰等）时可单独配背景
       if (rk) want.push(`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`);
-      want.push(`beauty/page/${view}-${dn}.webp`, `beauty/page/${view}.webp`);
+      want.push(`beauty/page/${page}-${dn}.webp`, `beauty/page/${page}.webp`);
     }
-    const hit = want.find(has);
-    if (hit) { b.style.setProperty('--ds-page-art', `url("${url(hit)}")`); b.classList.add('has-page-art'); }
-    else { b.style.removeProperty('--ds-page-art'); b.classList.remove('has-page-art'); }
+    return want.find(has);
+  }
+  const decoded=new Map();
+  function decode(src){if(!decoded.has(src))decoded.set(src,new Promise(resolve=>{const img=new Image();img.onload=()=>{if(img.decode)img.decode().catch(()=>{}).then(resolve);else resolve();};img.onerror=()=>resolve();img.src=src;}));return decoded.get(src);}
+  function prepare(page){const hit=findHit(page),urls=hit?[url(hit)]:[];
+    const examScene=!(typeof isSL==='function'&&isSL());
+    if(page==='bank'&&examScene)urls.push('assets/beauty/trial/tower.png','assets/beauty/trial/gate.png','assets/beauty/trial/landscape.png');
+    if(page==='contest'&&examScene)urls.push('assets/beauty/contest/arena.png');
+    return Promise.all(urls.map(decode));
+  }
+  function apply(){const b=document.body;if(!b)return;const hit=findHit(view);
+    if(applied===(hit||''))return;applied=hit||'';
+    if(hit){b.style.setProperty('--ds-page-art',`url("${url(hit)}")`);b.classList.add('has-page-art');}
+    else{b.style.removeProperty('--ds-page-art');b.classList.remove('has-page-art');}
   }
   function readView() {                                                       // 当前页取 app.js 的 VIEW（试炼塔 bank 等不在顶栏里，不能靠顶栏判断）
     let v = ''; try { v = typeof VIEW !== 'undefined' ? VIEW : ''; } catch (e) { v = ''; }
     if (v !== view) { view = v; apply(); }
   }
   const start = () => {
-    const nav = document.getElementById('nav');
-    if (nav) new MutationObserver(readView).observe(nav, { attributes: true, attributeFilter: ['class'], subtree: true });
     new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     readView();
     const v = document.getElementById('view'); let q = 0;                    // 洞府切页签时更新背景
-    if (v) new MutationObserver(() => { if (!q) { q = 1; setTimeout(() => { q = 0; readView(); apply(); }, 60); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });
+    if (v) new MutationObserver(() => { if (!q) { q = 1; queueMicrotask(() => { q = 0; apply(); }); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  window.BeautyArt = { has, url, files: () => Array.from(F.keys()) };
+  window.BeautyArt = { prepare, mount(page){view=page;apply();}, has, url, files: () => Array.from(F.keys()) };
 })();

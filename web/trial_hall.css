@@ -103,3 +103,23 @@
 .trial-hall:has(dialog[open]) .th-world *{animation-play-state:paused}
 @container(max-width:900px){.th-gate-sets{left:1%}.th-gate-blocks{right:1%}.trial-hall .th-gate{width:29%;height:32%;bottom:15%}.th-world-title{top:4%;left:4%}.th-scene-tools{top:4%}}
 @container(max-width:460px){.th-stats{gap:var(--ds-sp-4) var(--ds-sp-8)}.th-stats b{font-size:var(--ds-fs-14)}.th-tabs{gap:var(--ds-sp-8);padding:0 var(--ds-sp-12)}.th-pane{padding:var(--ds-sp-12)}.th-actions{padding:var(--ds-sp-8) var(--ds-sp-12)}.th-action-note{flex-basis:100%}.th-action-buttons{width:100%}.th-action-buttons button{flex:1}.th-actions>.th-start{width:100%}.th-dialog-head{padding:var(--ds-sp-12)}}
+
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
+ .trial-hall,.contest-scene{font-size:var(--ds-fs-18);font-weight:600}
+ .trial-hall .th-world-title p,.trial-hall .th-world-title>span,.cs-heading p,.cs-heading>span{font-size:var(--ds-fs-16);font-weight:600}
+ .trial-hall .th-gate-label,.trial-hall .th-tower-inscription,.contest-scene .cs-entrance{font-size:calc(var(--ds-fs-26)*1.5);font-weight:700}
+ .trial-hall .th-heading h2,.cs-heading h2{font-weight:700}
+ .trial-hall .th-stele{font-size:var(--ds-fs-18);font-weight:600}
+ .trial-hall .th-stele p,.trial-hall .th-scene-tools button{font-size:var(--ds-fs-16);font-weight:600}
+ .fixed-app .th-dialog{font-size:var(--ds-fs-18);font-weight:600}
+ .th-dialog .th-dialog-head h2{font-size:var(--ds-fs-26);font-weight:700}
+ .th-dialog button,.th-dialog select,.th-dialog input,.th-dialog textarea,.th-dialog label,.th-dialog .small,.th-dialog small,.th-dialog p,.th-dialog .th-eyebrow,.th-dialog .th-stats,.th-dialog .cs-foot,.th-dialog .th-action-note{font-size:var(--ds-fs-16);font-weight:600}
+ .th-dialog h3,.th-dialog .th-selection h3,.th-dialog .th-list-head,.th-dialog .th-choice b{font-size:var(--ds-fs-20);font-weight:700}
+ .th-dialog .th-stats b,.th-dialog .th-history-row b{font-size:var(--ds-fs-20);font-weight:700}
+ .th-dialog .th-pane,.th-dialog .cs-pane,.th-dialog .th-choice small,.th-dialog .kpi .k,.th-dialog .kpi .s,.th-dialog .rv-board,.th-dialog .rv-board small,.th-dialog .tbl,.th-dialog .an-msg{font-size:var(--ds-fs-16);font-weight:600}
+ .th-dialog .kpi .v{font-size:var(--ds-fs-26);font-weight:700}
+}
+
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
+ .th-dialog .th-kicker,.th-dialog .th-selection small,.th-dialog .th-list-head small,.th-dialog .th-history-row small,.th-dialog .th-choice-progress small,.th-dialog .th-block-notes,.th-dialog summary,.th-dialog td,.th-dialog th{font-size:var(--ds-fs-16);font-weight:600}
+}

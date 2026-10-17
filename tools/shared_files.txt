@@ -3,6 +3,7 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+shared tests/ui_layout337.cjs
 shared rpg/task_board.py
 shared web/task_board.js
 shared web/task_board.css
