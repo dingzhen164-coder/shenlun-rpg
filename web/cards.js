@@ -6,7 +6,6 @@
   const T = (k) => (typeof W === "function" ? W(k) : k);
   const LS = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   const CLOSED = new Set(JSON.parse(LS.get("xrpg-yj-closed", "[]")));
-  let HUB_SCOPE = null;
   let OV = null;                 // /api/cards 的概览
   let MODE = "";                 // review | add | browse | stats | import
   let R = null;                  // 温简状态 {deck, card, intervals, counts, shown, t0, ask:[], asking}
@@ -15,13 +14,14 @@
 
   // ---------------------------------------------------------------- 修炼殿里的简匣树
   async function hubHtml(region) {
-    HUB_SCOPE = null;
+    let scopeInfo=null;
     try { OV = await api("/api/cards"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
     if (region) {
       const scope=OV.decks.filter(d=>STUDY_REGIONS.belongs(d.name,region.id)).map(d=>d.name);
       try { OV=await api("/api/cards",{scope}); } catch(e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
-      HUB_SCOPE={scope,label:region.label,deck:region.deck};
+      scopeInfo={scope,label:region.label,deck:region.deck};
     }
+    if (region && !OV.cards) return "";
     const decks = OV.decks;
     const roots=decks.filter(d=>!decks.some(p=>d.name.startsWith(p.name+"::")));
     const depth=d=>d.depth-(roots.find(p=>d.name===p.name||d.name.startsWith(p.name+"::"))?.depth||0);
@@ -32,9 +32,9 @@
         <span class="yj-fold">${kids(d.name) ? `<a data-yjfold="${esc(d.name)}">${CLOSED.has(d.name) ? "▸" : "▾"}</a>` : ""}</span>
         <a class="yj-name" data-yjgo="${esc(d.name)}" title="温这个简匣（含子匣）">${esc(d.label)}</a>
         ${num(d.new, "new")}${num(d.learn, "learn")}${num(d.review, "due")}
-        <a class="yj-gear" data-yjgear="${esc(d.name)}" title="${esc(T("yj_rule"))}、新建子匣、改名、删除">⚙</a></div>`).join("");
+        ${region ? '<span class="yj-gear"></span>' : `<a class="yj-gear" data-yjgear="${esc(d.name)}" title="${esc(T("yj_rule"))}、新建子匣、改名、删除">⚙</a>`}</div>`).join("");
     const total = roots.reduce((a, d) => [a[0] + d.new, a[1] + d.learn, a[2] + d.review], [0, 0, 0]);
-    return `<div class="card yj-hall">
+    return `<div class="card yj-hall" data-yj-scope="${esc(JSON.stringify(scopeInfo))}">
       <div class="yj-hall-head"><div><div class="yj-title">📜 ${esc(T("yj"))}</div>
         <div class="small muted">共 ${OV.cards} ${esc(T("yj_unit"))}${region ? " · " + esc(region.label) : ` · 今日已温 ${OV.today.n} ${esc(T("yj_unit"))}${OV.today.secs >= 60 ? ` · ${Math.round(OV.today.secs / 60)} 分钟` : ""}`}</div></div>
         <span class="spacer"></span>
@@ -44,7 +44,7 @@
         <span class="yj-n new">${esc(T("yj_new"))}</span><span class="yj-n learn">${esc(T("yj_learn"))}</span><span class="yj-n due">${esc(T("yj_due"))}</span><span class="yj-gear"></span></div>
         ${rows}</div>
       ${OV.cards ? "" : `<p class="small muted yj-empty">还没有${esc(T("yj"))}。点「✍ ${esc(T("yj_add"))}」自己刻，或者「📥 导入」Anki 导出的文本；用 xingce-card skill 从 PDF / 笔记做的也会出现在这里。</p>`}
-      <div class="small faint yj-moved">✍ ${esc(T("yj_add"))}、🧙 师傅制卡、🏛 ${esc(T("yj_browse"))}、📊 ${esc(T("yj_stats"))}、📥 导入、＋ 新${esc(T("yj_deck"))} 在「${esc(NAV("skeleton"))} › ${esc(T("yj"))} · 知识点」里</div></div>`;
+      ${region ? "" : `<div class="small faint yj-moved">✍ ${esc(T("yj_add"))}、🧙 师傅制卡、🏛 ${esc(T("yj_browse"))}、📊 ${esc(T("yj_stats"))}、📥 导入、＋ 新${esc(T("yj_deck"))} 在「${esc(NAV("skeleton"))} › ${esc(T("yj"))} · 知识点」里</div>`}</div>`;
   }
   // 刻简 / 师傅制卡 / 灵识图 / 导入 / 新简匣：放在藏经阁「玉简 · 知识点」（藏简阁就是那里的一枚枚玉简）
   function toolsHtml() {
@@ -67,7 +67,7 @@
       const n = a.dataset.yjfold; CLOSED.has(n) ? CLOSED.delete(n) : CLOSED.add(n);
       LS.set("xrpg-yj-closed", JSON.stringify([...CLOSED])); renderTrain();
     }));
-    root.querySelectorAll("[data-yjgo]").forEach((a) => (a.onclick = () => review(a.dataset.yjgo, HUB_SCOPE)));
+    root.querySelectorAll('[data-yjgo]').forEach(a=>{const scope=JSON.parse(a.closest('.yj-hall')?.dataset.yjScope||'null');a.onclick=()=>review(a.dataset.yjgo,scope);});
     root.querySelectorAll("[data-yjmode]").forEach((b) => (b.onclick = () => open(b.dataset.yjmode)));
     root.querySelectorAll("[data-yjgear]").forEach((a) => (a.onclick = (e) => { e.stopPropagation(); deckMenu(a, a.dataset.yjgear); }));
     const dl = root.querySelector("#yjDaily");

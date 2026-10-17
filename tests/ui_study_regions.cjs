@@ -1,5 +1,5 @@
 /* 3.0.3真实入口与分区隔离：临时自编卡、嵌套跨板块简匣、完整温简/撤销和导图开关。
-   检查普通页随文状态栏及工作区紧凑带；手机/平板亮暗边界。无真实库或AI。 */
+   检查普通页随文状态栏及工作区紧凑带；电脑/平板亮暗边界。无真实库或AI。 */
 const assert=require('node:assert/strict'),{chromium}=require('playwright'),{spawn}=require('node:child_process'),fs=require('node:fs');
 const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1];
 const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--journey-fixture'],{env:process.env});
@@ -18,21 +18,21 @@ async function compact(selector){await page.waitForFunction(()=>document.documen
  const target=subject==='行测'?'li':'board-0';
  const regions=await page.locator('[data-study-region]').evaluateAll(xs=>xs.map(x=>x.dataset.studyRegion));
  for(const id of regions){
-  await page.locator(`[data-study-region="${id}"]`).click();await page.locator('.study-region-heading').waitFor();
+  await page.locator(`[data-study-region="${id}"]`).click();await page.locator('.study-region-heading').waitFor({state:'attached'});
   const actual=await page.locator('.yj-name[data-yjgo]').evaluateAll(xs=>xs.map(x=>x.dataset.yjgo));assert.ok(await page.evaluate(({names,id})=>names.every(n=>STUDY_REGIONS.belongs(n,id)),{names:actual,id}),'玉简只能来自所选分区');assert.ok(!actual.includes('未分类自编'));
-  assert.equal(await page.locator('.yj-hall,.ln-hall').count(),2);assert.equal(await page.locator('.study-region,#bankCount,.xc-sect-chamber').count(),0);assert.ok((await page.locator('.subpage-place').textContent()).includes(await page.locator('.study-region-heading h2').textContent()));
+  assert.equal(await page.locator('.yj-hall').count(),actual.length?1:0);assert.equal(await page.locator('.ln-hall,.yj-moved,[data-yjgear]').count(),0,'空导图与管理提示不出现在研习区');assert.equal(await page.locator('.study-region,#bankCount,.xc-sect-chamber').count(),0);assert.ok((await page.locator('.subpage-place').textContent()).includes(await page.locator('.study-region-heading h2').textContent()));
   const maps=await page.locator('[data-ln]').evaluateAll(xs=>xs.map(x=>x.dataset.ln));assert.ok(await page.evaluate(({names,id})=>names.every(n=>STUDY_REGIONS.belongs(n,id)),{names:maps,id}));
-  await page.locator('[data-study-regions-back]').click();await page.locator('.study-regions,.portal-world').first().waitFor();if(await page.locator('.portal-world').count()){await page.evaluate(()=>go('train'));await page.locator('.study-regions').waitFor();}/* 行测五峰返回直接回地图 */
+  await page.keyboard.press('Escape');await page.locator('.study-regions,.portal-world').first().waitFor();if(await page.locator('.portal-world').count()){await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator('.study-regions').waitFor();}/* 行测五峰返回直接回地图 */
  }
  for(const viewport of [{width:1280,height:860},{width:800,height:1280}])for(const theme of ['light','dark']){await page.setViewportSize(viewport);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');}
  await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>document.documentElement.dataset.theme='light');
  if(process.argv.includes('--shot')){await page.emulateMedia({reducedMotion:'reduce'});fs.mkdirSync('ui-artifacts/regions',{recursive:true});await page.screenshot({path:'ui-artifacts/regions/'+(subject||'法考')+'-selector.png'});}
- await page.locator(`[data-study-region="${target}"]`).click();await page.locator('.study-region-heading').waitFor();
+ await page.locator(`[data-study-region="${target}"]`).click();await page.locator('.study-region-heading').waitFor({state:'attached'});
  assert.equal(await page.locator('.yj-hall-head .small').textContent().then(s=>s.match(/共 (\d+)/)?.[1]),'3','统计不能计入属于另一板块的嵌套子匣');
  await page.locator('button[data-yjgo=""]').click();await page.locator('#yjShow').waitFor();await compact('#yjStage');
  const chosen=await page.evaluate(()=>api('/api/cards/next',{scope:[...document.querySelectorAll('.yj-name[data-yjgo]')].map(x=>x.dataset.yjgo)}));assert.ok(await page.evaluate(({deck,id})=>STUDY_REGIONS.belongs(deck,id),{deck:chosen.card.deck,id:target}));
  await page.locator('#yjShow').click();await page.locator('[data-rate="4"]').click();await page.locator('#yjUndo').click();await page.locator('#yjShow').waitFor();await compact('#yjStage');await page.locator('#yjBack').click();
- assert.ok((await page.locator('.study-region-heading h2').textContent()).length);await page.evaluate(async()=>{const board=document.querySelector('[data-ln]').dataset.ln;await api('/api/mindmap/create',{board,name:board,data:{root:{data:{text:board},children:[{data:{text:'自编方法'},children:[]}]}}});});await page.locator('[data-ln]').first().click();await page.locator('.ln-stage').waitFor();await compact('.ln-stage');await page.keyboard.press('Escape');await page.locator('.ln-stage').waitFor({state:'detached'});
+ assert.ok((await page.locator('.study-region-heading h2').textContent()).length);await page.evaluate(async board=>{await api('/api/mindmap/create',{board,name:board,data:{root:{data:{text:board},children:[{data:{text:'自编方法'},children:[]}]}}});await go('train');},first);await page.locator('[data-ln]').first().click();await page.locator('.ln-stage').waitFor();assert.equal(await page.locator('#lnLayout,#lnFile').count(),0,'分区导图为只读');await compact('.ln-stage');await page.keyboard.press('Escape');await page.locator('.ln-stage').waitFor({state:'detached'});
  let release,requested;const gate=new Promise(resolve=>release=resolve),seen=new Promise(resolve=>requested=resolve);
  await page.route('**/api/mindmap/get',async route=>{requested();await gate;await route.continue();});
  await page.locator('[data-ln]').first().click();await seen;await page.keyboard.press('Escape');await page.locator('.ln-stage').waitFor({state:'detached'});release();await page.waitForTimeout(120);await page.unroute('**/api/mindmap/get');assert.equal(await page.locator('.ln-stage').count(),0);assert.equal(await page.evaluate(()=>MINDMAP.isOpen()),false);
@@ -40,5 +40,5 @@ async function compact(selector){await page.waitForFunction(()=>document.documen
  await page.evaluate(()=>go('tianji'));await page.locator('.tj-hub').waitFor();assert.equal(await page.locator('#studyHud').evaluate(x=>getComputedStyle(x).position),'relative');const separated=await page.evaluate(()=>{const h=document.querySelector('#studyHud').getBoundingClientRect(),b=document.querySelector('#banner').getBoundingClientRect();return b.top>=h.bottom-1||b.bottom<=h.top+1;});assert.equal(separated,true,'状态栏不能覆盖提醒');
  await page.evaluate(()=>go('settings'));await page.locator('.shortcut-settings').waitFor({state:'attached'});await page.evaluate(()=>scrollTo(0,800));assert.equal(await page.evaluate(()=>scrollY),0,'整页固定不滚动');assert.ok(await page.locator('#studyHud').evaluate(x=>x.getBoundingClientRect().top>=0),'状态信息持续可见');await page.evaluate(()=>{scrollTo(0,0);return go('tianji');});await page.locator('.tj-hub').waitFor();
  if(process.argv.includes('--shot')){await page.waitForFunction(()=>!document.querySelector('#toasts')?.children.length);await page.screenshot({path:'ui-artifacts/regions/'+(subject||'法考')+'-tianji.png'});}
- assert.deepEqual(errors,[]);console.log('3.0.3分区/跨板块隔离/温简撤销/导图/自适应状态信息/三尺寸亮暗通过：'+(subject||'法考'));
+ assert.deepEqual(errors,[]);console.log('3.0.3分区/跨板块隔离/温简撤销/导图/自适应状态信息/电脑/平板亮暗通过：'+(subject||'法考'));
 }catch(e){if(page){fs.mkdirSync('ui-artifacts/regions',{recursive:true});await page.screenshot({path:'ui-artifacts/regions/failure-'+(subject||'法考')+'.png'}).catch(()=>{});}throw e;}finally{if(browser)await browser.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

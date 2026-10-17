@@ -48,8 +48,8 @@
     return `<div class="th-list-head"><span>练习记录</span><small>最近 ${m.d.groups.length} 组</small></div><div class="th-choice-list th-history" tabindex="0" aria-label="练习记录">${m.d.groups.map(x=>`<article class="th-history-row"><div><b>${esc(x.label||x.board)}</b><small>${esc(x.date)} · ${x.mode==='new'?'新题练习':'错题复习'}</small></div><span><b>${x.correct} / ${x.total}</b><small>${esc(m.env.rank(x.rank))}</small></span></article>`).join('')||'<p class="th-empty">尚未留下练习记录。</p>'}</div>`;
   }
   function footer(m){
-    if(m.view==='catalog')return `<div class="th-action-note">历年真题按原年份、卷次与科目练习，未核验答案不判分。</div><button data-th-return type="button">返回练习</button>`;
-    if(m.view==='history')return `<div class="th-action-note">成绩和进度沿用原有练习记录。</div><button data-th-return type="button">返回练习</button>`;
+    if(m.view==='catalog')return `<div class="th-action-note">历年真题按原年份、卷次与科目练习，未核验答案不判分。</div><button data-th-return type="button">返回塔前</button>`;
+    if(m.view==='history')return `<div class="th-action-note">成绩和进度沿用原有练习记录。</div><button data-th-return type="button">返回塔前</button>`;
     if(m.pref.mode==='sets'){
       const p=paper(m);return `<div class="th-action-note">整套练习保留套卷题数，已做过的题不再出。<span class="th-save-status" role="status"></span></div><button class="primary th-start" data-th-start ${!p||!p.active&&p.done>=p.total?'disabled':''}>${p?.active?'继续本套':p&&p.done>=p.total?'本套已完成':'开始本套'} <span aria-hidden="true">→</span></button>`;
     }
@@ -58,14 +58,14 @@
   }
   function html(d,c,env){
     const key='trial-hall-v1:'+encodeURIComponent(env.subject+':'+env.scope),pref=read(key),m={d,c,env,key,pref,view:pref.mode,busy:false};normalize(m);model=m;
-    return `<section class="trial-hall ${env.mage?'th-mage':'th-sect'} ${pref.motion==='still'?'th-still':''}" aria-label="${esc(env.title)}">${scene(m)}<dialog id="th-dialog" class="th-dialog scene-panel" aria-labelledby="th-dialog-title"><header class="th-dialog-head"><div><p class="th-eyebrow">${esc(env.mage?'学院试炼卷宗':'试炼塔 · 修习卷宗')} · 第 ${tower(m).current} 层</p><h2 id="th-dialog-title">选择试炼</h2></div><button type="button" data-th-close aria-label="关闭练习面板，返回塔前">返回塔前 ×</button></header>${stats(m)}<nav class="th-tabs" role="tablist" aria-label="刷题模式">${env.catalogHtml?'<button role="tab" id="th-tab-catalog" data-th-tab="catalog" aria-controls="th-pane-catalog">历年真题</button>':''}<button role="tab" id="th-tab-sets" data-th-tab="sets" aria-controls="th-pane-sets">套卷试炼</button><button role="tab" id="th-tab-blocks" data-th-tab="blocks" aria-controls="th-pane-blocks">板块试炼</button><button role="tab" id="th-tab-history" data-th-tab="history" aria-controls="th-pane-history" class="th-history-tab">练习记录</button></nav><div class="th-panels">${[['sets',setsPane],['blocks',blocksPane],['history',historyPane],...(env.catalogHtml?[['catalog',m=>m.env.catalogHtml]]:[])].map(([id,render])=>`<section id="th-pane-${id}" class="th-pane" role="tabpanel" aria-labelledby="th-tab-${id}" ${m.view===id?'':'hidden'}>${render(m)}</section>`).join('')}</div><footer class="th-actions">${footer(m)}</footer></dialog></section>`;
+    return `<section class="trial-hall ${env.mage?'th-mage':'th-sect'} ${pref.motion==='still'?'th-still':''}" aria-label="${esc(env.title)}">${scene(m)}<dialog id="th-dialog" class="th-dialog scene-panel" aria-labelledby="th-dialog-title"><header class="th-dialog-head"><div><p class="th-eyebrow">${esc(env.mage?'学院试炼卷宗':'试炼塔 · 修习卷宗')} · 第 ${tower(m).current} 层</p><h2 id="th-dialog-title">选择试炼</h2></div><button type="button" data-th-close aria-label="关闭练习面板，返回塔前">返回塔前 ×</button></header>${stats(m)}<div class="th-panels">${[['sets',setsPane],['blocks',blocksPane],['history',historyPane],...(env.catalogHtml?[['catalog',m=>m.env.catalogHtml]]:[])].map(([id,render])=>`<section id="th-pane-${id}" class="th-pane" role="region" aria-label="${esc({sets:'套卷试炼',blocks:'板块试炼',history:'练习记录',catalog:'历年真题'}[id])}" ${m.view===id?'':'hidden'}>${render(m)}</section>`).join('')}</div><footer class="th-actions">${footer(m)}</footer></dialog></section>`;
   }
   function bind(root,hooks){
     const host=root.querySelector('.trial-hall'),m=model;if(!host||!m||host.dataset.thBound)return;host.dataset.thBound='1';
     const dialog=host.querySelector('.th-dialog');let opener=null;
     function close(){dialog.close();opener?.focus({preventScroll:true});}
     dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
-    function tabState(){host.querySelector('#th-dialog-title').textContent={sets:'套卷试炼',blocks:'板块试炼',history:'练习记录',catalog:'历年真题卷轴'}[m.view];host.querySelectorAll('[data-th-tab]').forEach(b=>{const active=b.dataset.thTab===m.view;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});host.querySelectorAll('.th-pane').forEach(p=>p.hidden=p.id!=='th-pane-'+m.view);}
+    function tabState(){host.dataset.thView=m.view;host.querySelector('#th-dialog-title').textContent={sets:'套卷试炼',blocks:'板块试炼',history:'练习记录',catalog:'历年真题卷轴'}[m.view];host.querySelectorAll('.th-pane').forEach(p=>p.hidden=p.id!=='th-pane-'+m.view);}
     function actions(){host.querySelector('.th-actions').innerHTML=footer(m);host.querySelectorAll('.th-start,[data-th-review],.bankOrder,#bankCount').forEach(b=>{if(m.busy)b.disabled=true;});}
     function refreshPane(id){host.querySelector('#th-pane-'+id).innerHTML=(id==='sets'?setsPane:blocksPane)(m);actions();}
     function scrollChoice(){const list=host.querySelector('#th-pane-sets .th-choice-list'),choice=list?.querySelector('[aria-pressed=true]');if(choice&&list.clientHeight)list.scrollTop+=choice.getBoundingClientRect().top-list.getBoundingClientRect().top;}
@@ -75,19 +75,13 @@
       if(b.hasAttribute('data-th-enter')){opener=b;selectTab(b.dataset.thEnter);measure();dialog.showModal();scrollChoice();host.querySelector('[data-th-close]').focus();return;}
       if(b.hasAttribute('data-th-close'))return close();
       if(b.hasAttribute('data-th-motion')){m.pref.motion=m.pref.motion==='still'?'auto':'still';save(m);host.classList.toggle('th-still',m.pref.motion==='still');b.setAttribute('aria-pressed',String(m.pref.motion==='still'));b.textContent=m.pref.motion==='still'?'开启动效':'暂停动效';return;}
-      if(b.hasAttribute('data-th-tab'))return selectTab(b.dataset.thTab);
-      if(b.hasAttribute('data-th-return'))return selectTab(m.pref.mode);
+      if(b.hasAttribute('data-th-return'))return close();
       if(b.hasAttribute('data-th-paper')){const p=book(m)?.sets[Number(b.dataset.thPaper)];if(!p)return;m.pref.paper=p.name;save(m);const list=host.querySelector('#th-pane-sets .th-choice-list'),top=list.scrollTop;refreshPane('sets');host.querySelector('#th-pane-sets .th-choice-list').scrollTop=top;host.querySelector(`[data-th-paper="${b.dataset.thPaper}"]`)?.focus({preventScroll:true});return;}
       if(!b.hasAttribute('data-th-start')&&!b.hasAttribute('data-th-review'))return;
       const review=b.hasAttribute('data-th-review'),p=paper(m),r=board(m);
       const slot=m.pref.mode==='sets'?'套:'+p.name:!review&&m.pref.topic?'点:'+r.board+':'+m.pref.topic:r.board;
       dialog.close();
       hooks.start({type:review?'bank_review':'bank',board:slot,target:slot,title:m.pref.mode==='sets'?p.name:r.board+(m.pref.topic&&!review?' · '+m.pref.topic:'')});
-    });
-    host.addEventListener('keydown',e=>{
-      const b=e.target.closest('[data-th-tab]');if(!b)return;const all=[...host.querySelectorAll('[data-th-tab]')],i=all.indexOf(b);let j;
-      if(e.key==='ArrowRight')j=(i+1)%all.length;else if(e.key==='ArrowLeft')j=(i+all.length-1)%all.length;else if(e.key==='Home')j=0;else if(e.key==='End')j=all.length-1;else return;
-      e.preventDefault();selectTab(all[j].dataset.thTab);all[j].focus();
     });
     host.addEventListener('change',async e=>{
       const el=e.target;
@@ -105,8 +99,9 @@
     function measure(){
       // 题字以实际建筑图片为坐标，避开object-fit在电脑/平板产生的留白。
       host.querySelectorAll('.th-gate-stage,.th-tower-stage').forEach(stage=>{const img=stage.querySelector('img'),r=stage.parentElement.getBoundingClientRect(),aspect=img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:2/3,width=Math.min(r.width,r.height*aspect);stage.style.width=width+'px';stage.style.height=width/aspect+'px';});
-      const r=host.getBoundingClientRect(),style=getComputedStyle(host),width=Math.min(r.width-32,Math.max(360,r.width*(parseFloat(style.getPropertyValue('--scene-panel-width'))||50)/100)),height=Math.min(r.height-32,parseFloat(style.getPropertyValue('--scene-panel-height'))||r.height);
-      dialog.style.setProperty('--th-width',width+'px');dialog.style.setProperty('--th-height',Math.max(0,height)+'px');dialog.style.setProperty('--th-left',r.left+(r.width-width)/2+'px');dialog.style.setProperty('--th-top',r.top+(r.height-height)/2+'px');dialog.classList.toggle('th-compact',height<520);
+      const r=root.getBoundingClientRect();
+      for(const [k,v]of Object.entries({width:r.width,height:r.height,left:r.left,top:r.top}))if(dialog.style.getPropertyValue('--th-'+k)!==v+'px')dialog.style.setProperty('--th-'+k,v+'px');
+      dialog.classList.toggle('th-compact',r.height<520);
     }
     const resize=new ResizeObserver(()=>{if(!host.isConnected)return resize.disconnect();measure();});resize.observe(host);
     // 尺寸偏好改变只影响卷宗，整幅塔景保持铺满；离开路由后原生dialog随DOM销毁。

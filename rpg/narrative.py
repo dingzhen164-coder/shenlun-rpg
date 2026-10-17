@@ -103,7 +103,9 @@ def _profile(g, dashboard):
         p['role'] = leader.get('title') or p['role']
         cid = dict(art.SL_CHARS).get(p['character'])            # 美术文件夹里有这位领导的立绘就用（rpg/art.py）
         por = art.character_portraits(getattr(g, 'paths', None), '申论', cid) if cid else None
-        if por:
+        custom_avatar = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
+        user_portrait = art.lookup(getattr(g, 'paths', None), '申论', 'beauty/portrait/sl-%s-calm.webp' % cid) if cid else None
+        if por and (user_portrait or not custom_avatar):
             p['portraits'], p['portrait'], p['art_portraits'] = por, por['calm'], True
     if world_id(g) != 'xingce':
         custom = (dashboard.get('persona') or {}).get('tutor_avatar') or ''
@@ -171,7 +173,9 @@ def _scene(g, dashboard, cid):
     if c.get('character'):
         person = next(p for p in out['companions'] if p['id'] == c['character'])
         pid = dict(art.SL_CHARS).get(person['name']) if out['world'] == 'office' else None
-        por = art.character_portraits(getattr(g, 'paths', None), '申论', pid) if pid else None
+        subject = {'office': '申论', 'xingce': '行测', 'mage': '法考'}[out['world']]
+        pid = pid or dict(art.PEERS.get(subject, [])).get(person['name'])
+        por = art.character_portraits(getattr(g, 'paths', None), subject, pid) if pid else None
         out['profile'] = dict(out['guide_profile'], character=person['name'], role=person['role'],
                               intro=person['intro'], greeting=person['feedback'], mark=person['mark'],
                               portrait=por['calm'] if por else '', portraits=por)

@@ -52,8 +52,15 @@ dialog.close();dialog.remove();dialog=null;
       if(dialog)scheduleBlink();
     },2800+Math.random()*3200);
   }
-  function frame(body) {
+  function frame(body,board=false) {
     const p=data.profile;
+    dialog.classList.toggle('qb-dialog',board);
+    if(board){
+      dialog.classList.remove('narrative-staged');
+      dialog.innerHTML=`<header class="qb-dialog-heading"><h2 id="narrative-title">${esc(TASK_BOARD.names().title)}</h2><button data-narrative="close" aria-label="保存进度并收起任务板">收起 ×</button></header><section class="qb-scroll" aria-label="任务榜与纪事">${body}<p class="narrative-error" role="alert"></p></section>`;
+      TASK_BOARD.bind(dialog,data.task_board,{api:handlers.api,changed:b=>{data.task_board=b;catalogue();handlers.updated?.();},settings:async()=>{close();await handlers.route?.('settings');const g=document.querySelector('.fx-settings-group[data-fx-group="learning"]');if(g){g.open=true;document.querySelector('.qb-settings')?.scrollIntoView({block:'start'});}},route:r=>{close();handlers.route?.(r);}});
+      return;
+    }
     const image=portraitHtml(p);
     dialog.innerHTML=`<header class="narrative-heading"><div><small>${esc(p.title)} · 人物对话</small><h2 id="narrative-title">${esc(p.character)}</h2><span>${esc(p.role)}</span></div><button data-narrative="close" aria-label="保存进度并收起对话">收起 ×</button></header><div class="narrative-body"><aside class="narrative-person">${image}<p>${esc(p.intro)}</p><label><input type="checkbox" data-narrative-brief ${brief?'checked':''}> 简短模式</label><small>内置对话 · 无需AI</small></aside><section class="narrative-paper" aria-label="对话内容">${body}<p class="narrative-error" role="alert"></p></section></div>`;
     dialog.querySelectorAll('button:not([data-narrative="close"])').forEach(b=>b.disabled=pending||b.disabled);
@@ -64,12 +71,14 @@ dialog.close();dialog.remove();dialog=null;
     return `<details class="narrative-memory"><summary>人物记忆 · ${data.memories.length}件真实记录</summary>${data.memories.length?data.memories.map(m=>`<p>${esc(m.text)}<small>${esc(m.date)} · ${esc(m.source)}</small></p>`).join(''):'<p>还没有学习事件。可以直接开始学习。</p>'}</details>`;
   }
   function catalogue() {
-    const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open],.world-progress[open],.narrative-companions[open]')||[]).map(e=>e.className);
-    const top=dialog?.scrollTop||0;
+    const expanded=Array.from(dialog?.querySelectorAll('.journey-collection[open],.journey-space[open],.qb-archive[open],.world-progress[open],.narrative-companions[open]')||[]).map(e=>e.className);
+    const top=dialog?.querySelector('.qb-scroll')?.scrollTop||dialog?.scrollTop||0;
     if(data.guide_profile)data.profile=data.guide_profile;
-    frame(`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${data.justDelivered?'<p class="narrative-feedback" role="status">成果已交付，人物纪念已记入收藏册。</p>':''}${journeyHtml()}${worldHtml()}${companionsHtml()}<div class="narrative-chapters">${data.chapters.filter(c=>!c.character).map(c=>`<div class="ds-card"><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button></div>${memoriesHtml()}`);
+    const archive=`<p class="narrative-lead">${esc(data.profile.greeting)}</p>${data.justDelivered?'<p class="narrative-feedback" role="status">成果已交付，人物纪念已记入收藏册。</p>':''}${journeyHtml()}${worldHtml()}${companionsHtml()}<div class="narrative-chapters">${data.chapters.filter(c=>!c.character).map(c=>`<div class="ds-card"><b>${esc(c.title)}</b><small>${esc(c.unlocked?(c.read?(c.skipped?'已跳过 · 可重读':'已读 · 可重读'):c.started?'已保存 · 可继续':'未读'):c.condition)}</small><button data-narrative-chapter="${esc(c.id)}" ${c.unlocked?'':'disabled'}>${c.read?'查看 / 重读':c.started?'继续':'阅读'}</button></div>`).join('')}</div><div class="narrative-actions"><button data-narrative="study">${esc(data.profile.study)}</button><button data-narrative="review">${esc(data.profile.review)}</button><button data-narrative="tutor">请教具体问题（AI）</button></div>${memoriesHtml()}`;
+    const board=!!(window.TASK_BOARD&&data.task_board);
+    frame(board?TASK_BOARD.html(data.task_board)+`<details class="qb-archive"><summary>${esc(TASK_BOARD.names().archive)}</summary>${archive}</details>`:archive,board);
     expanded.forEach(name=>dialog.querySelector('.'+name)?.setAttribute('open',''));
-    dialog.scrollTop=top;
+    const scroller=dialog.querySelector('.qb-scroll')||dialog;scroller.scrollTop=top;
   }
   function worldHtml() {
     const w=data.world_progress;if(!w)return '';
@@ -134,7 +143,8 @@ dialog.close();dialog.remove();dialog=null;
     close();focusBack=document.activeElement;const token=++epoch;
     pending=true;
     try {
-      const fresh=await handlers.api('/api/narrative');
+      const [fresh,board]=await Promise.all([handlers.api('/api/narrative'),window.TASK_BOARD?handlers.api('/api/task-board'):Promise.resolve(null)]);
+      if(board)fresh.task_board=board;
       if(token!==epoch)return;
       data=fresh;
       try{brief=localStorage.getItem('narrative-brief:'+data.world)==='1';}catch(e){brief=false;}
@@ -154,7 +164,7 @@ dialog.close();dialog.remove();dialog=null;
       if(choice)body.choice=choice;
       const result=await handlers.api('/api/narrative',body);
       if(token!==epoch||!dialog)return;
-      data=result;pending=false;await showScene(token);
+      data={...result,task_board:data.task_board};pending=false;await showScene(token);
       dialog?.querySelector('.narrative-choices button, .narrative-actions button')?.focus();
     } catch(e){
       if(token===epoch){

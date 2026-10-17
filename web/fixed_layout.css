@@ -291,3 +291,10 @@ html.drawing .page-settings-gear{display:none}
 
 /* 固定书架不持续浮动，鼠标和触控均能稳定点选；保留悬停光影。 */
 .fixed-app .tj-shelf .tj-cover,.fixed-app .tj-topic-group .tj-cover{animation:none}
+
+/* 三种学习记录同排，平板仍保持横向三栏；长表单各自在栏内滚动。 */
+@media(min-width:721px){
+ .fixed-app .scene-panel.fx-records-shell{width:calc(100% - 32px)}
+ .fx-records-list.fx-records-fill{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:12px}
+ .fx-records-list.fx-records-fill>.card{margin:0!important;min-width:0}
+}

@@ -127,17 +127,19 @@
   }
 
   async function load() { LIST = await api("/api/tianji"); }
-  async function render(v) {
+  async function render(v, beforeCommit=()=>true) {
     ROOT = v;
     if (isSl()) {
+      if(!beforeCommit())return;
       CUR = null; TAB = "article";
       v.innerHTML = '<div class="tj-hub"><div class="card tj-head"><h2>📅 每日文章</h2><span class="muted small">阅读、勾画与公务手账</span></div><div id="arRoot"></div></div>';
       ARTICLES.mount(v.querySelector("#arRoot"));
       return;
     }
     if (TAB === "article") TAB = store.get("xingce.tab", "month");
-    if (CUR) return renderIssue();
+    if (CUR) {if(beforeCommit())return renderIssue();return;}
     try { await load(); } catch (e) { showError(e); LIST = { month: [], topic: [] }; }
+    if(!beforeCommit())return;
     v.innerHTML = hubHtml();
     bindHub();
   }

@@ -18,6 +18,54 @@
 所有名字写死在下面的表里，不接受任意路径，不会读到美术文件夹以外的文件。
 """
 import shutil
+import json
+from functools import lru_cache
+from pathlib import Path
+
+
+@lru_cache(maxsize=4)
+def _builtin_manifest(root):
+    """随包清单只读缓存；用户素材仍按原名字表实时读取。"""
+    try:
+        raw = json.loads((Path(root) / 'beauty/builtin-art.json').read_text(encoding='utf-8'))
+        return raw if isinstance(raw, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def builtin_map(subject, assets_dir=None):
+    from .paths import WEB_DIR
+    root = Path(assets_dir or WEB_DIR / 'assets').resolve()
+    return _validated_builtin_map(subject, str(root))
+
+
+@lru_cache(maxsize=12)
+def _validated_builtin_map(subject, root):
+    root = Path(root)
+    raw = _builtin_manifest(str(root)).get(subject, {})
+    if not isinstance(raw, dict):
+        return {}
+    # 清单不是任意文件访问入口；只认 beauty 下真实存在的随包素材。
+    return {rel: dest for rel, dest in raw.items()
+            if isinstance(rel, str) and isinstance(dest, str)
+            and dest.startswith('beauty/') and root in (root / dest).resolve().parents
+            and (root / dest).is_file()}
+
+
+def builtin_asset(subject, asset_rel, assets_dir=None):
+    from .paths import WEB_DIR
+    root = Path(assets_dir or WEB_DIR / 'assets')
+    dest = builtin_map(subject, root).get(asset_rel)
+    return root / dest if dest else None
+
+
+def available(paths, subject):
+    """前端可用背景：用户覆盖优先，缺项才公布本科内置别名。"""
+    out = dict(files(paths, subject))
+    for rel in builtin_map(subject):
+        if rel not in out:
+            out[rel] = builtin_asset(subject, rel).stat().st_mtime_ns
+    return list(out.items())
 
 FOLDER_REL = ("外观", "美术")
 IMG = (".webp", ".png", ".jpg", ".jpeg")
@@ -45,6 +93,8 @@ HOME = {"行测": ("sect/xc-sect-day.webp", "sect/xc-sect-night.webp"), "申论"
 # 申论的人物：七位阶段领导（按职务履历里的领导姓名对应）与两位同事（同伴支线）
 SL_CHARS = [("周静宜", "zhoujingyi"), ("陈知微", "chenzhiwei"), ("林清岚", "linqinglan"), ("秦书瑶", "qinshuyao"), ("韩明慧", "hanminghui"),
             ("沈清妍", "shenqingyan"), ("顾清宁", "guqingning"), ("许知宁", "xuzhining"), ("林悦", "linyue")]
+PEERS = {'行测': [('陆衡', 'xc-luheng'), ('苏苓', 'xc-suling')],
+         '法考': [('莉娅', 'mg-lia'), ('诺亚', 'mg-noah')]}
 EXPR = [("calm", "平静"), ("cheer", "鼓励"), ("explain", "讲解"), ("concern", "关切"), ("proud", "欣慰"), ("blink", "眨眼")]
 PORTRAIT = {"行测": "guide/xc-qinghe-%s.webp", "法考": "academy/portrait/mg-eileen-%s.webp"}
 BGM = [("map-day", "地图白天"), ("map-night", "地图夜晚"), ("dongfu", "洞府"), ("study", "学习"), ("ceremony", "突破仪式"), ("dialog", "对话")]
@@ -90,13 +140,16 @@ def slots(subject):
         for cname, cid in SL_CHARS:
             for key, cn in EXPR:
                 out.append(("人物立绘", "%s-%s" % (cname, cn), "beauty/portrait/sl-%s-%s.webp" % (cid, key), None, "image", ("sl-%s-%s" % (cid, key),)))
+    for cname, cid in PEERS.get(subject, []):
+        out.append(('人物立绘', cname+'-平静', 'beauty/portrait/%s-calm.webp' % cid, None, 'image', (cid+'-calm',)))
     for key, cn in BGM:
         rel = "beauty/audio/bgm/%s.ogg" % key
         out.append(("音乐", cn, rel, rel, "audio", ()))
     for key, cn in SFX:
         rel = "beauty/audio/sfx/%s.ogg" % key
         out.append(("音效", cn, rel, rel, "audio", ()))
-    return out
+    builtins = builtin_map(subject)
+    return [(f, s, r, builtins.get(r, b), k, a) for f, s, r, b, k, a in out]
 
 
 def _find(paths, folder, stem, kind, aliases=()):
@@ -252,12 +305,19 @@ def processed(path):
 def character_portraits(paths, subject, cid):
     """申论某个人物的立绘表：{calm, cheer, …, blink:{src,x,y,w,h}}；没有 calm（基础图）就返回 None。
     眨眼图是整幅同取景的闭眼图（不是只含眼部），所以叠满整个画面。"""
-    if not paths or not paths.vault or not paths.train:
+    if subject == '申论':
+        if cid not in dict(SL_CHARS).values():
+            return None
+        prefix = 'sl-' + cid
+    elif cid in dict(PEERS.get(subject, [])).values():
+        prefix = cid
+    else:
         return None
     got = {}
     for key, _cn in EXPR:
-        rel = "beauty/portrait/sl-%s-%s.webp" % (cid, key)
+        rel = "beauty/portrait/%s-%s.webp" % (prefix, key)
         p = lookup(paths, subject, rel)
+        p = p or builtin_asset(subject, rel)
         if p:
             got[key] = "assets/%s?v=%d" % (rel, p.stat().st_mtime_ns)
     if "calm" not in got:

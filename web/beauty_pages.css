@@ -7,6 +7,8 @@ body:not(.portal-home):not(.has-bg) #bgLayer::after { opacity: .74; }
 body.has-page-art, html.theme-gc body.has-page-art { background: transparent; }    /* body 自己的底色会盖住 z-index 为负的背景层（与选了全站背景时同理） */
 body.has-page-art #bgLayer { background-image: var(--ds-page-art) !important; background-position: center; background-size: cover; }
 body.has-page-art:not(.portal-home) #bgLayer::after { opacity: .2; }
+/* 同一张室内/分区美术用于明暗主题，深色提高遮罩，避免画面刺眼。 */
+html[data-theme="dark"] body.has-page-art:not(.portal-home) #bgLayer::after { opacity: .48; }
 body.has-page-art .card { background: color-mix(in srgb, var(--panel) 80%, transparent); backdrop-filter: blur(4px); }
 html:not(.in-notes) body.has-page-art .fx-region-work { align-items: start; }
 html:not(.in-notes) body.has-page-art .fx-region-work > .fx-frame { height: auto; max-height: 100%; }

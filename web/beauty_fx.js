@@ -56,7 +56,8 @@
     const v = document.getElementById('view'); if (!v) return;
     watchNav();
     new MutationObserver(() => {
-      if (pendingView && Date.now() - pendingView < 2500 && !still()) { pendingView = 0; v.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'ease-out' }); }
+      // 满高工作区保持坐标固定；轻淡入不先清空画面，避免贴底内容越界和切页闪空。
+      if (pendingView && Date.now() - pendingView < 2500 && !still()) { pendingView = 0; v.animate([{ opacity: .85 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }); }
     }).observe(v, { childList: true });
     new MutationObserver(() => { if (armed) check(); }).observe(v, { attributes: true, attributeFilter: ['class'], subtree: true, childList: true });
   };

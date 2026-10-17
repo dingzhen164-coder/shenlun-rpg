@@ -1,3 +1,5 @@
-# fakao 人物
+# 既有同伴单张立绘
 
-约定：`<人物>-<表情>.webp`，表情 `calm/cheer/explain/concern/proud`，眨眼叠层 `<人物>-blink.webp`；场景内站位小立绘 `<人物>-stand-<地点>.webp`。900×1200 带透明通道，≤250KB。
+mg-lia,mg-noah，每人一张透明WebP，OpenAI imagegen原创生成，按生成服务条款分发。2026-10-17。用户同名人物图片优先，不新增角色、剧情或自由偶遇玩法。
+
+提示词：A wide transparent-background RPG character asset strip, TWO completely separate waist-up characters with a large transparent gap, each contained in own half with generous margins. Refined watercolor visual novel illustration, fine ink lines, matching western magical law academy artwork, violet ivory and warm gold palette. LEFT: Lia, woman age24, copper-brown wavy hair loosely tied back, thoughtful observant eyes, elegant ivory academic shirt and muted violet student robe, small gold collar pin shaped as simple balanced scales, holds open book and blank index tabs. RIGHT: Noah, man age25, short dark brown slightly wavy hair, calm kind introspective expression, navy and plum academic cloak over cream shirt, holding a parchment folio and a small brass lantern, no uniform insignia other than simple geometric detail. Fully visible heads, shoulders, elbows, hands, props, bottom cropped at waist. No text or runic letters, no logos, no floor, NO background or glow. True alpha transparency. Original fictional characters, one image per person, no multiple poses or expressions.

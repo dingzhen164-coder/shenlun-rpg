@@ -106,7 +106,7 @@
       }); ctx.globalAlpha = 1;
     }
     function loop(ts) {
-      if (!atm.isConnected) { cancelAnimationFrame(raf); return; }
+      if (!atm.isConnected) { cancelAnimationFrame(raf);resize.disconnect();return; }
       raf = requestAnimationFrame(loop);
       if (still()) { if (last) { ctx.clearRect(0, 0, W, H); last = 0; } return; }
       if (ts - last < 33) return;            // 约30帧
@@ -115,7 +115,7 @@
       draw(dt, ts);
     }
     size(); seed(); raf = requestAnimationFrame(loop);
-    new ResizeObserver(() => { size(); seed(); }).observe(atm);
+    const resize=new ResizeObserver(()=>{if(!atm.isConnected){resize.disconnect();cancelAnimationFrame(raf);return;}size();seed();});resize.observe(atm);
   }
   function scan() { apply(); document.querySelectorAll('.portal-atmosphere').forEach(mount); }
 

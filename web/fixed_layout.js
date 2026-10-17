@@ -17,6 +17,7 @@
     const nav=make('div','fx-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label','当前模块内容');
     const select=i=>{
       choices.set(key,i);
+      parent.classList.toggle('fx-records-shell',items[i]?.panel.dataset.fxGroup==='records');
       items.forEach((item,j)=>{
         item.panel.hidden=j!==i;
         item.button.setAttribute('aria-selected',String(j===i));item.button.tabIndex=j===i?0:-1;
@@ -77,7 +78,7 @@
         if(has('.shortcut-settings,.portal-settings'))group('navigation','地图与操作',n,true);
         else if(has('#ambTheme,#cwR,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
         else if(has('#sSave'))group('ai','AI与资料',n);
-        else if(has('#scheduleSave,[data-subject]')||/改规则/.test(name))group('learning','学习与成长',n);
+        else if(has('#scheduleSave,[data-subject],.qb-settings')||/改规则/.test(name))group('learning','学习与成长',n);
         else if(has('#updCheck')||/版本/.test(name))group('updates','版本与更新',n);
         else group('device','设备与工具',n);
       }else if(route==='contest'){
@@ -107,17 +108,15 @@
   }
   // 所有二级分类原位合并；设置只保留一页折叠卡，不复制或销毁输入控件。
   const folds=new Map();
-  function folding(node,key) {
-    if(node.dataset.fxFold)return node;
-    let fold=node;
-    if(node.tagName!=='DETAILS'){
-      fold=make('details','fx-fold-card');const summary=make('summary');
-      const heading=node.querySelector(':scope > h2,:scope > h3');
-      if(heading)summary.append(heading);else summary.textContent=title(node,'设置项');
-      fold.append(summary,node);
-    }else fold.classList.add('fx-fold-card');
-    fold.dataset.fxFold=key;fold.open=folds.get(key)??false;
-    fold.addEventListener('toggle',()=>{folds.set(key,fold.open);window.dispatchEvent(new Event('resize'));});return fold;
+  // 设置只折叠六个一级分组，原控件原位移动，子标题为静态标题。
+  function settingSection(node) {
+    for(const d of [...node.querySelectorAll('details.sv-vision'),...(node.tagName==='DETAILS'?[node]:[])]){
+      const section=make('section',d.className),summary=d.querySelector(':scope > summary');
+      section.id=d.id;for(const [k,v] of Object.entries(d.dataset))section.dataset[k]=v;
+      if(summary){const h=make('h3');h.append(...summary.childNodes);summary.replaceWith(h);}
+      section.append(...d.childNodes);d.replaceWith(section);if(d===node)node=section;
+    }
+    node.classList.add('fx-settings-section');return node;
   }
   function sections(root,key) {
     if(root.querySelector(':scope > .fx-shell'))return;
@@ -135,7 +134,7 @@
         group.open=folds.get(key+':group:'+id)??false;
         group.addEventListener('toggle',()=>{folds.set(key+':group:'+id,group.open);window.dispatchEvent(new Event('resize'));});
         if(id==='appearance'&&window.SCENE_PANELS)entry.nodes.unshift(SCENE_PANELS.controls());
-        entry.nodes.forEach((n,i)=>body.append(folding(n,key+':'+id+':'+i)));
+        entry.nodes.forEach(n=>body.append(settingSection(n)));
         if(!entry.nodes.length){const empty=make('p','small muted');empty.textContent='此设备暂无需要调整的项目。';body.append(empty);}
         scroll.append(group);
       }
@@ -143,7 +142,7 @@
     }
     const items=entries.map(entry=>{
       const panel=make('section','fx-panel'),scroll=make('div','fx-scroll');scroll.tabIndex=0;panel.dataset.fxGroup=entry.id;
-      if(entry.id==='records'){scroll.classList.add('fx-records-list');if(themeKey()==='peaks')scroll.classList.add('fx-records-fill');}
+      if(entry.id==='records'){scroll.classList.add('fx-records-list');scroll.classList.add('fx-records-fill');}
       entry.nodes.forEach(n=>scroll.append(n));
       if(entry.id==='records'&&themeKey()==='peaks')scroll.querySelectorAll('details.fold:not(.form-fold)').forEach(d=>d.open=true);
       panel.append(scroll);area.append(panel);return {label:entry.label,panel};
@@ -185,7 +184,8 @@
     const host=heading.parentElement;if(host.querySelector('.fx-region-work'))return true;
     const panels=[...host.querySelectorAll(':scope > .yj-hall,:scope > .ln-hall')];
     const work=make('div','fx-region-work');host.append(work);panels.forEach(p=>{frame(p,p.matches('.yj-hall')?'[data-yjadd]':'');work.append(p);});
-    tabs(host,panels.map(p=>({panel:p,label:title(p)})),'region:'+themeKey());
+    work.style.setProperty('--region-rows',Math.max(1,panels.length));
+    if(panels.length>1)tabs(host,panels.map(p=>({panel:p,label:title(p)})),'region:'+themeKey());
     host.classList.add('fx-region-detail');return true;
   }
   function themeKey(){return document.body.classList.contains('guantu')?'office':document.body.classList.contains('xuanhuan')?'mage':'peaks';}

@@ -1,0 +1,63 @@
+"""随包美术清单、单张人物、科目隔离与用户覆盖；只用临时文件。"""
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from rpg import art, paths
+
+
+class BuiltinArtTest(unittest.TestCase):
+    def test_packaged_assets_and_budget(self):
+        assets = paths.WEB_DIR / 'assets'
+        raw = json.loads((assets / 'beauty/builtin-art.json').read_text(encoding='utf-8'))
+        expected = ['法考'] if (assets / 'academy').is_dir() and not (assets / 'sect').is_dir() else ['行测', '申论']
+        self.assertEqual(set(raw), set(expected))
+        unique = set()
+        from PIL import Image
+        for subject in expected:
+            manifest = art.builtin_map(subject)
+            self.assertEqual(set(raw[subject]), set(manifest), '清单不能含缺图')
+            for key, _name in art.REGIONS[subject]:
+                self.assertIn('beauty/page/train-%s.webp' % key, manifest)
+            for key, _name in art.DWELLING_TABS[subject]:
+                self.assertIn('beauty/page/dwelling-%s.webp' % key, manifest)
+            for rel in manifest:
+                p = art.builtin_asset(subject, rel); unique.add(p)
+                with Image.open(p) as im:
+                    im.verify()
+            for _name, cid in art.PEERS.get(subject, []):
+                self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
+            self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
+        self.assertLess(sum(p.stat().st_size for p in unique), 10 * 1024 * 1024)
+        if '申论' in expected:
+            people = {k: v for k, v in raw['申论'].items() if k.startswith('beauty/portrait/')}
+            self.assertEqual(len(people), 9)
+            self.assertTrue(all(k.endswith('-calm.webp') for k in people))
+            for cid in dict(art.SL_CHARS).values():
+                self.assertEqual(set(art.character_portraits(None, '申论', cid)), {'calm'})
+                with Image.open(art.builtin_asset('申论', 'beauty/portrait/sl-%s-calm.webp' % cid)) as im:
+                    self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
+
+    def test_override_export_and_subject_isolation(self):
+        manifest = json.loads((paths.WEB_DIR/'assets/beauty/builtin-art.json').read_text(encoding='utf-8'))
+        subject = next(iter(manifest))
+        with tempfile.TemporaryDirectory() as tmp:
+            vault = Path(tmp)/'库'; (vault/'copilot/skills').mkdir(parents=True)
+            p = paths.Paths(vault); p.ensure_train_dir()
+            d = art.art_dir(p)/'子地图背景'; d.mkdir(parents=True)
+            name = art.PLACES[subject][0]
+            own = d/(name+'.png'); own.write_bytes(b'user artwork')
+            rel = 'beauty/page/dwelling.webp'
+            self.assertEqual(art.lookup(p, subject, rel), own)
+            self.assertEqual(dict(art.available(p, subject))[rel], own.stat().st_mtime_ns)
+            other = '法考' if subject != '法考' else '行测'
+            self.assertIsNone(art.lookup(p, other, rel))
+            before = own.read_bytes()
+            art.export(p, subject, paths.WEB_DIR/'assets')
+            self.assertEqual(own.read_bytes(), before)
+            for key, label in art.REGIONS[subject]:
+                self.assertTrue((d/(label+'.webp')).is_file())
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -46,8 +46,10 @@ const AMB = (() => {
     window.BeautyAudio?.setBgmVolume(cur.volume ?? 0.35);
   }
 
-  async function load() {
-    try { DATA = await fetch("/api/appearance").then((r) => r.json()); apply(); } catch (e) { /* 没有库时不影响使用 */ }
+  let loadedAt=0;
+  async function load({cached=false}={}) {
+    if(cached&&DATA&&Date.now()-loadedAt<30000)return;
+    try { DATA = await fetch("/api/appearance").then((r) => r.json());loadedAt=Date.now();apply(); } catch (e) { /* 没有库时不影响使用 */ }
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (themeMode() === "auto") { setTheme("auto"); apply(); } });
 

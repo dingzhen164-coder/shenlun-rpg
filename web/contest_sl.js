@@ -15,7 +15,8 @@
       <text x="${x(i).toFixed(1)}" y="${(y(b.score) - 9).toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--muted)">${b.score}</text>`).join("")}</svg>`;
   }
 
-  async function render(v) {
+  async function render(v, beforeCommit=()=>true) {
+    if(!beforeCommit())return;
     const d = DASH, list = d.boss_all || d.boss || [];
     const last2 = list.slice(-2).map((b) => b.score);
     v.innerHTML = `<div class="card"><h3>${esc(W("boss"))} <small>整套模考的成绩：成绩超过预估分生成待领取奖励；晋升条件仍参考最近两次成绩</small></h3>

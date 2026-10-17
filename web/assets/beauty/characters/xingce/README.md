@@ -1,3 +1,5 @@
-# xingce 人物
+# 既有同伴单张立绘
 
-约定：`<人物>-<表情>.webp`，表情 `calm/cheer/explain/concern/proud`，眨眼叠层 `<人物>-blink.webp`；场景内站位小立绘 `<人物>-stand-<地点>.webp`。900×1200 带透明通道，≤250KB。
+xc-luheng,xc-suling，每人一张透明WebP，OpenAI imagegen原创生成，按生成服务条款分发。2026-10-17。用户同名人物图片优先，不新增角色、剧情或自由偶遇玩法。
+
+提示词：A wide transparent-background game character asset strip with TWO individual waist-up young Chinese cultivators, separated by a large clear transparent gap. Each fully contained within her or his own half with generous side margins. Fine semi-realistic watercolor illustration and delicate elegant linework, jade sage ivory muted gold palette, matching a refined Chinese cultivation study RPG. LEFT: Lu Heng, man age26, calm intelligent focused gaze, dark hair neatly in high knot with plain jade pin, layered ivory and muted sage traditional robes, holding a bamboo slip with simple blank lines, a small plain jade pendant. RIGHT: Su Ling, woman age25, warm thoughtful gaze, dark long hair in half-up style with simple jade clasp, pale blue-green scholar robes, holding a small scroll and an unlettered bookmark. Complete head, shoulders, elbows, hands and props in frame, bottom crop at waist. Two distinct original fictional characters, no borrowed faces, no text, no logos, no ground, no backdrop, real alpha transparency. No overlapping figures. One static portrait per character.

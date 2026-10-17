@@ -2,7 +2,7 @@
    不计算/发放奖励；只展示累计经验/下一境界总阈值，数值刷新与原心跳一致。 */
 (() => {
   'use strict';
-  let data, current='home',paused=false,drawNode=document.getElementById('drawBtn'),pillNode=document.getElementById('todayPill');
+  let lastPaint='',data, current='home',paused=false,drawNode=document.getElementById('drawBtn'),pillNode=document.getElementById('todayPill');
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
   const amount=v=>Math.round(num(v)*10)/10;
@@ -16,6 +16,7 @@
   }
   // 原笔记按钮与计时节点原位搬移；重绘前停放，保留笔迹、事件和计时状态。
   function beforeRender(){
+    lastPaint='';
     const tools=document.querySelector('.top-tools');
     for(const id of ['drawBtn','todayPill']){const node=document.getElementById(id)||(id==='drawBtn'?drawNode:pillNode);if(node&&tools)tools.append(node);}
     const root=document.getElementById('studyHud');root?.querySelector('.subpage-nav')?.replaceChildren();if(root?.classList.contains('subpage-heading'))document.body.insertBefore(root,document.getElementById('banner'));
@@ -48,8 +49,11 @@
     const context=window.STUDY_PAGE_CONTEXT?.();
     const page=(context&&window.SCENE_PORTAL?.title(context.view))||(current==='train'&&window.STUDY_REGIONS?.title())||window.SCENE_PORTAL?.title(current)||({settings:'设置',bank:'实战训练',train:'修炼',notes:'手记'}[current])||'当前板块';
     const world=window.SCENE_PORTAL?.title('home')||'主地图';
+    const signature=JSON.stringify([current,page,world,p,r,m,s,data.xp]);
+    if(lastPaint===signature&&(current==='home'||document.getElementById('view')?.contains(root)))return;
+    lastPaint=signature;
     if(current!=='home'){compact(root,page,world,m,context?.view||current);return;}
-    beforeRender();root.classList.remove('subpage-heading');
+    beforeRender();lastPaint=signature;root.classList.remove('subpage-heading');
     const started=s.day>0,remaining=s.remaining==null?NaN:Number(s.remaining);
     const overdue=Number.isFinite(remaining)&&remaining<0;
     const stat=(label,value,unit,full)=>`<div class="study-hud-stat" aria-label="${esc(full)}"><span>${esc(label)}</span><div><b>${esc(value)}</b>${unit?`<small>${esc(unit)}</small>`:''}</div></div>`;

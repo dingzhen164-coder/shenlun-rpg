@@ -47,6 +47,26 @@
     return node;
   }
 
+  // 只读阅读位置仅存本机，按科目/库/板块/文件隔离，不写导图正文。
+  let readingTimer=0;
+  function readingKey(c){const d=typeof DASH!=='undefined'?DASH:{};return 'mindmap-reading-v1:'+encodeURIComponent([d?.subject||'法考',d?.vault||'',c.board,c.name].join('\n'));}
+  function validView(v){
+    if(!v||typeof v!=='object'||!v.state||!v.transform)return null;
+    const state={},transform={};
+    for(const k of ['scale','x','y','sx','sy']){const n=v.state[k];if(typeof n!=='number'||!Number.isFinite(n)||Math.abs(n)>1e7)return null;state[k]=n;}
+    if(state.scale<=0||state.scale>100)return null;
+    for(const k of ['a','b','c','d','e','f','scaleX','scaleY','shear','rotate','translateX','translateY','originX','originY','skewX','skewY'])if(typeof v.transform[k]==='number'&&Number.isFinite(v.transform[k])&&Math.abs(v.transform[k])<=1e7)transform[k]=v.transform[k];
+    return Object.keys(transform).length?{state,transform}:null;
+  }
+  function readPosition(c){try{const raw=localStorage.getItem(readingKey(c));if(!raw||raw.length>8000)return null;const p=JSON.parse(raw);return {view:validView(p.view),top:Math.max(0,Math.min(1e8,Number(p.top)||0)),left:Math.max(0,Math.min(1e8,Number(p.left)||0))};}catch(_){return null;}}
+  function savePosition(){
+    clearTimeout(readingTimer);if(editing||!CUR||!mm)return;
+    const doc=document.getElementById('lnMarkdown');
+    if(doc&&!doc.hidden)CUR.readScroll={top:doc.scrollTop,left:doc.scrollLeft};
+    try{localStorage.setItem(readingKey(CUR),JSON.stringify({view:validView(mm.view.getTransformData()),...(CUR.readScroll||{top:0,left:0})}));}catch(_){}
+  }
+  function queuePosition(){clearTimeout(readingTimer);readingTimer=setTimeout(savePosition,180);}
+
   // ---------------------------------------------------------------- 修炼殿：灵脉阵盘
   function disk(i) {
     // 中间一颗主节点，五条灵脉向外生长，末端的小节点一闪一闪
@@ -61,7 +81,9 @@
   }
   async function hubHtml(boards, manage = false) {
     try { LIST = await api("/api/mindmap"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
-    const shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
+    let shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
+    if (!manage) shown=shown.filter(b=>b.maps.length);
+    if (!manage && !shown.length) return "";
     return `<div class="card ln-hall" data-ln-manage="${manage}"><div class="row"><h3 style="margin:0">🌿 灵脉图</h3>
         <span class="small muted">${manage ? "绘制、导入与整理知识导图；Markdown可在本地文档中编辑" : "只读复习 · 导图 / 分级文档 / 双栏对照"}</span></div>
       <div class="ln-grid">${shown.map((b, i) => {
@@ -103,8 +125,8 @@
     return s;
   }
   async function open(board, name, manage = false) {
-    if (CUR) { if(!(await flush()))return; await finishReading(); try { mm?.destroy(); } catch (_) {} mm=null; CUR=null; }
-    const seq=++openSeq; opening=true; editing=manage; viewMode="map";
+    if (CUR) { savePosition();if(!(await flush()))return; await finishReading(); try { mm?.destroy(); } catch (_) {} mm=null; CUR=null; }
+    const seq=++openSeq; opening=true; editing=manage; viewMode=manage?"map":"split";
     const s = stage();
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">${typeof VIEW !== "undefined" && VIEW === "skeleton" ? "← 返回资料库" : "← 返回分区"}</button><b class="yj-top-title">🌿 灵脉图 · ${esc(board)}</b></div><div class="yj-wait">展开灵脉…</div>`;
     document.getElementById("lnBack").onclick = close;
@@ -113,6 +135,7 @@
     if(seq!==openSeq||!s.isConnected){if(d.reading_token)api("/api/mindmap/stop",{token:d.reading_token}).catch(()=>{});return;}
     opening=false;
     CUR = { board, name: d.name, document_revision: d.document_revision, reading_token: d.reading_token, document_path: d.document_path };
+    const position=manage?null:readPosition(CUR);CUR.readScroll=position?{top:position.top,left:position.left}:{top:0,left:0};
     lastRead = Date.now();
     const data = d.data || {};
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">${typeof VIEW !== "undefined" && VIEW === "skeleton" ? "← 返回资料库" : "← 返回分区"}</button>
@@ -128,9 +151,9 @@
           <option value="md">Markdown（.md）</option><option value="json">JSON</option></select>
         <span class="spacer"></span><button class="ghost" data-c="new">＋ 新一幅</button><button class="ghost danger" data-c="trash" title="删掉这一幅">🗑</button>
         <input type="file" id="lnFile" accept=".xmind,.md,.markdown,.txt,.json,.smm" hidden></div>` : `<div class="ln-reading-tabs" role="group" aria-label="阅读方式">
-        <button data-ln-mode="map" aria-pressed="true">灵脉图</button><button data-ln-mode="document" aria-pressed="false">分级文档</button><button data-ln-mode="split" aria-pressed="false">双栏对照</button><span class="spacer"></span><button id="lnReload">↻ 重新载入</button>
+        <button data-ln-mode="map" aria-pressed="false">灵脉图</button><button data-ln-mode="document" aria-pressed="false">分级文档</button><button data-ln-mode="split" aria-pressed="true">双栏对照</button><span class="spacer"></span><button id="lnReload">↻ 重新载入</button>
         ${d.document_path ? `<button id="lnDocument" title="${esc(d.document_path)}">本地文档</button>` : ''}</div>`}
-      <div class="ln-reading-body" data-mode="map"><div class="ln-canvas" id="lnCanvas"></div><article class="ln-document" id="lnMarkdown" hidden>${outline(plain(JSON.parse(JSON.stringify(data.root || {data:{text:board}}))))}</article></div>
+      <div class="ln-reading-body" data-mode="${manage?'map':'split'}"><div class="ln-canvas" id="lnCanvas"></div><article class="ln-document" id="lnMarkdown" ${manage?'hidden':''}>${outline(plain(JSON.parse(JSON.stringify(data.root || {data:{text:board}}))))}</article></div>
       ${manage ? '<div class="ln-tip small faint">点节点选中 · 双击改字 · 拖动节点换位置 · 改了自动保存</div>' : ''}`;
     document.getElementById("lnBack").onclick = close;
     const Mind = M(), palette=getComputedStyle(document.body), color=k=>palette.getPropertyValue(k).trim();
@@ -147,15 +170,19 @@
           root: { fillColor: color('--accent'), color: color('--panel'), borderColor: color('--accent'), fontSize: 18 },
           second: { fillColor: color('--panel2'), color: color('--text'), borderColor: color('--line'), fontSize: 15 },
           general: { fillColor: color('--panel'), color: color('--text'), borderColor: color('--line') } }, data.theme?.config || {}),
-        viewData: data.view || null,
+        viewData: manage?(data.view||null):(position?.view||null),
         mousewheelAction: "zoom", mousewheelZoomActionReverse: true,
       });
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
-      if (!manage || !data.view) { const inst = mm, cv = document.getElementById('lnCanvas'); let fitted = false;
-        inst.on('node_tree_render_end', () => { if (fitted) return; fitted = true;
-          try { if (mm === inst && cv.isConnected && cv.offsetWidth && cv.offsetHeight) inst.view.fit(); } catch (_) {} }); }
+      if(!manage||!data.view){const inst=mm,cv=document.getElementById('lnCanvas'),current=CUR;let fitted=false;
+        inst.on('node_tree_render_end',()=>{if(fitted)return;fitted=true;
+          try{if(mm===inst&&cv.isConnected&&cv.offsetWidth&&cv.offsetHeight){if(position?.view)inst.view.setTransformData(position.view);else inst.view.fit();const doc=document.getElementById('lnMarkdown');if(!manage&&doc){doc.scrollTop=current.readScroll.top;doc.scrollLeft=current.readScroll.left;}}}catch(_){}
+        });
+      }
     } catch (e) { showError(e); return; }
     if (!manage) {
+      mm.on('view_data_change',queuePosition);
+      document.getElementById('lnMarkdown').addEventListener('scroll',queuePosition,{passive:true});
       s.querySelectorAll('[data-ln-mode]').forEach(b=>b.onclick=()=>setViewMode(b.dataset.lnMode));
       document.getElementById('lnReload').onclick=async()=>{const mode=viewMode;await open(board, CUR.name, false);setViewMode(mode);};
       const doc=document.getElementById('lnDocument');if(doc)doc.onclick=()=>localDocument();
@@ -209,6 +236,7 @@
     const ok=await saveP;saveP=null;return ok&&dirty?flush():ok;
   }
   async function close() {
+    savePosition();
     ++openSeq; opening=false;
     if(!(await flush()))return false;
     const closing=CUR; await finishReading();
@@ -259,18 +287,20 @@
       if (o) o.onclick = async () => { try { await api("/api/notes/open", { path: r.path }); } catch (e) { showError(e); } };
     } catch (e) { showError(e); }
   }
-  addEventListener("beforeunload", () => { if (dirty && mm && CUR) navigator.sendBeacon?.("/api/mindmap/save", new Blob([JSON.stringify({ board: CUR.board, name: CUR.name, data: mm.getData(true), document_revision: CUR.document_revision })], { type: "application/json" })); });
+  addEventListener("beforeunload", () => { savePosition();if (dirty && mm && CUR) navigator.sendBeacon?.("/api/mindmap/save", new Blob([JSON.stringify({ board: CUR.board, name: CUR.name, data: mm.getData(true), document_revision: CUR.document_revision })], { type: "application/json" })); });
 
   // 只读文档用文本节点生成层级，用户HTML不进入页面；双栏只移动视图，不触发保存。
   function outline(root) {
     const children=n=>(n.children||[]).length?`<ul>${n.children.map(c=>`<li><span>${esc(c.data?.text||'')}</span>${children(c)}</li>`).join('')}</ul>`:'';
     return `<h1>${esc(root.data?.text||'')}</h1>${children(root)}`;
   }
-  function setViewMode(mode) {
-    viewMode=mode;const body=document.querySelector('.ln-reading-body');if(!body)return;
-    body.dataset.mode=mode;document.getElementById('lnCanvas').hidden=mode==='document';document.getElementById('lnMarkdown').hidden=mode==='map';
+  function setViewMode(mode){
+    if(!['map','document','split'].includes(mode))return;
+    const body=document.querySelector('.ln-reading-body');if(!body)return;
+    savePosition();const inst=mm,current=CUR,view=mm?validView(mm.view.getTransformData()):null;
+    viewMode=mode;body.dataset.mode=mode;document.getElementById('lnCanvas').hidden=mode==='document';document.getElementById('lnMarkdown').hidden=mode==='map';
     document.querySelectorAll('[data-ln-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lnMode===mode)));
-    if(mode!=='document')requestAnimationFrame(()=>{try{mm.resize();mm.view.fit();}catch(_){}});
+    requestAnimationFrame(()=>{if(mm!==inst||CUR!==current||!body.isConnected)return;try{if(mode!=='document'){inst.resize();if(view)inst.view.setTransformData(view);}const doc=document.getElementById('lnMarkdown');if(mode!=='map'){doc.scrollTop=current.readScroll?.top||0;doc.scrollLeft=current.readScroll?.left||0;}}catch(_){}});
   }
   async function localDocument() {
     if(!CUR?.document_path)return;
