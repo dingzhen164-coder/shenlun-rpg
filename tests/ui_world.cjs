@@ -44,8 +44,9 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  // 触控竖屏 + 暗色 + 系统减少动画。章/任务状态保持，关闭后学习入口不被挡住。
  await page.setViewportSize({width:800,height:1280});await page.emulateMedia({reducedMotion:'reduce'});
  await home();await page.evaluate(()=>document.documentElement.dataset.theme='dark');await open();await bounds();
- assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.narrative-seal,.narrative-portrait')).animationName),'none');
  await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
+ await page.locator('.narrative-stage').waitFor();
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.narrative-stage')).animationName),'none');
  await page.locator('[data-narrative="replay"]').click();await page.locator('[data-narrative="skip"]').click();
  assert.equal((await data()).journey.collection.length,6);
  if(process.argv.includes('--shot')){fs.mkdirSync('ui-artifacts/world',{recursive:true});await page.screenshot({path:'ui-artifacts/world/'+(subject||'mage')+'.png'});}
