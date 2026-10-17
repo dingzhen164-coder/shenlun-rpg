@@ -3,6 +3,8 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+shared web/scene_clock.js
+shared tests/ui_daylight339.cjs
 shared rpg/contest_calendar.py
 shared tests/test_training339.py
 shared tests/ui_training339.cjs

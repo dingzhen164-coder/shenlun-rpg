@@ -10,26 +10,20 @@
   const SET = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 只管本次 */ } };
   const root = document.documentElement;
 
-  function phase(d = new Date()) {
-    const h = d.getHours() + d.getMinutes() / 60;
-    return h >= 5.5 && h < 8 ? 'dawn' : h >= 8 && h < 17 ? 'day' : h >= 17 && h < 19.5 ? 'dusk' : 'night';
-  }
+  const phase=d=>SCENE_CLOCK.phase(d);
   function season(d = new Date()) {
     const m = d.getMonth() + 1;
     return m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
   }
   function resolve() {
-    const mode = LS('scene-time', 'auto');
-    let ph, img;
-    if (mode === 'theme') { img = root.dataset.theme === 'dark' ? 'night' : 'day'; ph = img; }
-    else if (mode === 'day' || mode === 'night') { img = ph = mode; }
-    else { ph = phase(); img = ph === 'night' ? 'night' : 'day'; }
+    const {ph,img}=SCENE_CLOCK.resolve();
     const sm = LS('scene-season', 'auto');
     const se = sm === 'off' ? 'off' : sm === 'auto' ? season() : sm;
     return { ph, img, se };
   }
   function apply() {
     const r = resolve();
+    SCENE_CLOCK.apply();
     if (root.dataset.sceneTime !== r.img) root.dataset.sceneTime = r.img;
     if (root.dataset.scenePhase !== r.ph) root.dataset.scenePhase = r.ph;
     if (root.dataset.sceneSeason !== r.se) root.dataset.sceneSeason = r.se;

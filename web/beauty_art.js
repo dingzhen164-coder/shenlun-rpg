@@ -1,5 +1,5 @@
 /* 美术文件夹（rpg/art.py）的前端部分：服务器在 index.html 里注入 window.ART_FILES（库里 训练/外观/美术/ 有哪些覆盖文件及修改时间）。
- * 1) 子地图背景：当前页（洞府、修炼、试炼塔…）若有 beauty/page/<页>-day|night.webp 或 <页>.webp，就把它当作这一页背后的背景（亮色用 -day，暗色用 -night，都没有用不带后缀的），
+ * 1) 子地图背景：当前页（洞府、修炼、试炼塔…）若有 beauty/page/<页>-day|night.webp 或 <页>.webp，就把它当作这一页背后的背景（按统一场景时钟选-day/-night，缺项使用无后缀或另一时段单图并调色），
  *    没有就用程序默认的淡透全景；覆盖图本身给得更清晰，遮罩调淡。
  * 2) BeautyArt.has / url：给别的脚本判断某个资源是否被覆盖（申论首页夜景用）。
  * 首页全景、人物立绘、音乐、音效不需要前端处理：它们请求的原路径会被服务器直接换成美术文件夹里的文件。 */
@@ -15,14 +15,15 @@
   const regionName = () => { try { return window.STUDY_REGIONS ? STUDY_REGIONS.title() : ''; } catch (e) { return ''; } };
   const tabLabel = () => { const t = document.querySelector('.fx-tab[aria-selected="true"]'); return t ? t.textContent.trim() : ''; };
   let view = '', applied='';
-  function findHit(page) {
-    const dark = document.documentElement.dataset.theme === 'dark', dn = dark ? 'night' : 'day', want = [];
+  function findHit(page, dn=document.documentElement.dataset.sceneTime || 'day') {
+    const other=dn==='night'?'day':'night', want = [], fallback=[];
     if (page && page !== 'home') {
       const tk = page === 'dwelling' ? TAB_KEY[tabLabel()] : '';              // 洞府每个页签可单独配背景，没有就回退洞府整体背景
-      if (tk) want.push(`beauty/page/dwelling-${tk}-${dn}.webp`, `beauty/page/dwelling-${tk}.webp`);
+      if (tk) {want.push(`beauty/page/dwelling-${tk}-${dn}.webp`, `beauty/page/dwelling-${tk}.webp`);fallback.push(`beauty/page/dwelling-${tk}-${other}.webp`);}
       const rk = page === 'train' ? REGION_KEY[regionName()] : '';          // 修炼页选中某个分区（五峰等）时可单独配背景
-      if (rk) want.push(`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`);
-      want.push(`beauty/page/${page}-${dn}.webp`, `beauty/page/${page}.webp`);
+      if (rk) {want.push(`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`);fallback.push(`beauty/page/train-${rk}-${other}.webp`);}
+      want.push(`beauty/page/${page}-${dn}.webp`, `beauty/page/${page}.webp`);fallback.push(`beauty/page/${page}-${other}.webp`);
+      want.push(...fallback);
     }
     // 用户给的整页背景也应优先于随包的分区/页签背景。
     return want.find(r => custom.has(r) && has(r)) || want.find(has);
@@ -30,6 +31,7 @@
   const decoded=new Map();
   function decode(src){if(!decoded.has(src))decoded.set(src,new Promise(resolve=>{const img=new Image();img.onload=()=>{if(img.decode)img.decode().catch(()=>{}).then(resolve);else resolve();};img.onerror=()=>resolve();img.src=src;}));return decoded.get(src);}
   function prepare(page){const hit=findHit(page),urls=hit?[url(hit)]:[];
+    const opposite=findHit(page,document.documentElement.dataset.sceneTime==='night'?'day':'night');if(opposite&&opposite!==hit)urls.push(url(opposite));
     const examScene=!(typeof isSL==='function'&&isSL());
     if(page==='bank'&&examScene)urls.push('assets/beauty/trial/tower.png','assets/beauty/trial/gate.png','assets/beauty/trial/landscape.png');
     if(page==='contest'&&examScene)urls.push('assets/beauty/contest/arena.png');
@@ -37,6 +39,9 @@
   }
   function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg'))hit='';
+    // 专用夜景不重复压暗；单张图与用户全局图使用程序光照。
+    b.dataset.sceneRelight=(hit?hit.endsWith('-night.webp'):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
+    b.dataset.sceneRoom=['dwelling','skeleton','notes','settings'].includes(view)||b.classList.contains('guantu')?'indoor':'outdoor';
     if(applied===(hit||''))return;applied=hit||'';
     if(hit){b.style.setProperty('--ds-page-art',`url("${url(hit)}")`);b.classList.add('has-page-art');}
     else{b.style.removeProperty('--ds-page-art');b.classList.remove('has-page-art');}
@@ -46,7 +51,7 @@
     if (v !== view) { view = v; apply(); }
   }
   const start = () => {
-    new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme','data-scene-time','data-scene-phase'] });
     new MutationObserver(apply).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     readView();
     const v = document.getElementById('view'); let q = 0;                    // 洞府切页签时更新背景

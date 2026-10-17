@@ -95,3 +95,19 @@ body{--qb-fs-32:32px;--qb-wood:#321c16;--qb-wood-light:#603c2c;--qb-wood-line:#9
 body.guantu{--qb-wood:#26373b;--qb-wood-light:#3c5559;--qb-wood-line:#a08b61}
 body.xuanhuan{--qb-wood:#292034;--qb-wood-light:#4e3854;--qb-wood-line:#a68751}
 [data-theme="dark"] body{--qb-paper:#d9caab;--qb-paper-edge:#a99368;--qb-ink:#312a22;--qb-muted:#61533e;--qb-seal:#8a302b}
+
+/* 单图昼夜光照：与阅读主题独立，室内夜晚保留暖光，所有颜色集中于令牌。 */
+:root{--ds-scene-filter:none;--ds-scene-building-filter:none;--ds-scene-tint:linear-gradient(transparent,transparent)}
+html[data-scene-phase="dawn"]{--ds-scene-filter:brightness(.96) saturate(.86) sepia(.12);--ds-scene-building-filter:brightness(.96) sepia(.1);--ds-scene-tint:var(--ds-tint-dawn)}
+html[data-scene-phase="dusk"]{--ds-scene-filter:brightness(.8) saturate(.8) sepia(.2);--ds-scene-building-filter:brightness(.87) sepia(.14);--ds-scene-tint:linear-gradient(180deg,#29244142,#ab6c6330 65%,#c898663d)}
+html[data-scene-phase="night"]{--ds-scene-filter:brightness(.49) saturate(.55);--ds-scene-building-filter:brightness(.67) saturate(.68);--ds-scene-tint:linear-gradient(180deg,#12244791,#24314b50 65%,#1020366b)}
+html[data-scene-phase="night"] body[data-scene-room="indoor"]{--ds-scene-filter:brightness(.64) saturate(.68);--ds-scene-tint:radial-gradient(ellipse at 50% 85%,#e9b46527,transparent 65%),linear-gradient(180deg,#12244785,#24314b26)}
+
+html[data-scene-time="day"] body.xiuxian{--ds-page-art:url("assets/sect/xc-sect-day.webp")}
+html[data-scene-time="night"] body.xiuxian{--ds-page-art:url("assets/sect/xc-sect-night.webp")}
+html[data-scene-time="day"] body.guantu{--ds-page-art:url("assets/shenlun/hall.webp")}
+html[data-scene-time="night"] body.guantu{--ds-page-art:url("assets/shenlun/night.webp")}
+html[data-scene-time="day"] body.xuanhuan{--ds-page-art:url("assets/academy/scene/mg-academy-day.webp")}
+html[data-scene-time="night"] body.xuanhuan{--ds-page-art:url("assets/academy/scene/mg-academy-night.webp")}
+
+:root{--ds-scene-night-ink:#f3e3bf;--ds-scene-night-shadow:#07111e}

@@ -31,6 +31,7 @@
   document.documentElement.dataset.theme = m; document.documentElement.style.colorScheme = m;
   // 老一些的平板浏览器内核不认 color-mix()：打个记号，style.css 末尾给这些地方换成普通颜色（不然圆框、底色整个不画）
   try { if (!(window.CSS && CSS.supports("color", "color-mix(in srgb, red 50%, blue)"))) document.documentElement.classList.add("no-cmix"); } catch (e) {} })();</script>
+<script src="scene_clock.js"></script>
 <link rel="stylesheet" href="scene_portal.css">
 <link rel="stylesheet" href="scene_fx.css">
 <link rel="stylesheet" href="narrative.css">
