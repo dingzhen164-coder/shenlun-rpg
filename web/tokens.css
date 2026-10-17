@@ -90,3 +90,8 @@ html[data-theme="dark"] body.xuanhuan { --ds-page-art: url("assets/academy/scene
 /* 动态感（beauty_motion / scene_fx）：光束与云雾颜色，随白天/夜晚全景取值 */
 :root { --ds-ray: #fff0c84d; --ds-mist: #ffffff3a; }
 html[data-scene-time="night"] { --ds-ray: #a8c8ff1a; --ds-mist: #8fb4d02e; }
+/* 任务榜材质；各世界沿用自己的墨色，宣纸与朱木不随背景泛白。 */
+body{--qb-fs-32:32px;--qb-wood:#321c16;--qb-wood-light:#603c2c;--qb-wood-line:#987344;--qb-gold:#e5c98e;--qb-paper:#f4e8c9;--qb-paper-edge:#d0b67d;--qb-ink:#382f23;--qb-muted:#75664b;--qb-seal:#9f3830;--qb-shadow:#150c0ab3;--qb-fiber:#8d6d3310;--qb-light:#fff4ce44}
+body.guantu{--qb-wood:#26373b;--qb-wood-light:#3c5559;--qb-wood-line:#a08b61}
+body.xuanhuan{--qb-wood:#292034;--qb-wood-light:#4e3854;--qb-wood-line:#a68751}
+[data-theme="dark"] body{--qb-paper:#d9caab;--qb-paper-edge:#a99368;--qb-ink:#312a22;--qb-muted:#61533e;--qb-seal:#8a302b}

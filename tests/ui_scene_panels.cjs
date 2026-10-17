@@ -37,6 +37,7 @@ async function fits(page){
   await page.reload();await page.evaluate(()=>go('settings'));await page.waitForSelector('.fx-settings');
   assert(Math.abs((await page.locator('.fx-settings').boundingBox()).width-viewport.width*.75)<2,'重新载入保留本机尺寸');
   await reveal(page,'#scenePanelReset');await page.locator('#scenePanelReset').click();
+  await page.evaluate(async subject=>{const board=subject==='行测'?'常识判断':subject==='申论'?(DASH.tree[0]?.board||'归纳概括'):'民法';await api('/api/cards/add',{deck:board,type:'问答',front:'自编条件是什么？',back:'先说明适用条件。'});await api('/api/mindmap/create',{board,name:'自编知识图'});},subject);
   await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator('[data-study-region]').first().click();await page.waitForSelector('.fx-region-work');
   for(const theme of ['light','dark']){
    await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await fits(page);

@@ -3,6 +3,11 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+shared rpg/task_board.py
+shared web/task_board.js
+shared web/task_board.css
+shared tests/test_task_board.py
+shared tests/ui_task_board.cjs
 shared defaults/台词库.md
 shared defaults/台词库·玄幻.md
 shared rpg/__init__.py

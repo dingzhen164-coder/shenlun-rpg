@@ -61,7 +61,9 @@
   }
   async function hubHtml(boards, manage = false) {
     try { LIST = await api("/api/mindmap"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
-    const shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
+    let shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
+    if (!manage) shown=shown.filter(b=>b.maps.length);
+    if (!manage && !shown.length) return "";
     return `<div class="card ln-hall" data-ln-manage="${manage}"><div class="row"><h3 style="margin:0">🌿 灵脉图</h3>
         <span class="small muted">${manage ? "绘制、导入与整理知识导图；Markdown可在本地文档中编辑" : "只读复习 · 导图 / 分级文档 / 双栏对照"}</span></div>
       <div class="ln-grid">${shown.map((b, i) => {

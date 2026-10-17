@@ -293,7 +293,7 @@ function mountNarrative() {
     api, error: showError,
     task: t => t.type === "cards" ? (go("train").then(() => CARDS.review(""))) : startTask({task_id:t.id}),
     updated: () => refresh(),
-    route: view => ["train","skeleton","log","contest","dwelling"].includes(view) && go(view),
+    route: view => ["train","skeleton","log","contest","dwelling","settings"].includes(view) && go(view),
     study: () => go('train'), review: () => go(isSL() ? 'log' : 'dwelling'),
     tutor: () => startTask({ task: { type: 'chat', board: '', target: '', title: `💬 ${W('tutor_room')}` } }),
   });
@@ -642,8 +642,9 @@ const views = {
     const cur = DASH?.theme?.name;
     const cp = chatPrefs();
     const schedule=await api('/api/study/schedule',{});
+    const taskSettings=await TASK_BOARD.settingsHtml();
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
+    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + (await DEVICE.html()) + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + taskSettings + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
       <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
         <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
       <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
@@ -1508,24 +1509,9 @@ function bindLog() {
   };
 }
 // 设置页：有输入框 / 下拉框的卡片都收成可展开的（默认收起，点标题展开）
-function foldCards(root) {
-  root.querySelectorAll(":scope > .card, :scope > div > .card").forEach((c) => {
-    const h = c.firstElementChild;
-    if (c.classList.contains("shortcut-settings") || c.classList.contains("portal-settings") || !h || h.tagName !== "H3" || !c.querySelector("input, select, textarea") || c.closest("details")) return;
-    const d = document.createElement("details");
-    d.className = c.className + " card-fold";
-    if (c.id) d.id = c.id;
-    const s = document.createElement("summary");
-    s.innerHTML = h.innerHTML;
-    d.appendChild(s);
-    h.remove();
-    while (c.firstChild) d.appendChild(c.firstChild);
-    c.replaceWith(d);
-  });
-}
 function bindSettings() {
+  TASK_BOARD.bindSettings();
   SCENE_PORTAL.mount("settings");
-  foldCards($("#view"));
   DEVICE.bind();
   const saveChat = (p) => { try { localStorage.setItem("chatLayout", JSON.stringify({...p,schema:2})); } catch {} };
   const readChat = () => ({ w: Number($("#cwR").value), h: Number($("#chR").value), fs: Number($("#cfR").value) });

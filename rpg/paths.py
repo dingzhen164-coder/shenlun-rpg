@@ -161,7 +161,9 @@ class Paths:
         if not f or not f.is_file():
             return
         t = f.read_text(encoding="utf-8")
-        n = re.sub(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)120\b[^\n]*$",
+        from .mdconf import parse
+        # 新任务设置显式选择的120分钟不再当作旧默认值迁移。
+        n = t if parse(t).get('任务板.每日内容') else re.sub(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)120\b[^\n]*$",
                    r"\g<1>300  # 修炼 + 听道（网课）合计", t)
         n = re.sub(r"(?m)^(\s*-\s*周常\.修炼分钟\s*[:：]\s*)600\b[^\n]*$", r"\g<1>1500  # 含听道", n)
         if n != t:

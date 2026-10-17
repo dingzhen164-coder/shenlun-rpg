@@ -236,6 +236,30 @@ def narrative_action(body):
             raise ApiError(str(e))
 
 
+def task_board_view(body):
+    from . import task_board
+    with open_game() as g:
+        if not g.paths.vault:
+            return {'unavailable': '请先在AI与资料中选择当前科目的学习库，再配置任务板。'}
+        try:
+            return task_board.view(g)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def task_board_action(body, record=False):
+    from . import task_board
+    with open_game() as g:
+        try:
+            return task_board.record(g, body) if record else task_board.save(g, body)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def task_board_record(body):
+    return task_board_action(body, record=True)
+
+
 def journey_action(body):
     from . import journey
     with open_game() as g:
@@ -1079,6 +1103,9 @@ ROUTES = {
     ("GET", "/api/narrative"): narrative_view,
     ("POST", "/api/narrative"): narrative_action,
     ("POST", "/api/journey"): journey_action,
+    ("GET", "/api/task-board"): task_board_view,
+    ("POST", "/api/task-board/settings"): task_board_action,
+    ("POST", "/api/task-board/record"): task_board_record,
     ("GET", "/api/dashboard"): dashboard,
     ("POST", "/api/sect/story"): sect_story_read,
     ("POST", "/api/plan/regenerate"): plan_regenerate,
