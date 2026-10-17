@@ -142,7 +142,10 @@ class PortraitTest(unittest.TestCase):
 
     def test_character_portraits_needs_calm(self):
         self._fig("sl-zhoujingyi-cheer.png")
-        self.assertIsNone(art.character_portraits(self.p, "申论", "zhoujingyi"))
+        # 没有基础图的旧素材包仍不能独立构成立绘；新版本可回退内置单张。
+        from unittest.mock import patch
+        with patch.object(art, 'builtin_asset', return_value=None):
+            self.assertIsNone(art.character_portraits(self.p, "申论", "zhoujingyi"))
         self._fig("sl-zhoujingyi-calm.png")
         self._fig("sl-zhoujingyi-blink.png")
         por = art.character_portraits(self.p, "申论", "zhoujingyi")

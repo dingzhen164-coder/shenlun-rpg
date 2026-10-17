@@ -45,6 +45,14 @@ jobs:
           node tests/ui_contest_scene.cjs --subject=行测 --shots
           node tests/ui_layout335.cjs --subject=行测 --shots
           node tests/ui_layout335.cjs --subject=申论
+      - name: Task board, reading viewport and built-in art
+        run: |
+          node tests/ui_task_board.cjs --subject=行测
+          node tests/ui_layout337.cjs --subject=行测
+          node tests/ui_art338.cjs --subject=行测
+          node tests/ui_task_board.cjs --subject=申论
+          node tests/ui_layout337.cjs --subject=申论
+          node tests/ui_art338.cjs --subject=申论
       - name: Narrative and learning contracts
         run: |
           node tests/test_narrative_ink.cjs

@@ -575,3 +575,8 @@ shared tests/ui_contest_scene.cjs
 # 3.3.5：地图预览、角落工具与时政书架检查。
 shared tests/layout335_fixture.py
 shared tests/ui_layout335.cjs
+
+# 3.3.8 随包美术：别名清单与素材按各仓库科目独立
+shared tests/test_builtin_art.py
+shared tests/ui_art338.cjs
+diverged web/assets/beauty/builtin-art.json

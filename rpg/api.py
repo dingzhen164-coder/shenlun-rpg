@@ -1926,7 +1926,8 @@ class Handler(BaseHTTPRequestHandler):
                     if done:
                         return self._send(200, done[0], done[1])
                 return self._send(200, ov.read_bytes(), ct)
-        f = (WEB_DIR / rel).resolve()
+        builtin = art.builtin_asset(subjects.active(), rel[7:]) if rel.startswith('assets/') else None
+        f = (builtin or WEB_DIR / rel).resolve()
         if WEB_DIR.resolve() not in f.parents or not f.is_file():
             return self._send(404, {"error": "not found"})
         ctype = mimetypes.guess_type(f.name)[0] or "text/plain"
@@ -1936,8 +1937,9 @@ class Handler(BaseHTTPRequestHandler):
         raw = wording.web(rel, f.read_bytes(), sub)        # 申论科目：网页里写死的修仙说法换成官场说法（rpg/wording.py）
         if rel == "index.html":          # 告诉页面它是按哪个科目载入的（科目被别的窗口切走时页面自己重新载入）
             vp = find_vault()
-            af = art.files(Paths(vp), sub) if vp else []          # 美术文件夹里有哪些覆盖文件（前端据此决定子地图背景等）
-            raw = raw.replace(b"</head>", ("<script>window.SUBJECT0=%s;window.ART_FILES=%s;</script>\n</head>" % (json.dumps(sub, ensure_ascii=False), json.dumps(af))).encode("utf-8"), 1)
+            af = art.available(Paths(vp) if vp else None, sub)  # 本科内置与用户覆盖，不依赖用户学习资料
+            ac = [r for r, _v in art.files(Paths(vp) if vp else None, sub)]
+            raw = raw.replace(b"</head>", ("<script>window.SUBJECT0=%s;window.ART_FILES=%s;window.ART_CUSTOM=%s;</script>\n</head>" % (json.dumps(sub, ensure_ascii=False), json.dumps(af), json.dumps(ac))).encode("utf-8"), 1)
         self._send(200, raw, ctype, cache=rel.startswith("vendor/"))   # 第三方库（6MB 的思维导图编辑器）让平板缓存，不每次重下
 
     def do_GET(self):

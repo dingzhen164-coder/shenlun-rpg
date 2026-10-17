@@ -6,6 +6,7 @@
 (() => {
   'use strict';
   const F = new Map((Array.isArray(window.ART_FILES) ? window.ART_FILES : []).map((x) => [x[0], x[1]]));
+  const custom = new Set(Array.isArray(window.ART_CUSTOM) ? window.ART_CUSTOM : F.keys());
   const has = (r) => F.has(r), url = (r) => 'assets/' + r + '?v=' + F.get(r);
   // 洞府页签名 → key（与 rpg/art.py 的 DWELLING_TABS 对应）
   const TAB_KEY = { '修为与突破': 'growth', '仕途与晋升': 'growth', '成长与晋升': 'growth', '十二经': 'shier', '修行记录': 'records', '学习记录': 'records', '储物袋': 'bag', '修行日志': 'diary', '学时与出勤': 'daily', '时辰与日课': 'daily' };
@@ -23,7 +24,8 @@
       if (rk) want.push(`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`);
       want.push(`beauty/page/${page}-${dn}.webp`, `beauty/page/${page}.webp`);
     }
-    return want.find(has);
+    // 用户给的整页背景也应优先于随包的分区/页签背景。
+    return want.find(r => custom.has(r) && has(r)) || want.find(has);
   }
   const decoded=new Map();
   function decode(src){if(!decoded.has(src))decoded.set(src,new Promise(resolve=>{const img=new Image();img.onload=()=>{if(img.decode)img.decode().catch(()=>{}).then(resolve);else resolve();};img.onerror=()=>resolve();img.src=src;}));return decoded.get(src);}
@@ -33,7 +35,8 @@
     if(page==='contest'&&examScene)urls.push('assets/beauty/contest/arena.png');
     return Promise.all(urls.map(decode));
   }
-  function apply(){const b=document.body;if(!b)return;const hit=findHit(view);
+  function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
+    if(hit&&!custom.has(hit)&&b.classList.contains('has-bg'))hit='';
     if(applied===(hit||''))return;applied=hit||'';
     if(hit){b.style.setProperty('--ds-page-art',`url("${url(hit)}")`);b.classList.add('has-page-art');}
     else{b.style.removeProperty('--ds-page-art');b.classList.remove('has-page-art');}
@@ -44,6 +47,7 @@
   }
   const start = () => {
     new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    new MutationObserver(apply).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     readView();
     const v = document.getElementById('view'); let q = 0;                    // 洞府切页签时更新背景
     if (v) new MutationObserver(() => { if (!q) { q = 1; queueMicrotask(() => { q = 0; apply(); }); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });

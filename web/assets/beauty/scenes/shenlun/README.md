@@ -1,7 +1,17 @@
-# shenlun 场景
+# 随包场景 · shenlun
 
-约定文件名（3.2.3 起补全）：
-- 时间段全景：`dawn.webp`、`day.webp`、`dusk.webp`、`night.webp`（16:9，≤350KB；目前行测用 `sect/xc-sect-day/night.webp`）
-- 季节叠加：`season-spring.webp`、`season-summer.webp`、`season-autumn.webp`、`season-winter.webp`（透明层，叠在全景上）
-- 动态层：`cloud-1.webp`、`mist.webp`、`mote.webp`（光点）、`bird.webp`、`lantern-glow.webp`
-缺失时：只显示基础全景，动态层不出现。
+2026-10-17，3.3.8。OpenAI imagegen 原创生成，未用第三方参考图。只将拆分、去除图集边线并压缩的 WebP 入库，原始生成图不进仓库。深色主题复用同图并加遮罩；申论首页单独提供昼夜两张。
+
+资源别名与复用关系见 `../../builtin-art.json`；每科只含自己的清单。程序先读用户 `训练/外观/美术/` 的同名文件，缺失时用本组素材。用户素材不覆盖、不迁移。导出模板时复制实际随包文件，已有文件保留。
+
+## sl-rooms
+
+A polished production background atlas, exactly 2 columns and 3 rows equal 16:9 panels, no gaps borders captions. Full atlas 2048x1728. Chinese modern civic workplace watercolor illustration, fine semi-realistic linework, restrained navy ivory warm gold palette, calm tasteful human scale. No fantasy architecture, people, writing, badges, flags or logos. Quiet central 55 percent for overlay panels; decorative objects and architectural details around outer sides. Reading order: 1 dignified office with executive desk, plant, large window to landscaped civic campus; 2 attendance and planning room with blank calendar and clock, pale morning light; 3 learning records office, neat folders and wood shelves; 4 elegant archive with tall blue grey filing cabinets, paper carts and brass lamps; 5 private desk with fountain pen, plain notebook, window beside small garden; 6 equipment adjustment room, subtle drafting instruments and desk lamp. Every cell independent distinct detailed environment, premium visual novel background.
+
+## sl-regions
+
+Modern Chinese civic workplace game illustration atlas, exactly TWO columns by THREE rows of equal 16:9 horizontal scenes with NO gaps, borders or captions. Elegant semi-realistic watercolor, navy ivory warm gold and pale green, human-scale office, not fantasy, no actual insignias or text. Quiet central 55 percent for UI, recognizable furnishings to sides. Reading order: 1 material synthesis office, many orderly plain folders and cream desk; 2 analytical discussion room, blank glass diagram board and round table; 3 practical policy solutions workshop, blank maps and simple planning models; 4 implementation service office, aligned service windows and document trays; 5 essay writing studio, fountain pen and plain paper, sunlit bookcases; 6 open central civic study hall with five doorways and landscaped courtyard view. No people, writing, logos, flags, badges. Full atlas about 2048x1728.
+
+## sl-home
+
+A paired civic campus panorama, exactly ONE column TWO rows of perfectly aligned 16:9 landscapes, same camera and exactly same architecture in both. Top daylight, bottom blue-hour night with warm windows. Total canvas 1792x2016 or similar portrait aspect. Modern Chinese civic service campus by lake and gardens, exquisite semi-realistic watercolor illustration, restrained ivory stone navy glass muted gold detailing, welcoming professional atmosphere. NO people, flags, symbols, national or party emblems, signs, text, watermarks. Camera elevated wide angle with every building clearly separated. Locations normalized inside EACH panel: small private office building at x23% y55%; the major civic study building centrally at x48% y31% in middle distance; training hall at x48% y66% foreground center; archive building at x75% y42%; small notebook pavilion by water at x68% y73%; annual assessment auditorium at x37% y74%; elegant information clock tower at x16% y79%; records office at x86% y66%; announcement and assignments courtyard at x88% y31%. Main hall has a high glass entry and broad steps. Realistic calm architectural scale, connected paths, landscaped pond, fine trees, empty blank plaques if any. Leave upper corners and lower right quiet for controls. Safe for cropping vertical tablet center. Bottom panel same composition at night. EACH half 16:9, no border or gutter.
