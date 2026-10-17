@@ -39,23 +39,80 @@ class Training339Test(unittest.TestCase):
         bank.close(self.g, run)
         self.assertEqual(len(bank.begin(self.g, board, 'new')['questions']), 10)
 
+    def assert_material_groups(self, questions, size=5):
+        for i in range(0, len(questions), size):
+            group = questions[i:i+size]
+            self.assertEqual(len(group), size)
+            self.assertEqual(len({bank._material_group(q) for q in group}), 1)
+
     @unittest.skipUnless(hasattr(config, 'canon_key'), '资料分析为行测板块')
-    def test_data_review_random_ten_without_padding_material_siblings(self):
+    def test_data_new_selects_whole_materials_for_ten_fifteen_twenty(self):
         questions = self.questions('资料分析')
         data = bank.state(self.g)
-        for q in questions:
-            data['records'][q['key']] = dict(question=q, wrong=True, history=[], streak=0)
-        data['records'][questions[0]['key']]['wrong'] = False
+        for count in (10, 15, 20):
+            for order in ('seq', 'shuffle'):
+                self.g.rules.raw['实战每组题数'] = str(count)
+                data['order'] = order
+                with patch.object(bank.random, 'shuffle', side_effect=lambda groups:groups.reverse()):
+                    run = bank.begin(self.g, '资料分析', 'new')
+                self.assertEqual(len(run['questions']), count)
+                self.assert_material_groups(run['questions'])
+                expected_first = 0 if order == 'seq' else 25
+                self.assertEqual(run['questions'][:5], questions[expected_first:expected_first+5])
+                bank.close(self.g, run)
+        # 部分已答的材料也补齐整套；旧题不重复发首次奖励。
+        q = questions[0]
+        data['records'][q['key']] = dict(question=q, wrong=False, history=[dict(ok=True, answer='A')], streak=1)
+        data['order'] = 'seq'
+        run = bank.begin(self.g, '资料分析', 'new')
+        self.assertEqual(run['questions'][0], q)
+        with patch.object(self.g, '_award') as award:
+            bank.record(self.g, run, 'A')
+            award.assert_not_called()
+        old = copy.deepcopy(run)
+        self.g.rules.raw['实战每组题数'] = '10'
+        data['order'] = 'shuffle'
+        self.assertEqual(bank.begin(self.g, '资料分析', 'new'), old)
+
+    @unittest.skipUnless(hasattr(config, 'canon_key'), '资料分析为行测板块')
+    def test_data_review_expands_wrong_questions_to_complete_materials(self):
+        questions = self.questions('资料分析')
+        data = bank.state(self.g)
+        for i, q in enumerate(questions):
+            data['records'][q['key']] = dict(question=q, wrong=i in (1, 21), history=[dict(ok=i not in (1, 21), answer='A')], streak=0)
+        before = copy.deepcopy(data['records'])
+        self.g.rules.raw['实战每组题数'] = '10'
+        run = bank.begin(self.g, '资料分析', 'review')
+        self.assertEqual(run['questions'], questions[:5]+questions[20:25])
+        self.assert_material_groups(run['questions'])
+        self.assertEqual(data['records'], before)
+        old = copy.deepcopy(run)
+        self.assertEqual(bank.begin(self.g, '资料分析', 'review'), old)
+        bank.close(self.g, run)
+        # 删除题库后仍可使用原题目/材料快照复习，不能丢历史错题。
+        (self.p.train/'题库/资料分析真题.md').unlink()
+        self.assertEqual(bank.begin(self.g, '资料分析', 'review')['questions'], old['questions'])
+
+    @unittest.skipUnless(hasattr(config, 'canon_key'), '资料分析为行测板块')
+    def test_data_topic_and_paper_keep_material_siblings_and_legacy_run(self):
+        self.questions('资料分析')
+        file = self.p.train/'题库/资料分析真题.md'
+        text = file.read_text(encoding='utf-8').replace('知识点\n自编考点', '知识点\n选中特征', 1)
+        for i in range(30):
+            text = text.replace('题目 自编-%02d' % i, '题目 自编书-%02d-%02d' % (i//10+1, i))
+        file.write_text(text, encoding='utf-8')
+        questions = bank.read(self.p, '资料分析')[0]
+        run = bank.begin(self.g, '点:资料分析:选中特征', 'new')
+        self.assertEqual(run['questions'], questions[:5])
+        bank.close(self.g, run)
         self.g.rules.raw['实战每组题数'] = '20'
-        with patch.object(bank.random, 'sample', side_effect=lambda xs,n:list(reversed(xs))[:n]) as sample:
-            run = bank.begin(self.g, '资料分析', 'review')
-            self.assertEqual(len(run['questions']), 10)
-            self.assertEqual(len({q['key'] for q in run['questions']}), 10)
-            self.assertEqual(run['questions'][0]['id'], questions[-1]['id'])
-            self.assertNotIn(questions[0], run['questions'])
-            snapshot = copy.deepcopy(run)
-            self.assertEqual(bank.begin(self.g, '资料分析', 'review'), snapshot)
-            self.assertEqual(sample.call_count, 1)
+        run = bank.begin(self.g, '套:自编书-01', 'new')
+        self.assertEqual(run['questions'], questions[:10])
+        self.assert_material_groups(run['questions'])
+        # 历史练习即使是旧版散题快照，也不强制重排用户作答/计时。
+        run.update(board='资料分析', questions=[questions[0], questions[6]], picks={'1':'B'}, pos=1)
+        bank.state(self.g)['runs']['资料分析'] = run
+        self.assertEqual(bank.begin(self.g, '资料分析', 'new'), run)
 
     def test_weekly_anchor_sunday_and_rollover_without_scores(self):
         if getattr(self.g, 'subject', '法考') != '行测':
