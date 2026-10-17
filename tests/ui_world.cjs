@@ -20,11 +20,13 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await page.locator('[data-portal-motion]').click();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
  await page.reload();await page.locator('.portal-world').waitFor();await page.keyboard.press('Tab');await page.locator('.fx-settings').waitFor();await page.locator('[data-portal-motion]').waitFor();assert.equal(await page.locator('[data-portal-motion]').getAttribute('aria-pressed'),'true');
  await home();assert.equal(await page.evaluate(()=>getComputedStyle(document.querySelector('.portal-cloud')).animationName),'none');await open();await page.locator('.narrative-companions summary').click();await page.locator('[data-narrative-chapter="peer_method"]').click();
+ const peerPortrait=subject==='行测'?'xc-luheng':subject==='申论'?'sl-xuzhining':'mg-lia';
+ await page.waitForFunction(cid=>Array.from(document.querySelectorAll('.narrative-stage img')).some(i=>i.src.includes(cid)&&i.complete&&i.naturalWidth>0),peerPortrait);
  await page.locator('[data-narrative-choice="practice"]').click();await page.locator('[data-narrative-choice="continue"]').click();
  await page.locator('[data-narrative="finish"]').click();await page.locator('[data-narrative="replay"]').waitFor();
  const before=await data();assert.equal(before.companions[0].read,true);assert.equal(before.journey.collection.length,0);
  assert.equal(await page.locator('#narrative-title').textContent(),before.companions[0].name);await page.locator('[data-narrative="back"]').click();
- assert.equal(await page.locator('#narrative-title').textContent(),before.guide_profile.character);
+ assert.equal(await page.locator('#narrative-title').textContent(),await page.evaluate(()=>TASK_BOARD.names().title));
  await page.locator('[data-journey-claim="main:study"][data-journey-approach="practice"]').click();
  await page.locator('[data-journey-claim^="daily:"]').first().click();await page.locator('[data-journey-start^="daily:"]').click();
  await card();await open();await page.locator('[data-journey-deliver="main:study"]').click();

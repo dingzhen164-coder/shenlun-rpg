@@ -15,7 +15,9 @@
     "beauty/page/dwelling.webp": "beauty/scenes/xingce/dwelling-growth.webp",
     "beauty/page/skeleton.webp": "beauty/scenes/xingce/dwelling-records.webp",
     "beauty/page/notes.webp": "beauty/scenes/xingce/dwelling-diary.webp",
-    "beauty/page/tianji.webp": "beauty/scenes/xingce/train-zi.webp"
+    "beauty/page/tianji.webp": "beauty/scenes/xingce/train-zi.webp",
+    "beauty/portrait/xc-luheng-calm.webp": "beauty/characters/xingce/xc-luheng-calm.webp",
+    "beauty/portrait/xc-suling-calm.webp": "beauty/characters/xingce/xc-suling-calm.webp"
   },
   "申论": {
     "beauty/page/dwelling-growth.webp": "beauty/scenes/shenlun/dwelling-growth.webp",

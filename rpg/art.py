@@ -93,6 +93,8 @@ HOME = {"行测": ("sect/xc-sect-day.webp", "sect/xc-sect-night.webp"), "申论"
 # 申论的人物：七位阶段领导（按职务履历里的领导姓名对应）与两位同事（同伴支线）
 SL_CHARS = [("周静宜", "zhoujingyi"), ("陈知微", "chenzhiwei"), ("林清岚", "linqinglan"), ("秦书瑶", "qinshuyao"), ("韩明慧", "hanminghui"),
             ("沈清妍", "shenqingyan"), ("顾清宁", "guqingning"), ("许知宁", "xuzhining"), ("林悦", "linyue")]
+PEERS = {'行测': [('陆衡', 'xc-luheng'), ('苏苓', 'xc-suling')],
+         '法考': [('莉娅', 'mg-lia'), ('诺亚', 'mg-noah')]}
 EXPR = [("calm", "平静"), ("cheer", "鼓励"), ("explain", "讲解"), ("concern", "关切"), ("proud", "欣慰"), ("blink", "眨眼")]
 PORTRAIT = {"行测": "guide/xc-qinghe-%s.webp", "法考": "academy/portrait/mg-eileen-%s.webp"}
 BGM = [("map-day", "地图白天"), ("map-night", "地图夜晚"), ("dongfu", "洞府"), ("study", "学习"), ("ceremony", "突破仪式"), ("dialog", "对话")]
@@ -138,6 +140,8 @@ def slots(subject):
         for cname, cid in SL_CHARS:
             for key, cn in EXPR:
                 out.append(("人物立绘", "%s-%s" % (cname, cn), "beauty/portrait/sl-%s-%s.webp" % (cid, key), None, "image", ("sl-%s-%s" % (cid, key),)))
+    for cname, cid in PEERS.get(subject, []):
+        out.append(('人物立绘', cname+'-平静', 'beauty/portrait/%s-calm.webp' % cid, None, 'image', (cid+'-calm',)))
     for key, cn in BGM:
         rel = "beauty/audio/bgm/%s.ogg" % key
         out.append(("音乐", cn, rel, rel, "audio", ()))
@@ -301,11 +305,17 @@ def processed(path):
 def character_portraits(paths, subject, cid):
     """申论某个人物的立绘表：{calm, cheer, …, blink:{src,x,y,w,h}}；没有 calm（基础图）就返回 None。
     眨眼图是整幅同取景的闭眼图（不是只含眼部），所以叠满整个画面。"""
-    if subject != '申论' or cid not in dict(SL_CHARS).values():
+    if subject == '申论':
+        if cid not in dict(SL_CHARS).values():
+            return None
+        prefix = 'sl-' + cid
+    elif cid in dict(PEERS.get(subject, [])).values():
+        prefix = cid
+    else:
         return None
     got = {}
     for key, _cn in EXPR:
-        rel = "beauty/portrait/sl-%s-%s.webp" % (cid, key)
+        rel = "beauty/portrait/%s-%s.webp" % (prefix, key)
         p = lookup(paths, subject, rel)
         p = p or builtin_asset(subject, rel)
         if p:

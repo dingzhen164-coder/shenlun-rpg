@@ -25,6 +25,8 @@ class BuiltinArtTest(unittest.TestCase):
                 p = art.builtin_asset(subject, rel); unique.add(p)
                 with Image.open(p) as im:
                     im.verify()
+            for _name, cid in art.PEERS.get(subject, []):
+                self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
             self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
         self.assertLess(sum(p.stat().st_size for p in unique), 10 * 1024 * 1024)
         if '申论' in expected:

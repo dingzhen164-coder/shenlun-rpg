@@ -32,3 +32,4 @@
 
 | art338-scenes | beauty/scenes/<主题>/*.webp | 三科个人空间、研习分区与普通页面背景 | 本项目原创提示词，经 OpenAI imagegen 生成 | 生成服务条款；未用第三方图 | 2026-10-17 | 提示词见各主题 README；深色复用同图加遮罩，减少体积 |
 | art338-shenlun | beauty/characters/shenlun/sl-*-calm.webp | 九位既有申论人物，每人一张 | 本项目原创设定，经 OpenAI imagegen 生成并透明化 | 生成服务条款；原创虚构人物 | 2026-10-17 | 姓名/岗位沿用职务履历，不扩展自由偶遇阵容；法考包不含本组图 |
+| art338-peers | beauty/characters/{xingce,fakao}/*-calm.webp | 陆衡/苏苓、莉娅/诺亚既有支线单张立绘 | OpenAI imagegen 原创生成 | 生成服务条款 | 2026-10-17 | 详见各人物目录README；按科目分发，不新增人物 |
