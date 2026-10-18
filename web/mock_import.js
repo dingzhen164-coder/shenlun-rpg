@@ -8,7 +8,14 @@
  const enabled=()=>window.SUBJECT0==='行测';
  function html(){if(!enabled())return '';return `<details class="card cs-entry-section mock-paper-import" id="mockPaperImport" data-cs-fold="paper"><summary><span>01</span><b>试卷导入</b><small>PDF · HTML · 配套资源 ZIP</small></summary><div class="mi-body"><p class="small muted">选择粉笔模考PDF，或已保存的HTML；HTML的同名_files文件夹请压成ZIP选在配套资源。也可直接选择包含HTML和_files的完整ZIP。</p><div class="mi-fields"><label>试卷文件<input id="mhFile" type="file" accept=".pdf,.html,.htm,.zip,application/pdf,text/html,application/zip"></label><label>配套资源ZIP（HTML选填）<input id="mhAssets" type="file" accept=".zip,application/zip"></label><label>第几季<input id="mhSeason" type="number" min="1" max="9999" placeholder="默认从标题识别"></label></div><p id="mhFilename" class="small muted">${esc(filename)}</p><div class="row"><button type="button" id="mhPreview">检查HTML / ZIP</button><button type="button" class="primary" id="mhCommit">开始导入</button></div><div id="mhResult" role="status" aria-live="polite">${last}</div><details class="fold" data-cs-fold="stored"><summary>已有试卷与导入管理</summary><div id="mhPdfStatus" class="small muted">展开试卷导入后读取…</div></details></div></details>`;}
  async function fileData(file){if(file.size>32*1024*1024)throw Error('单个文件最多32MB');const bytes=new Uint8Array(await file.arrayBuffer());let bin='';for(let i=0;i<bytes.length;i+=32768)bin+=String.fromCharCode(...bytes.subarray(i,i+32768));return {name:file.name,data:btoa(bin)};}
- function scoreReport(r){return `${r.timed!=null?`<p>逐题用时 ${r.timed}/${r.total} 题</p>`:''}${r.reported_score!=null?`<p>HTML报告：${esc(r.reported_score)} 分</p>`:''}${r.saved_score!=null?`<p>已录成绩：${esc(r.saved_score)} 分（保持原记录）</p>`:''}${r.estimate?`<p><b>${r.estimate.ready?'参考估分 '+esc(r.estimate.score)+' 分':'尚不能完整估分'}</b></p><p class="small muted">${r.estimate.ready?'按当前参考分值与逐题对错计算，与报告分数独立。':esc(r.estimate.reason)} 成绩单可核对后保存；检查不会入库、录分或累计时长。</p>`:''}`;}
+ const SRC={html:'HTML报告分',estimate:'参考估分',ocr:'成绩截图',manual:'自己录入'};
+ function syncLine(r){const y=r.score_sync;if(!y)return r.saved_score!=null?`<p>已录成绩：${esc(r.saved_score)} 分</p>`:'';
+  if(y.action==='recorded')return `<p><b>✅ 已自动记入这一季成绩 ${esc(y.score)} 分</b>（来源：${esc(SRC[y.source]||y.source)}）。不用再到“03 成绩单”输入；要修改可在 03 成绩单改。</p>`;
+  if(y.action==='updated')return `<p><b>✅ 已按最新检查更新这一季成绩为 ${esc(y.score)} 分</b>（来源：${esc(SRC[y.source]||y.source)}）。</p>`;
+  if(y.action==='same')return `<p>已录成绩 ${esc(y.score)} 分，与检查结果一致。</p>`;
+  if(y.action==='kept')return `<p>已录成绩 ${esc(y.score)} 分（${esc(SRC[y.source]||y.source)}），优先保留，没有被检查结果覆盖。</p>`;
+  return r.saved_score!=null?`<p>已录成绩：${esc(r.saved_score)} 分</p>`:'';}
+ function scoreReport(r){return `${r.timed!=null?`<p>逐题用时 ${r.timed}/${r.total} 题</p>`:''}${r.reported_score!=null?`<p>HTML报告：${esc(r.reported_score)} 分</p>`:''}${syncLine(r)}${r.estimate?`<p><b>${r.estimate.ready?'参考估分 '+esc(r.estimate.score)+' 分':'尚不能完整估分'}</b></p><p class="small muted">${r.estimate.ready?'按当前参考分值与逐题对错计算，与报告分数独立。':esc(r.estimate.reason)} 检查不会入库或累计时长。</p>`:''}`;}
  function report(r){return `<p><b>${r.dry?'检查完成':'导入完成'} · 第 ${r.season} 季</b></p><p>识别 ${r.total} 题 · ${r.images} 张配图 · ${r.ready} 题${r.dry?'可导入':'已入库'} · ${r.dup} 题已存在</p><p class="small muted">${r.boards.map(([b,n])=>esc(b)+' '+n+'题').join(' · ')}</p>${r.missing_images?`<p class="bad">缺少 ${r.missing_images} 个图片资源。请补充同名_files资源ZIP后重新检查；未写入题库。</p><p class="small">${r.missing.map(esc).join('<br>')}</p>`:''}${r.blocked?`<p class="bad">${r.blocked} 题结构待核对：${r.problems.map(x=>x.num+'题 '+x.reasons.map(esc).join('、')).join('；')}</p>`:''}${scoreReport(r)}${r.review_preserved?'<p class="small muted">已有复盘及笔记已保留。</p>':''}${r.practice_minutes?`<p>已按原规则记入 ${r.practice_minutes} 分钟；同季重复导入不重复计时。</p>`:''}`;}
  function bind(){const host=document.getElementById('mockPaperImport');if(!host||host.dataset.bound)return;host.dataset.bound='1';const token=++generation;
   const show=text=>{last=text;if(host.isConnected)host.querySelector('#mhResult').innerHTML=text;};
@@ -36,21 +43,23 @@
     ${d.pdfs.filter(x=>!x.split).map(x=>`<div class="row"><span>${esc(x.file)}</span><button type="button" data-mi-pdf="${esc(x.file)}">拆分并导入</button></div>`).join('')}
     ${d.seasons.length?'<p>已有板块复盘：检查会自动核分，补导入保留笔记与原计时。</p>':''}
     ${d.seasons.map(x=>`<div class="import-sec"><div class="row"><span>第 ${x.season} 季 · 已入库 ${x.imported} 题</span><button type="button" data-mi-season="${x.season}" data-mi-preview>检查</button><button type="button" data-mi-season="${x.season}">补导入</button><button type="button" data-mi-delete="${x.season}" ${x.imported?'':'disabled'}>删除</button></div><div data-mi-result="${x.season}" role="status" aria-live="polite"></div></div>`).join('')}
-    ${(d.recycled||[]).length?`<details class="fold"><summary>已删除的入库批次（可恢复）</summary><p>原试卷、复盘笔记、图片、成绩与学习记录保留。恢复不会覆盖同编号的新内容。</p>${d.recycled.map(x=>`<div class="row"><span>第 ${x.season} 季 · ${x.removed} 题${x.recovery?' · 上次删除未完成':''} <small>${esc(x.created)}</small></span><button type="button" data-mi-restore="${esc(x.token)}">恢复入库</button></div>`).join('')}</details>`:''}`;
+    ${(d.recycled||[]).length?`<details class="fold"><summary>已删除的入库批次（可恢复）</summary><p>原试卷、复盘笔记、图片与学习记录保留；考情与战绩随批次一起恢复。恢复不会覆盖同编号的新内容和删除后新录的成绩。</p>${d.recycled.map(x=>`<div class="row"><span>第 ${x.season} 季 · ${x.removed} 题${x.recovery?' · 上次删除未完成':''} <small>${esc(x.created)}</small></span><button type="button" data-mi-restore="${esc(x.token)}">恢复入库</button></div>`).join('')}</details>`:''}`;
    box.querySelectorAll('[data-mi-pdf]').forEach(b=>b.onclick=()=>action(b,async()=>{const r=await api('/api/import/split',{file:b.dataset.miPdf});show(`<p>第 ${r.season} 季PDF已导入，新增 ${r.ready} 题。</p>${scoreReport(r)}`);if(r.events)handleEvents(r.events);await refreshed(r.season);}));
    box.querySelectorAll('[data-mi-season]').forEach(b=>b.onclick=()=>action(b,async()=>{
     const dry=b.hasAttribute('data-mi-preview'),season=Number(b.dataset.miSeason),r=await api(dry?'/api/import/preview':'/api/import/commit',{kind:'season',season});
     const result=`<p>${dry?'检查完成':'补导入完成'} · 第 ${season} 季：可入库 ${r.ready} 题，待修 ${r.fix} 题，已存在 ${r.dup} 题。</p>${r.preview_error?`<p class="bad">入库检查提示：${esc(r.preview_error)}</p>`:''}${scoreReport(r)}`;
-    if(dry){if(host.isConnected)box.querySelector('[data-mi-result="'+season+'"]').innerHTML=result;}
+    if(dry){const changed=r.score_sync&&['recorded','updated'].includes(r.score_sync.action);
+     if(changed){show(result);if(r.events)handleEvents(r.events);await refreshed(season);}     // 成绩有更新：战绩、考情同步刷新
+     else if(host.isConnected)box.querySelector('[data-mi-result="'+season+'"]').innerHTML=result;}
     else{show(result);if(r.events)handleEvents(r.events);await refreshed(season);}
    }));
    box.querySelectorAll('[data-mi-delete]').forEach(b=>b.onclick=()=>action(b,async()=>{
     const season=Number(b.dataset.miDelete),p=await api('/api/import/season/remove',{season});
-    if(!confirm(`删除第 ${season} 季入库的 ${p.removed} 题？\n${p.scope}。\n移出的题目有回收副本，可恢复；不会清除原始资料。`))return;
-    const r=await api('/api/import/season/remove',{season,commit:true,digest:p.digest});show(`<p>已删除第 ${season} 季入库的 ${r.removed} 题。原复盘与成绩保留，可在“已删除的入库批次”恢复。</p>`);await refreshed(season);
+    if(!confirm(`删除第 ${season} 季？\n将移出入库的 ${p.removed} 题，并同步移出本季的考情与战绩。\n${p.scope}。\n全部有回收副本，可一键恢复；不会清除原始资料。`))return;
+    const r=await api('/api/import/season/remove',{season,commit:true,digest:p.digest});const k=r.records||{};show(`<p>已删除第 ${season} 季：入库 ${r.removed} 题已移出${k.score!=null?`，战绩 ${esc(k.score)} 分已移出`:''}${k.analysis?'，考情分析已移出':''}。考情、复盘、战绩里不再显示这一季；原试卷、复盘笔记和学习记录保留，可在“已删除的入库批次”恢复。</p>`);await refreshed(season);
    }));
    box.querySelectorAll('[data-mi-restore]').forEach(b=>b.onclick=()=>action(b,async()=>{
-    const r=await api('/api/import/season/restore',{token:b.dataset.miRestore});show(`<p>第 ${r.season} 季已恢复入库；学习历史与其他题目保持。</p>`);await refreshed(r.season);
+    const r=await api('/api/import/season/restore',{token:b.dataset.miRestore});const k=r.records||{};show(`<p>第 ${r.season} 季已恢复入库${k.mocks?'，考情与战绩一并还原':''}${k.kept_new?'（这一季删除后又录了新成绩，已保留新的）':''}；学习历史与其他题目保持。</p>`);await refreshed(r.season);
    }));
    const install=box.querySelector('#mhInstall');if(install)install.onclick=()=>action(install,async()=>{const r=await api('/api/import/install_pymupdf',{});show(r.ok?'组件已安装，请重新打开录入页。':'组件安装未完成。');});
   }

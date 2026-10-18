@@ -87,10 +87,45 @@ def _boss_score(g, n):
     return None
 
 
+def unhide(g, season):
+    """这一季重新导入或录了成绩：重新出现在考情/战绩里"""
+    hidden = g.state.get("mocks_hidden")
+    if hidden and str(season) in [str(x) for x in hidden]:
+        g.state["mocks_hidden"] = [x for x in hidden if str(x) != str(season)]
+
+
+def _credited(g, n):
+    """这一季的录分奖励以前领过（删除记录后重新录分不重复发）"""
+    return str(n) in [str(x) for x in g.state.get("mock_boss_credited", [])]
+
+
+def _mark_credited(g, n):
+    c = g.state.setdefault("mock_boss_credited", [])
+    if str(n) not in [str(x) for x in c]:
+        c.append(str(n))
+
+
+def set_score(g, n, score, source):
+    """只更新这一季的总分和来源（不动成绩单里的其他字段）。第一次有分时和录入一样记进宗门大比，奖励只发一次"""
+    rec = g.state.setdefault("mocks", {}).setdefault(str(n), {})
+    had = rec.get("score") is not None or _boss_score(g, n) is not None or _credited(g, n)
+    rec["score"] = _num(score, 0, 100)
+    rec["score_source"] = source if source in ("html", "estimate", "ocr", "manual") else "manual"
+    rec["date"] = str(rec.get("date") or g.t)[:10]
+    unhide(g, n)
+    if rec["score"] is not None and not had:
+        _mark_credited(g, n)
+        return g.add_boss("第%d季" % n, rec["score"])
+    return []
+
+
 def summary(g):
     data = g.state.setdefault("mocks", {})
+    hidden = set(str(x) for x in g.state.get("mocks_hidden", []))      # 在“录入”里删除的季：考情、复盘、战绩一并不显示（可恢复）
     seasons = []
     for n, d in vault.seasons(g.paths):
+        if str(n) in hidden:
+            continue
         counts = season_counts(g.paths, d)
         total_q = sum(c["total"] for c in counts.values())
         if not total_q:
@@ -175,7 +210,8 @@ def save(g, body):
         raise MockError("先选是第几季")
     data = g.state.setdefault("mocks", {})
     rec = data.setdefault(str(n), {})
-    had_score = rec.get("score") is not None or _boss_score(g, n) is not None
+    had_score = rec.get("score") is not None or _boss_score(g, n) is not None or _credited(g, n)
+    unhide(g, n)
     rec["score"] = _num(body.get("score"), 0, 100)
     rec["score_source"] = body.get("score_source") if body.get("score_source") in ("html","estimate","ocr","manual") else "manual"
     rec["avg"] = _num(body.get("avg"), 0, 100)
@@ -197,12 +233,14 @@ def save(g, body):
                      if (v := _num((body.get("scores") or {}).get(m), 0, 100)) is not None}
     ev = []
     if rec["score"] is not None and not had_score:
+        _mark_credited(g, n)
         ev = g.add_boss("第%d季" % n, rec["score"])
     return ev
 
 
 def on_import(g, season, credit=True):
     """导入了一份模考试卷：演武 · 历练记记 120 分钟（每季一次），题数、对的题数按那一季的复盘算"""
+    unhide(g, season)
     done = g.state.setdefault("mock_practice", [])
     if not season or str(season) in {str(n) for n in done}:
         return []

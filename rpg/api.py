@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook, skillbook_ai
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -371,13 +371,23 @@ def import_preview(body):
     if body.get('kind')=='season':
         from . import mock_imports
         # 检查已有季只读，不补导入、不记120分钟、不录分或发奖。
+        # 检查不入库、不累计时长；算出成绩就直接更新这一季成绩（自己录的成绩优先保留），见 mock_imports.sync_score。
+        # 没有成绩要更新时保持只读：不写存档、不生成备份。
         with importer.LOCK, open_game(save=False) as g:
             try:
                 if g.subject!='行测':return importer.preview(g.paths,body)
-                score=mock_imports.check(g,int(body.get('season') or 0))
+                season=int(body.get('season') or 0)
+                score=mock_imports.check(g,season)
                 try:rep=importer.preview(g.paths,body)
                 except importer.ImportError_ as e:rep=dict(ready=0,fix=0,dup=0,preview_error=str(e))
                 rep.update(score)
+                sync=mock_imports.sync_score(g,season,score)
+                ev=sync.pop('events')
+                rep['score_sync']=sync
+                if sync['action'] in ('recorded','updated'):
+                    rep['saved_score']=sync['score'];rep['score_source']=sync['source']
+                    rep['events']=tutor.enrich(g,ev+g.housekeeping())
+                    g.store.save(g.state,g.today)
                 return rep
             except (importer.ImportError_,ValueError,TypeError) as e:raise ApiError(str(e))
     return _import_call(importer.preview, body)
@@ -385,15 +395,22 @@ def import_preview(body):
 
 def import_season_remove(body):
     from . import mock_imports
-    with importer.LOCK, open_game(save=False) as g:
-        try:return mock_imports.remove(g.paths,body)
+    with importer.LOCK, open_game() as g:
+        try:
+            r=mock_imports.remove(g.paths,body)
+            if r.get('token'):r['records']=mock_imports.drop_records(g,r['season'],r['token'])    # 考情与战绩一并移出
+            return r
         except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
 
 
 def import_season_restore(body):
     from . import mock_imports
-    with importer.LOCK, open_game(save=False) as g:
-        try:return mock_imports.restore(g.paths,body)
+    with importer.LOCK, open_game() as g:
+        try:
+            r=mock_imports.restore(g.paths,body)
+            records=mock_imports.restore_records(g,str(body.get('token') or ''))
+            if records is not None:r['records']=records
+            return r
         except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
 
 
@@ -634,6 +651,169 @@ def bank_count(body):
         with g.paths.rules.open("a", encoding="utf-8", newline="\n") as f:
             f.write("\n- 实战每组题数: %s\n" % n)
     return {"count": n}
+
+
+# ---------------------------------------------------------------- 藏经阁·心法（skill 可见、可随时修改，见 rpg/skillbook.py）
+def _skill_boards(g):
+    """[(板块, 原skill名)]：板块表里的全部板块，加上只看正确率的副线板块（如常识判断）"""
+    names = list(dict.fromkeys(list(g.boards) + list(getattr(g.rules, "side", {}) or {})))
+    return [(b, trainer._skill_name(g, b)) for b in names]
+
+
+def _skill_call(fn, *args):
+    try:
+        return fn(*args)
+    except skillbook.SkillError as e:
+        raise ApiError(str(e))
+
+
+def _publish_on(g):
+    return bool((g.state.get("skillbook") or {}).get("publish_back"))
+
+
+def skillbook_view(body):
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            return {"boards": []}
+        rows = skillbook.overview(g.paths, _skill_boards(g))
+        for r in rows:
+            r["pending"] = len(skillbook.proposals(g.paths, r["board"]))
+        return {"boards": rows, "publish_back": _publish_on(g), "ai": ai.available()}
+
+
+def skillbook_settings(body):
+    with open_game() as g:
+        g.state.setdefault("skillbook", {})["publish_back"] = bool(body.get("publish_back"))
+        return {"publish_back": _publish_on(g)}
+
+
+def skillbook_organize(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        return {"proposal": _skill_call(skillbook_ai.organize, g.paths, board, source)}
+
+
+def skillbook_proposals(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return {"proposals": skillbook.proposals(g.paths, board)}
+
+
+def skillbook_accept(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        picks = [x for x in (body.get("picks") or []) if isinstance(x, int)]
+        return _skill_call(skillbook.accept, g.paths, board, source, str(body.get("id") or ""), picks)
+
+
+def skillbook_dismiss(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.dismiss, g.paths, str(body.get("id") or ""))
+
+
+def _publish_guard(g, board):
+    if not _publish_on(g):
+        raise ApiError("「发布回原 skill」默认关闭：先在心法页打开这个开关")
+    source = _skill_source(g, board)
+    others = [b for b, s in _skill_boards(g) if s == source]
+    return source, others
+
+
+def skillbook_publish(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source, others = _publish_guard(g, board)
+        if body.get("commit"):
+            return _skill_call(skillbook.publish, g.paths, board, source, str(body.get("digest") or ""), others)
+        return _skill_call(skillbook.publish_preview, g.paths, board, source, others)
+
+
+def skillbook_publish_backups(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return {"backups": _skill_call(skillbook.publish_backups, g.paths, board)}
+
+
+def skillbook_publish_restore(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source, _ = _publish_guard(g, board)
+        return _skill_call(skillbook.publish_restore, g.paths, board, source, str(body.get("id") or ""))
+
+
+def _skill_source(g, board):
+    for b, source in _skill_boards(g):
+        if b == board:
+            return source
+    raise ApiError("没有这个板块")
+
+
+def skillbook_file(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        return _skill_call(skillbook.read_file, g.paths, board, _skill_source(g, board), str(body.get("path") or ""))
+
+
+def skillbook_create(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        how = body.get("how")
+        if how == "copy":
+            return _skill_call(skillbook.create_from_source, g.paths, board, source)
+        if how == "template":
+            return _skill_call(skillbook.create_template, g.paths, board)
+        if how == "file":   # 在我的版本里新建一个空文件
+            if not skillbook.has_own(g.paths, board):
+                raise ApiError("请先创建我的版本")
+            return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), str(body.get("text") or ""), "")
+        raise ApiError("不知道怎么创建")
+
+
+def skillbook_save(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        if not skillbook.has_own(g.paths, board):
+            raise ApiError("请先创建我的版本")
+        return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), body.get("text"), str(body.get("base") or ""))
+
+
+def skillbook_delete(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.delete, g.paths, board, str(body.get("path") or ""), str(body.get("base") or ""))
+
+
+def skillbook_rename(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.rename, g.paths, board, str(body.get("path") or ""), str(body.get("new_path") or ""), str(body.get("base") or ""))
+
+
+def skillbook_history(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        path, vid = str(body.get("path") or ""), body.get("id")
+        if vid:
+            return {"text": _skill_call(skillbook.history_text, g.paths, board, path, vid)}
+        return {"versions": _skill_call(skillbook.history, g.paths, board, path)}
+
+
+def skillbook_restore(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.restore, g.paths, board, str(body.get("path") or ""), str(body.get("id") or ""), str(body.get("base") or ""))
 
 
 def skeletons(body):
@@ -1220,6 +1400,22 @@ ROUTES = {
     ("POST", "/api/import/split"): import_split,
     ("POST", "/api/import/install_pymupdf"): import_install,
     ("GET", "/api/skeletons"): skeletons,
+    ("GET", "/api/skillbook"): skillbook_view,
+    ("POST", "/api/skillbook/file"): skillbook_file,
+    ("POST", "/api/skillbook/create"): skillbook_create,
+    ("POST", "/api/skillbook/save"): skillbook_save,
+    ("POST", "/api/skillbook/delete"): skillbook_delete,
+    ("POST", "/api/skillbook/rename"): skillbook_rename,
+    ("POST", "/api/skillbook/history"): skillbook_history,
+    ("POST", "/api/skillbook/restore"): skillbook_restore,
+    ("POST", "/api/skillbook/settings"): skillbook_settings,
+    ("POST", "/api/skillbook/organize"): skillbook_organize,
+    ("POST", "/api/skillbook/proposals"): skillbook_proposals,
+    ("POST", "/api/skillbook/accept"): skillbook_accept,
+    ("POST", "/api/skillbook/dismiss"): skillbook_dismiss,
+    ("POST", "/api/skillbook/publish"): skillbook_publish,
+    ("POST", "/api/skillbook/publish/backups"): skillbook_publish_backups,
+    ("POST", "/api/skillbook/publish/restore"): skillbook_publish_restore,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,

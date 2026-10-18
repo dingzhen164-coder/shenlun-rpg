@@ -28,7 +28,7 @@ import math
 import random
 import time
 
-from . import career as career_mod, skeleton, themes, vault
+from . import career as career_mod, skeleton, skillbook, themes, vault
 
 DAILY_WRONG = "wrong:daily"   # 今日功课/心魔录共用的斩心魔任务
 TRAIN_TYPES = ("recite", "review", "speedrun", "feynman", "example", "apply", "wrong", "grade")   # grade = 申论作答批改
@@ -114,7 +114,8 @@ class Game:
         return self._skel[board]
 
     def has_skill(self, board):
-        return vault.skill_dir(self.paths, self.boards.get(board, {}).get("skill")) is not None
+        return (vault.skill_dir(self.paths, self.boards.get(board, {}).get("skill")) is not None
+                or skillbook.has_own(self.paths, board))
 
     def available(self, board):
         """板块可以修炼功法：有 skill，或者已经有功法（骨架）文件"""

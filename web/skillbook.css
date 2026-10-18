@@ -1,0 +1,45 @@
+/* 藏经阁·心法：板块列表 + 阅读/修改区。类名统一 skb- 前缀，避免和全局类名冲突。 */
+.skb-root{display:grid;grid-template-columns:190px minmax(0,1fr);gap:12px;flex:1;min-height:0;height:100%}
+.skb-side{display:flex;flex-direction:column;gap:6px;overflow:auto;margin:0;padding:10px;min-height:0}
+.skb-board{display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left;font-size:var(--ds-fs-13);padding:8px 10px;flex:none}
+.skb-board.on{outline:2px solid var(--accent);outline-offset:-2px}
+.skb-board .tag{font-size:var(--ds-fs-11);flex:none}
+.skb-mine{background:var(--accent);color:var(--ds-on-accent)}
+.skb-dot{color:var(--ds-warn)}
+.skb-main{display:flex;flex-direction:column;min-height:0;min-width:0;margin:0;padding:12px;overflow:hidden}
+.skb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex:none}
+.skb-head h3{margin:0}
+.skb-tools{display:flex;gap:6px;flex-wrap:wrap}
+.skb-banner,.skb-note{flex:none;margin:8px 0 0;padding:8px 10px;border-radius:var(--ds-r-6);background:var(--panel2);font-size:var(--ds-fs-12)}
+.skb-note{border-left:3px solid var(--accent)}
+.skb-meter{flex:none;margin-top:8px}
+.skb-bar{height:6px;border-radius:var(--ds-r-3);background:var(--panel2);overflow:hidden;margin-top:4px}
+.skb-bar i{display:block;height:100%;background:var(--accent)}
+.skb-warn{color:var(--ds-warn);margin-top:4px}
+.skb-files{flex:none;display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-height:92px;overflow:auto}
+.skb-chip{font-size:var(--ds-fs-12);padding:5px 9px;display:inline-flex;gap:6px;align-items:baseline}
+.skb-chip small{color:var(--muted);font-size:var(--ds-fs-11)}
+.skb-chip.on{outline:2px solid var(--accent);outline-offset:-2px}
+.skb-body{flex:1;min-height:0;overflow:auto;margin-top:8px;overscroll-behavior:contain}
+.skb-read p{margin:.4em 0;line-height:1.7}
+.skb-read h3,.skb-read h4,.skb-read h5{margin:.9em 0 .3em}
+.skb-li{margin:.15em 0 .15em 1em;line-height:1.7}
+.skb-li::before{content:"· ";color:var(--muted)}
+.skb-editor{display:flex;flex-direction:column;gap:8px;height:100%;min-height:0}
+.skb-editor textarea{flex:1;min-height:200px;width:100%;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--ds-fs-13);line-height:1.6;box-sizing:border-box}
+.skb-acts{flex:none;display:flex;gap:8px;align-items:center}
+.skb-ver{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.skb-preview{margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:var(--ds-r-6)}
+@media (max-width:900px){.skb-root{grid-template-columns:150px minmax(0,1fr)}}
+
+.skb-pend{background:var(--ds-warn);color:var(--ds-on-accent)}
+.skb-props{flex:none;margin-top:8px;display:flex;flex-direction:column;gap:8px;max-height:42%;overflow:auto}
+.skb-prop{border:1px solid var(--line);border-radius:var(--ds-r-6);padding:8px 10px;background:var(--panel2)}
+.skb-prop-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.skb-edit{display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:var(--ds-fs-12)}
+.skb-edit.done{opacity:.55}
+.skb-edit small{color:var(--muted)}
+.skb-diff{margin-top:4px;padding:6px 8px;border-left:3px solid var(--accent);background:var(--panel)}
+.skb-pub{display:flex;flex-direction:column;gap:6px}
+.skb-backs{margin-top:10px;color:var(--muted)}
+.skb-switch{flex:none;margin-top:8px;display:flex;gap:6px;align-items:center;color:var(--muted)}
