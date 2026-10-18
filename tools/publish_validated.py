@@ -79,7 +79,7 @@ def main():
         if not existing:
             subprocess.run(['gh','release','create',tag,'--repo',repo,'--draft','--target',head,'--title',title+' v'+VERSION,'--notes-file',str(notes)],check=True)
         subprocess.run(['gh','release','upload',tag,'--repo',repo,'--clobber']+[str(f) for f in files],check=True)
-        release=api(repo,'releases/tags/'+tag);verify_assets(release['assets'],expected)
+        release=next(r for r in api(repo,'releases?per_page=30') if r['tag_name']==tag);verify_assets(release['assets'],expected)
         subprocess.run(['gh','release','edit',tag,'--repo',repo,'--draft=false','--latest'],check=True)
         print('RELEASE-OK',tag,'validated-run',run['id'],'source',source)
         print(json.dumps(expected,ensure_ascii=False))
