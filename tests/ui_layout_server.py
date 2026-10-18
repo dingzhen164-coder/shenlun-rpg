@@ -84,6 +84,12 @@ def main():
             with api.open_game() as g:
                 paper(g.paths.train/'模考复盘/第39季',wrong={101})
                 g.state.setdefault('mocks',{}).setdefault('39',{})['html_import']={'reported_score':70.6,'question_seconds':{'1':85},'known_numbers':list(range(1,131))}
+        if '--import-management-fixture' in sys.argv:
+            from tests.test_mock_imports import management_fixture
+            with api.open_game() as g:
+                management_fixture(g.paths)
+                g.state.setdefault('mocks',{})['33']={'score':72.3}
+                # 故意缺旧版mock_practice标记，覆盖补导入重复计时问题。
         if '--review-fixture' in sys.argv:
             # 自编长材料，复现平板复盘底部操作被裁切；只写临时库。
             with api.open_game() as g:

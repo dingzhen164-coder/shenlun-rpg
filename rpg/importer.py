@@ -19,6 +19,7 @@
 import json
 import re
 import shutil
+import threading
 from collections import Counter
 from pathlib import Path
 
@@ -31,6 +32,7 @@ IMAGE_BOARDS = {"图形推理"}          # 题目文字里没有图，没图做�
 TODO = "（待补）"
 UNSORTED = "待分类"
 FIX_DIR = "_待修"
+LOCK = threading.RLock()  # 仅串行化导入文件操作，不在等待拆卷/AI时持有存档锁
 
 # 没有骨架时给 AI 的知识点范围（有骨架时用骨架的大项名，见 topic_options）
 TOPICS = {
@@ -721,13 +723,17 @@ def status(paths):
     """导入页需要的信息：各季模考（题数、已导入数）、待修文件、待分类知识点数"""
     bank = paths.train / "题库"
     ids, _ = existing(bank) if bank.is_dir() else (set(), set())
+    from . import mock_imports
+    recycled = mock_imports.archives(paths)
+    deleted = {x["season"] for x in recycled}
     seasons = []
     for n, d in vault.seasons(paths):
         files = list(d.glob("[0-9][0-9]-*.md"))
         if not files:
             continue
         prefix = "粉笔%d季-" % n
-        seasons.append({"season": n, "imported": sum(i.startswith(prefix) for i in ids)})
+        imported=sum(i.startswith(prefix) for i in ids)
+        if imported or n not in deleted:seasons.append({"season": n, "imported": imported})
     fixes = []
     fd = bank / FIX_DIR
     if fd.is_dir():
@@ -735,7 +741,7 @@ def status(paths):
             bs = parse_blocks(f.read_text(encoding="utf-8-sig", errors="ignore"))
             fixes.append({"file": f.name, "total": len(bs), "ready": sum(not b["fields"].get("检查", "").strip() for b in bs)})
     unsorted = sum(len(_unsorted_blocks(f)) for f in bank.glob("*真题.md")) if bank.is_dir() else 0
-    return {"seasons": seasons[::-1], "fixes": fixes, "unsorted": unsorted, "ai": ai.available(), "boards": BOARDS,
+    return {"seasons": seasons[::-1], "recycled": recycled, "fixes": fixes, "unsorted": unsorted, "ai": ai.available(), "boards": BOARDS,
             "pdfs": pdf_list(paths), "splitter": bool(split_script(paths)), "pymupdf": has_pymupdf(),
             "pdf_dir": "/".join(PDF_DIR) + "/"}
 

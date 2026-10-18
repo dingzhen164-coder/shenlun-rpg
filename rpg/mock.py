@@ -201,10 +201,16 @@ def save(g, body):
     return ev
 
 
-def on_import(g, season):
+def on_import(g, season, credit=True):
     """导入了一份模考试卷：演武 · 历练记记 120 分钟（每季一次），题数、对的题数按那一季的复盘算"""
     done = g.state.setdefault("mock_practice", [])
-    if not season or str(season) in done:
+    if not season or str(season) in {str(n) for n in done}:
+        return []
+    # 旧存档可能没有按季标记；复用已有学习记录，不再加时长/经验。
+    source = "粉笔第%d季模考" % season
+    recorded = any(x.get("source") == source for x in g.state.get("practice", []))
+    if not credit or recorded:
+        done.append(str(season))
         return []
     d = next((d for n, d in vault.seasons(g.paths) if n == season), None)
     counts = season_counts(g.paths, d) if d else {}

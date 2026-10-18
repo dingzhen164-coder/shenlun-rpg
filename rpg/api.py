@@ -357,7 +357,8 @@ def _import_paths():
 
 def _import_call(fn, body):
     try:
-        return fn(_import_paths(), body)
+        with importer.LOCK:
+            return fn(_import_paths(), body)
     except importer.ImportError_ as e:
         raise ApiError(str(e))
 
@@ -367,17 +368,43 @@ def import_status(body):
 
 
 def import_preview(body):
+    if body.get('kind')=='season':
+        from . import mock_imports
+        # 检查已有季只读，不补导入、不记120分钟、不录分或发奖。
+        with importer.LOCK, open_game(save=False) as g:
+            try:
+                if g.subject!='行测':return importer.preview(g.paths,body)
+                score=mock_imports.check(g,int(body.get('season') or 0))
+                try:rep=importer.preview(g.paths,body)
+                except importer.ImportError_ as e:rep=dict(ready=0,fix=0,dup=0,preview_error=str(e))
+                rep.update(score)
+                return rep
+            except (importer.ImportError_,ValueError,TypeError) as e:raise ApiError(str(e))
     return _import_call(importer.preview, body)
 
 
-def _mock_imported(rep, season):
+def import_season_remove(body):
+    from . import mock_imports
+    with importer.LOCK, open_game(save=False) as g:
+        try:return mock_imports.remove(g.paths,body)
+        except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
+
+
+def import_season_restore(body):
+    from . import mock_imports
+    with importer.LOCK, open_game(save=False) as g:
+        try:return mock_imports.restore(g.paths,body)
+        except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
+
+
+def _mock_imported(rep, season, credit=True):
     """导入了一份模考试卷 → 演武 · 历练记记 120 分钟（每季一次）"""
     if season:
         with open_game() as g:
             if g.subject=='行测' and rep.get('html_meta'):
                 rec=g.state.setdefault('mocks',{}).setdefault(str(int(season)),{})
                 rec['html_import']=rep['html_meta']
-            ev = mock.on_import(g, int(season))
+            ev = mock.on_import(g, int(season), credit=credit)
             if g.subject=='行测':
                 current=next((s for s in mock.summary(g)['seasons'] if s['season']==int(season)),None)
                 if current:rep['estimate']=current.get('estimate')
@@ -390,7 +417,8 @@ def _mock_imported(rep, season):
 def import_commit(body):
     rep = _import_call(importer.commit, body)
     if body.get("kind") == "season" and not rep.get("dry"):
-        _mock_imported(rep, body.get("season"))
+        # 已有复盘的补导入是维护题库，不代表又考了一次。
+        _mock_imported(rep, body.get("season"), credit=False)
     return rep
 
 
@@ -1177,6 +1205,8 @@ ROUTES = {
     ("POST", "/api/library/question"): library_question,
     ("GET", "/api/import"): import_status,
     ("POST", "/api/import/preview"): import_preview,
+    ("POST", "/api/import/season/remove"): import_season_remove,
+    ("POST", "/api/import/season/restore"): import_season_restore,
     ("POST", "/api/import/commit"): import_commit,
     ("POST", "/api/import/answers"): import_answers,
     ("POST", "/api/import/classify"): import_classify,
