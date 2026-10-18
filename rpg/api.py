@@ -667,10 +667,6 @@ def _skill_call(fn, *args):
         raise ApiError(str(e))
 
 
-def _publish_on(g):
-    return bool((g.state.get("skillbook") or {}).get("publish_back"))
-
-
 def skillbook_view(body):
     with open_game(save=False) as g:
         if not g.paths.vault:
@@ -678,7 +674,7 @@ def skillbook_view(body):
         rows = skillbook.overview(g.paths, _skill_boards(g))
         for r in rows:
             r["pending"] = len(skillbook.proposals(g.paths, r["board"]))
-        return {"boards": rows, "publish_back": _publish_on(g), "ai": ai.available()}
+        return {"boards": rows, "ai": ai.available()}
 
 
 def skillbook_plan(body):
@@ -688,17 +684,11 @@ def skillbook_plan(body):
         return skillbook.plan(g.paths, board, _skill_source(g, board))
 
 
-def skillbook_settings(body):
-    with open_game() as g:
-        g.state.setdefault("skillbook", {})["publish_back"] = bool(body.get("publish_back"))
-        return {"publish_back": _publish_on(g)}
-
-
 def skillbook_organize(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
         source = _skill_source(g, board)
-        return {"proposal": _skill_call(skillbook_ai.organize, g.paths, board, source)}
+        return {"proposal": _skill_call(skillbook_ai.organize, g.paths, board, source, skillbook_ai.pick_examples(g, board))}
 
 
 def skillbook_proposals(body):
@@ -723,37 +713,6 @@ def skillbook_dismiss(body):
         return _skill_call(skillbook.dismiss, g.paths, str(body.get("id") or ""))
 
 
-def _publish_guard(g, board):
-    if not _publish_on(g):
-        raise ApiError("「发布回原 skill」默认关闭：先在心法页打开这个开关")
-    source = _skill_source(g, board)
-    others = [b for b, s in _skill_boards(g) if s == source]
-    return source, others
-
-
-def skillbook_publish(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        source, others = _publish_guard(g, board)
-        if body.get("commit"):
-            return _skill_call(skillbook.publish, g.paths, board, source, str(body.get("digest") or ""), others)
-        return _skill_call(skillbook.publish_preview, g.paths, board, source, others)
-
-
-def skillbook_publish_backups(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _skill_source(g, board)
-        return {"backups": _skill_call(skillbook.publish_backups, g.paths, board)}
-
-
-def skillbook_publish_restore(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        source, _ = _publish_guard(g, board)
-        return _skill_call(skillbook.publish_restore, g.paths, board, source, str(body.get("id") or ""))
-
-
 def _skill_source(g, board):
     for b, source in _skill_boards(g):
         if b == board:
@@ -767,18 +726,22 @@ def skillbook_file(body):
         return _skill_call(skillbook.read_file, g.paths, board, _skill_source(g, board), str(body.get("path") or ""))
 
 
+def _own(g, board):
+    """第一次修改前把库里原 skill 复制到 训练/技能（已有就不动）；返回板块名对应的原 skill 名"""
+    source = _skill_source(g, board)
+    _skill_call(skillbook.ensure_own, g.paths, board, source)
+    return source
+
+
 def skillbook_create(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
         source = _skill_source(g, board)
         how = body.get("how")
-        if how == "copy":
-            return _skill_call(skillbook.create_from_source, g.paths, board, source)
         if how == "template":
             return _skill_call(skillbook.create_template, g.paths, board)
-        if how == "file":   # 在我的版本里新建一个空文件
-            if not skillbook.has_own(g.paths, board):
-                raise ApiError("请先创建我的版本")
+        if how == "file":   # 新建一个文件
+            _own(g, board)
             return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), str(body.get("text") or ""), "")
         raise ApiError("不知道怎么创建")
 
@@ -786,23 +749,21 @@ def skillbook_create(body):
 def skillbook_save(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
-        _skill_source(g, board)
-        if not skillbook.has_own(g.paths, board):
-            raise ApiError("请先创建我的版本")
+        _own(g, board)
         return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), body.get("text"), str(body.get("base") or ""))
 
 
 def skillbook_delete(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
-        _skill_source(g, board)
+        _own(g, board)
         return _skill_call(skillbook.delete, g.paths, board, str(body.get("path") or ""), str(body.get("base") or ""))
 
 
 def skillbook_rename(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
-        _skill_source(g, board)
+        _own(g, board)
         return _skill_call(skillbook.rename, g.paths, board, str(body.get("path") or ""), str(body.get("new_path") or ""), str(body.get("base") or ""))
 
 
@@ -819,7 +780,7 @@ def skillbook_history(body):
 def skillbook_restore(body):
     with open_game(save=False) as g:
         board = str(body.get("board") or "")
-        _skill_source(g, board)
+        _own(g, board)
         return _skill_call(skillbook.restore, g.paths, board, str(body.get("path") or ""), str(body.get("id") or ""), str(body.get("base") or ""))
 
 
@@ -1416,14 +1377,10 @@ ROUTES = {
     ("POST", "/api/skillbook/history"): skillbook_history,
     ("POST", "/api/skillbook/restore"): skillbook_restore,
     ("POST", "/api/skillbook/plan"): skillbook_plan,
-    ("POST", "/api/skillbook/settings"): skillbook_settings,
     ("POST", "/api/skillbook/organize"): skillbook_organize,
     ("POST", "/api/skillbook/proposals"): skillbook_proposals,
     ("POST", "/api/skillbook/accept"): skillbook_accept,
     ("POST", "/api/skillbook/dismiss"): skillbook_dismiss,
-    ("POST", "/api/skillbook/publish"): skillbook_publish,
-    ("POST", "/api/skillbook/publish/backups"): skillbook_publish_backups,
-    ("POST", "/api/skillbook/publish/restore"): skillbook_publish_restore,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,

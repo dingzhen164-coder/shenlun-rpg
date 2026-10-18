@@ -1,4 +1,4 @@
-"""藏经阁·心法 3.4.2/3.4.3：待审建议（整理向导、记入心法）、采纳规则、发布回原 skill。
+"""藏经阁·心法：待审建议（整理成学习版、记入心法）、采纳规则。
 假 AI、假库、假 HOME；不碰真实资料。"""
 import os
 import tempfile
@@ -92,68 +92,14 @@ class ProposalTest(Base):
         with self.assertRaises(skillbook.SkillError):
             skillbook.dismiss(self.p, "../../x")
 
-    def test_organize_first_accept_needs_entry_file_and_keeps_source_files_out(self):
-        edits = [{"path": "SKILL.md", "action": "new", "text": "# 入口\n整理后的入口"}, {"path": "02-方法.md", "action": "new", "text": "# 方法\n步骤"}]
+    def test_organize_accept_copies_source_first_and_adds_new_files(self):
+        edits = [{"path": "00-怎么用.md", "action": "new", "text": "# 怎么用\n三步"}, {"path": "02-方法卡.md", "action": "new", "text": "# 方法卡\n步骤"}]
         p = self.prop(edits, kind="organize", key="o1")
-        with self.assertRaises(skillbook.SkillError):
-            skillbook.accept(self.p, BOARD, SOURCE, p["id"], [1])
         self.assertFalse(skillbook.has_own(self.p, BOARD))
         skillbook.accept(self.p, BOARD, SOURCE, p["id"], [0, 1])
-        self.assertEqual(skillbook.own_files(self.p, BOARD), ["SKILL.md", "02-方法.md", "变更记录.md"])   # 没有混入原 cheatsheet.md
+        self.assertEqual(skillbook.own_files(self.p, BOARD), ["SKILL.md", "00-怎么用.md", "02-方法卡.md", "cheatsheet.md", "变更记录.md"])   # 原文件先复制过来，学习版是新增
+        self.assertEqual(skillbook.read_file(self.p, BOARD, SOURCE, "SKILL.md")["text"], "# 原入口\n先识别。")
         self.assertTrue(self.src_same())
-
-
-class PublishTest(Base):
-    def own(self):
-        skillbook.create_from_source(self.p, BOARD, SOURCE)
-        rev = skillbook.read_file(self.p, BOARD, SOURCE, "cheatsheet.md")["rev"]
-        skillbook.save(self.p, BOARD, "cheatsheet.md", "我改过的速查", rev)
-        skillbook.save(self.p, BOARD, "02-方法.md", "新方法", "")
-
-    def test_preview_publish_backup_restore(self):
-        self.own()
-        pv = skillbook.publish_preview(self.p, BOARD, SOURCE, [BOARD, "形式逻辑"])
-        st = {x["path"]: x["status"] for x in pv["files"]}
-        self.assertEqual(st, {"SKILL.md": "same", "cheatsheet.md": "changed", "02-方法.md": "new"})
-        self.assertEqual(pv["shared_with"], ["形式逻辑"])
-        r = skillbook.publish(self.p, BOARD, SOURCE, pv["digest"])
-        self.assertEqual(sorted(r["written"]), ["02-方法.md", "cheatsheet.md"])
-        self.assertEqual((self.src / "cheatsheet.md").read_text(encoding="utf-8"), "我改过的速查")
-        self.assertEqual((self.src / "scripts/run.md").read_text(encoding="utf-8"), "脚本不读")   # 不碰 scripts
-        self.assertEqual(len(skillbook.publish_backups(self.p, BOARD)), 1)
-        self.assertIn("发布回原 skill", skillbook.read_file(self.p, BOARD, SOURCE, "变更记录.md")["text"])
-        skillbook.publish_restore(self.p, BOARD, SOURCE, r["backup"])
-        self.assertTrue(self.src_same())                                                     # 一字不差还原，新建的也删掉
-        self.assertEqual(skillbook.publish_backups(self.p, BOARD), [])
-        with self.assertRaises(skillbook.SkillError):
-            skillbook.publish_restore(self.p, BOARD, SOURCE, r["backup"])
-
-    def test_changed_after_preview_is_refused_and_nothing_written(self):
-        self.own()
-        pv = skillbook.publish_preview(self.p, BOARD, SOURCE)
-        (self.src / "cheatsheet.md").write_text("别处又改了原 skill", encoding="utf-8")
-        with self.assertRaises(skillbook.SkillError) as c:
-            skillbook.publish(self.p, BOARD, SOURCE, pv["digest"])
-        self.assertTrue(c.exception.conflict)
-        self.assertEqual((self.src / "cheatsheet.md").read_text(encoding="utf-8"), "别处又改了原 skill")
-        self.assertFalse((self.src / "02-方法.md").exists())
-
-    def test_needs_own_version_and_existing_source(self):
-        with self.assertRaises(skillbook.SkillError):
-            skillbook.publish_preview(self.p, BOARD, SOURCE)
-        skillbook.create_template(self.p, "没有原skill的板块")
-        with self.assertRaises(skillbook.SkillError):
-            skillbook.publish_preview(self.p, "没有原skill的板块", "不存在")
-
-    def test_api_switch_is_off_by_default(self):
-        skillbook.create_from_source(self.p, BOARD, SOURCE)
-        self.assertFalse(api.skillbook_view({})["publish_back"])
-        with self.assertRaises(api.ApiError):
-            api.skillbook_publish({"board": BOARD})
-        self.assertTrue(api.skillbook_settings({"publish_back": True})["publish_back"])
-        pv = api.skillbook_publish({"board": BOARD})
-        self.assertIn("digest", pv)
-        self.assertTrue(self.src_same())                                                     # 预览不写
 
 
 class FakeAITest(Base):
@@ -166,33 +112,54 @@ class FakeAITest(Base):
         self.assertIn("API key", str(c.exception))
 
     def chat_by_file(self, replies):
-        """假 AI：按“现在只写文件「xxx」”里的文件名回复；replies：文件名 → 文字（或异常）"""
+        """假 AI：按“现在只写文件「xxx」”里的文件名回复；replies：文件名 → 文字（或异常）；示范题单独回复 demo"""
         def fake(messages, **kw):
             user = messages[1]["content"]
-            path = next(p for p in prompts.SKILLBOOK_GUIDE if "现在只写文件「%s」" % p in user)
-            r = replies.get(path, "（无）")
+            if "请写这道题的思考过程" in user:
+                r = replies.get("demo", "第 1 步：看信号（用到：方法卡「甲」）\n小结：先找矛盾")
+            else:
+                path = next(p for p in prompts.SKILLBOOK_LEARN if "现在只写文件「%s」" % p in user)
+                r = replies.get(path, "（无）")
             if isinstance(r, Exception):
                 raise r
             return r
         return fake
 
-    def test_organize_writes_one_file_per_call_and_reuses_result(self):
-        replies = {"SKILL.md": "# 入口", "02-方法.md": "```markdown\n# 方法\n```", "03-陷阱.md": "（无）"}
+    def questions(self, n=2):
+        return [{"key": "论证逻辑::00%d" % i, "id": "00%d" % i, "board": BOARD, "stem": "题干%d" % i, "answer": "B", "analysis": "",
+                 "options": {"A": "甲", "B": "乙", "C": "丙", "D": "丁"}} for i in range(1, n + 1)]
+
+    def test_organize_writes_learner_files_one_per_call_and_reuses_result(self):
+        replies = {"02-方法卡.md": "```markdown\n## 方法甲\n```", "00-怎么用.md": "# 怎么用", "03-陷阱.md": "（无）"}
         with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file(replies)) as call:
-            a = skillbook_ai.organize(self.p, BOARD, SOURCE)
-            b = skillbook_ai.organize(self.p, BOARD, SOURCE)
-        self.assertEqual(call.call_count, 6)                                                 # 六个文件各一次，同样的资料第二次不再请求
+            a = skillbook_ai.organize(self.p, BOARD, SOURCE, self.questions())
+            b = skillbook_ai.organize(self.p, BOARD, SOURCE, self.questions())
+        self.assertEqual(call.call_count, 5 + 2)                                             # 5 个文件各一次 + 2 道示范，同样的资料第二次不再请求
         self.assertEqual(a["id"], b["id"])
-        self.assertEqual([e["path"] for e in a["edits"]], ["02-方法.md", "SKILL.md"])         # “（无）”的文件不出，围栏被去掉
-        self.assertEqual(a["edits"][0]["text"], "# 方法")
+        paths_ = [e["path"] for e in a["edits"]]
+        self.assertEqual(paths_, ["02-方法卡.md", "00-怎么用.md", "04-示范.md"])                # “（无）”的不出，围栏被去掉，方法卡先写
+        self.assertEqual(a["edits"][0]["text"], "## 方法甲")
+        demo = a["edits"][2]["text"]
+        self.assertIn("题干1", demo)
+        self.assertIn("**正确答案**：B", demo)                                                # 原题由程序贴，AI 只写过程
+        self.assertIn("用到：方法卡「甲」", demo)
         self.assertFalse(skillbook.has_own(self.p, BOARD))                                   # 只是建议，采纳前不写文件
-        for c in call.call_args_list:                                                        # 每次只要一个文件，回复上限不是一口气写六个
+        for c in call.call_args_list:
             self.assertTrue(c.kwargs["max_tokens"] <= 4000)
         first = call.call_args_list[0][0][0][1]["content"]
         self.assertIn("先识别", first)
         self.assertNotIn("脚本不读", first)
-        last = call.call_args_list[-1][0][0][1]["content"]
-        self.assertIn("02-方法.md", last)                                                    # 入口最后写，知道前面写了哪些文件
+        self.assertIn("不用 LaTeX", first)
+        self.assertIn("方法甲", call.call_args_list[1][0][0][1]["content"])                  # 后面的文件看得到方法卡，名字对得上
+
+    def test_organize_material_does_not_include_dispatch_section(self):
+        (self.src / "SKILL.md").write_text("# 入口\n讲解\n\n## 被 xingce-jiexi-all 调度时\n运行 jiexi.py 写入\n\n## 后记\n保留", encoding="utf-8")
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file({"02-方法卡.md": "x"})) as call:
+            skillbook_ai.organize(self.p, BOARD, SOURCE)
+        first = call.call_args_list[0][0][0][1]["content"]
+        self.assertIn("讲解", first)
+        self.assertIn("保留", first)
+        self.assertNotIn("jiexi.py", first)
 
     def test_organize_retries_shorter_when_reply_is_cut_off(self):
         calls = []
@@ -200,15 +167,15 @@ class FakeAITest(Base):
         def fake(messages, **kw):
             user = messages[1]["content"]
             calls.append(user)
-            if "现在只写文件「02-方法.md」" in user and "不超过 1500 字" in user:
+            if "现在只写文件「02-方法卡.md」" in user and "不超过 1800 字" in user:
                 raise ai.AIError("AI回复达到长度上限，尚未保存残缺结果")
-            return "# 内容" if "「SKILL.md」" in user or "「02-方法.md」" in user else "（无）"
+            return "# 内容" if "「02-方法卡.md」" in user else "（无）"
         with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=fake):
             r = skillbook_ai.organize(self.p, BOARD, SOURCE)
-        self.assertEqual([e["path"] for e in r["edits"]], ["02-方法.md", "SKILL.md"])
-        self.assertTrue(any("不超过 800 字" in c and "02-方法.md" in c for c in calls))         # 换更短的上限重试
+        self.assertEqual([e["path"] for e in r["edits"]], ["02-方法卡.md"])
+        self.assertTrue(any("不超过 900 字" in c and "02-方法卡.md" in c for c in calls))        # 换更短的上限重试
 
-    def test_organize_skips_a_file_that_never_fits_but_needs_the_entry(self):
+    def test_organize_skips_a_file_that_never_fits_but_needs_the_method_cards(self):
         def fake(messages, **kw):
             user = messages[1]["content"]
             if "「03-陷阱.md」" in user:
@@ -222,17 +189,40 @@ class FakeAITest(Base):
             skillbook.dismiss(self.p, p["id"])
         with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=ai.AIError("AI回复达到长度上限")), \
                 self.assertRaises(skillbook.SkillError):
-            skillbook_ai.organize(self.p, BOARD, SOURCE)                                      # 入口写不出来就整个不保存
+            skillbook_ai.organize(self.p, BOARD, SOURCE)                                      # 方法卡写不出来就整个不保存
         self.assertEqual(skillbook.proposals(self.p, BOARD), [])
 
-    def test_organize_without_entry_saves_nothing(self):
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file({"02-方法.md": "x"})):
+    def test_organize_skips_files_that_already_exist_and_demo_failure_is_not_fatal(self):
+        skillbook.ensure_own(self.p, BOARD, SOURCE)
+        skillbook.save(self.p, BOARD, "02-方法卡.md", "# 我的方法卡\n## 方法甲", "")
+        replies = {"00-怎么用.md": "# 怎么用", "demo": ai.AIError("AI回复达到长度上限")}
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file(replies)) as call:
+            r = skillbook_ai.organize(self.p, BOARD, SOURCE, self.questions(1))
+        self.assertEqual([e["path"] for e in r["edits"]], ["00-怎么用.md"])                    # 已有的方法卡不重写
+        self.assertIn("示范第 1 道 没能生成", r["summary"])
+        self.assertTrue(all("现在只写文件「02-方法卡.md」" not in c[0][0][1]["content"] for c in call.call_args_list))
+
+    def test_pick_examples_prefers_wrong_questions_with_answers(self):
+        folder = self.p.train / "题库"
+        folder.mkdir(parents=True, exist_ok=True)
+        def q(i, ans, analysis):
+            return "## 题目 %s\n\n### 知识点\n甲\n\n### 题干\n题干%s\n\n### 选项\nA. 一\nB. 二\nC. 三\nD. 四\n\n### 答案\n%s\n\n### 解析\n%s\n\n" % (i, i, ans, analysis)
+        (folder / (BOARD + "真题.md")).write_text(q("001", "A", "") + q("002", "B", "有解析") + q("003", "（待补）", "") + q("004", "C", ""), encoding="utf-8")
+        with api.open_game(save=False) as g:
+            ids = [x["id"] for x in skillbook_ai.pick_examples(g, BOARD)]
+            self.assertEqual(ids, ["002", "001"])                                            # 有解析的先；答案待补的不选
+            g.state.setdefault("bank", {"records": {}, "runs": {}, "groups": []})["records"]["%s::004" % BOARD] = {"wrong": True, "history": []}
+            self.assertEqual([x["id"] for x in skillbook_ai.pick_examples(g, BOARD)][0], "004")   # 做错过的排最前
+            self.assertEqual(skillbook_ai.pick_examples(g, "没有题库的板块"), [])
+
+    def test_organize_without_method_cards_saves_nothing(self):
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file({"00-怎么用.md": "x"})):
             with self.assertRaises(skillbook.SkillError):
                 skillbook_ai.organize(self.p, BOARD, SOURCE)
         self.assertEqual(skillbook.proposals(self.p, BOARD), [])
 
     def test_organize_refuses_oversized_material(self):
-        with patch.object(skillbook_ai, "ORGANIZE_LIMIT", 5), patch.object(ai, "available", return_value=True), \
+        with patch.object(skillbook, "TUTOR_LIMIT", 5), patch.object(ai, "available", return_value=True), \
                 patch.object(ai, "chat") as call, self.assertRaises(skillbook.SkillError):
             skillbook_ai.organize(self.p, BOARD, SOURCE)
         call.assert_not_called()

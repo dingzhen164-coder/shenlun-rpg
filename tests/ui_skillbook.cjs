@@ -1,4 +1,4 @@
-/* 3.4藏经阁·心法真实浏览器回归：看（原 skill 只读）→ 点修改（自动复制成我的版本）→ 保存即生效 → 刷新还在 →
+/* 3.4藏经阁·心法真实浏览器回归：书架 → 看 → 直接点修改（没有“我的版本”，第一次保存自动复制）→ 保存即生效 → 刷新还在 →
    历史回滚 → 版本冲突提示 → 新建/改名/删除；电脑/平板不整页滚动、不横向溢出。
    服务只用临时自编资料与假HOME，不连接AI。 */
 const {chromium}=require('playwright'),{spawn}=require('node:child_process');
@@ -28,21 +28,24 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert(wide>0.9,'藏经阁铺满宽度 '+wide);
   await page.locator('.skb-tome').first().click({force:true});await page.waitForSelector('.skb-root.detail .skb-chip');
   // 1 板块详情与原 skill（只读）
-  const first=await page.locator('.skb-who').textContent();assert.match(first,/原 skill/);
-  assert.match(await page.locator('.skb-banner').textContent(),/只读/);
-  assert.match(await page.locator('.skb-meter').textContent(),/\d+ 个文件/);
+  const first=await page.locator('.skb-who').textContent();assert.doesNotMatch(first,/我的版本|原 skill/,'不再有版本标签');
+  assert.match(await page.locator('.skb-banner').textContent(),/直接修改/);
+  await page.locator('.skb-meter').filter({hasText:/个文件/}).waitFor();assert.match(await page.locator('.skb-meter').textContent(),/约 \d+ 字/);
+  for(const gone of ['[data-skb="copy"]','[data-skb="pub"]','[data-skb-switch]'])assert.equal(await page.locator(gone).count(),0,gone+' 已取消');
+  assert.equal(await page.locator('[data-skb="organize"]').count(),1,'生成学习版入口');assert.match(await page.locator('[data-skb="organize"]').textContent(),/学习版/);
   assert.equal(await page.locator('.skb-chip').count(),3,'SKILL.md + cheatsheet + chapters/01.md；scripts不算');
   assert.doesNotMatch(await page.locator('.skb-files').textContent(),/run\.md/);
   await fit(page,label+' 阅读');
-  // 2 点修改：先复制成我的版本，再进入编辑
+  // 2 点修改：直接进入编辑（没有复制步骤）
   await page.locator('[data-skb="edit"]').click();await page.waitForSelector('#skbText');
   assert.match(await page.inputValue('#skbText'),/自编入口/);
   await fit(page,label+' 修改');
-  await page.fill('#skbText','# 我的入口\n新的识别法：先看问法');
+  await page.fill('#skbText','# 我的入口\n新的识别法：先看问法\n\n公式：$A \\rightarrow B$ 与 **加粗**\n\n| 信号 | 方法 |\n|---|---|\n| 除非 | $\\neg B \\rightarrow A$ |');
   await page.keyboard.press('Control+s');
   await page.locator('.skb-note').filter({hasText:'已保存'}).waitFor();
-  assert.match(await page.locator('.skb-who').textContent(),/我的版本/);
   assert.match(await page.locator('.skb-read').textContent(),/新的识别法/);
+  const shown=await page.locator('.skb-read').textContent();assert.match(shown,/A → B/);assert.doesNotMatch(shown,/\$|rightarrow|\*\*/,'公式和加粗已渲染');
+  assert.equal(await page.locator('.skb-read table th').count(),2,'表格已渲染');
   // 3 保存即生效：解惑读取计划里就是新内容（接口层），原 skill 不变
   const view=await page.evaluate(()=>api('/api/skillbook'));const row=view.boards.find(b=>b.mode==='mine');assert(row,'有我的版本');
   const pl=await page.evaluate(b=>api('/api/skillbook/plan',{board:b}),row.board);
@@ -50,7 +53,7 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   // 4 刷新后还在原处
   await page.reload();await page.waitForFunction(()=>typeof go==='function'&&typeof DASH!=='undefined'&&!!DASH);
   await page.evaluate(()=>{LIB.tab='skillbook';go('skeleton');});await page.waitForSelector('.skb-root.shelf .skb-tome');
-  await page.locator('.skb-tome.mine').click({force:true});await page.waitForSelector('.skb-read');
+  await page.locator('.skb-tome').first().click({force:true});await page.waitForSelector('.skb-read');
   assert.match(await page.locator('.skb-read').textContent(),/新的识别法/);
   // 5 历史与回滚
   await page.locator('[data-skb="history"]').click();await page.waitForSelector('.skb-ver');
@@ -68,11 +71,11 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert.match(await page.locator('.skb-read').textContent(),/别处改的/);
   // 7 新建文件、改名、删除
   await page.locator('[data-skb="newfile"]').click();await page.waitForSelector('#skbText');await page.fill('#skbText','# 第二章\n自编');await page.locator('[data-skb="save"]').click();
-  await page.locator('.skb-chip',{hasText:'chapters/02.md'}).waitFor();
+  await page.locator('.skb-chip[title="chapters/02.md"]').waitFor();
   await page.locator('[data-skb="rename"]').click();await page.locator('.skb-note').filter({hasText:'已改名'}).waitFor();
-  assert.equal(await page.locator('.skb-chip',{hasText:'chapters/02.md'}).count(),0);await page.locator('.skb-chip',{hasText:'chapters/03.md'}).waitFor();
+  assert.equal(await page.locator('.skb-chip[title="chapters/02.md"]').count(),0);await page.locator('.skb-chip[title="chapters/03.md"]').waitFor();
   await page.locator('[data-skb="delete"]').click();
-  await page.locator('.skb-note').filter({hasText:'已删除'}).waitFor();assert.equal(await page.locator('.skb-chip',{hasText:'chapters/03.md'}).count(),0);
+  await page.locator('.skb-note').filter({hasText:'已删除'}).waitFor();assert.equal(await page.locator('.skb-chip[title="chapters/03.md"]').count(),0);
   // 7b 待审建议：勾选采纳（只采纳第一条），采纳前没改文件；另一条留着，再忽略掉
   const badge=await page.locator('.skb-who').textContent();assert.match(badge,/📝1/);
   assert.equal(await page.locator('.skb-prop .skb-edit').count(),2);
@@ -82,21 +85,11 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert.match((await page.evaluate(()=>api('/api/skillbook/file',{board:document.querySelector('.skb-who b').textContent,path:'cheatsheet.md'}))).text,/自编口诀二/);
   assert.equal(await page.locator('.skb-prop').count(),1);assert.equal(await page.locator('.skb-prop .skb-edit.done').count(),1);
   await page.locator('[data-skb="dismiss"]').click();await page.locator('.skb-note').filter({hasText:'已忽略'}).waitFor();assert.equal(await page.locator('.skb-prop').count(),0);
-  await page.locator('.skb-chip',{hasText:'变更记录.md'}).click();await page.locator('.skb-read').filter({hasText:/采纳「补一条自编口诀」/}).waitFor();
-  // 7c 发布回原 skill：默认关闭 → 打开开关 → 预览 → 写回 → 撤回
-  assert.equal(await page.locator('[data-skb="pub"]').count(),0);assert.equal(await page.locator('[data-skb-switch]').isChecked(),false);
-  await page.locator('[data-skb-switch]').check();await page.locator('[data-skb="pub"]').waitFor();
-  await page.locator('[data-skb="pub"]').click();await page.locator('.skb-pub').waitFor();assert.match(await page.locator('.skb-pub').textContent(),/覆盖（原文件已备份）/);
-  await fit(page,label+' 发布预览');
-  await page.locator('[data-skb="pubgo"]').click();await page.locator('.skb-note').filter({hasText:'已写回原 skill'}).waitFor();
-  await page.locator('[data-skb="pub"]').click();await page.locator('[data-skb="pubrestore"]').waitFor();
-  await page.locator('[data-skb="pubrestore"]').click();await page.locator('.skb-note').filter({hasText:'已撤回发布'}).waitFor();
-  await page.locator('[data-skb="pubno"]').click().catch(()=>{});
+  await page.locator('.skb-chip[title="变更记录.md"]').click();await page.locator('.skb-read').filter({hasText:/采纳「补一条自编口诀」/}).waitFor();
   // 8 别的板块不受影响
   await fit(page,label+' 详情结束');
   await page.locator('[data-skb="shelf"]').click();await page.waitForSelector('.skb-root.shelf .skb-tome');
-  assert.equal(await page.locator('.skb-tome.mine').count(),1,'只有改过的那一本是我的版本');
-  const t0=Date.now();await page.evaluate(()=>{go('home')});await page.evaluate(()=>{LIB.tab='skillbook';go('skeleton');});await page.waitForSelector('.skb-tome');
+    const t0=Date.now();await page.evaluate(()=>{go('home')});await page.evaluate(()=>{LIB.tab='skillbook';go('skeleton');});await page.waitForSelector('.skb-tome');
   assert(Date.now()-t0<2500,'再次进入立即出书架');
   assert.deepEqual(errors,[]);await page.close();service.kill();console.log(subject+' '+label+'：看/改/保存即生效/历史回滚/冲突/新建改名删除通过');
  }

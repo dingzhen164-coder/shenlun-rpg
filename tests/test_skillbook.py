@@ -70,7 +70,7 @@ class SkillbookTest(unittest.TestCase):
     def test_template_has_standard_files(self):
         skillbook.create_template(self.p, "没有原skill的板块")
         self.assertEqual(skillbook.own_files(self.p, "没有原skill的板块"),
-                         ["SKILL.md", "01-识别.md", "02-方法.md", "03-陷阱.md", "04-例题.md", "05-速查.md"])
+                         ["SKILL.md", "01-识别信号.md", "02-方法卡.md", "03-陷阱.md", "04-示范.md", "05-速查.md"])
         self.assertIn("没有原skill的板块", skillbook.read_file(self.p, "没有原skill的板块", "", "SKILL.md")["text"])
 
     def test_edit_takes_effect_for_the_next_tutoring(self):
@@ -158,18 +158,19 @@ class SkillbookTest(unittest.TestCase):
         self.assertEqual(len(text), len(plan["text"]))
 
     # ---- 接口 + 实际讲题读取
-    def test_api_edit_then_tutor_reads_new_content(self):
+    def test_api_edit_directly_without_copy_step_then_tutor_reads_new_content(self):
         view = api.skillbook_view({})["boards"]
         row = next(b for b in view if b["board"] == BOARD)
         self.assertEqual((row["mode"], row["source_exists"]), ("source", True))
-        self.assertEqual(api.skillbook_plan({"board": BOARD})["limit"], skillbook.TUTOR_LIMIT)
-        self.assertEqual(api.skillbook_file({"board": BOARD, "path": "SKILL.md"})["editable"], False)
-        with self.assertRaises(api.ApiError):
-            api.skillbook_save({"board": BOARD, "path": "SKILL.md", "text": "x", "base": ""})   # 没有我的版本不能直接保存
-        api.skillbook_create({"board": BOARD, "how": "copy"})
+        plan = api.skillbook_plan({"board": BOARD})
+        self.assertEqual(plan["limit"], skillbook.TUTOR_LIMIT)
+        self.assertTrue(plan["words"] > 0 and plan["words"] < plan["total"] + 1)
         f = api.skillbook_file({"board": BOARD, "path": "SKILL.md"})
-        self.assertTrue(f["editable"])
+        self.assertTrue(f["editable"])                                         # 直接就能改，没有“先复制我的版本”这一步
+        self.assertFalse(skillbook.has_own(self.p, BOARD))
         api.skillbook_save({"board": BOARD, "path": "SKILL.md", "text": "# 我的入口\n新的识别法", "base": f["rev"]})
+        self.assertTrue(skillbook.has_own(self.p, BOARD))                      # 第一次保存时自动复制
+        self.assertEqual(len(skillbook.history(self.p, BOARD, "SKILL.md")), 1)   # 修改前的样子留在历史里
         with api.open_game(save=False) as g:
             text, used = trainer._tutor_material(g, BOARD)
             self.assertIn("新的识别法", text)
@@ -181,9 +182,27 @@ class SkillbookTest(unittest.TestCase):
         with self.assertRaises(api.ApiError):
             api.skillbook_file({"board": "不存在的板块", "path": "SKILL.md"})
         self.assertTrue(self.source_unchanged())
+        for gone in ("skillbook_settings", "skillbook_publish", "skillbook_publish_restore"):
+            self.assertFalse(hasattr(api, gone), gone)                         # 不再有“发布回原 skill”
 
-    def test_other_boards_unaffected_by_one_boards_own_version(self):
-        api.skillbook_create({"board": BOARD, "how": "copy"})
+    def test_word_count_is_like_a_word_processor(self):
+        self.assertEqual(skillbook.words("形式逻辑 A→B, $\\neg$ ab12 **粗**"), 9)
+        self.assertEqual(skillbook.title_of("---\nx: y\n---\n# 第一章 基础\n正文"), "第一章 基础")
+        self.assertEqual(skillbook.title_of("没有标题"), "")
+
+    def test_dispatch_section_is_not_read_when_tutoring(self):
+        d = self.p.vault / "copilot/skills" / SOURCE
+        (d / "SKILL.md").write_text("# 原入口\n先识别，再排除。\n\n## 被 xingce-jiexi-all 调度时\n运行 jiexi.py 写入\n### 流程\n步骤\n\n## 后记\n保留这段", encoding="utf-8")
+        text = skillbook.reading_plan(self.p, BOARD, SOURCE)["text"]
+        self.assertIn("先识别", text)
+        self.assertIn("保留这段", text)
+        self.assertNotIn("jiexi.py", text)
+        self.assertNotIn("jiexi.py", vault.skill_for_tutor(self.p, SOURCE)[0])
+        self.assertIn("jiexi.py", skillbook.read_file(self.p, BOARD, SOURCE, "SKILL.md")["text"])   # 文件本身不动，阅读区仍能看到
+
+    def test_other_boards_unaffected_by_one_boards_edit(self):
+        f = api.skillbook_file({"board": BOARD, "path": "SKILL.md"})
+        api.skillbook_save({"board": BOARD, "path": "SKILL.md", "text": "改了", "base": f["rev"]})
         others = [b for b in api.skillbook_view({})["boards"] if b["board"] != BOARD]
         self.assertTrue(others and all(b["mode"] != "mine" for b in others))
 

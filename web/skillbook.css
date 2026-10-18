@@ -5,15 +5,12 @@
 .skb-shelf{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));justify-items:center;padding:var(--ds-sp-16) var(--ds-sp-8) 48px}
 .skb-tome{border:0;padding:0;font:inherit;color:inherit}
 .skb-tome.none{filter:grayscale(.85) brightness(.85)}
-.skb-tome.mine{box-shadow:0 0 0 2px var(--gold),var(--ds-shadow-3)}
 .skb-pend-badge{position:absolute;top:-8px;right:-8px;background:var(--ds-warn);color:var(--ds-on-accent);font-size:var(--ds-fs-11);padding:1px 6px;border-radius:var(--ds-r-pill)}
 .skb-who{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none}
 .skb-side{display:flex;flex-direction:column;gap:6px;overflow:auto;margin:0;padding:10px;min-height:0}
 .skb-board{display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left;font-size:var(--ds-fs-13);padding:8px 10px;flex:none}
 .skb-board.on{outline:2px solid var(--accent);outline-offset:-2px}
 .skb-board .tag{font-size:var(--ds-fs-11);flex:none}
-.skb-mine{background:var(--accent);color:var(--ds-on-accent)}
-.skb-dot{color:var(--ds-warn)}
 .skb-main{display:flex;flex-direction:column;min-height:0;min-width:0;margin:0;padding:12px;overflow:hidden}
 .skb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;flex:none}
 .skb-head h3{margin:0}
@@ -26,6 +23,8 @@
 .skb-warn{color:var(--ds-warn);margin-top:4px}
 .skb-files{flex:1;min-height:0;display:flex;flex-direction:column;gap:4px;margin-top:4px;overflow:auto}
 .skb-chip{font-size:var(--ds-fs-13);padding:7px 10px;display:flex;justify-content:space-between;gap:6px;align-items:baseline;text-align:left;flex:none;word-break:break-all}
+.skb-chip>span{min-width:0}
+.skb-chip small{flex:none}
 .skb-chip small{color:var(--muted);font-size:var(--ds-fs-11)}
 .skb-chip.on{outline:2px solid var(--accent);outline-offset:-2px}
 .skb-body{flex:1;min-height:0;overflow:auto;margin-top:8px;overscroll-behavior:contain}
@@ -48,12 +47,28 @@
 .skb-edit.done{opacity:.55}
 .skb-edit small{color:var(--muted)}
 .skb-diff{margin-top:4px;padding:6px 8px;border-left:3px solid var(--accent);background:var(--panel)}
-.skb-pub{display:flex;flex-direction:column;gap:6px}
-.skb-backs{margin-top:10px;color:var(--muted)}
-.skb-switch{flex:none;margin-top:8px;display:flex;gap:6px;align-items:center;color:var(--muted)}
 .skb-tip{display:inline-block;margin:var(--ds-sp-8);padding:var(--ds-sp-4) var(--ds-sp-12);border-radius:var(--ds-r-pill);background:var(--panel);color:var(--text)}
 .skb-shelf .tome-cap{padding:var(--ds-sp-4) var(--ds-sp-12);border-radius:var(--ds-r-pill);background:var(--panel);color:var(--text);line-height:1.5}
-.skb-edit>input,.skb-switch>input{width:auto;flex:none;margin:3px 0 0}
-.skb-edit>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.skb-switch{justify-content:flex-start}
+.skb-edit>input,.skb-edit>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .guantu .skb-tome .tome-label{width:auto;height:auto;padding:0;flex-direction:row;white-space:nowrap}
+.skb-tip2{background:transparent;padding:0;color:var(--muted)}
+/* 阅读渲染（MDLITE）：标题、列表、表格、引用、代码、公式 */
+.md{line-height:1.8;overflow-wrap:anywhere}
+.md .md-h{margin:1.1em 0 .4em;line-height:1.4}
+.md h2.md-h{font-size:var(--ds-fs-20)}
+.md h3.md-h{font-size:var(--ds-fs-16);padding-left:var(--ds-sp-8);border-left:3px solid var(--accent)}
+.md h4.md-h,.md h5.md-h{font-size:var(--ds-fs-14)}
+.md p{margin:.45em 0}
+.md .md-meta{color:var(--muted);font-size:var(--ds-fs-12)}
+.md .md-list{margin:.3em 0;padding-left:1.4em}
+.md li{margin:.2em 0}
+.md code{padding:0 var(--ds-sp-4);border-radius:var(--ds-r-3);background:var(--panel2);font-size:.92em}
+.md .md-pre{margin:.6em 0;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-6);background:var(--panel2);overflow:auto;white-space:pre-wrap;font-size:var(--ds-fs-13)}
+.md .md-math{padding:0 var(--ds-sp-4);border-radius:var(--ds-r-3);background:var(--panel2);white-space:nowrap}
+.md .md-quote{margin:.6em 0;padding:var(--ds-sp-4) var(--ds-sp-12);border-left:3px solid var(--line);color:var(--muted)}
+.md .md-tablewrap{overflow:auto;margin:.6em 0}
+.md .md-table{border-collapse:collapse;min-width:60%}
+.md .md-table th,.md .md-table td{border:1px solid var(--line);padding:var(--ds-sp-4) var(--ds-sp-8);text-align:left;vertical-align:top}
+.md .md-table th{background:var(--panel2)}
+.md hr{border:0;border-top:1px solid var(--line);margin:1em 0}
+.skb-edit{justify-content:flex-start;gap:var(--ds-sp-8)}

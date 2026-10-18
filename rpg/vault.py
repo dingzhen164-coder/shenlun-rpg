@@ -157,6 +157,19 @@ def _skill_material(paths, name, extra=()):
 TUTOR_LIMIT = 60000   # 讲题时给师傅的 skill 资料上限（字）
 
 
+_DISPATCH = re.compile(r"^##[ \t]+被[^\n]*调度时[ \t]*$", re.M)
+
+
+def strip_dispatch(text):
+    """去掉 SKILL.md 里“被 xxx 调度时”那一节（给 AI 总调度用的脚本流程、写入格式、省 token 规则）：它和讲题无关，
+    却会占上千字额度。从这个二级标题一直去到下一个二级标题或文末；文件本身不改，只是讲题时不读这一段"""
+    m = _DISPATCH.search(text)
+    if not m:
+        return text
+    nxt = re.search(r"^##[ \t]+[^#\n]", text[m.end():], re.M)
+    return (text[:m.start()].rstrip("\n") + "\n" + (text[m.end() + nxt.start():] if nxt else "")).rstrip("\n") + "\n"
+
+
 def skill_for_tutor(paths, name):
     """讲题（师傅解惑、复盘追问、传授）用的 skill 资料：skill 文件夹里所有 .md（SKILL.md 在前；scripts/ 不读），
     再加上 skill 里引用的库内资料。超出上限的文件写明“未读入”，不悄悄截断。返回 (文字, 读到的文件清单)"""
@@ -167,7 +180,7 @@ def skill_for_tutor(paths, name):
                                       if p.name != "SKILL.md" and "scripts" not in p.relative_to(d).parts and not p.name.startswith("."))
     parts, used, total = [], [], 0
     for f in files:
-        t = f.read_text(encoding="utf-8", errors="ignore")
+        t = strip_dispatch(f.read_text(encoding="utf-8", errors="ignore"))
         rel = f.relative_to(d).as_posix()
         if total + len(t) > TUTOR_LIMIT:
             used.append(rel + "（未读入：超出上限）")
