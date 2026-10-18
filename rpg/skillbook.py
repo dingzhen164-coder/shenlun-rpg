@@ -101,6 +101,7 @@ def _rev(data):
 
 
 def _atomic(f, text):
+    _PLAN.clear()
     f.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(dir=str(f.parent), prefix=".tmp-", suffix=".md")
     try:
@@ -213,14 +214,44 @@ def tutor_material(paths, board, source):
 
 # ---------------------------------------------------------------- 概览与读取（界面）
 def overview(paths, boards):
-    """boards：[(板块, 原skill名)]。每个板块的状态与读取计划（不含正文）。"""
+    """书架用：boards：[(板块, 原skill名)]。每个板块只给状态和文件数，**不算读取计划**——
+    读取计划要在整个库里找 skill 引用的资料，很慢（12 个板块一起算会卡很久），打开某个板块时再算（见 plan）。"""
     out = []
     for board, source in boards:
-        plan = reading_plan(paths, board, source)
-        out.append({"board": board, "source": source or "", "mode": plan["mode"],
-                    "source_exists": bool(vault.skill_dir(paths, source)),
-                    "items": plan["items"], "total": plan["total"], "limit": plan["limit"],
-                    "files": own_files(paths, board) if plan["mode"] == "mine" else source_files(paths, source)})
+        m = mode(paths, board, source)
+        files = own_files(paths, board) if m == "mine" else source_files(paths, source)
+        out.append({"board": board, "source": source or "", "mode": m, "source_exists": bool(vault.skill_dir(paths, source)),
+                    "n_files": len(files), "files": files})
+    return out
+
+
+_PLAN = {}
+PLAN_TTL = 60
+
+
+def _plan_sig(paths, board, source):
+    out = []
+    for kind, d, fs in (("o", board_dir(paths, board), own_files(paths, board)),
+                        ("s", vault.skill_dir(paths, source), source_files(paths, source))):
+        for rel in fs:
+            try:
+                st = (d / rel).stat()
+                out.append((kind, rel, st.st_mtime_ns, st.st_size))
+            except OSError:
+                pass
+    return tuple(out)
+
+
+def plan(paths, board, source):
+    """打开某个板块时的读取计划（文件、字数、哪些未读入）；带缓存：文件没变且 60 秒内不重复计算。去掉正文，只留清单"""
+    sig = _plan_sig(paths, board, source)
+    key = (str(paths.vault), board, source)
+    hit = _PLAN.get(key)
+    if hit and hit[1] == sig and time.time() - hit[0] < PLAN_TTL:
+        return hit[2]
+    p = reading_plan(paths, board, source)
+    out = {"board": board, "mode": p["mode"], "items": p["items"], "total": p["total"], "limit": p["limit"]}
+    _PLAN[key] = (time.time(), sig, out)
     return out
 
 

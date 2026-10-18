@@ -162,7 +162,7 @@ class SkillbookTest(unittest.TestCase):
         view = api.skillbook_view({})["boards"]
         row = next(b for b in view if b["board"] == BOARD)
         self.assertEqual((row["mode"], row["source_exists"]), ("source", True))
-        self.assertEqual(row["limit"], skillbook.TUTOR_LIMIT)
+        self.assertEqual(api.skillbook_plan({"board": BOARD})["limit"], skillbook.TUTOR_LIMIT)
         self.assertEqual(api.skillbook_file({"board": BOARD, "path": "SKILL.md"})["editable"], False)
         with self.assertRaises(api.ApiError):
             api.skillbook_save({"board": BOARD, "path": "SKILL.md", "text": "x", "base": ""})   # 没有我的版本不能直接保存

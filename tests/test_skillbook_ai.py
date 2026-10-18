@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from rpg import ai, api, paths, skillbook, skillbook_ai, trainer
+from rpg import ai, api, paths, prompts, skillbook, skillbook_ai, trainer
 
 BOARD = "论证逻辑"
 SOURCE = "xue-rui-argument-logic"
@@ -165,33 +165,75 @@ class FakeAITest(Base):
             skillbook_ai.organize(self.p, BOARD, SOURCE)
         self.assertIn("API key", str(c.exception))
 
-    def test_organize_saves_valid_files_only_and_reuses_result(self):
-        reply = {"summary": "整理好了", "files": [{"path": "SKILL.md", "text": "# 入口"}, {"path": "02-方法.md", "text": "# 方法"},
-                                                   {"path": "乱写.md", "text": "不在标准结构里"}]}
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat_json", return_value=reply) as call:
+    def chat_by_file(self, replies):
+        """假 AI：按“现在只写文件「xxx」”里的文件名回复；replies：文件名 → 文字（或异常）"""
+        def fake(messages, **kw):
+            user = messages[1]["content"]
+            path = next(p for p in prompts.SKILLBOOK_GUIDE if "现在只写文件「%s」" % p in user)
+            r = replies.get(path, "（无）")
+            if isinstance(r, Exception):
+                raise r
+            return r
+        return fake
+
+    def test_organize_writes_one_file_per_call_and_reuses_result(self):
+        replies = {"SKILL.md": "# 入口", "02-方法.md": "```markdown\n# 方法\n```", "03-陷阱.md": "（无）"}
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file(replies)) as call:
             a = skillbook_ai.organize(self.p, BOARD, SOURCE)
             b = skillbook_ai.organize(self.p, BOARD, SOURCE)
-        self.assertEqual(call.call_count, 1)                                                 # 同样的资料不重复花钱
+        self.assertEqual(call.call_count, 6)                                                 # 六个文件各一次，同样的资料第二次不再请求
         self.assertEqual(a["id"], b["id"])
-        self.assertEqual([e["path"] for e in a["edits"]], ["SKILL.md", "02-方法.md"])
+        self.assertEqual([e["path"] for e in a["edits"]], ["02-方法.md", "SKILL.md"])         # “（无）”的文件不出，围栏被去掉
+        self.assertEqual(a["edits"][0]["text"], "# 方法")
         self.assertFalse(skillbook.has_own(self.p, BOARD))                                   # 只是建议，采纳前不写文件
-        prompt = call.call_args[0][0][1]["content"]
-        self.assertIn("先识别", prompt)
-        self.assertNotIn("脚本不读", prompt)
+        for c in call.call_args_list:                                                        # 每次只要一个文件，回复上限不是一口气写六个
+            self.assertTrue(c.kwargs["max_tokens"] <= 4000)
+        first = call.call_args_list[0][0][0][1]["content"]
+        self.assertIn("先识别", first)
+        self.assertNotIn("脚本不读", first)
+        last = call.call_args_list[-1][0][0][1]["content"]
+        self.assertIn("02-方法.md", last)                                                    # 入口最后写，知道前面写了哪些文件
 
-    def test_organize_without_entry_or_with_bad_json_saves_nothing(self):
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat_json", return_value={"files": [{"path": "02-方法.md", "text": "x"}]}):
+    def test_organize_retries_shorter_when_reply_is_cut_off(self):
+        calls = []
+
+        def fake(messages, **kw):
+            user = messages[1]["content"]
+            calls.append(user)
+            if "现在只写文件「02-方法.md」" in user and "不超过 1500 字" in user:
+                raise ai.AIError("AI回复达到长度上限，尚未保存残缺结果")
+            return "# 内容" if "「SKILL.md」" in user or "「02-方法.md」" in user else "（无）"
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=fake):
+            r = skillbook_ai.organize(self.p, BOARD, SOURCE)
+        self.assertEqual([e["path"] for e in r["edits"]], ["02-方法.md", "SKILL.md"])
+        self.assertTrue(any("不超过 800 字" in c and "02-方法.md" in c for c in calls))         # 换更短的上限重试
+
+    def test_organize_skips_a_file_that_never_fits_but_needs_the_entry(self):
+        def fake(messages, **kw):
+            user = messages[1]["content"]
+            if "「03-陷阱.md」" in user:
+                raise ai.AIError("AI回复达到长度上限")
+            return "# 内容"
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=fake):
+            r = skillbook_ai.organize(self.p, BOARD, SOURCE)
+        self.assertNotIn("03-陷阱.md", [e["path"] for e in r["edits"]])
+        self.assertIn("03-陷阱.md 没能生成", r["summary"])
+        for p in skillbook.proposals(self.p, BOARD):
+            skillbook.dismiss(self.p, p["id"])
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=ai.AIError("AI回复达到长度上限")), \
+                self.assertRaises(skillbook.SkillError):
+            skillbook_ai.organize(self.p, BOARD, SOURCE)                                      # 入口写不出来就整个不保存
+        self.assertEqual(skillbook.proposals(self.p, BOARD), [])
+
+    def test_organize_without_entry_saves_nothing(self):
+        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=self.chat_by_file({"02-方法.md": "x"})):
             with self.assertRaises(skillbook.SkillError):
                 skillbook_ai.organize(self.p, BOARD, SOURCE)
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat_json", side_effect=ai.AIError("坏格式")) as call:
-            with self.assertRaises(skillbook.SkillError):
-                skillbook_ai.organize(self.p, BOARD, SOURCE)
-            self.assertEqual(call.call_count, 2)                                             # 校验不过重试一次
         self.assertEqual(skillbook.proposals(self.p, BOARD), [])
 
     def test_organize_refuses_oversized_material(self):
         with patch.object(skillbook_ai, "ORGANIZE_LIMIT", 5), patch.object(ai, "available", return_value=True), \
-                patch.object(ai, "chat_json") as call, self.assertRaises(skillbook.SkillError):
+                patch.object(ai, "chat") as call, self.assertRaises(skillbook.SkillError):
             skillbook_ai.organize(self.p, BOARD, SOURCE)
         call.assert_not_called()
 
