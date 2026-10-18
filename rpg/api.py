@@ -392,6 +392,14 @@ def import_answers(body):
     return _import_call(importer.fill_answers, body)
 
 
+def import_html(body):
+    from . import html_mock
+    rep = _import_call(html_mock.import_file, body)
+    if not rep.get('dry'):
+        _mock_imported(rep, rep.get('season'))
+    return rep
+
+
 def import_upload_pdf(body):
     return _import_call(importer.save_pdf, body)
 
@@ -1172,6 +1180,7 @@ ROUTES = {
     ("POST", "/api/import/dedupe"): import_dedupe,
     ("POST", "/api/import/rename"): import_rename,
     ("POST", "/api/import/upload_pdf"): import_upload_pdf,
+    ("POST", "/api/import/html"): import_html,
     ("POST", "/api/import/split"): import_split,
     ("POST", "/api/import/install_pymupdf"): import_install,
     ("GET", "/api/skeletons"): skeletons,
