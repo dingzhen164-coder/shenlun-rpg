@@ -60,6 +60,8 @@ jobs:
           node tests/ui_training339.cjs --subject=申论
           node tests/ui_daylight339.cjs --subject=申论
           node tests/ui_mock_html.cjs
+          node tests/ui_mock_details.cjs
+          node tests/ui_mock_imports.cjs
       - name: Narrative and learning contracts
         run: |
           node tests/test_narrative_ink.cjs

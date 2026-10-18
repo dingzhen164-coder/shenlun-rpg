@@ -1578,6 +1578,9 @@ def _mreview_load(g, s, src):
         raise TrainError("第%s季没有「%s」的复盘" % (s["season"], src))
     qs = [dict(q, season=s["season"], source=src, dir=str(d), key="%s|%s|%s" % (s["season"], src, q["num"]))
           for q in vault.parse_board_file(vault.board_file(d, src))]
+    times=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_seconds') or {}
+    for q in qs:
+        if q.get('seconds') is None and str(q['num']) in times:q['seconds']=times[str(q['num'])]
     picked = [q for q in qs if q["icon"] != "✅"] if s["only_wrong"] else qs
     s["all_correct"] = s["only_wrong"] and not picked
     s.update(source=src, board=_time_board(g, src), boards=boards, qs=picked or qs, rpos=0, explain={}, chat={},
@@ -1625,7 +1628,8 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         i + 1, len(qs), s["season"], q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
         qkey="mock:" + q["key"]))
-    msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?"),
+    duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
+    msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?",duration),
                      vault.render_blocks(g.paths, {"body": q["analysis"] or "（这题还没写复盘解析，点「师傅解惑」让师傅讲；讲完自动写进这题的复盘笔记）",
                                                    "dir": q["dir"]})))
     if q["icon"] != "✅" and not head:

@@ -99,6 +99,10 @@ def summary(g):
         score = rec.get("score")
         if score is None:
             score = _boss_score(g, n)
+        estimate=None
+        if g.subject=='行测':
+            from . import mock_score
+            estimate=mock_score.estimate(g,d,counts,rec)
         mods = []
         report = rec.get("report") or {}
         for m, r in report.get("modules", {}).items():          # 没导入答题卡截图的模块：用成绩截图里的“共几题、答对几题”
@@ -112,13 +116,15 @@ def summary(g):
             c = counts[m]
             if not c["total"]:
                 continue
-            if score is not None and ok_all:
+            if estimate and estimate['ready']:
+                est=estimate['modules'].get(m,0)
+            elif score is not None and ok_all:
                 est = score * c["ok"] / ok_all
             else:
                 est = 100 * c["ok"] / total_q
             real = (rec.get("scores") or {}).get(m)
             mods.append({"name": m, "ok": c["ok"], "total": c["total"], "acc": c["ok"] / c["total"],
-                         "score": real if real is not None else round(est, 1), "estimated": real is None,
+                         "score": real if real is not None else round(est, 2), "estimated": real is None,
                          "minutes": (rec.get("minutes") or {}).get(m),
                          "boards": [{"board": b, "ok": v[0], "wrong": v[1], "blank": v[2], "total": v[3]} for b, v in c["boards"].items()]})
         mins = [x["minutes"] for x in mods if x["minutes"] is not None]
@@ -133,6 +139,8 @@ def summary(g):
                                "wrong": sum(q["icon"] == "❌" for q in qs), "blank": sum(q["icon"] == "⚪" for q in qs),
                                "reviewed": len(set(rv.get(b, [])) & {q["num"] for q in qs}), "resume": pos.get(b)})
         seasons.append({"season": n, "date": rec.get("date", ""), "score": score, "score_from_boss": rec.get("score") is None and score is not None,
+                        "estimate":estimate,"reported_score":(rec.get("html_import") or {}).get("reported_score"),
+                        "score_source":rec.get("score_source","manual"),
                         **{k: rec.get(k) for k in FIELDS[1:]},
                         "ok": ok_all, "total": total_q, "acc": ok_all / total_q,
                         "minutes": sum(mins) if mins else None, "modules": mods,
@@ -169,6 +177,7 @@ def save(g, body):
     rec = data.setdefault(str(n), {})
     had_score = rec.get("score") is not None or _boss_score(g, n) is not None
     rec["score"] = _num(body.get("score"), 0, 100)
+    rec["score_source"] = body.get("score_source") if body.get("score_source") in ("html","estimate","ocr","manual") else "manual"
     rec["avg"] = _num(body.get("avg"), 0, 100)
     rec["top"] = _num(body.get("top"), 0, 100)
     rec["beat"] = _num(body.get("beat"), 0, 100)
@@ -192,10 +201,16 @@ def save(g, body):
     return ev
 
 
-def on_import(g, season):
+def on_import(g, season, credit=True):
     """导入了一份模考试卷：演武 · 历练记记 120 分钟（每季一次），题数、对的题数按那一季的复盘算"""
     done = g.state.setdefault("mock_practice", [])
-    if not season or str(season) in done:
+    if not season or str(season) in {str(n) for n in done}:
+        return []
+    # 旧存档可能没有按季标记；复用已有学习记录，不再加时长/经验。
+    source = "粉笔第%d季模考" % season
+    recorded = any(x.get("source") == source for x in g.state.get("practice", []))
+    if not credit or recorded:
+        done.append(str(season))
         return []
     d = next((d for n, d in vault.seasons(g.paths) if n == season), None)
     counts = season_counts(g.paths, d) if d else {}

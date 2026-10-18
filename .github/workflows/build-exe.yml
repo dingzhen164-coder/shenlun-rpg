@@ -1,9 +1,4 @@
-# 用户明确发布后更新release-request并推到 main → 在 Windows 上打包 公考模拟器.exe、在 Linux 上打包平板 App gongkao-simulator.apk、
-# 在 Mac 上打包 公考模拟器.app（Apple 芯片，gongkao-simulator-mac.zip），
-# 一起发到 Releases（tag v<版本>）。一个程序里有两个科目（申论官途 / 行测修仙传）。
-# 普通开发分支只积累代码；validate/**在用户要求统一验证时运行测试/三端构建，仅main发布Release。
-# 平板 App 沿用行测时的包名 com.xingce.xiuxian 和签名钥匙（android/xiuxian.keystore），已装的平板才能直接覆盖升级。
-# 程序里「设置 → 🆕 版本与更新 → 检查更新」读的就是这里发的 Release
+# 三端validate并行构建一次；main只发布同提交已验证资源，不重建。
 name: build-exe
 
 on:
@@ -14,10 +9,11 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/validate/')
+    if: startsWith(github.ref, 'refs/heads/validate/')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,29 +77,19 @@ jobs:
           if (Test-Path "$d/app.new.exe") { throw "新 exe 没换上去" }
           if (-not $ok) { throw "换文件后重开的程序没起来" }
 
-      - name: Publish release
-        if: github.ref == 'refs/heads/main'
+      - name: ASCII package name
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          V=$(python -c "import re;print(re.search(r'VERSION = \"(.+?)\"', open('rpg/version.py', encoding='utf-8').read()).group(1))")
-          # GitHub 会清理纯中文资源名；下载文件用 ASCII，应用和资源标签保留中文。
-          cp dist/公考模拟器.exe dist/gongkao-simulator.exe
-          if gh release view "v$V" >/dev/null 2>&1; then
-            gh release upload "v$V" "dist/gongkao-simulator.exe#公考模拟器.exe" --clobber
-          else
-            # 更新说明：取 rpg/data/changelog.md 里这一版的那一节（没有就用提交说明，去掉署名行）
-            NOTES=$(PYTHONIOENCODING=utf-8 python -c "import sys; sys.path.insert(0, '.'); from rpg import changelog; e = changelog.entries(); print('\n'.join('- ' + x for x in e[0]['items']) if e and e[0]['version'] == '$V' else '')")
-            [ -n "$NOTES" ] || NOTES=$(git log -1 --pretty=%B | grep -v -E '^(Co-Authored-By|Claude-Session):')
-            gh release create "v$V" "dist/gongkao-simulator.exe#公考模拟器.exe" --title "公考模拟器 v$V" --notes "$NOTES"
-          fi
-          # 清理本次中文资源名被 GitHub 自动生成的占位文件，避免重复下载入口。
-          OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$V" --jq ' .assets[] | select(.name == "default.exe") | .id')
-          if [ -n "$OLD" ]; then gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$OLD"; fi
+        run: cp dist/公考模拟器.exe dist/gongkao-simulator.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-windows
+          path: dist/gongkao-simulator.exe
+          if-no-files-found: error
+          retention-days: 7
 
   apk:
-    needs: build
+    if: startsWith(github.ref, 'refs/heads/validate/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -111,16 +97,15 @@ jobs:
       - name: Build apk
         run: bash android/build.sh
 
-      - name: Upload to release
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          V=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' rpg/version.py)
-          gh release upload "v$V" android/build/gongkao-simulator.apk --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-apk
+          path: android/build/gongkao-simulator.apk
+          if-no-files-found: error
+          retention-days: 7
 
   mac:
-    needs: build
+    if: startsWith(github.ref, 'refs/heads/validate/')
     runs-on: macos-latest          # Apple 芯片（M / A 系列）
     steps:
       - uses: actions/checkout@v4
@@ -176,10 +161,25 @@ jobs:
           echo "$out"
           echo "$out" | grep -q MAC-UPDATE-FROZEN-OK
 
-      - name: Upload to release
-        if: github.ref == 'refs/heads/main'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-mac
+          path: gongkao-simulator-mac.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Publish verified packages without rebuilding
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          V=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' rpg/version.py)
-          gh release upload "v$V" gongkao-simulator-mac.zip --clobber
+        run: python tools/publish_validated.py
