@@ -62,6 +62,8 @@ jobs:
           node tests/ui_mock_html.cjs
           node tests/ui_mock_details.cjs
           node tests/ui_mock_imports.cjs
+          node tests/ui_skillbook.cjs --subject=行测
+          node tests/ui_skillbook.cjs --subject=申论
       - name: Narrative and learning contracts
         run: |
           node tests/test_narrative_ink.cjs
