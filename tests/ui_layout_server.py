@@ -44,6 +44,10 @@ def main():
                     (d / 'cheatsheet.md').write_text('# 速查\n口诀：自编口诀一', encoding='utf-8')
                     (d / 'chapters/01.md').write_text('## 第一章\n自编方法正文。', encoding='utf-8')
                     (d / 'scripts/run.md').write_text('脚本说明不读', encoding='utf-8')
+                from rpg import skillbook
+                skillbook.add_proposal(paths.Paths(Path(vaults[s2]), s2), '论证逻辑' if s2 == '行测' else '归纳概括', 'note', '补一条自编口诀',
+                                       [{'path': 'cheatsheet.md', 'action': 'append', 'text': '## 自编口诀二\n看问法', 'reason': '自编原因'},
+                                        {'path': '03-陷阱.md', 'action': 'new', 'text': '# 陷阱\n自编陷阱'}], {'label': '试炼复盘 自编'}, 'ui1')
         if '--art-fixture' in sys.argv:
             # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
             import base64

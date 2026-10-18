@@ -378,3 +378,236 @@ def create_template(paths, board):
     for rel, text in TEMPLATE.items():
         _atomic(board_dir(paths, board) / rel, text.replace("{board}", board))
     return {"files": list(TEMPLATE)}
+
+
+# ================================================================ 待审建议（整理向导 / 记入心法 生成，用户逐条采纳后才写入）
+PENDING = ".待审"
+MAX_EDITS = 6
+MAX_EDIT_TEXT = 12000
+
+
+def _pend_dir(paths):
+    return root(paths) / PENDING
+
+
+def _clean_edits(edits, allowed_new=None):
+    """校验 AI 给的修改：只允许 append（追加）和 new（新建），路径合法、文字不空不超长；不允许覆盖或删除"""
+    out = []
+    for e in edits or []:
+        if not isinstance(e, dict):
+            continue
+        action = e.get("action")
+        text = str(e.get("text") or "").strip()
+        if action not in ("append", "new") or not text:
+            continue
+        try:
+            rel = _rel(e.get("path"))
+        except SkillError:
+            continue
+        if allowed_new is not None and action == "new" and rel not in allowed_new:
+            continue
+        out.append({"path": rel, "action": action, "text": text[:MAX_EDIT_TEXT], "reason": str(e.get("reason") or "")[:300],
+                    "done": False})
+    return out[:MAX_EDITS]
+
+
+def add_proposal(paths, board, kind, summary, edits, source=None, key=""):
+    """保存一条待审建议；同一个 key（同一来源同一内容）已有未处理的就直接返回它，不重复保存。"""
+    _board_name(board)
+    d = _pend_dir(paths)
+    for p in sorted(d.glob("*.json")) if d.is_dir() else []:
+        old = _load_json(p)
+        if old and key and old.get("board") == board and old.get("key") == key:
+            return old
+    edits = _clean_edits(edits)
+    if not edits:
+        raise SkillError("没有可用的修改建议")
+    pid = "%s-%s" % (time.strftime("%Y%m%d%H%M%S"), hashlib.sha1((board + str(time.time()) + summary).encode("utf-8")).hexdigest()[:6])
+    data = {"id": pid, "board": board, "kind": kind, "summary": str(summary or "")[:200], "source": source or {}, "key": key,
+            "created": time.strftime("%Y-%m-%d %H:%M"), "edits": edits}
+    _atomic_any(d / (pid + ".json"), data)
+    return data
+
+
+def _load_json(f):
+    import json
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _atomic_any(f, data):
+    import json
+    f.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=str(f.parent), prefix=".tmp-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fp:
+            json.dump(data, fp, ensure_ascii=False, indent=1)
+        os.replace(name, f)
+    except Exception:
+        try:
+            os.unlink(name)
+        except OSError:
+            pass
+        raise
+
+
+def proposals(paths, board=None):
+    d = _pend_dir(paths) if root(paths) else None
+    out = []
+    for p in sorted(d.glob("*.json"), reverse=True) if d and d.is_dir() else []:
+        data = _load_json(p)
+        if isinstance(data, dict) and data.get("id") == p.stem and (board is None or data.get("board") == board):
+            out.append(data)
+    return out
+
+
+def _proposal(paths, pid):
+    pid = re.sub(r"[^0-9a-f\-]", "", str(pid or ""))
+    f = _pend_dir(paths) / (pid + ".json")
+    data = _load_json(f) if f.is_file() else None
+    if not isinstance(data, dict) or data.get("id") != pid:
+        raise SkillError("这条建议已经不存在了")
+    return f, data
+
+
+def dismiss(paths, pid):
+    f, _ = _proposal(paths, pid)
+    f.unlink()
+    return {"dismissed": True}
+
+
+def change_log(paths, board, line):
+    """在变更记录.md 末尾追加一行（没有就新建）；变更记录也是普通文件，可以自己改"""
+    f = board_dir(paths, board) / "变更记录.md"
+    cur = _read(f) if f.is_file() else "# 变更记录\n\n每次采纳建议、发布都会在这里留一行。\n"
+    if f.is_file():
+        _stash(paths, board, "变更记录.md", cur)
+    _atomic(f, cur.rstrip("\n") + "\n- " + line + "\n")
+
+
+def accept(paths, board, source, pid, picks):
+    """采纳一条建议里被勾选的修改（picks 是下标列表）。没有我的版本会先创建；'new' 遇到同名文件不覆盖；
+    写完记进变更记录。全部处理完的建议自动移走。返回 {applied:[...], skipped:[...]}"""
+    f, data = _proposal(paths, pid)
+    if data.get("board") != board:
+        raise SkillError("这条建议不属于这个板块")
+    edits = data["edits"]
+    chosen = [i for i in (picks or []) if isinstance(i, int) and 0 <= i < len(edits) and not edits[i].get("done")]
+    if not chosen:
+        raise SkillError("请先勾选要采纳的修改")
+    if not has_own(paths, board):
+        if data.get("kind") == "organize":
+            if not any(edits[i]["path"] == "SKILL.md" for i in chosen):
+                raise SkillError("第一次采纳整理结果，请同时勾选入口 SKILL.md")      # 用建议里的 SKILL.md 起头，不混入原文件
+        elif vault.skill_dir(paths, source):
+            create_from_source(paths, board, source)
+        else:
+            create_template(paths, board)
+    applied, skipped = [], []
+    for i in chosen:
+        e = edits[i]
+        target = _file(paths, board, e["path"])
+        if e["action"] == "new" or not target.is_file():
+            if target.is_file():
+                skipped.append("%s（已有同名文件，没有覆盖）" % e["path"])
+                continue
+            save(paths, board, e["path"], e["text"].rstrip("\n") + "\n", "")
+        else:
+            cur = _read(target)
+            save(paths, board, e["path"], cur.rstrip("\n") + "\n\n" + e["text"].rstrip("\n") + "\n", _rev(cur))
+        e["done"] = True
+        applied.append(e["path"])
+    if applied:
+        src = data.get("source") or {}
+        change_log(paths, board, "%s 采纳「%s」→ %s%s" % (time.strftime("%Y-%m-%d %H:%M"), data.get("summary", ""), "、".join(applied),
+                                                      "（来源：%s）" % src["label"] if src.get("label") else ""))
+    if all(e.get("done") for e in edits):
+        f.unlink()
+    else:
+        _atomic_any(f, data)
+    return {"applied": applied, "skipped": skipped, "left": sum(not e.get("done") for e in edits)}
+
+
+# ================================================================ 发布回原 skill（手动、默认关闭；写之前备份，可恢复）
+BACKUP = ".发布备份"
+
+
+def _source_md(d):
+    return {r: (d / r) for r in [p.relative_to(d).as_posix() for p in d.rglob("*.md")]
+            if not any(x.startswith(".") or x == "scripts" for x in r.split("/"))}
+
+
+def publish_preview(paths, board, source, others=()):
+    """写回前的差异：每个文件是 new / changed / same；原 skill 里有而我的版本没有的只提示，不删除。others=共用同一原 skill 的其他板块"""
+    if not has_own(paths, board):
+        raise SkillError("这个板块还没有我的版本")
+    d = vault.skill_dir(paths, source)
+    if not d:
+        raise SkillError("库里没有原 skill「%s」，不能写回" % (source or "未配置"))
+    d2 = {}
+    mine = own_files(paths, board)
+    sig = hashlib.sha1()
+    for rel in mine:
+        text = _read(board_dir(paths, board) / rel)
+        f = d / rel
+        old = _read(f) if f.is_file() else None
+        d2[rel] = "new" if old is None else ("same" if old == text else "changed")
+        sig.update((rel + _rev(text) + (_rev(old) if old is not None else "-")).encode("utf-8"))
+    missing = [r for r in _source_md(d) if r not in mine]
+    return {"source": source, "files": [{"path": r, "status": s} for r, s in d2.items()], "only_in_source": missing,
+            "shared_with": [b for b in others if b != board], "digest": sig.hexdigest()}
+
+
+def publish(paths, board, source, digest, others=()):
+    """把我的版本写回库里的原 skill（只写 .md，不删原文件，不碰 scripts/）。写之前把会被改动的原文件备份到 训练/技能/.发布备份/。"""
+    pv = publish_preview(paths, board, source, others)
+    if digest != pv["digest"]:
+        raise SkillError("文件在预览后变化了，请重新预览", conflict=True)
+    d = vault.skill_dir(paths, source)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    bak = root(paths) / BACKUP / _board_name(board) / stamp
+    manifest = {"source": source, "board": board, "at": time.strftime("%Y-%m-%d %H:%M:%S"), "files": []}
+    changes = [(x["path"], x["status"]) for x in pv["files"] if x["status"] != "same"]
+    for rel, status in changes:                                   # 先备份，再写；备份失败就一个都不写
+        if status == "changed":
+            _atomic(bak / rel, _read(d / rel))
+        manifest["files"].append({"path": rel, "had": status == "changed"})
+    _atomic_any(bak / "清单.json", manifest)
+    for rel, _ in changes:
+        _atomic(d / rel, _read(board_dir(paths, board) / rel))
+    change_log(paths, board, "%s 发布回原 skill「%s」：%s" % (time.strftime("%Y-%m-%d %H:%M"), source, "、".join(r for r, _ in changes) or "没有变化"))
+    return {"written": [r for r, _ in changes], "backup": stamp}
+
+
+def publish_backups(paths, board):
+    d = root(paths) / BACKUP / _board_name(board)
+    out = []
+    for p in sorted(d.glob("*/清单.json"), reverse=True) if d.is_dir() else []:
+        m = _load_json(p)
+        if isinstance(m, dict) and not m.get("restored"):
+            out.append({"id": p.parent.name, "at": m.get("at", ""), "source": m.get("source", ""), "files": [x["path"] for x in m.get("files", [])]})
+    return out
+
+
+def publish_restore(paths, board, source, bid):
+    """撤回一次发布：被覆盖的原文件还原，发布时新建的文件删掉"""
+    bid = re.sub(r"[^0-9\-]", "", str(bid or ""))
+    base = root(paths) / BACKUP / _board_name(board) / bid
+    m = _load_json(base / "清单.json") if (base / "清单.json").is_file() else None
+    if not isinstance(m, dict) or m.get("restored") or m.get("source") != source:
+        raise SkillError("这次发布的备份不可用")
+    d = vault.skill_dir(paths, source)
+    if not d:
+        raise SkillError("库里没有原 skill，不能还原")
+    for x in m.get("files", []):
+        rel = _rel(x["path"])
+        if x.get("had"):
+            _atomic(d / rel, _read(base / rel))
+        elif (d / rel).is_file():
+            (d / rel).unlink()
+    m["restored"] = True
+    _atomic_any(base / "清单.json", m)
+    change_log(paths, board, "%s 撤回发布（%s）" % (time.strftime("%Y-%m-%d %H:%M"), bid))
+    return {"restored": [x["path"] for x in m.get("files", [])]}

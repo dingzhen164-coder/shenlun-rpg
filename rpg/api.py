@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook, skillbook_ai
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -667,11 +667,84 @@ def _skill_call(fn, *args):
         raise ApiError(str(e))
 
 
+def _publish_on(g):
+    return bool((g.state.get("skillbook") or {}).get("publish_back"))
+
+
 def skillbook_view(body):
     with open_game(save=False) as g:
         if not g.paths.vault:
             return {"boards": []}
-        return {"boards": skillbook.overview(g.paths, _skill_boards(g))}
+        rows = skillbook.overview(g.paths, _skill_boards(g))
+        for r in rows:
+            r["pending"] = len(skillbook.proposals(g.paths, r["board"]))
+        return {"boards": rows, "publish_back": _publish_on(g), "ai": ai.available()}
+
+
+def skillbook_settings(body):
+    with open_game() as g:
+        g.state.setdefault("skillbook", {})["publish_back"] = bool(body.get("publish_back"))
+        return {"publish_back": _publish_on(g)}
+
+
+def skillbook_organize(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        return {"proposal": _skill_call(skillbook_ai.organize, g.paths, board, source)}
+
+
+def skillbook_proposals(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return {"proposals": skillbook.proposals(g.paths, board)}
+
+
+def skillbook_accept(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        picks = [x for x in (body.get("picks") or []) if isinstance(x, int)]
+        return _skill_call(skillbook.accept, g.paths, board, source, str(body.get("id") or ""), picks)
+
+
+def skillbook_dismiss(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.dismiss, g.paths, str(body.get("id") or ""))
+
+
+def _publish_guard(g, board):
+    if not _publish_on(g):
+        raise ApiError("「发布回原 skill」默认关闭：先在心法页打开这个开关")
+    source = _skill_source(g, board)
+    others = [b for b, s in _skill_boards(g) if s == source]
+    return source, others
+
+
+def skillbook_publish(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source, others = _publish_guard(g, board)
+        if body.get("commit"):
+            return _skill_call(skillbook.publish, g.paths, board, source, str(body.get("digest") or ""), others)
+        return _skill_call(skillbook.publish_preview, g.paths, board, source, others)
+
+
+def skillbook_publish_backups(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return {"backups": _skill_call(skillbook.publish_backups, g.paths, board)}
+
+
+def skillbook_publish_restore(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source, _ = _publish_guard(g, board)
+        return _skill_call(skillbook.publish_restore, g.paths, board, source, str(body.get("id") or ""))
 
 
 def _skill_source(g, board):
@@ -1335,6 +1408,14 @@ ROUTES = {
     ("POST", "/api/skillbook/rename"): skillbook_rename,
     ("POST", "/api/skillbook/history"): skillbook_history,
     ("POST", "/api/skillbook/restore"): skillbook_restore,
+    ("POST", "/api/skillbook/settings"): skillbook_settings,
+    ("POST", "/api/skillbook/organize"): skillbook_organize,
+    ("POST", "/api/skillbook/proposals"): skillbook_proposals,
+    ("POST", "/api/skillbook/accept"): skillbook_accept,
+    ("POST", "/api/skillbook/dismiss"): skillbook_dismiss,
+    ("POST", "/api/skillbook/publish"): skillbook_publish,
+    ("POST", "/api/skillbook/publish/backups"): skillbook_publish_backups,
+    ("POST", "/api/skillbook/publish/restore"): skillbook_publish_restore,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,
