@@ -681,6 +681,13 @@ def skillbook_view(body):
         return {"boards": rows, "publish_back": _publish_on(g), "ai": ai.available()}
 
 
+def skillbook_plan(body):
+    """打开某个板块时才算的“解惑会读到什么”（慢，带缓存）"""
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        return skillbook.plan(g.paths, board, _skill_source(g, board))
+
+
 def skillbook_settings(body):
     with open_game() as g:
         g.state.setdefault("skillbook", {})["publish_back"] = bool(body.get("publish_back"))
@@ -1408,6 +1415,7 @@ ROUTES = {
     ("POST", "/api/skillbook/rename"): skillbook_rename,
     ("POST", "/api/skillbook/history"): skillbook_history,
     ("POST", "/api/skillbook/restore"): skillbook_restore,
+    ("POST", "/api/skillbook/plan"): skillbook_plan,
     ("POST", "/api/skillbook/settings"): skillbook_settings,
     ("POST", "/api/skillbook/organize"): skillbook_organize,
     ("POST", "/api/skillbook/proposals"): skillbook_proposals,

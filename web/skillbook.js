@@ -1,13 +1,15 @@
 /* 藏经阁·心法（skill）：每个板块的解题方法，可随时在这里看、改（数据来自 /api/skillbook，见 rpg/skillbook.py）。
    “我的版本”存在 训练/技能/<板块>/，保存即生效，下一次解惑就按新内容讲；库里原来的 skill 始终只读。
-   状态留在本模块里：切到别的页面再回来，选中的板块、文件和没保存的草稿都还在。 */
+   先是一排会浮动的古籍书架（一个板块一本），点开才进入全屏的阅读/修改页；“解惑会读到什么”的计算较慢，打开板块时才算并缓存。
+   状态留在本模块里：切到别的页面再回来，书架立刻出现，选中的板块、文件和没保存的草稿都还在。 */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const POS = "skillbook-pos";
-  let DATA = [], BOARD = "", FILE = "", CUR = null, MODE = "view", DRAFT = "", HIST = null, PREVIEW = null, NOTE = "", BUSY = false;
+  let DATA = [], LOADED = false, SHELF = true, PLANS = {}, BOARD = "", FILE = "", CUR = null, MODE = "view", DRAFT = "", HIST = null, PREVIEW = null, NOTE = "", BUSY = false;
   let PROPS = [], PUB = null, BACKS = [], FLAGS = { publish_back: false, ai: false };
   const name = () => (window.W ? W("skillbook") : "心法");
   const board = () => DATA.find((b) => b.board === BOARD) || null;
+  const plan = () => PLANS[BOARD] || null;
   const savePos = () => { try { localStorage.setItem(POS, JSON.stringify({ b: BOARD, f: FILE })); } catch {} };
   const loadPos = () => { try { return JSON.parse(localStorage.getItem(POS) || "{}"); } catch { return {}; } };
   const num = (n) => Number(n || 0).toLocaleString("en-US");
@@ -28,9 +30,20 @@
     if (FLAGS.publish_back && b.mode === "mine") { try { BACKS = (await api("/api/skillbook/publish/backups", { board: b.board })).backups; } catch { BACKS = []; } }
   }
 
-  async function reload(keepFile) {
+  async function loadPlan() {
+    const b = board();
+    if (!b || b.mode === "none" || PLANS[b.board]) return;
+    try { PLANS[b.board] = await api("/api/skillbook/plan", { board: b.board }); } catch { PLANS[b.board] = { items: [], total: 0, limit: 0, mode: b.mode, failed: true }; }
+  }
+
+  async function overview() {
     const v = await api("/api/skillbook");
-    DATA = v.boards; FLAGS = { publish_back: !!v.publish_back, ai: !!v.ai };
+    DATA = v.boards; FLAGS = { publish_back: !!v.publish_back, ai: !!v.ai }; LOADED = true;
+  }
+
+  async function reload(keepFile) {
+    PLANS = {};
+    await overview();
     const p = loadPos();
     if (!board()) BOARD = DATA.some((b) => b.board === p.b) ? p.b : (DATA[0]?.board || "");
     const b = board();
@@ -39,6 +52,7 @@
       await loadFile(pick);
     } else CUR = null;
     await loadProps();
+    paint(); loadPlan().then(paintSide);          // 先出内容，读取情况算好了再补上
   }
 
   function md(text) {
@@ -54,17 +68,20 @@
 
   function meter(b) {
     if (b.mode === "none") return "";
-    const pct = Math.min(100, Math.round((b.total / b.limit) * 100));
-    const skipped = b.items.filter((i) => !i.read);
-    const mats = b.items.filter((i) => i.kind === "material" && i.read).length;
+    const pl = plan();
+    if (!pl) return '<div class="skb-meter small muted" role="status">正在计算解惑时会读到什么……</div>';
+    if (pl.failed) return '<div class="skb-meter small muted">读取情况暂时算不出来，不影响查看和修改。</div>';
+    const pct = Math.min(100, Math.round((pl.total / pl.limit) * 100));
+    const skipped = pl.items.filter((i) => !i.read);
+    const mats = pl.items.filter((i) => i.kind === "material" && i.read).length;
     return `<div class="skb-meter" role="group" aria-label="解惑读取情况">
-      <div class="small"><b>解惑时会读：</b>${b.items.filter((i) => i.read).length} 个文件（含 ${mats} 份 skill 引用的资料）· <b>${num(b.total)} / ${num(b.limit)}</b> 字</div>
+      <div class="small"><b>解惑时会读：</b>${pl.items.filter((i) => i.read).length} 个文件（含 ${mats} 份 skill 引用的资料）· <b>${num(pl.total)} / ${num(pl.limit)}</b> 字</div>
       <div class="skb-bar"><i style="width:${pct}%"></i></div>
       ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.chars) + " 字）").join("、")}。请精简或拆分。</div>` : ""}</div>`;
   }
 
   function chips(b) {
-    const info = Object.fromEntries(b.items.filter((i) => i.kind === "method").map((i) => [i.rel, i]));
+    const info = Object.fromEntries((plan()?.items || []).filter((i) => i.kind === "method").map((i) => [i.rel, i]));
     return `<div class="skb-files" role="tablist">${b.files.map((f) => {
       const i = info[f];
       return `<button role="tab" class="skb-chip ${f === FILE ? "on" : ""}" data-skb-file="${esc(f)}" aria-selected="${f === FILE}">${esc(f)}${i ? `<small>${num(i.chars)}字${i.read ? "" : " · 未读入"}</small>` : ""}</button>`;
@@ -133,29 +150,53 @@
     return CUR ? `<div class="skb-read">${md(CUR.text) || '<p class="muted">（空文件）</p>'}</div>` : '<p class="muted">选一个文件看看。</p>';
   }
 
+  function side(b) {
+    return `<button class="ghost small" data-skb="shelf">← 回书架</button>
+        <div class="skb-who"><b>${esc(b.board)}</b> ${tag(b)}${b.pending ? `<span class="tag skb-pend" title="有待审建议">📝${b.pending}</span>` : ""}</div>
+        ${meter(b)}${b.files.length && MODE === "view" ? chips(b) : ""}`;
+  }
+
+  function shelf() {
+    return `<p class="lib-tip skb-tip small">每本古籍是一个板块的${esc(name())}：点开可看、可改，保存后下一次解惑就按新内容讲。</p>
+      <div class="tome-grid skb-shelf">${DATA.map((x, i) => {
+        const seal = x.mode === "mine" ? "我的版" : x.mode === "source" ? "原典" : "未接入";
+        return `<div class="tome-slot"><button class="tome skb-tome ${x.mode}" style="--h:${(i * 47 + 20) % 360};--d:${(i * 0.9).toFixed(1)}s" data-skb-board="${esc(x.board)}" aria-label="${esc(x.board)}（${seal}）">
+          <span class="tome-cover"><span class="tome-label ${x.board.length > 4 ? "long" : ""}">${vlabel(x.board.slice(0, 6))}</span><span class="tome-seal">${seal}</span></span>${x.pending ? `<span class="skb-pend-badge" title="有待审建议">📝${x.pending}</span>` : ""}</button>
+          <div class="tome-cap">${esc(x.board)}<br>${x.n_files ? x.n_files + " 个文件" : "还没有内容"}</div></div>`;
+      }).join("")}</div>`;
+  }
+
   function html() {
     if (!DATA.length) return '<div class="card"><p class="muted">还没有连接资料库，或这个科目没有板块。</p></div>';
     const b = board();
-    return `<aside class="skb-side card" aria-label="板块">${DATA.map((x) => `<button class="skb-board ${x.board === BOARD ? "on" : ""}" data-skb-board="${esc(x.board)}">
-        <span>${esc(x.board)}</span>${tag(x)}${x.pending ? `<span class="tag skb-pend" title="有待审建议">📝${x.pending}</span>` : ""}${x.items.some((i) => !i.read) ? '<span class="skb-dot" title="有文件超出上限没读入">⚠</span>' : ""}</button>`).join("")}</aside>
-      <section class="skb-main card"><div class="skb-head"><h3>${esc(b.board)} · ${esc(name())}</h3><div class="skb-tools">${MODE === "view" ? toolbar(b) : ""}</div></div>
-        ${NOTE ? `<div class="skb-note" role="status">${esc(NOTE)}</div>` : ""}${banner(b)}${MODE === "view" ? proposals() : ""}${meter(b)}${b.files.length && MODE === "view" ? chips(b) : ""}
+    if (SHELF || !b) return shelf();
+    return `<aside class="skb-side card" aria-label="文件">${side(b)}</aside>
+      <section class="skb-main card"><div class="skb-head"><h3>${esc(b.board)} · ${esc(name())}${MODE === "view" && FILE ? ` <small class="muted">${esc(FILE)}</small>` : ""}</h3><div class="skb-tools">${MODE === "view" ? toolbar(b) : ""}</div></div>
+        ${NOTE ? `<div class="skb-note" role="status">${esc(NOTE)}</div>` : ""}${banner(b)}${MODE === "view" ? proposals() : ""}
         <div class="skb-body">${body(b)}</div>
         <label class="skb-switch small"><input type="checkbox" data-skb-switch ${FLAGS.publish_back ? "checked" : ""}> 允许「发布回原 skill」（默认关闭；写回你库里的原 skill，写前自动备份，可撤回）</label></section>`;
   }
 
   function paint() {
     const root = document.getElementById("skbRoot");
-    if (root) root.innerHTML = html();
+    if (root) { root.className = "skb-root " + (SHELF || !board() ? "shelf" : "detail"); root.innerHTML = html(); }
     const t = document.getElementById("skbText");
     if (t) t.oninput = () => { DRAFT = t.value; };
+  }
+
+  function paintSide() {                           // 读取情况算好后只刷新左栏，不动正在写的文本框
+    const el = document.querySelector("#skbRoot .skb-side"), b = board();
+    if (el && b && !SHELF) el.innerHTML = side(b);
   }
 
   async function act(kind, el) {
     const b = board();
     NOTE = "";
     try {
-      if (kind === "edit") {
+      if (kind === "shelf") {
+        if (MODE === "edit" && DRAFT !== CUR?.text && !confirm("有没保存的修改，确定放弃吗？")) return;
+        MODE = "view"; SHELF = true; PUB = null; await overview();
+      } else if (kind === "edit") {
         if (b.mode === "source") {
           if (!confirm("先把原 skill 复制成「我的版本」（原文件不会改动），然后进入修改。继续吗？")) return;
           await api("/api/skillbook/create", { board: b.board, how: "copy" });
@@ -229,8 +270,14 @@
 
   window.SKILLBOOK = {
     async render() {
-      try { await reload(FILE); } catch (e) { return `<div class="card"><p class="muted">读取失败：${esc(e.message)}</p></div>`; }
-      return `<div class="skb-root" id="skbRoot">${html()}</div>`;
+      SHELF = !(MODE === "edit" && board());         // 有没写完的草稿就回到那一页，否则先看书架
+      if (LOADED) {                                   // 再次进入：用缓存立刻出，后台悄悄刷新
+        overview().then(() => { if (SHELF) paint(); }).catch(() => {});
+      } else {
+        try { await overview(); } catch (e) { return `<div class="card"><p class="muted">读取失败：${esc(e.message)}</p></div>`; }
+      }
+      if (!SHELF) loadPlan().then(paintSide);
+      return `<div class="skb-root ${SHELF ? "shelf" : "detail"}" id="skbRoot">${html()}</div>`;
     },
     bind(view) {
       const root = view?.querySelector("#skbRoot");
@@ -240,7 +287,9 @@
         const bt = e.target.closest("[data-skb-board]");
         if (bt) {
           if (MODE === "edit" && DRAFT !== CUR?.text && !confirm("有没保存的修改，确定放弃吗？")) return;
-          BOARD = bt.dataset.skbBoard; MODE = "view"; NOTE = ""; await loadFile(board().files.includes(loadPos().f) && BOARD === loadPos().b ? loadPos().f : board().files[0]); await loadProps(); paint(); return;
+          if (MODE === "edit" && BOARD === bt.dataset.skbBoard) { SHELF = false; paint(); return; }
+          BOARD = bt.dataset.skbBoard; MODE = "view"; NOTE = ""; SHELF = false;
+          const fp = loadPos(); await loadFile(board().files.includes(fp.f) && BOARD === fp.b ? fp.f : board().files[0]); await loadProps(); paint(); loadPlan().then(paintSide); return;
         }
         const sw = e.target.closest("[data-skb-switch]");
         if (sw) {

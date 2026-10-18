@@ -81,7 +81,26 @@ def _vault_find(paths, ref):
     return None
 
 
+_MATERIAL_CACHE = {}
+MATERIAL_TTL = 30          # 秒：引用资料要在整个库里按名字找，很慢；同一份 skill 30 秒内不重复找（skill 自己的文件一改就重算）
+
+
 def skill_material(paths, name, extra=()):
+    """带短时缓存的 _skill_material。缓存键含 skill 文件夹里 .md 的修改时间，skill 自己一改就失效；
+    被引用的库内资料最多 MATERIAL_TTL 秒后重新读。"""
+    import time
+    d = skill_dir(paths, name)
+    sig = tuple(sorted((p.relative_to(d).as_posix(), p.stat().st_mtime_ns, p.stat().st_size) for p in d.rglob("*.md"))) if d else ()
+    key = (str(paths.vault), name, tuple(extra))
+    hit = _MATERIAL_CACHE.get(key)
+    if hit and hit[1] == sig and time.time() - hit[0] < MATERIAL_TTL:
+        return hit[2]
+    out = _skill_material(paths, name, extra)
+    _MATERIAL_CACHE[key] = (time.time(), sig, out)
+    return out
+
+
+def _skill_material(paths, name, extra=()):
     """生成骨架用的素材：skill 自己的文字 + 它引用的库内资料正文（`00-xxx.md`、`01-治理母逻辑` 文件夹、其他检索 skill 里的资料），
     再加上规则里“骨架素材.<板块>”指定的路径。返回 (文字, 读到的资料清单)。
     很多 skill 只是“去读某个文件、调用某个检索 skill”的操作规程，真正要背的知识在被引用的文件里，所以要一起读。"""

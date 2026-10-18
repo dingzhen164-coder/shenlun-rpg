@@ -23,6 +23,8 @@
 .scene-panel .study-region-heading p{margin:var(--ds-sp-4) 0}
 
 .fixed-app #view[data-fx-route="tianji"] .scene-panel{width:100%;max-width:none}
+/* 藏经阁所有页签（玉简、经卷、词录、功法、心法……）都铺满整个内容区，背景保持透明 */
+.fixed-app #view[data-fx-route="skeleton"] .scene-panel{width:100%;max-width:none;border:0;border-radius:0;background:transparent}
 .fx-settings-group-body>.fx-settings-section{margin:0!important;border:0;border-radius:0;box-shadow:none;background:transparent;padding:16px 8px;min-width:0}
 .fx-settings-group-body>.fx-settings-section+.fx-settings-section{border-top:1px solid var(--ds-line)}
 .fx-settings-section>h3{font-size:var(--ds-fs-16);margin:0 0 12px}

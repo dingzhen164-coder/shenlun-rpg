@@ -5,6 +5,7 @@
 输出是 JSON，程序校验（路径、动作、长度）后才保存；校验不过重试一次，仍失败就不保存。
 """
 import hashlib
+import re
 
 from . import ai, prompts, skillbook, vault
 
@@ -29,6 +30,31 @@ def _call(messages, **kw):
     raise skillbook.SkillError("AI 没有给出可用的结果：%s" % (last or "格式不对"))
 
 
+FILE_ORDER = ("01-识别.md", "02-方法.md", "03-陷阱.md", "04-例题.md", "05-速查.md", "SKILL.md")   # 入口最后写，才知道前面有哪些文件
+FILE_CHARS = (1500, 800)        # 每个文件的字数上限；回复被截断时用第二个更紧的上限重试一次
+
+
+def _fence(text):
+    t = (text or "").strip()
+    m = re.match(r"^```[a-zA-Z]*\n(.*?)\n```$", t, re.S)
+    return (m.group(1) if m else t).strip()
+
+
+def _one_file(paths_, board, material, path, written):
+    """写一个文件：回复被截断（超过长度上限）就换更紧的字数上限重试一次；还不行就放弃这个文件"""
+    last = None
+    for limit in FILE_CHARS:
+        try:
+            text = _fence(ai.chat(prompts.skillbook_organize_file(board, material, path, limit, written), temperature=0.2, max_tokens=3500, timeout=240))
+        except ai.AIError as e:
+            last = e
+            if "长度上限" in str(e):
+                continue
+            raise skillbook.SkillError("AI 没有回复：%s" % e)
+        return None if (not text or text.strip("（）() ") == "无") else text
+    raise skillbook.SkillError("「%s」太长，AI 两次都没写完（%s）" % (path, last))
+
+
 def organize(paths, board, source):
     d = vault.skill_dir(paths, source)
     if not d:
@@ -40,13 +66,25 @@ def organize(paths, board, source):
     for p in skillbook.proposals(paths, board):
         if p.get("key") == key:
             return p                           # 同样的资料已经整理过，不重复花钱
-    r = _call(prompts.skillbook_organize(board, text), temperature=0.2, max_tokens=6000, timeout=240)
-    files = [{"path": f.get("path"), "action": "new", "text": f.get("text"), "reason": "整理自原 skill"}
-             for f in (r.get("files") or []) if isinstance(f, dict) and f.get("path") in prompts.SKILLBOOK_FILES]
+    if not ai.available():
+        raise AIUnavailable("还没有填写 AI 的 API key（设置里填写后才能用）")
+    files, skipped, written = [], [], []
+    for path in FILE_ORDER:                    # 一次只写一个文件：六个一起写会超过 AI 的回复长度上限
+        try:
+            body = _one_file(paths, board, text, path, written)
+        except skillbook.SkillError:
+            if path == "SKILL.md":
+                raise
+            skipped.append(path)
+            continue
+        if body is None:
+            continue
+        files.append({"path": path, "action": "new", "text": body, "reason": "整理自原 skill"})
+        written.append(path)
     if not any(f["path"] == "SKILL.md" for f in files):
-        raise skillbook.SkillError("AI 的整理结果里没有入口 SKILL.md，没有保存；可以再点一次")
-    return skillbook.add_proposal(paths, board, "organize", r.get("summary") or "整理成标准结构", files,
-                                  {"label": "整理向导（读了 %d 份资料）" % (1 + len(used))}, key)
+        raise skillbook.SkillError("AI 没有写出入口 SKILL.md，没有保存；可以再点一次")
+    summary = "整理成标准结构（%d 个文件%s）" % (len(files), "，%s 没能生成" % "、".join(skipped) if skipped else "")
+    return skillbook.add_proposal(paths, board, "organize", summary, files, {"label": "整理向导（读了 %d 份资料）" % (1 + len(used))}, key)
 
 
 def note(paths, board, source, ctx, label):
