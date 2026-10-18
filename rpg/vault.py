@@ -207,6 +207,19 @@ def _clean_analysis(lines):
     return "\n".join(out)
 
 
+def parse_seconds(value):
+    """导入报告中的原答题用时（秒）；仅接受完整的时分秒/冒号格式，未知留空。"""
+    value=re.sub(r'[\s*]', '', str(value or ''))
+    if re.fullmatch(r'\d+:\d{1,2}(?::\d{1,2})?',value):
+        parts=list(map(int,value.split(':')))
+        if any(x>=60 for x in parts[1:]):return None
+        seconds=sum(x*60**i for i,x in enumerate(reversed(parts)))
+    elif re.fullmatch(r'(?:\d+(?:小时|时))?(?:\d+(?:分钟|分))?(?:\d+秒)?',value) and value:
+        seconds=sum(int(n)*({'时':3600,'小时':3600,'分':60,'分钟':60,'秒':1}[unit]) for n,unit in re.findall(r'(\d+)(小时|时|分钟|分|秒)',value))
+    else:return None
+    return seconds if 0<=seconds<=86400 else None
+
+
 def parse_board_file(path):
     """返回题目列表（dict），带缓存（按修改时间 + 大小；Windows 上连着写两次可能落在同一个时间刻度里）"""
     try:
@@ -251,6 +264,9 @@ def parse_board_file(path):
         a = ANS_RE.search(ln)
         if a:
             cur["correct"], cur["mine"] = a.group(1).strip("?"), a.group(2).strip("—")
+        elif re.match(r'^>\s*(?:原答题)?用时[:：]',ln):
+            seconds=parse_seconds(re.split('[:：]',ln,maxsplit=1)[1])
+            if seconds is not None:cur['seconds']=seconds
         elif not ln.startswith(CHECK):
             cur["body"].append(ln)
     for q in qs:

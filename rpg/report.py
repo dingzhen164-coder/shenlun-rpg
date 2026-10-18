@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
 
 from . import importer
 
@@ -119,7 +120,10 @@ NUM = r"(\d{1,3}(?:\.\d{1,2})?)"
 
 def _norm(line):
     """Windows OCR 认中文时字和字之间常有空格：去掉中文、标点旁边的空格，数字之间的留着"""
-    line = line.replace("：", ":").replace("％", "%")
+    line = unicodedata.normalize('NFKC',line).replace("：", ":").replace("％", "%")
+    # 小数字体/点号常被OCR分开；只合并明确的小数点，不把“70 6”猜成70.6。
+    line=re.sub(r'(?<=\d)[·。](?=\d)', '.',line)
+    line=re.sub(r'(?<=\d),(?=\d{1,2}(?:\D|$))', '.',line)
     line = re.sub(r"(?<=[^\x00-\x7f])\s+|\s+(?=[^\x00-\x7f])", "", line)
     line = re.sub(r"\s*([%/.,，])\s*", r"\1", line)
     return line.strip()
@@ -128,6 +132,13 @@ def _norm(line):
 def parse(text):
     lines = [_norm(x) for x in str(text or "").splitlines()]
     lines = [x for x in lines if x]
+    joined=[]
+    for ln in lines:
+        if joined and re.fullmatch(r'[.·。]\d{1,2}',ln) and re.search(r'\d{1,3}$',joined[-1]):
+            joined[-1]+='.'+ln[1:]
+        elif joined and re.fullmatch(r'\d{1,2}',ln) and re.search(r'\d[.]$',joined[-1]):joined[-1]+=ln
+        else:joined.append(ln)
+    lines=joined
     out = {"modules": {}, "sub": {}}
     # 各模块：模块名一行，下一行“共20题，答对11题，正确率55%，用时8分钟”（也可能在同一行）
     cur = None
@@ -144,7 +155,8 @@ def parse(text):
                 out["sub"].setdefault(SUBS[cur], {}).setdefault("类比推理" if cur == "类比推理" else cur, v)
             cur = None
 
-    TOKEN = re.compile(r"\d+/\d+|\d{1,3}(?:\.\d{1,2})?%?")
+    RATIO = r"\d+(?:\.\d{1,2})?/\d+"
+    TOKEN = re.compile(RATIO+r"|\d{1,3}(?:\.\d{1,2})?%?")
 
     def near(label, before_first=True):
         """标签对应的数：同一行“93.7最高分”→ 上一行 / 下一行按位置对（粉笔报告：得分在数上面，最高分 / 平均分 / 排名在数下面，
@@ -154,7 +166,7 @@ def parse(text):
             if label not in labels:
                 continue
             k = labels.index(label)
-            m = re.search(r"(\d+/\d+|" + NUM + r")%?" + re.escape(label), ln) or re.search(re.escape(label) + r":?(\d+/\d+|" + NUM + ")", ln)
+            m = re.search(r"(?<![\d.])("+RATIO+"|"+NUM+r")%?"+re.escape(label),ln) or re.search(re.escape(label)+r":?("+RATIO+"|"+NUM+")",ln)
             if m:
                 return m.group(1)
             # 一个标签一行、一个数一行（手机“提取文字”常见）：几行标签对应它上面同样几行数
@@ -179,6 +191,7 @@ def parse(text):
     if score is None:
         m = re.search(NUM + r"/100", " ".join(lines))
         score = m.group(1) if m else None
+    if score and "/" in score:score=score.split("/",1)[0]
     rank = near("排名") or ""
     rp = rank.split("/") if "/" in rank else [None, None]
     fields = {"score": score, "top": near("最高分"), "avg": near("平均分"),
@@ -200,7 +213,7 @@ def scan(images=(), text=""):
         engine.append("粘贴的文字")
     for data in images:
         chunks.append(ocr(data))
-        engine.append("Windows OCR")
+        engine.append("Mac OCR" if sys.platform=="darwin" else "Windows OCR")
     if not chunks:
         raise ReportError("先选成绩截图，或者把报告文字粘贴进来")
     out = {"modules": {}, "sub": {}, "fields": {}}

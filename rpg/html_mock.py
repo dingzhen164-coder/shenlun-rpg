@@ -234,6 +234,8 @@ def extract(body):
             if set(radio.attrs.get('class','').split()) & {'wrong','correct'}: mine = letter
         answer = node.one(cls='correct-answer')
         answer = answer.text().strip() if answer else ''
+        time_node = node.one(cls='answer-time')
+        seconds = vault.parse_seconds(time_node.text()) if time_node else None
         analysis_node = node.one('app-result-common')
         analysis = '\n\n'.join(plain(n) for n in analysis_node.walk('app-format-html')) if analysis_node else ''
         topic_node = node.one('app-solution-keypoint')
@@ -253,7 +255,7 @@ def extract(body):
         if board not in importer.BOARDS: problems.append('板块未识别')
         questions.append(dict(num=number,id='粉笔%d季-%03d' % (season,number),board=board,module=module,topic=topic,
             stem=(material[1]+'\n\n' if material[1] else '')+stem,question=stem,material=material[1],material_nums=material[0],
-            options=options,answer=answer,analysis=analysis,mine=mine,source='粉笔第%d季模考' % season,problems=problems))
+            options=options,answer=answer,analysis=analysis,mine=mine,seconds=seconds,source='粉笔第%d季模考' % season,problems=problems))
     # 与原mock.FIXED共用粉笔35题判断分布，仅在图形/类比/材料结构吻合时采用。
     from . import mock
     judgments = [q for q in questions if q['module'] == '判断推理']
@@ -268,7 +270,12 @@ def extract(body):
     if set(modules)-seen: raise importer.ImportError_('网页仅保存了部分题目（%d/%d），请展开全部解析后重新保存完整HTML' % (len(seen),len(modules)))
     if not questions: raise importer.ImportError_('没有找到已保存的粉笔题目内容；请保存已展开解析的完整网页')
     if len(questions) > 500: raise importer.ImportError_('请一次导入一份模考试卷')
-    return dict(title=title,season=season,questions=questions,images=images,missing=sorted(missing),digest=digest)
+    score_node=root.one(cls='my-info-score-value-cur')
+    reported_score=None
+    if score_node and re.fullmatch(r'\d{1,3}(?:\.\d{1,2})?',score_node.text().strip()):
+        number=float(score_node.text().strip())
+        if 0<=number<=100:reported_score=number
+    return dict(title=title,season=season,questions=questions,images=images,missing=sorted(missing),digest=digest,reported_score=reported_score)
 
 
 def import_file(paths, body):
@@ -288,7 +295,8 @@ def _import_file(paths, body):
     report = dict(title=result['title'],season=season,total=len(qs),ready=0 if blocked or result['missing'] else len(ready),dup=len(duplicate),
         images=len(result['images']),missing_images=len(result['missing']),missing=result['missing'][:20],
         problems=[dict(num=q['num'],reasons=q['problems']) for q in blocked[:20]],blocked=len(blocked),digest=result['digest'],
-        boards=Counter(q['board'] or '待识别' for q in qs).most_common(),dry=not body.get('commit'))
+        boards=Counter(q['board'] or '待识别' for q in qs).most_common(),dry=not body.get('commit'),
+        timed=sum(q['seconds'] is not None for q in qs),reported_score=result['reported_score'])
     if not body.get('commit'): return report
     if body.get('digest') != result['digest']: raise importer.ImportError_('文件或资源已变化，请重新检查后导入')
     if blocked or result['missing']: raise importer.ImportError_('题目结构或图片不完整，请补齐HTML与_files资源后重新检查；未写入题库')
@@ -330,9 +338,11 @@ def _import_file(paths, body):
                     groups.add(group)
                     lines.append('## 材料（第%d-%d题）\n%s\n---\n' % (min(group),max(group),q['material']))
                 icon = '✅' if q['mine'] and q['mine'] == q['answer'] else '❌' if q['mine'] else '⚪'
-                lines.append('### %d. %s\n%s\n%s\n> [!check]- 答案\n> 正确答案：**%s**　我的答案：**%s**\n> [!note] 复盘\n%s\n---\n' % (
+                lines.append('### %d. %s\n%s\n%s\n> [!check]- 答案\n> 正确答案：**%s**　我的答案：**%s**\n>%s[!note] 复盘\n%s\n---\n' % (
                     q['num'],icon,q['question'],'\n'.join('- **%s.** %s' % (k,q['options'][k]) for k in 'ABCD'),q['answer'],q['mine'] or '?',
+                    (' 用时：**%d秒**\n> ' % q['seconds']) if q['seconds'] is not None else ' ',
                     '\n'.join('> '+line for line in q['analysis'].splitlines())))
             importer._write(folder/('%02d-%s.md' % (importer.BOARDS.index(board)+1,board)),''.join(lines))
+    report['html_meta'] = dict(question_seconds={str(q['num']):q['seconds'] for q in qs if q['seconds'] is not None},known_numbers=[q['num'] for q in qs],reported_score=result['reported_score'])
     report['review_preserved'] = bool(prior)
     return report

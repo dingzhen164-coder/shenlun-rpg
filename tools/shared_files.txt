@@ -3,6 +3,10 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+shared tests/test_report_decimal.py
+shared tests/ui_mock_details.cjs
+diverged rpg/mock_score.py
+diverged tests/test_mock_score.py
 shared web/mock_import.js
 shared tests/ui_mock_html.cjs
 diverged rpg/html_mock.py

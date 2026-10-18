@@ -79,6 +79,11 @@ def main():
                     g.state.setdefault('mocks', {})[str(num)] = dict(score=score, date=g.t, avg=55, top=88, beat=80, rank=20, people=100, minutes={}, scores={})
                     g.state['boss'].append(dict(d=g.t, name='第%d季' % num, score=score, kind='大比'))
                 mock_rewards.offer(g, '自编模考奖励', 72, g.raw_score())
+        if '--score-fixture' in sys.argv:
+            from tests.test_mock_score import paper
+            with api.open_game() as g:
+                paper(g.paths.train/'模考复盘/第39季',wrong={101})
+                g.state.setdefault('mocks',{}).setdefault('39',{})['html_import']={'reported_score':70.6,'question_seconds':{'1':85},'known_numbers':list(range(1,131))}
         if '--review-fixture' in sys.argv:
             # 自编长材料，复现平板复盘底部操作被裁切；只写临时库。
             with api.open_game() as g:

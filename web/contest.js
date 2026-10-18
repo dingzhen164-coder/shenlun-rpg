@@ -19,7 +19,7 @@
   let RV = null;             // 大比复盘看哪一季
   let RV_WRONG = false;      // 只复盘错题和没做的
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const f1 = (x) => (x == null ? "—" : (Math.round(x * 10) / 10).toString());
+  const f1 = (x) => (x == null ? "—" : (Math.round(x * 100) / 100).toString());
   const pc = (x) => (x == null ? "—" : Math.round(x * 100) + "%");
 
   // ---------------------------------------------------------------- 折线图（一条 y 轴；悬停十字线 + 提示）
@@ -95,12 +95,19 @@
   function form(d) {
     const s = d.seasons.find((x) => String(x.season) === String(EDIT)) || d.seasons[d.seasons.length - 1];
     if (!s) return "";
-    const v = (k) => (s[k] == null ? "" : s[k]);
+    const suggested=s.score??s.reported_score??(s.estimate?.ready?s.estimate.score:null);
+    const scoreSource=s.score!=null?(s.score_source||'manual'):s.reported_score!=null?'html':s.estimate?.ready?'estimate':'manual';
+    const v = (k) => ((k==='score'?suggested:s[k])??'');
+    const estimate=s.estimate;
+    const scoreInfo=estimate?`<div class="import-sec" id="mkEstimate"><p><b>自动核分</b> · HTML报告：${s.reported_score==null?'未提供':f1(s.reported_score)+'分'} · 参考估分：${estimate.ready?f1(estimate.score)+'分':'资料未齐'}</p>
+      <p class="small muted">${estimate.ready?'按当前参考题量、分值和逐题对错计算；参考分值可能与粉笔赋分不同。':esc(estimate.reason)} 已录成绩保持；下方建议值可修改，点击保存后才按原规则记录成绩。</p>
+      <div class="row">${s.reported_score!=null?'<button type="button" id="mkUseReported">填入HTML报告分数</button>':''}${estimate.ready?'<button type="button" id="mkUseEstimate">填入参考估分</button>':''}</div>
+      <details class="fold"><summary>参考分值与计算明细</summary><p class="small muted">分值与题量可在训练/规则.md的“模考参考”项修改；此表不用于申论或法考。</p><div class="tbl-wrap"><table class="mk-table"><thead><tr><th>题型</th><th>题数</th><th>答对</th><th>每题参考分</th></tr></thead><tbody>${(estimate.rows||[]).map(r=>`<tr><td>${esc(r.name)}</td><td>${r.total}</td><td>${r.ok}</td><td>${f1(r.points)}</td></tr>`).join('')}</tbody></table></div></details></div>`:'';
     const opts = d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${x.season === s.season ? "selected" : ""}>第 ${x.season} 季${x.score == null ? "（未录）" : ""}</option>`).join("");
     const modIn = (key, ph) => d.module_names.map((m) => {
       const mm = s.modules.find((x) => x.name === m);
       const val = key === "minutes" ? mm?.minutes : mm && !mm.estimated ? mm.score : null;
-      return `<label>${esc(m)} <input type="number" step="0.1" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${ph}"></label>`;
+      return `<label>${esc(m)} <input type="number" step="0.01" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${ph}"></label>`;
     }).join("");
     return `<div class="card contest-card" id="mkForm"><h3>📝 录入成绩单 <small>照抄粉笔模考报告上的数字；空着的不算。第一次录分数时也记进${esc(W("boss"))}（固定录分奖励、手动领取悟道与突破信物）</small></h3>
       <div class="rp-auto"><b>📷 从成绩截图自动填</b> <span class="small muted">粉笔模考报告里“得分 / 最高分 / 平均分 / 排名”和“各模块共几题、答对几题、用时”那两张截图（Windows 自带 OCR 认字）</span>
@@ -108,10 +115,11 @@
         <details class="fold"><summary>不是 Windows / 认不出：把报告文字粘贴进来（手机相册、微信“提取文字”都行）</summary>
           <textarea id="rpText" rows="4" placeholder="得分 64.5 … 最高分 93.7 平均分 56 已击败考生 71.5% … 政治理论 共20题，答对11题，正确率55%，用时8分钟 …"></textarea></details>
         <div id="rpResult" class="small"></div></div>
+      ${scoreInfo}
       <div class="row mk-row">
         <label>哪一季 <select id="mkSeason">${opts}</select></label>
         <label>考试日期 <input type="date" id="mkDate" value="${esc(s.date || "")}"></label>
-        <label>我的分数 <input type="number" step="0.1" id="mkScore" value="${v("score")}" placeholder="如 68.5"></label>
+        <label>我的分数 <input type="number" step="0.01" min="0" max="100" data-score-source="${scoreSource}" id="mkScore" value="${v("score")}" placeholder="如 68.5"></label>
         <label>大比平均分 <input type="number" step="0.1" id="mkAvg" value="${v("avg")}" placeholder="如 53.7"></label>
         <label>最高分 <input type="number" step="0.1" id="mkTop" value="${v("top")}" placeholder="如 91.4"></label>
         <label>已击败 % <input type="number" step="0.1" id="mkBeat" value="${v("beat")}" placeholder="如 5.9"></label>
@@ -283,7 +291,7 @@
         const f = r.fields || {};
         const sel = document.getElementById("mkSeason");
         if (f.season && [...sel.options].some((o) => o.value === String(f.season))) sel.value = String(f.season);
-        const set = (id, v) => { if (v != null && v !== "") document.getElementById(id).value = v; };
+        const set = (id, v) => { if (v != null && v !== "") {const e=document.getElementById(id);e.value=v;if(id==="mkScore")e.dataset.scoreSource="ocr";} };
         set("mkScore", f.score); set("mkAvg", f.avg); set("mkTop", f.top); set("mkBeat", f.beat);
         set("mkRank", f.rank); set("mkPeople", f.people); set("mkDate", f.date);
         let mins = 0;
@@ -372,6 +380,11 @@
       EDIT = b.dataset.mkEdit; rerender("entry");
       document.getElementById("mkForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }));
+    const scoreInput=document.getElementById('mkScore');
+    if(scoreInput)scoreInput.oninput=()=>scoreInput.dataset.scoreSource='manual';
+    for(const [id,key,source] of [['mkUseReported','reported_score','html'],['mkUseEstimate','estimate','estimate']]){
+      const b=document.getElementById(id);if(b)b.onclick=()=>{const s=MOCK.seasons.find(s=>String(s.season)===document.getElementById('mkSeason').value);scoreInput.value=key==='estimate'?s.estimate.score:s.reported_score;scoreInput.dataset.scoreSource=source;};
+    }
     const sel = document.getElementById("mkSeason");
     if (sel) sel.onchange = () => { EDIT = sel.value; rerender(); };
     const save = document.getElementById("mkSave");
@@ -379,7 +392,7 @@
       const g = (id) => document.getElementById(id).value;
       const pickMods = (key) => Object.fromEntries([...document.querySelectorAll(`[data-mk-${key}]`)].map((i) => [i.getAttribute(`data-mk-${key}`), i.value]));
       try {
-        const r = await api("/api/mock/save", { season: g("mkSeason"), date: g("mkDate"), score: g("mkScore"), avg: g("mkAvg"), top: g("mkTop"),
+        const r = await api("/api/mock/save", { season: g("mkSeason"), date: g("mkDate"), score: g("mkScore"), score_source:document.getElementById("mkScore").dataset.scoreSource, avg: g("mkAvg"), top: g("mkTop"),
           beat: g("mkBeat"), rank: g("mkRank"), people: g("mkPeople"), minutes: pickMods("minutes"), scores: pickMods("score"),
           report: REPORT && String(REPORT.season) === String(g("mkSeason")) ? REPORT : null });
         REPORT = null;
@@ -416,10 +429,10 @@
   }
   async function importDone(season){
     if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
-    const form=document.getElementById('mkForm'),draft=form?[...form.querySelectorAll('input:not([type=file]),textarea,select')].map(e=>({id:e.id,key:e.getAttribute('data-mk-score')?'score':e.getAttribute('data-mk-minutes')?'minutes':'',board:e.getAttribute('data-mk-score')||e.getAttribute('data-mk-minutes'),value:e.value,dirty:e.tagName==='SELECT'?[...e.options].some(o=>o.selected!==o.defaultSelected):e.value!==e.defaultValue})):[];
+    const form=document.getElementById('mkForm'),draft=form?[...form.querySelectorAll('input:not([type=file]),textarea,select')].map(e=>({id:e.id,key:e.getAttribute('data-mk-score')?'score':e.getAttribute('data-mk-minutes')?'minutes':'',board:e.getAttribute('data-mk-score')||e.getAttribute('data-mk-minutes'),value:e.value,source:e.dataset.scoreSource,dirty:e.tagName==='SELECT'?[...e.options].some(o=>o.selected!==o.defaultSelected):e.value!==e.defaultValue})):[];
     const keep=draft.some(x=>x.dirty);MOCK=await api('/api/mock');if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
     if(!keep){EDIT=season;if(!MK)MK_SEASON=season;}await refresh();if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;rerender();
-    if(keep)for(const item of draft){const el=item.id?document.getElementById(item.id):document.querySelector('[data-mk-'+item.key+'="'+CSS.escape(item.board)+'"]');if(el)el.value=item.value;}
+    if(keep)for(const item of draft){const el=item.id?document.getElementById(item.id):document.querySelector('[data-mk-'+item.key+'="'+CSS.escape(item.board)+'"]');if(el){el.value=item.value;if(item.source)el.dataset.scoreSource=item.source;}}
   }
   window.CONTEST = { render, importDone };
 })();

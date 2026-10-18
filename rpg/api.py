@@ -374,7 +374,13 @@ def _mock_imported(rep, season):
     """导入了一份模考试卷 → 演武 · 历练记记 120 分钟（每季一次）"""
     if season:
         with open_game() as g:
+            if g.subject=='行测' and rep.get('html_meta'):
+                rec=g.state.setdefault('mocks',{}).setdefault(str(int(season)),{})
+                rec['html_import']=rep['html_meta']
             ev = mock.on_import(g, int(season))
+            if g.subject=='行测':
+                current=next((s for s in mock.summary(g)['seasons'] if s['season']==int(season)),None)
+                if current:rep['estimate']=current.get('estimate')
             if ev:
                 rep["events"] = tutor.enrich(g, ev)
                 rep["practice_minutes"] = mock.IMPORT_MINUTES
