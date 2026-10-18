@@ -5,7 +5,7 @@
    - 大比复盘：选一季，按板块逐题复盘（和试炼交卷后的复盘一样；时间记进“修炼 · 复习”，见 rpg/trainer.py mock_review）
    - 历次模考一览 + 录入成绩单（粉笔成绩单上的数字照抄） */
 (function () {
-  let MOCK = null;
+  let MOCK = null, CALENDAR = null;
   let PICK = "avg";          // 模块统计看哪一季："avg" = 历次平均
   let EDIT = null;           // 正在录入的季
   let AN = null;             // 考情分析看哪一季
@@ -209,7 +209,7 @@
   function html(d) {
     const o = d.overall, ss = d.seasons;
     if (!ss.length) {
-      return `<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">还没有模考。模考完先到「${esc(NAV("skeleton"))} → 📖 经卷 · 题库」最下面的「📥 导入真题」导入模考 PDF，这里就会出现成绩与走势。</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"");
+      return (window.MOCK_IMPORT?.html()||'')+`<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">${window.SUBJECT0==='行测'?'还没有模考。打开场景“录入”，先导入试卷，再核对对错和成绩。':'还没有模考记录。先使用本科原有入口导入资料或记录成绩。'}</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"");
     }
     const lr = o.latest_rank;
     const head = `<div class="card contest-hero"><div class="row"><h2>⚔ ${esc(W("boss"))}</h2><span class="small muted">共 ${o.count} 季模考 · 录了成绩单的 ${o.scored} 季</span></div>
@@ -252,9 +252,10 @@
       <div class="card contest-card"><h3>🏯 历次大比 <small>排名、大比平均分、已击败照抄粉笔报告；对错题数来自复盘</small></h3>
         <div class="tbl-wrap"><table class="mk-table"><thead><tr><th>季</th><th>日期</th><th>我的分数</th><th>大比平均</th><th>最高分</th><th>已击败</th><th>排名</th><th>答对</th><th>用时</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
+      ${window.MOCK_IMPORT?.html()||''}
       ${marksCard(d)}
       ${form(d)}
-      <p class="small muted">模考流程：① 到「${esc(NAV("skeleton"))} → 📖 经卷 · 题库」最下面「📥 导入真题」导入模考 PDF（自动拆成板块复盘、入题库，并给演武 · 历练记记 120 分钟）→ ② 在这里导入答题卡截图（对错）→ ③ 录成绩单 → ④ 「📜 大比复盘」逐题复盘 → ⑤ 点「🧙 师傅大比分析」→ ⑥ 去心魔录斩错题。</p>`;
+      <p class="small muted">${window.SUBJECT0==='行测'?'录入流程：① 展开试卷导入（PDF / HTML）→ ② 核对答题卡对错 → ③ 展开成绩单并保存 → ④ 返回场景进入复盘、考情。':'展开答题卡核对对错、填写并保存成绩单，再返回场景进入本科复盘与分析。'}</p>`;
   }
 
   async function loadConv(season) {
@@ -349,6 +350,7 @@
     };
   }
   function bind() {
+    window.MOCK_IMPORT?.bind();
     bindCharts();
     bindExtra();
     bindReview();
@@ -394,23 +396,30 @@
     };
   }
   function mountScene(v,state=null){
-    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),state});
+    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),calendar:CALENDAR,state});
   }
   function rerender(view=null) {
     const v = document.getElementById("view");
     if (!MOCK || !v || typeof VIEW!=='undefined'&&VIEW!=='contest') return;
     let state=window.CONTEST_SCENE?.capture(v);
-    if(view)state={...state,view,open:true};
+    if(view)state={...state,view,open:true,folds:{...state?.folds,...(view==='entry'?{scores:true}:{})}};
     v.innerHTML = html(MOCK);mountScene(v,state);
     bind();
   }
   async function render(v, beforeCommit=()=>true) {
-    MOCK = await api("/api/mock");
+    [MOCK,CALENDAR] = await Promise.all([api("/api/mock"),api("/api/contest/calendar",{})]);
     if (AN == null && MOCK.seasons.length) AN = MOCK.seasons[MOCK.seasons.length - 1].season;
     await loadConv(AN);
     if(typeof VIEW!=='undefined'&&VIEW!=='contest'||!beforeCommit())return;
     v.innerHTML = html(MOCK);mountScene(v);
     bind();
   }
-  window.CONTEST = { render };
+  async function importDone(season){
+    if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
+    const form=document.getElementById('mkForm'),draft=form?[...form.querySelectorAll('input:not([type=file]),textarea,select')].map(e=>({id:e.id,key:e.getAttribute('data-mk-score')?'score':e.getAttribute('data-mk-minutes')?'minutes':'',board:e.getAttribute('data-mk-score')||e.getAttribute('data-mk-minutes'),value:e.value,dirty:e.tagName==='SELECT'?[...e.options].some(o=>o.selected!==o.defaultSelected):e.value!==e.defaultValue})):[];
+    const keep=draft.some(x=>x.dirty);MOCK=await api('/api/mock');if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
+    if(!keep){EDIT=season;if(!MK)MK_SEASON=season;}await refresh();if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;rerender();
+    if(keep)for(const item of draft){const el=item.id?document.getElementById(item.id):document.querySelector('[data-mk-'+item.key+'="'+CSS.escape(item.board)+'"]');if(el)el.value=item.value;}
+  }
+  window.CONTEST = { render, importDone };
 })();

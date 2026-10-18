@@ -298,3 +298,18 @@ html.drawing .page-settings-gear{display:none}
  .fx-records-list.fx-records-fill{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:12px}
  .fx-records-list.fx-records-fill>.card{margin:0!important;min-width:0}
 }
+
+/* 3.3.9：移出状态栏后，材料和题目直接使用首行，不留下空轨道。 */
+.fixed-app.in-chat .chat.with-mat.compact-bank{grid-template-rows:minmax(0,1fr) max-content}
+.fixed-app.in-chat .chat.with-mat.compact-bank>.mat-pane,.fixed-app.in-chat .chat.with-mat.compact-bank>.msgs{grid-row:1}
+.fixed-app.in-chat .chat.with-mat.compact-bank>.composer{grid-row:2}
+@media(max-width:900px){
+ .fixed-app.in-chat .chat.with-mat.compact-bank{grid-template-rows:minmax(0,.6fr) minmax(0,1fr) max-content}
+ .fixed-app.in-chat .chat.with-mat.compact-bank>.msgs{grid-row:2}
+ .fixed-app.in-chat .chat.with-mat.compact-bank>.composer{grid-row:3}
+}
+.ln-stage.ln-compact>.yj-top{flex-wrap:nowrap;min-width:0;gap:8px}
+.ln-compact .yj-top-title{flex:0 1 auto;min-width:90px;max-width:30%}
+.ln-compact .yj-top>.spacer,.ln-compact #lnSaved{display:none}
+.ln-compact .ln-reading-tabs{flex:1;min-width:0;padding:0;border:0}
+.ln-compact .ln-reading-tabs button{padding:6px 9px}

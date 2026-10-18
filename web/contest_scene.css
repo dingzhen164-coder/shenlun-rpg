@@ -55,3 +55,34 @@ body.has-page-art .cs-landscape{background-image:var(--ds-page-art)}
 @media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
  .cs-dialog.cs-dialog .chart .legend,.cs-dialog.cs-dialog .chart .cy,.cs-dialog.cs-dialog .chart .cx,.cs-dialog.cs-dialog table,.cs-dialog.cs-dialog .ctable{font-size:var(--ds-fs-16);font-weight:600}
 }
+
+/* 中央双行绢帛日程：青玉模考、朱金大考，保留四周建筑入口与背景。 */
+.cs-calendar{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:clamp(290px,34%,480px);box-sizing:border-box;padding:var(--ds-sp-12) var(--ds-sp-20);background:linear-gradient(100deg,color-mix(in srgb,var(--panel) 92%,transparent),color-mix(in srgb,var(--panel2) 94%,transparent));border-block:1px solid var(--gold);box-shadow:var(--ds-shadow-2);pointer-events:none}
+.cs-calendar:before,.cs-calendar:after{content:"";position:absolute;top:-6px;bottom:-6px;width:5px;background:linear-gradient(90deg,var(--gold),var(--panel2),var(--gold));border-radius:var(--ds-r-3)}
+.cs-calendar:before{left:-3px}.cs-calendar:after{right:-3px}
+.cs-calendar-row{display:flex;align-items:center;gap:var(--ds-sp-14);padding:var(--ds-sp-12) 0;min-width:0;color:var(--accent)}
+.cs-calendar-row+div{border-top:1px solid var(--line)}
+.cs-calendar-row>div{min-width:0;flex:1}
+.cs-calendar-row small{font-size:var(--ds-fs-13);letter-spacing:.08em;color:var(--muted)}
+.cs-calendar-row p{margin:4px 0 0;font:600 var(--ds-fs-20)/1.6 var(--display);overflow-wrap:anywhere}
+.cs-calendar-row strong{white-space:nowrap;font-weight:500}
+.cs-calendar-row b{font:600 calc(var(--ds-fs-26)*1.15)/1 var(--display);font-variant-numeric:tabular-nums}
+.cs-calendar-seal{flex:none;writing-mode:vertical-rl;font:600 var(--ds-fs-16)/1.4 var(--display);letter-spacing:.18em;border:1px solid currentColor;padding:var(--ds-sp-8) var(--ds-sp-4)}
+.cs-calendar-exam{color:var(--gold)}
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){.cs-calendar{width:46%;padding:var(--ds-sp-12) var(--ds-sp-16)}.cs-calendar-row p{font-size:var(--ds-fs-20)}.cs-calendar-row small{font-size:var(--ds-fs-16);font-weight:600}.cs-calendar-row b{font-size:calc(var(--ds-fs-26)*1.23)}}
+
+/* 录入按实际步骤折叠，原表单节点原位保留，长内容只在卷宗内滚动。 */
+.cs-pane .cs-entry-section{margin:0 0 var(--ds-sp-16);padding:0;border:1px solid var(--ds-line);background:color-mix(in srgb,var(--panel) 85%,transparent);border-radius:var(--ds-r-8)}
+.cs-entry-section>summary{display:flex;align-items:center;gap:var(--ds-sp-12);padding:var(--ds-sp-16);cursor:pointer;list-style:none;min-height:var(--ds-touch);box-sizing:border-box}
+.cs-entry-section>summary:after{content:'＋';margin-left:auto;color:var(--gold);font-size:var(--ds-fs-20)}
+.cs-entry-section[open]>summary:after{content:'−'}
+.cs-entry-section>summary>span{font:600 var(--ds-fs-20)/1 var(--display);color:var(--gold)}
+.cs-entry-section>summary>b{font:600 var(--ds-fs-18)/1.6 var(--display)}
+.cs-entry-section>summary>small{color:var(--muted);font-size:var(--ds-fs-13)}
+.cs-entry-section>.contest-card,.cs-entry-section>.mi-body{padding:var(--ds-sp-16);border-top:1px solid var(--line);margin:0;background:transparent;box-shadow:none}
+.cs-entry-section .rp-auto{border:0;padding:var(--ds-sp-12) 0}
+.mi-fields{display:flex;flex-wrap:wrap;gap:var(--ds-sp-12)}
+.mi-fields>label{flex:1 1 220px;min-width:0}
+.mi-fields input{box-sizing:border-box;max-width:100%;width:100%}
+#mhResult{overflow-wrap:anywhere;margin-top:var(--ds-sp-12)}
+@media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){.cs-entry-section>summary>b{font-size:var(--ds-fs-22)}.cs-entry-section>summary>small{font-size:var(--ds-fs-16)}.cs-entry-section>summary{flex-wrap:wrap}.cs-entry-section>summary>small{flex-basis:100%;order:1}.cs-entry-section>summary:after{margin-left:auto}}

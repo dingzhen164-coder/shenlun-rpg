@@ -8,12 +8,13 @@
 真题由 obsidian-to-xingce 仓库的 xingce-tiku skill 批量整理入库，也可以手动添加。
 存档 bank 含 records（题目快照与作答历史）、runs（可恢复的一组）、groups（组成绩）。
 不改写用户题库；首次错误及复练都留记录，首次正确率与复练正确率分开。
+资料分析由来源文件+共用材料归组，先抽整组再连续出题，新题/知识点/套卷/复习均不拆组；旧运行快照保留。
 """
 import random
 import re
 import uuid
 
-from . import config
+from . import config, vault
 
 
 class BankError(ValueError):
@@ -312,7 +313,7 @@ def sets(g):
 
 def count(g):
     n = g.rules.num('实战每组题数')
-    return 15 if n == 15 else 10
+    return int(n) if n in (10, 15, 20) else 10
 
 
 ORDERS = ('seq', 'shuffle')
@@ -328,6 +329,42 @@ def _pick(g, qs):
     if order(g) == 'shuffle' and len(qs) > count(g):
         return random.sample(qs, count(g))
     return qs[:count(g)]
+
+
+def _material_group(q):
+    """与trainer.split_stem同一材料边界；相同来源/材料的资料题为整体，题号不是分组依据。"""
+    if q['board'] != '资料分析':
+        return ('question', q['key'])
+    text = vault.clean_callout(q['stem'])
+    parts = [p for p in re.split(r'\n\s*\n', text) if p.strip()]
+    material = '\n\n'.join(parts[:-1]) if len(parts) >= 2 else ''
+    if len(material) < 20 and '![[' not in material:
+        return ('question', q['key'])
+    return ('material', q.get('source', ''), re.sub(r'\s+', ' ', material).strip())
+
+
+def _pick_material_groups(qs, eligible, limit=None, shuffle=False):
+    """先按材料归组再抽组，组内保持原题序。eligible触发整组，补齐已做过的同材料题。
+    整卷limit=None；板块/知识点按题数上限装完整组，首组超限仍完整保留。
+    缺共用材料的旧题按自身身份保留，不凭题号猜造五题关系。只返回快照，不改原题库/记录。
+    """
+    grouped, seen = {}, set()
+    for q in qs:
+        if q['key'] in seen:
+            continue
+        seen.add(q['key'])
+        grouped.setdefault(_material_group(q), []).append(q)
+    groups = [group for group in grouped.values() if any(q['key'] in eligible for q in group)]
+    if shuffle:
+        random.shuffle(groups)
+    selected = []
+    for group in groups:
+        if limit is not None and selected and len(selected)+len(group) > limit:
+            break
+        selected.extend(group)
+        if limit is not None and len(selected) >= limit:
+            break
+    return selected
 
 
 def summary(g):
@@ -370,7 +407,9 @@ def begin(g, board, mode):
         qs, errors = read(g.paths, b)
         if errors:
             raise BankError('\n'.join(errors))
-        qs = _pick(g, [q for q in qs if topic_head(q['topic'], b) == topic and q['key'] not in data['records']])
+        eligible = {q['key'] for q in qs if topic_head(q['topic'], b) == topic and q['key'] not in data['records']}
+        qs = (_pick_material_groups(qs, eligible, count(g), order(g) == 'shuffle') if b == '资料分析'
+              else _pick(g, [q for q in qs if q['key'] in eligible]))
         if not qs:
             raise BankError('「%s · %s」的题已经全部做过了（答案待补的不出）' % (b, topic))
         run = {'token': uuid.uuid4().hex, 'board': board, 'mode': 'new', 'questions': qs,
@@ -378,13 +417,14 @@ def begin(g, board, mode):
         data['runs'][board] = run
         return run
     if is_set(board) and mode == 'new':
-        # 整套试炼：这一套还没做过的题一次做完，不受“每轮 10/15 关”限制
+        # 整套试炼：这一套还没做过的题一次做完，不受“每轮 10/15/20 关”限制
         if board in data['runs']:
             return data['runs'][board]
         qs, errors = _set_questions(g, board[len(SET_PREFIX):])
         if errors:
             raise BankError('\n'.join(errors))
-        qs = [q for q in qs if q['key'] not in data['records']]
+        eligible = {q['key'] for q in qs if q['key'] not in data['records']}
+        qs = _pick_material_groups(qs, eligible) if any(q['board'] == '资料分析' for q in qs) else [q for q in qs if q['key'] in eligible]
         if not qs:
             raise BankError('%s 已经全部做完（答案待补的题还不能出）' % label(board))
         run = {'token': uuid.uuid4().hex, 'board': board, 'mode': 'new', 'questions': qs,
@@ -397,15 +437,27 @@ def begin(g, board, mode):
     slot = board
     if slot in data['runs']:
         return data['runs'][slot]
-    if mode == 'new':
+    if board == '资料分析':
+        qs, errors = read(g.paths, board)
+        if mode == 'new' and errors:
+            raise BankError('\n'.join(errors))
+        if mode == 'review':
+            # 当前题库补齐同材料全部题；题库已删除的旧错题仍从历史快照恢复。
+            known = {q['key'] for q in qs}
+            qs += [r['question'] for key, r in data['records'].items()
+                   if r['question']['board'] == board and key not in known]
+            eligible = {key for key, r in data['records'].items() if r['question']['board'] == board and r.get('wrong')}
+        else:
+            eligible = {q['key'] for q in qs if q['key'] not in data['records']}
+        qs = _pick_material_groups(qs, eligible, count(g), order(g) == 'shuffle')
+    elif mode == 'new':
         qs, errors = read(g.paths, board)
         if errors:
             raise BankError('\n'.join(errors))
-        qs = [q for q in qs if q['key'] not in data['records']]
+        qs = _pick(g, [q for q in qs if q['key'] not in data['records']])
     else:
         qs = [r['question'] for r in data['records'].values()
-              if r['question']['board'] == board and r.get('wrong')]
-    qs = _pick(g, qs) if mode == 'new' else qs[:count(g)]
+              if r['question']['board'] == board and r.get('wrong')][:count(g)]
     if not qs:
         raise BankError(g.T('bank_empty') if mode == 'new' else g.T('bank_no_wrong'))
     run = {'token': uuid.uuid4().hex, 'board': board, 'mode': mode, 'questions': qs,

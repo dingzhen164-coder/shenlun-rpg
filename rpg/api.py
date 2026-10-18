@@ -392,6 +392,14 @@ def import_answers(body):
     return _import_call(importer.fill_answers, body)
 
 
+def import_html(body):
+    from . import html_mock
+    rep = _import_call(html_mock.import_file, body)
+    if not rep.get('dry'):
+        _mock_imported(rep, rep.get('season'))
+    return rep
+
+
 def import_upload_pdf(body):
     return _import_call(importer.save_pdf, body)
 
@@ -564,6 +572,17 @@ def import_classify(body):
     return _import_call(lambda p, b: importer.classify(p, max(1, min(300, int(b.get("limit") or 100)))), body)
 
 
+def contest_calendar(body):
+    from . import contest_calendar as calendar
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            return {'unavailable': '请先选择当前科目的学习库。'}
+        try:
+            return calendar.save(g, body) if body.get('save') else calendar.view(g)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
 def bank_count(body):
     if "order" in body:
         if body["order"] not in question_bank.ORDERS:
@@ -572,8 +591,8 @@ def bank_count(body):
             question_bank.state(g)["order"] = body["order"]
         return {"order": body["order"]}
     n = body.get("count")
-    if n not in (10, 15):
-        raise ApiError("题量只能选择 10 或 15")
+    if type(n) is not int or n not in (10, 15, 20):
+        raise ApiError("题量只能选择 10、15 或 20")
     with open_game() as g:
         if not g.paths.vault:
             raise ApiError("请先在设置中指定行测库路径")
@@ -1146,6 +1165,7 @@ ROUTES = {
     ("POST", "/api/session/action"): session_action,
     ("GET", "/api/bank"): bank_view,
     ("POST", "/api/bank/count"): bank_count,
+    ("POST", "/api/contest/calendar"): contest_calendar,
     ("GET", "/api/library"): library_catalog,
     ("POST", "/api/library/search"): library_search,
     ("POST", "/api/library/question"): library_question,
@@ -1160,6 +1180,7 @@ ROUTES = {
     ("POST", "/api/import/dedupe"): import_dedupe,
     ("POST", "/api/import/rename"): import_rename,
     ("POST", "/api/import/upload_pdf"): import_upload_pdf,
+    ("POST", "/api/import/html"): import_html,
     ("POST", "/api/import/split"): import_split,
     ("POST", "/api/import/install_pymupdf"): import_install,
     ("GET", "/api/skeletons"): skeletons,

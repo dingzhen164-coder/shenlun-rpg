@@ -396,7 +396,7 @@ function currentMaterial() {
 function materialPane() {
   const mat = currentMaterial();
   if (!mat || !MAT_OPEN) return "";
-  return `<div class="mat-pane"><div class="mat-head"><b>📄 材料</b><span class="small faint" style="margin-left:8px">点图片放大</span><span class="spacer"></span><button class="ghost small mat-btn">收起材料</button></div>${blocksHtml(mat, true)}</div>`;
+  return `<div class="mat-pane" role="region" aria-label="共用材料">${blocksHtml(mat, true)}</div>`;
 }
 // 材料里的图：点一下全屏看（再点 / Esc / 返回键关）
 function zoomImg(src) {
@@ -649,11 +649,11 @@ const views = {
   },
 
   async settings() {
-    const [s,schedule,taskSettings,deviceHtml]=await Promise.all([api('/api/settings'),api('/api/study/schedule',{}),TASK_BOARD.settingsHtml(),DEVICE.html()]);
+    const [s,schedule,taskSettings,deviceHtml,calendarHtml]=await Promise.all([api('/api/settings'),api('/api/study/schedule',{}),TASK_BOARD.settingsHtml(),DEVICE.html(),CONTEST_SCENE.settingsHtml()]);
     if(window.SUBJECT0&&s.subject&&s.subject!==window.SUBJECT0){location.reload();throw Error('科目已变更，正在重新载入');}
     const cur=DASH?.theme?.name,cp=chatPrefs();
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + deviceHtml + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + taskSettings + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
+    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + deviceHtml + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + taskSettings + calendarHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
       <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
         <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
       <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
@@ -1206,18 +1206,7 @@ async function loadImport() {
     const d = await api('/api/import');
     const opts = ['<option value="">自动识别</option>', ...d.boards.map(b => `<option>${esc(b)}</option>`)].join('');
     box.innerHTML = `
-      <div class="import-sec"><h4>① 模考（粉笔模考 PDF：自动拆分成板块复盘，再导入；题干、答案、截图都准）</h4>
-        <div class="row"><input type="file" id="pdfFile" accept=".pdf,application/pdf" style="flex:2">
-          <label style="flex:1">第几季 <input id="pdfSeason" type="number" min="1" placeholder="文件名有“第X季”就不用填"></label>
-          <button class="primary" id="pdfGo" ${d.splitter && d.pymupdf ? '' : 'disabled'}>拆分并导入</button></div>
-        ${!d.splitter ? '<p class="small">⚠ 没找到 xingce-mokao-split，先运行一次 skill 安装脚本。</p>' : ''}
-        ${d.splitter && !d.pymupdf ? '<p class="small">⚠ 拆 PDF 需要 pymupdf 组件（只装一次）。<button id="pymuGo">安装拆分组件</button></p>' : ''}
-        ${d.pdfs.filter(x => !x.split).map(x => `<div class="row"><span>📄 ${esc(x.file)}</span><span class="small muted">${x.season ? `第 ${x.season} 季 · 还没拆` : '文件名里没有“第X季”'}</span><span class="spacer"></span>
-          <button data-split="${esc(x.file)}" ${x.season && d.splitter && d.pymupdf ? '' : 'disabled'}>拆分并导入</button></div>`).join('')}
-        <p class="small muted">PDF 会存进 ${esc(d.pdf_dir)}，拆好的复盘在 FB模考试卷复盘/板块复盘/第N季/（和以前做复盘的一样）。下面是已经拆好的各季：</p>
-        ${d.seasons.map(x => `<div class="row"><span>第 ${x.season} 季</span><span class="small muted">已导入 ${x.imported} 题</span><span class="spacer"></span>
-          <button class="ghost" data-imp-season="${x.season}" data-dry="1">预览</button><button data-imp-season="${x.season}">导入</button></div>`).join('')
-          || '<p class="small muted">还没有板块复盘。用 xingce-mokao-split 拆模考 PDF 后这里会出现。</p>'}</div>
+      <p class="small muted">模考PDF和HTML导入已移到宗门大比的“录入”。<button type="button" id="mockImportGo">前往试卷导入 →</button></p>
       <div class="import-sec"><h4>② txt / PDF（练习册、试卷；有文字层的 PDF 能保留填空横线）</h4>
         <div class="row"><input type="file" id="impFile" accept=".txt,.md,.pdf,text/plain,application/pdf"><span class="small muted" id="impFileInfo"></span></div>
         <div class="row"><label>来源 <input id="impSource" placeholder="自动识别，如 2025年国考"></label>
@@ -1314,24 +1303,7 @@ function bindImport() {
   document.querySelectorAll('[data-imp-season]').forEach(b => b.onclick = () => run(b,
     b.dataset.dry ? '/api/import/preview' : '/api/import/commit', { kind: 'season', season: Number(b.dataset.impSeason) }, !!b.dataset.dry));
   document.querySelectorAll('[data-imp-fix]').forEach(b => b.onclick = () => run(b, '/api/import/commit', { kind: 'fix', file: b.dataset.impFix }, false));
-  const splitRun = (btn, file) => run(btn, '/api/import/split', { file }, false);
-  document.querySelectorAll('[data-split]').forEach(b => b.onclick = () => splitRun(b, b.dataset.split));
-  $('#pdfGo').onclick = async (e) => {
-    const f = $('#pdfFile').files[0];
-    if (!f) return show('<p>⚠ 先选一份模考 PDF</p>');
-    const btn = e.target; btn.disabled = true; btn.textContent = '上传中…';
-    try {
-      const buf = new Uint8Array(await f.arrayBuffer());
-      let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
-      const r = await api('/api/import/upload_pdf', { name: f.name, data: btoa(bin), season: Number($('#pdfSeason').value) || 0 });
-      btn.disabled = false; btn.textContent = '拆分并导入';
-      show('<p>已保存，正在拆分（大约半分钟）…</p>');
-      await splitRun(btn, r.file);
-    } catch (err) { show(`<p>⚠ ${esc(err.message)}</p>`); btn.disabled = false; btn.textContent = '拆分并导入'; }
-  };
-  if ($('#pymuGo')) $('#pymuGo').onclick = (e) => {
-    if (confirm('将运行 pip install pymupdf 安装拆 PDF 用的组件（需要联网，只装一次），继续？')) run(e.target, '/api/import/install_pymupdf', {}, false);
-  };
+  const jump=$('#mockImportGo');if(jump)jump.onclick=async()=>{await go('contest');document.querySelector('[data-cs-enter="entry"]')?.click();};
   $('#impFile').onchange = async (e) => {
     const f = e.target.files[0]; IMPORT_TEXT = null; IMPORT_PDF = null;
     if (!f) return;
@@ -1388,9 +1360,9 @@ function bindImport() {
 // 竖排题签：一个字一行（不用 writing-mode，有些字体竖排会叠字）
 const vlabel = (t) => [...String(t)].map(esc).join('<br>');
 let LIB = { tab: 'cards', yj: { board: '', topic: '', q: '', status: '', page: 0 } };
-// 导入真题放在经卷 · 题库最下面：每次模考完第一步就是把试卷 PDF 导入题库
+// 经卷保留练习册与题库维护；模考PDF/HTML统一由宗门大比录入。
 function importCardHtml() {
-  return `<details class="card import-card" id="importCard" style="margin-top:18px"><summary><b>📥 导入真题</b> <span class="small muted">模考 PDF（每周模考完先导这里）、txt、PDF 练习册一键入库；导入一份模考给${esc(W("practice_title"))}记 120 分钟</span></summary><div id="importBody">载入中…</div></details>`;
+  return `<details class="card import-card" id="importCard" style="margin-top:18px"><summary><b>📥 导入真题</b> <span class="small muted">txt、PDF练习册及题库维护；模考PDF / HTML在宗门大比的录入中导入</span></summary><div id="importBody">载入中…</div></details>`;
 }
 // ---- 经卷：题库目录 + 搜题
 const YJ_STATUS = { '': '全部', new: '未做', done: '做对', wrong: '做错（心魔）', pending: '答案待补' };
@@ -1522,6 +1494,7 @@ function bindLog() {
 // 设置页：有输入框 / 下拉框的卡片都收成可展开的（默认收起，点标题展开）
 function bindSettings() {
   TASK_BOARD.bindSettings();
+  window.CONTEST_SCENE?.bindSettings();
   SCENE_PORTAL.mount("settings");
   DEVICE.bind();
   const saveChat = (p) => { try { localStorage.setItem("chatLayout", JSON.stringify({...p,schema:2})); } catch {} };
@@ -1697,7 +1670,7 @@ function bankHead(b) {
     `<span>${b.phase === "review" ? "复盘 " : ""}第 ${b.position}/${b.total} 关</span>`, tower, `<span>已作答 ${b.answered}</span>`,
     b.timer ? `<span>⏱ 本题 <b id="tQ">${clock(b.timer.question)}</b> · 总 <b id="tT">${clock(b.timer.total)}</b></span>` : "",
     b.correct === null ? "" : `<span class="ok">破关 ${b.correct}</span><span class="bad">${esc(W("bank_wrong"))} ${b.answered - b.correct}</span>`,
-  ], b.answered / b.total);
+  ], b.answered / b.total).replace('class="review-head"', 'class="review-head bank-head"');
 }
 
 function towerProgress(t) {
