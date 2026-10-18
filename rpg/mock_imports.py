@@ -1,7 +1,10 @@
 """行测模考入库批次回收/恢复，供/api/import/season/remove、restore调用。
 
 仅移除训练/题库中编号严格为粉笔N季-数字的题块（含已做题与待修）；
-不改原PDF/HTML、复盘、图片、存档及学习历史。训练/导入回收/<UUID>保存
+同时把这一季的考情与战绩（存档里的成绩单记录、大比成绩、考情分析对话/文件）一并移出，
+页面上不再显示（存档 state["mocks_hidden"]）；这些记录和题库块一起放进回收副本，恢复时一并还原。
+不改原PDF/HTML、复盘笔记、图片及学习历史（已记的学习分钟、经验、悟道奖励不扣不改；
+录分奖励只发一次，重新录分不重复发，见 state["mock_boss_credited"]）。训练/导入回收/<UUID>保存
 原文件与清单，先预览摘要再提交，原子替换、冲突拒绝、失败回滚；恢复时
 优先逐字还原，无关后续编辑保留，同编号内容冲突不覆盖。所有路径限训练内。
 """
@@ -143,7 +146,7 @@ def remove(paths,body):
     with importer.LOCK:
         season=_number(body.get('season'));changes,digest,count=_plan(paths,season)
         rep=dict(season=season,removed=count,blocks=sum(c['count'] for c in changes),files=len(changes),digest=digest,
-                 scope='仅移除该季题库及待修题块；原试卷、复盘笔记、图片、成绩、学习记录和未完成练习保留',dry=not body.get('commit'))
+                 scope='移除该季题库及待修题块，并同步移出本季考情与战绩（成绩单记录、大比成绩、考情分析）；原试卷、复盘笔记、图片、学习记录和未完成练习保留；整批可恢复',dry=not body.get('commit'))
         if not count:raise importer.ImportError_('这一季当前没有已入库或待修题目，无需删除')
         if 'commit' in body and type(body['commit']) is not bool:raise importer.ImportError_('删除确认须为布尔值')
         if not body.get('commit'):return rep
@@ -227,3 +230,86 @@ def restore(paths,body):
                     except OSError:pass
             raise importer.ImportError_('恢复未完成（%s）；回收副本仍保留，可再次恢复'%e)
         return dict(season=season,restored=meta['removed'],already=False)
+
+# ---------------------------------------------------------------- 考情与战绩（随删除同步移出，恢复时还原）
+def _season_re(season):
+    return re.compile(r'(?<!\d)%d季'%season)
+
+
+def _analysis_file(paths,season):
+    return _safe(paths,'宗门大比/第%d季考情分析.md'%season)
+
+
+def drop_records(g,season,token):
+    """删除入库成功后：把这一季的考情与战绩先存进回收副本，再从存档和页面移出。需在 open_game(保存) 里调用。"""
+    from . import mock
+    paths=g.paths;season=_number(season);folder=_safe(paths,'导入回收/'+token);key=str(season);pattern=_season_re(season)
+    mocks=g.state.setdefault('mocks',{});rec=mocks.get(key)
+    boss=[b for b in g.state.get('boss',[]) if b.get('kind','大比')=='大比' and pattern.search(str(b.get('name','')))]
+    analysis_file=_analysis_file(paths,season);analysis=_read(analysis_file)
+    had_score=(rec or {}).get('score') is not None or bool(boss)
+    # 先落盘回收副本，再改存档；任一步失败都不会丢记录。
+    _json(folder/'状态.json',dict(schema=1,season=season,mocks=rec,boss=boss,analysis=analysis is not None,restored=False))
+    if analysis is not None:_atomic(folder/'考情分析.md',analysis)
+    mocks.pop(key,None)
+    g.state['boss']=[b for b in g.state.get('boss',[]) if not any(b is x for x in boss)]
+    hidden=g.state.setdefault('mocks_hidden',[])
+    if key not in [str(x) for x in hidden]:hidden.append(key)
+    if had_score:mock._mark_credited(g,season)
+    if analysis is not None:
+        try:analysis_file.unlink()
+        except OSError:pass
+    return dict(score=(rec or {}).get('score'),boss=len(boss),analysis=bool((rec or {}).get('analysis')) or analysis is not None,
+                review=bool((rec or {}).get('reviewed')))
+
+
+def restore_records(g,token):
+    """恢复入库时把这一季的考情与战绩一并还原；这一季已有新记录就不覆盖。没有记录副本（旧批次）返回 None。"""
+    from . import mock
+    paths=g.paths;folder=_safe(paths,'导入回收/'+token);file=folder/'状态.json'
+    if not file.is_file():return None
+    try:data=json.loads(_safe(paths,file.relative_to(paths.train)).read_text(encoding='utf-8'))
+    except (ValueError,OSError):raise importer.ImportError_('考情与战绩的回收副本损坏')
+    if not isinstance(data,dict) or data.get('schema')!=1:raise importer.ImportError_('考情与战绩的回收副本结构无效')
+    if data.get('restored'):return None
+    season=_number(data.get('season'));key=str(season);out=dict(mocks=False,boss=0,analysis=False,kept_new=False)
+    mocks=g.state.setdefault('mocks',{})
+    if isinstance(data.get('mocks'),dict):
+        if key in mocks and mocks[key]:out['kept_new']=True        # 删除后又录入了新的成绩：保留新的
+        else:mocks[key]=data['mocks'];out['mocks']=True
+    have={(b.get('name'),b.get('score')) for b in g.state.get('boss',[])}
+    for b in data.get('boss') or []:
+        if isinstance(b,dict) and (b.get('name'),b.get('score')) not in have and not out['kept_new']:
+            g.state.setdefault('boss',[]).append(b);out['boss']+=1
+    mock.unhide(g,season)
+    saved=folder/'考情分析.md';target=_analysis_file(paths,season)
+    if data.get('analysis') and saved.is_file() and not target.exists():
+        _atomic(target,saved.read_bytes());out['analysis']=True
+    data['restored']=True;_json(file,data)
+    return out
+
+
+# ---------------------------------------------------------------- 检查有成绩就更新这一季成绩
+PRIORITY={'manual':3,'ocr':3,'html':2,'estimate':1}
+
+
+def sync_score(g,season,checked):
+    """检查算出分数后，直接更新这一季的总分，不用再到“03成绩单”重输一遍。
+    来源优先级：自己录的/识图的 > HTML报告分 > 参考估分。更高优先级的已录成绩不会被覆盖，同级或更低的按最新结果更新。
+    返回 dict(action=recorded|updated|same|kept|none, score, source, events)。"""
+    from . import mock
+    season=_number(season)
+    reported=checked.get('reported_score');est=checked.get('estimate') or {}
+    if reported is not None:candidate,source=reported,'html'
+    elif est.get('ready') and est.get('score') is not None:candidate,source=est['score'],'estimate'
+    else:return dict(action='none',score=None,source=None,events=[])
+    rec=g.state.get('mocks',{}).get(str(season),{})
+    existing=rec.get('score')
+    if existing is None and mock._boss_score(g,season) is not None:
+        existing,existing_source=mock._boss_score(g,season),'manual'          # 修仙录里以前记的大比成绩算自己录的
+    else:existing_source=rec.get('score_source','manual') if existing is not None else None
+    if existing is not None:
+        if PRIORITY.get(existing_source,3)>PRIORITY[source]:return dict(action='kept',score=existing,source=existing_source,events=[])
+        if abs(float(existing)-float(candidate))<1e-9:return dict(action='same',score=existing,source=existing_source,events=[])
+    events=mock.set_score(g,season,candidate,source)
+    return dict(action='recorded' if existing is None else 'updated',score=candidate,source=source,events=events)

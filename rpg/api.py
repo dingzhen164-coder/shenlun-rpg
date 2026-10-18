@@ -371,13 +371,23 @@ def import_preview(body):
     if body.get('kind')=='season':
         from . import mock_imports
         # 检查已有季只读，不补导入、不记120分钟、不录分或发奖。
+        # 检查不入库、不累计时长；算出成绩就直接更新这一季成绩（自己录的成绩优先保留），见 mock_imports.sync_score。
+        # 没有成绩要更新时保持只读：不写存档、不生成备份。
         with importer.LOCK, open_game(save=False) as g:
             try:
                 if g.subject!='行测':return importer.preview(g.paths,body)
-                score=mock_imports.check(g,int(body.get('season') or 0))
+                season=int(body.get('season') or 0)
+                score=mock_imports.check(g,season)
                 try:rep=importer.preview(g.paths,body)
                 except importer.ImportError_ as e:rep=dict(ready=0,fix=0,dup=0,preview_error=str(e))
                 rep.update(score)
+                sync=mock_imports.sync_score(g,season,score)
+                ev=sync.pop('events')
+                rep['score_sync']=sync
+                if sync['action'] in ('recorded','updated'):
+                    rep['saved_score']=sync['score'];rep['score_source']=sync['source']
+                    rep['events']=tutor.enrich(g,ev+g.housekeeping())
+                    g.store.save(g.state,g.today)
                 return rep
             except (importer.ImportError_,ValueError,TypeError) as e:raise ApiError(str(e))
     return _import_call(importer.preview, body)
@@ -385,15 +395,22 @@ def import_preview(body):
 
 def import_season_remove(body):
     from . import mock_imports
-    with importer.LOCK, open_game(save=False) as g:
-        try:return mock_imports.remove(g.paths,body)
+    with importer.LOCK, open_game() as g:
+        try:
+            r=mock_imports.remove(g.paths,body)
+            if r.get('token'):r['records']=mock_imports.drop_records(g,r['season'],r['token'])    # 考情与战绩一并移出
+            return r
         except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
 
 
 def import_season_restore(body):
     from . import mock_imports
-    with importer.LOCK, open_game(save=False) as g:
-        try:return mock_imports.restore(g.paths,body)
+    with importer.LOCK, open_game() as g:
+        try:
+            r=mock_imports.restore(g.paths,body)
+            records=mock_imports.restore_records(g,str(body.get('token') or ''))
+            if records is not None:r['records']=records
+            return r
         except (importer.ImportError_,OSError) as e:raise ApiError(str(e))
 
 

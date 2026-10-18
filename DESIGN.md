@@ -838,3 +838,11 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - **界面**：藏经阁新页签（风格词 `skillbook`：行测修仙“心法”、玄幻“秘典”、申论“办事规程”，在 `themes*.py`）；`web/skillbook.js/css`，类名 `skb-`；选中的板块/文件记在 localStorage `skillbook-pos`，未保存草稿留在模块内存里。
 - **测试**：`tests/test_skillbook.py`（读取顺序、旧行为不变、保存即生效、冲突、历史回滚、删除改名、路径与大小限制、未读入标记、接口与讲题实际读取）；`tests/ui_skillbook.cjs --subject=行测|申论`（看/改/保存即生效/刷新还在/回滚/冲突/新建改名删除，电脑与平板不整页滚动）；`tests/ui_layout_server.py --skillbook-fixture` 提供自编 skill。
 - 法考不共用本功能：法考没有 skill，见 fakao-rpg 的 3.4 方案（知识点定位与“我的批注”）。
+
+## 3.3.11 补丁（开发批次，未发布）：删除同步考情与战绩；检查有成绩就更新
+
+- **删除同步**：宗门大比「录入 → 试卷导入 → 已有试卷与导入管理」里删除一季，除了移出题库块，还把这一季的**考情与战绩**移出（`mock_imports.drop_records`）：存档 `mocks.<季>`（成绩单、HTML 导入信息、复盘进度、考情分析对话）、`boss` 里这一季的大比成绩（正则 `(?<!\d)N季`，第133季不会被当成第33季）、`训练/宗门大比/第N季考情分析.md`。页面上考情/复盘/战绩都不再显示这一季（`state.mocks_hidden`，`mock.summary` 跳过）。原试卷、复盘笔记、图片、学习记录不动；已记的学习分钟、经验、悟道奖励不扣不改，`mock_practice` 保留所以重导不会重复记 120 分钟。
+- **恢复**：回收副本里多了 `状态.json` 和 `考情分析.md`；恢复入库时一并还原（`restore_records`），这一季删除后又录了新成绩则保留新的、不覆盖；重复恢复不重复。旧批次没有 `状态.json` 照常恢复入库。
+- **录分奖励只发一次**：`state.mock_boss_credited` 记下领过录分奖励的季；删除后重新录分不再重复记大比、发奖。重新导入（`mock.on_import`）或录分（`mock.save`/`set_score`）会让这一季重新出现。
+- **检查直接更新成绩**（`mock_imports.sync_score`）：点「检查」算出分数后，直接更新这一季总分，不用再到「03 成绩单」重输。来源优先级：自己录的/识图 > HTML 报告分 > 参考估分；更高优先级的已录成绩不覆盖，同级或更低的按最新结果更新；只改总分和来源（`mock.set_score`），成绩单其他字段不动；第一次有分才记大比（与录入一致）。没有成绩可更新时检查保持只读（不写存档、不生成备份）。返回 `score_sync: {action: recorded|updated|same|kept|none, score, source}`。
+- **测试**：`tests/test_mock_imports.py`（新增 `MockRecordsSyncTest`：删除同步与恢复、第133季不误伤、不重复发奖、重导后重新出现、旧批次、检查各种优先级）；`tests/ui_mock_imports.cjs`（删除后季消失、恢复还原并保留草稿、检查自动记入并优先保留手录）。

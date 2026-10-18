@@ -76,9 +76,10 @@ class MockImportsTest(unittest.TestCase):
                 self.assertIn('粉笔39季-001'.encode(),data);self.assertIn('粉笔333季-001'.encode(),data)
         status=api.import_status({});self.assertNotIn(33,[s['season'] for s in status['seasons']]);self.assertEqual(status['recycled'][0]['token'],r['token'])
         for rel,data in self.original.items():
-            if rel not in {str(Path(f).relative_to(self.p.vault)) for f in before}:self.assertEqual((self.p.vault/rel).read_bytes(),data,rel)
-        # 原复盘/成绩仍可读取，删除只撤销题库入库。
+            if rel not in {str(Path(f).relative_to(self.p.vault)) for f in before} and not rel.endswith('存档/存档.json'):self.assertEqual((self.p.vault/rel).read_bytes(),data,rel)
+        # 原复盘笔记仍可读取；删除同步移出本季考情与战绩（存档里的成绩单、大比成绩），恢复时一并还原。
         self.assertIn(33,[n for n,d in vault.seasons(self.p)])
+        self.assertEqual(r['records']['score'],72.3)
         api.import_season_restore({'token':r['token']});self.assertEqual(before,self.banks())
         self.assertTrue(api.import_season_restore({'token':r['token']})['already'])
         self.assertEqual(api.import_status({})['recycled'],[])
@@ -138,3 +139,92 @@ class MockImportsTest(unittest.TestCase):
         link.unlink();r=self.remove();folder=self.p.train/'导入回收'/r['token'];f=folder/'清单.json';meta=json.loads(f.read_text(encoding='utf-8'));meta['entries'][0]['path']='../outside.md';f.write_text(json.dumps(meta),encoding='utf-8');before=self.banks()
         with self.assertRaises(api.ApiError):api.import_season_restore({'token':r['token']})
         self.assertEqual(before,self.banks());self.assertEqual(outside.read_text(encoding='utf-8'),'自编外部资料不能修改。')
+
+class MockRecordsSyncTest(MockImportsTest):
+    """删除同步考情与战绩；检查有成绩就更新这一季成绩（不用到03成绩单重输）"""
+
+    def state(self):
+        with api.open_game(save=False) as g:return copy.deepcopy(g.state)
+
+    def seasons(self):
+        from rpg import mock
+        with api.open_game(save=False) as g:return [s['season'] for s in mock.summary(g)['seasons']]
+
+    def put_boss_and_analysis(self):
+        with api.open_game() as g:
+            g.add_boss('第33季',72.3);g.add_boss('第133季',55)         # 第133季不能被当成第33季
+            g.state['mocks']['33']['analysis']=[{'role':'user','content':'自编提问','t':'x'}]
+            from rpg import mock;mock.write_analysis(g,33)
+        return self.p.train/'宗门大比/第33季考情分析.md'
+
+    def test_delete_removes_season_records_everywhere_and_restore_brings_them_back(self):
+        analysis=self.put_boss_and_analysis();self.assertTrue(analysis.is_file());self.assertIn(33,self.seasons())
+        xp=self.state()['xp'];practice=list(self.state()['practice'])
+        r=self.remove();self.assertEqual((r['records']['score'],r['records']['boss'],r['records']['analysis']),(72.3,1,True))
+        s=self.state()
+        self.assertNotIn('33',s['mocks']);self.assertEqual([b['name'] for b in s['boss'] if b['name'].endswith('季')],['第133季'])   # 只移出第33季
+        self.assertIn('33',s['mocks_hidden']);self.assertFalse(analysis.exists())
+        self.assertNotIn(33,self.seasons())                    # 考情、复盘、战绩的季列表里都没有了
+        self.assertEqual((s['xp'],s['practice'],s['mock_practice']),(xp,practice,['33']))   # 学习历史、经验、记过的120分钟不扣不改
+        self.assertTrue((self.p.vault/'FB模考试卷复盘/板块复盘/第33季/01-政治理论.md').is_file())   # 原复盘笔记保留
+        rec=api.import_season_restore({'token':r['token']})['records'];self.assertTrue(rec['mocks'] and rec['analysis'])
+        s=self.state();self.assertEqual(s['mocks']['33']['score'],72.3);self.assertEqual(s['mocks']['33']['reviewed'],{'政治理论':[1]})
+        self.assertNotIn('33',s.get('mocks_hidden',[]));self.assertIn(33,self.seasons());self.assertTrue(analysis.is_file())
+        self.assertEqual(sum(b['name']=='第33季' for b in s['boss']),1)
+        self.assertIsNone(api.import_season_restore({'token':r['token']}).get('records'))        # 再恢复一次不会重复
+
+    def test_deleted_score_is_not_rewarded_twice_when_entered_again(self):
+        r=self.remove();xp=self.state()['xp']
+        with api.open_game() as g:
+            from rpg import mock
+            mock.save(g,dict(season=33,score=80))
+        s=self.state();self.assertEqual(s['xp'],xp);self.assertEqual(s['mocks']['33']['score'],80)    # 录分奖励只发一次
+        self.assertIn(33,self.seasons())                                                            # 重新录分后季又出现
+        out=api.import_season_restore({'token':r['token']})['records']
+        self.assertTrue(out['kept_new']);self.assertEqual(self.state()['mocks']['33']['score'],80)    # 恢复不覆盖删除后新录的成绩
+
+    def test_reimport_shows_the_season_again(self):
+        self.remove();self.assertNotIn(33,self.seasons())
+        with api.open_game() as g:
+            from rpg import mock;mock.on_import(g,33,credit=False)
+        self.assertIn(33,self.seasons())
+
+    def test_old_batches_without_record_copy_still_restore(self):
+        r=self.remove();(self.p.train/'导入回收'/r['token']/'状态.json').unlink()
+        out=api.import_season_restore({'token':r['token']});self.assertEqual(out['season'],33);self.assertNotIn('records',out)
+
+    # ---- 检查有成绩就更新
+    def clear_score(self):
+        with api.open_game() as g:g.state['mocks']['33'].pop('score',None);g.state['mocks']['33'].pop('score_source',None)
+
+    def test_check_records_estimate_when_no_score_and_does_not_double_reward(self):
+        self.clear_score();xp=self.state()['xp']
+        r=api.import_preview({'kind':'season','season':33})
+        self.assertEqual((r['score_sync']['action'],r['score_sync']['source'],r['saved_score']),('recorded','estimate',99.15))
+        s=self.state();self.assertEqual((s['mocks']['33']['score'],s['mocks']['33']['score_source']),(99.15,'estimate'))
+        self.assertEqual(s['mocks']['33']['reviewed'],{'政治理论':[1]})                  # 成绩单其他内容不被清掉
+        self.assertTrue(s['xp']>xp)                                                         # 第一次有分，按录入规则记大比
+        self.assertEqual(api.import_preview({'kind':'season','season':33})['score_sync']['action'],'same')
+        self.assertEqual(sum(b['name']=='第33季' for b in self.state()['boss']),1)         # 重复检查不重复记
+
+    def test_check_keeps_manual_score_but_updates_program_scores(self):
+        r=api.import_preview({'kind':'season','season':33});self.assertEqual((r['score_sync']['action'],r['score_sync']['source']),('kept','manual'))
+        self.assertEqual(self.state()['mocks']['33']['score'],72.3)                          # 自己录的优先，不覆盖
+        with api.open_game() as g:g.state['mocks']['33'].update(score=50,score_source='estimate')
+        r=api.import_preview({'kind':'season','season':33});self.assertEqual((r['score_sync']['action'],r['saved_score']),('updated',99.15))
+        with api.open_game() as g:g.state['mocks']['33'].update(score=60,score_source='html')
+        self.assertEqual(api.import_preview({'kind':'season','season':33})['score_sync']['action'],'kept')   # 估分不覆盖HTML报告分
+
+    def test_check_uses_html_reported_score_before_estimate(self):
+        self.clear_score()
+        with api.open_game() as g:g.state['mocks']['33']['html_import']={'reported_score':70.6}
+        r=api.import_preview({'kind':'season','season':33})
+        self.assertEqual((r['score_sync']['source'],self.state()['mocks']['33']['score']),('html',70.6))
+
+    def test_check_without_any_score_changes_nothing(self):
+        self.clear_score()
+        from rpg import mock_score
+        with patch.object(mock_score,'estimate',return_value=dict(ready=False,score=None,reason='自编',unknown=1,modules={})):
+            before=self.state();r=api.import_preview({'kind':'season','season':33})
+        self.assertEqual(r['score_sync']['action'],'none');self.assertNotIn('score',self.state()['mocks']['33']);self.assertEqual(before['xp'],self.state()['xp'])
+
