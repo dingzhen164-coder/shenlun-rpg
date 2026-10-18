@@ -1,7 +1,8 @@
 /* 自编HTML/资源ZIP的真实UI/API导入：不连接AI、不读真实资料；电脑和平板明暗。 */
 const {chromium}=require('playwright'),{spawn,execFileSync}=require('node:child_process'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1];
 const law=!fs.existsSync('rpg/html_mock.py');
+// 公考服务默认申论；本用例必须明确行测，不能依赖调用者传参。
+const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1]||(law?null:'行测');
 const data=law?null:JSON.parse(execFileSync('python3',['-c','import json;from tests.test_html_mock import body;print(json.dumps(body()))'],{env:process.env,encoding:'utf8'}));
 const srv=spawn('python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),...(law?['--merge-fixture']:[])],{env:process.env});let browser,active,log='';srv.stderr.on('data',b=>log+=b);
 const ready=new Promise((ok,no)=>{let text='';const t=setTimeout(()=>no(Error(log)),20000);srv.stdout.on('data',b=>{text+=b;const m=text.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(t);ok(m[1]);}});srv.on('exit',()=>{clearTimeout(t);no(Error(log));});});
