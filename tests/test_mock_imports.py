@@ -76,7 +76,7 @@ class MockImportsTest(unittest.TestCase):
                 self.assertIn('粉笔39季-001'.encode(),data);self.assertIn('粉笔333季-001'.encode(),data)
         status=api.import_status({});self.assertNotIn(33,[s['season'] for s in status['seasons']]);self.assertEqual(status['recycled'][0]['token'],r['token'])
         for rel,data in self.original.items():
-            if rel not in {str(Path(f).relative_to(self.p.vault)) for f in before} and not rel.endswith('存档/存档.json'):self.assertEqual((self.p.vault/rel).read_bytes(),data,rel)
+            if rel not in {str(Path(f).relative_to(self.p.vault)) for f in before} and not rel.replace('\\','/').endswith('存档/存档.json'):self.assertEqual((self.p.vault/rel).read_bytes(),data,rel)
         # 原复盘笔记仍可读取；删除同步移出本季考情与战绩（存档里的成绩单、大比成绩），恢复时一并还原。
         self.assertIn(33,[n for n,d in vault.seasons(self.p)])
         self.assertEqual(r['records']['score'],72.3)
