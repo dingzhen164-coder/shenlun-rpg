@@ -15,7 +15,7 @@ def management_fixture(p):
     paper(legacy,wrong={101})
     for file in legacy.glob('*.md'):
         # 自编完整选择题，银行题块与真实补导入解析结果一致。
-        text=file.read_text()
+        text=file.read_text(encoding='utf-8')
         import re
         text=re.sub(r'(### (\d+)\. [^\n]+\n)自编条件题，仅用于隔离测试。',lambda m:m[1]+'自编第'+m[2]+'题，仅用于隔离测试。\n'+''.join('- **%s.** 自编%s\n'%(k,k) for k in 'ABCD'),text)
         file.write_text(text,encoding='utf-8')
@@ -63,7 +63,7 @@ class MockImportsTest(unittest.TestCase):
             r=api.import_preview({'kind':'season','season':33});self.assertEqual(r['estimate']['score'],99.15);self.assertIn('缺图',r['preview_error'])
 
     def test_unknown_answers_are_not_counted_as_wrong(self):
-        f=self.legacy/'01-政治理论.md';f.write_text(f.read_text().replace('### 1. ✅','### 1. ⚪'),encoding='utf-8')
+        f=self.legacy/'01-政治理论.md';f.write_text(f.read_text(encoding='utf-8').replace('### 1. ✅','### 1. ⚪'),encoding='utf-8')
         r=api.import_preview({'kind':'season','season':33});self.assertIsNone(r['estimate']['score']);self.assertEqual(r['estimate']['unknown'],1)
 
     def test_remove_restore_exact_bytes_history_other_seasons_and_idempotence(self):
@@ -86,7 +86,7 @@ class MockImportsTest(unittest.TestCase):
     def test_restore_preserves_other_later_edits_but_refuses_changed_ids(self):
         r=self.remove();f=self.p.train/'题库/政治理论真题.md';extra='\n## 题目 自编后加-001\n### 题干\n后续自己的新题不能丢。\n'
         f.write_bytes(f.read_bytes()+extra.encode());api.import_season_restore({'token':r['token']})
-        self.assertIn('后续自己的新题不能丢。',f.read_text());self.assertIn('粉笔33季-001',f.read_text())
+        self.assertIn('后续自己的新题不能丢。',f.read_text(encoding='utf-8'));self.assertIn('粉笔33季-001',f.read_text(encoding='utf-8'))
         r=self.remove();f.write_bytes(f.read_bytes()+'\n## 题目 粉笔33季-001\n### 题干\n自编同号新内容，不可覆盖。\n'.encode());before=self.banks()
         with self.assertRaisesRegex(api.ApiError,'已有不同内容'):api.import_season_restore({'token':r['token']})
         self.assertEqual(before,self.banks())
@@ -115,14 +115,14 @@ class MockImportsTest(unittest.TestCase):
             return raw(file,data)
         with patch.object(mock_imports,'_atomic',side_effect=fail_once),self.assertRaises(api.ApiError):api.import_season_remove(dict(season=33,commit=True,digest=p['digest']))
         self.assertEqual(before,self.banks())
-        r=self.remove();folder=self.p.train/'导入回收'/r['token'];f=folder/'清单.json';meta=json.loads(f.read_text());meta['state']='prepared';f.write_text(json.dumps(meta),encoding='utf-8')
+        r=self.remove();folder=self.p.train/'导入回收'/r['token'];f=folder/'清单.json';meta=json.loads(f.read_text(encoding='utf-8'));meta['state']='prepared';f.write_text(json.dumps(meta),encoding='utf-8')
         self.assertTrue(api.import_status({})['recycled'][0]['recovery']);api.import_season_restore({'token':r['token']});self.assertEqual(before,self.banks())
 
     def test_pending_blocks_and_restore_io_failure_are_recoverable(self):
         pending=self.p.train/'题库/_待修/粉笔33季模考.md';pending.parent.mkdir(exist_ok=True)
         pending.write_text('## 题目 粉笔33季-999\n### 题干\n自编待修题。\n\n## 题目 粉笔39季-999\n### 题干\n自编其他季待修题。\n',encoding='utf-8')
         original=pending.read_bytes();before=self.banks();r=self.remove();self.assertEqual(r['removed'],131)
-        self.assertNotIn('粉笔33季-999',pending.read_text());self.assertIn('粉笔39季-999',pending.read_text())
+        self.assertNotIn('粉笔33季-999',pending.read_text(encoding='utf-8'));self.assertIn('粉笔39季-999',pending.read_text(encoding='utf-8'))
         removed=self.banks();pending_removed=pending.read_bytes();raw=mock_imports._atomic;failed=[]
         def fail_once(file,data):
             if file.name=='资料分析真题.md' and not failed:failed.append(True);raise OSError('自编恢复磁盘失败')
@@ -132,9 +132,9 @@ class MockImportsTest(unittest.TestCase):
         api.import_season_restore({'token':r['token']});self.assertEqual(before,self.banks());self.assertEqual(pending.read_bytes(),original)
 
     def test_path_symlink_and_manifest_tampering_rejected(self):
-        outside=self.root/'outside.md';outside.write_text('自编外部资料不能修改。')
+        outside=self.root/'outside.md';outside.write_text('自编外部资料不能修改。', encoding='utf-8')
         link=self.p.train/'题库/外部真题.md';link.symlink_to(outside)
         with self.assertRaises(api.ApiError):api.import_season_remove({'season':33})
-        link.unlink();r=self.remove();folder=self.p.train/'导入回收'/r['token'];f=folder/'清单.json';meta=json.loads(f.read_text());meta['entries'][0]['path']='../outside.md';f.write_text(json.dumps(meta),encoding='utf-8');before=self.banks()
+        link.unlink();r=self.remove();folder=self.p.train/'导入回收'/r['token'];f=folder/'清单.json';meta=json.loads(f.read_text(encoding='utf-8'));meta['entries'][0]['path']='../outside.md';f.write_text(json.dumps(meta),encoding='utf-8');before=self.banks()
         with self.assertRaises(api.ApiError):api.import_season_restore({'token':r['token']})
-        self.assertEqual(before,self.banks());self.assertEqual(outside.read_text(),'自编外部资料不能修改。')
+        self.assertEqual(before,self.banks());self.assertEqual(outside.read_text(encoding='utf-8'),'自编外部资料不能修改。')
