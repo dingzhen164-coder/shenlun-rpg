@@ -34,6 +34,16 @@ def main():
             vaults[s] = str(v)
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
+        if '--skillbook-fixture' in sys.argv:
+            # 藏经阁·心法：自编 skill（行测 xue-rui-argument-logic；申论 shenlun-xiaoti / shenlun-dawenti），不读真实资料。
+            for s2, names in (('行测', ('xue-rui-argument-logic',)), ('申论', ('shenlun-xiaoti', 'shenlun-dawenti'))):
+                for nm in names:
+                    d = Path(vaults[s2]) / 'copilot/skills' / nm
+                    (d / 'chapters').mkdir(parents=True, exist_ok=True); (d / 'scripts').mkdir(exist_ok=True)
+                    (d / 'SKILL.md').write_text('# 自编入口\n先识别题型，再用方法。\n- 第一步：找条件\n- 第二步：排除干扰', encoding='utf-8')
+                    (d / 'cheatsheet.md').write_text('# 速查\n口诀：自编口诀一', encoding='utf-8')
+                    (d / 'chapters/01.md').write_text('## 第一章\n自编方法正文。', encoding='utf-8')
+                    (d / 'scripts/run.md').write_text('脚本说明不读', encoding='utf-8')
         if '--art-fixture' in sys.argv:
             # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
             import base64

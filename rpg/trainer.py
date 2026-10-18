@@ -24,7 +24,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import question_bank, ai, idioms, prompts, skeleton, subjects, tutor, vault, wording, peak_tutors
+from . import question_bank, ai, idioms, prompts, skeleton, skillbook, subjects, tutor, vault, wording, peak_tutors
 
 SESSIONS = {}
 FINISHED = {}   # 刚结束的会话 {id: (类型, 结束时间)}：结束后看解析的几分钟也算修炼时间
@@ -569,7 +569,7 @@ def _feynman(g, s, text):
 
 def _example(g, s, text):
     it = _item(g, s["iid"])
-    digest = vault.skill_digest(g.paths, g.boards[s["board"]].get("skill"))
+    digest = _plain_digest(g, s["board"])
     r = ai.chat_json(prompts.example_grade(peak_tutors.persona(g, s["board"]), s["board"], it, text, digest))
     if type(r.get("通过")) is not bool:
         raise TrainError("举例判分格式不完整，尚未记录，请重试")
@@ -622,9 +622,23 @@ def _skill_name(g, board):
     return g.boards.get(board, {}).get("skill") or SIDE_SKILLS.get(board) or ""
 
 
-def _skill_digest(g, board):
+def _tutor_material(g, board):
+    """讲题资料 (文字, 读到的清单)：有“我的版本”（藏经阁·心法）就用它，没有则走原 skill（与 3.3 一致）"""
     skill = _skill_name(g, board)
-    return vault.skill_for_tutor(g.paths, skill)[0] if skill else ""
+    mine = skillbook.tutor_material(g.paths, board, skill)
+    if mine is not None:
+        return mine
+    return vault.skill_for_tutor(g.paths, skill) if skill else ("", [])
+
+
+def _skill_digest(g, board):
+    return _tutor_material(g, board)[0]
+
+
+def _plain_digest(g, board):
+    """例题评分、复盘等用的精简资料：有我的版本用它，没有走原 skill 的 skill_digest"""
+    mine = skillbook.tutor_material(g.paths, board, _skill_name(g, board))
+    return mine[0] if mine is not None else vault.skill_digest(g.paths, g.boards.get(board, {}).get("skill"))
 
 
 def _discuss_ask(g, s, text):
@@ -1428,7 +1442,7 @@ GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整�
 def _explain_group(g, board, material, items):
     """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, board)
-    digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ("", [])
+    digest, used = _tutor_material(g, board)
     try:
         text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest, skill), temperature=0.5, max_tokens=2800)
     except ai.AIError as e:
@@ -1471,7 +1485,7 @@ def _bank_group_explain(g, s, run, i, mat):
 def _explain(g, q, r):
     """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, q['board'])
-    digest, used = vault.skill_for_tutor(g.paths, skill) if skill else ('', [])
+    digest, used = _tutor_material(g, q['board'])
     try:
         text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
     except ai.AIError as e:
@@ -1531,7 +1545,7 @@ def _bank_reply(g, s, text):
     q = run["questions"][run["pos"]]
     method_ok, feedback = None, "未连接AI，请提交后对照解析自行核对方法；正确率只表示答案正确率。"
     if ai.available():
-        digest = vault.skill_digest(g.paths, g.boards.get(s["board"], {}).get("skill"))
+        digest = _plain_digest(g, s["board"])
         r = ai.chat_json(prompts.bank_method_grade(peak_tutors.persona(g, q["board"]), s["board"], q, text, digest))
         dims = r.get("维度")
         if type(r.get("通过")) is not bool or not isinstance(dims, dict) or any(

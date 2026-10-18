@@ -599,15 +599,17 @@ const views = {
   },
 
   async skeleton() {
-    if (isSL() && !["cards", "bank", "jiaocai", "mindmaps"].includes(LIB.tab)) LIB.tab = "cards";
+    if (isSL() && !["cards", "bank", "jiaocai", "mindmaps", "skillbook"].includes(LIB.tab)) LIB.tab = "cards";
     const tabs = `<div class="lib-head"><h2>${esc(NAV('skeleton'))}</h2><div class="lib-tabs">
       <button class="${LIB.tab === 'mindmaps' ? 'on' : ''}" data-libtab="mindmaps">🌿 知识导图</button>
       <button class="${LIB.tab === 'cards' ? 'on' : ''}" data-libtab="cards">📗 ${esc(W('yj'))} · 知识点</button>
       ${isSL() ? `<button class="${LIB.tab === 'bank' ? 'on' : ''}" data-libtab="bank">📑 题库 · 采分点</button>` : `<button class="${LIB.tab === 'yujian' ? 'on' : ''}" data-libtab="yujian">📖 经卷 · 题库</button>
       <button class="${LIB.tab === 'idioms' ? 'on' : ''}" data-libtab="idioms">📘 词录 · 成语实词</button>`}
+      <button class="${LIB.tab === 'skillbook' ? 'on' : ''}" data-libtab="skillbook">📘 ${esc(W('skillbook'))}</button>
       <button class="${LIB.tab === 'jiaocai' ? 'on' : ''}" data-libtab="jiaocai">📜 功法 · 教材</button></div></div>`;
     if (LIB.tab === 'bank' && window.SHENLUN) return tabs + await SHENLUN.libHtml();
     if (LIB.tab === 'idioms') return tabs + `<div class="id-root">${await IDIOMS.render()}</div>`;
+    if (LIB.tab === 'skillbook') return tabs + await SKILLBOOK.render();
     if (LIB.tab === 'yujian') return tabs + await yujianHtml() + importCardHtml();
     if (LIB.tab === 'jiaocai') return tabs + await jiaocaiHtml();
     if (LIB.tab === 'mindmaps') return tabs + await MINDMAP.hubHtml(null, true);
@@ -1472,6 +1474,7 @@ function bindLibrary() {
 }
 function bindSkeleton() {
   bindLibrary();
+  window.SKILLBOOK?.bind($("#view"));
   window.MINDMAP?.bindHub($("#view"));
   if ($('#importCard')) $('#importCard').ontoggle = (e) => { if (e.target.open) loadImport(); };
   document.querySelectorAll("[data-skel]").forEach((b) => (b.onclick = () =>

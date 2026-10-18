@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -634,6 +634,96 @@ def bank_count(body):
         with g.paths.rules.open("a", encoding="utf-8", newline="\n") as f:
             f.write("\n- 实战每组题数: %s\n" % n)
     return {"count": n}
+
+
+# ---------------------------------------------------------------- 藏经阁·心法（skill 可见、可随时修改，见 rpg/skillbook.py）
+def _skill_boards(g):
+    """[(板块, 原skill名)]：板块表里的全部板块，加上只看正确率的副线板块（如常识判断）"""
+    names = list(dict.fromkeys(list(g.boards) + list(getattr(g.rules, "side", {}) or {})))
+    return [(b, trainer._skill_name(g, b)) for b in names]
+
+
+def _skill_call(fn, *args):
+    try:
+        return fn(*args)
+    except skillbook.SkillError as e:
+        raise ApiError(str(e))
+
+
+def skillbook_view(body):
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            return {"boards": []}
+        return {"boards": skillbook.overview(g.paths, _skill_boards(g))}
+
+
+def _skill_source(g, board):
+    for b, source in _skill_boards(g):
+        if b == board:
+            return source
+    raise ApiError("没有这个板块")
+
+
+def skillbook_file(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        return _skill_call(skillbook.read_file, g.paths, board, _skill_source(g, board), str(body.get("path") or ""))
+
+
+def skillbook_create(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        source = _skill_source(g, board)
+        how = body.get("how")
+        if how == "copy":
+            return _skill_call(skillbook.create_from_source, g.paths, board, source)
+        if how == "template":
+            return _skill_call(skillbook.create_template, g.paths, board)
+        if how == "file":   # 在我的版本里新建一个空文件
+            if not skillbook.has_own(g.paths, board):
+                raise ApiError("请先创建我的版本")
+            return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), str(body.get("text") or ""), "")
+        raise ApiError("不知道怎么创建")
+
+
+def skillbook_save(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        if not skillbook.has_own(g.paths, board):
+            raise ApiError("请先创建我的版本")
+        return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), body.get("text"), str(body.get("base") or ""))
+
+
+def skillbook_delete(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.delete, g.paths, board, str(body.get("path") or ""), str(body.get("base") or ""))
+
+
+def skillbook_rename(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.rename, g.paths, board, str(body.get("path") or ""), str(body.get("new_path") or ""), str(body.get("base") or ""))
+
+
+def skillbook_history(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        path, vid = str(body.get("path") or ""), body.get("id")
+        if vid:
+            return {"text": _skill_call(skillbook.history_text, g.paths, board, path, vid)}
+        return {"versions": _skill_call(skillbook.history, g.paths, board, path)}
+
+
+def skillbook_restore(body):
+    with open_game(save=False) as g:
+        board = str(body.get("board") or "")
+        _skill_source(g, board)
+        return _skill_call(skillbook.restore, g.paths, board, str(body.get("path") or ""), str(body.get("id") or ""), str(body.get("base") or ""))
 
 
 def skeletons(body):
@@ -1220,6 +1310,14 @@ ROUTES = {
     ("POST", "/api/import/split"): import_split,
     ("POST", "/api/import/install_pymupdf"): import_install,
     ("GET", "/api/skeletons"): skeletons,
+    ("GET", "/api/skillbook"): skillbook_view,
+    ("POST", "/api/skillbook/file"): skillbook_file,
+    ("POST", "/api/skillbook/create"): skillbook_create,
+    ("POST", "/api/skillbook/save"): skillbook_save,
+    ("POST", "/api/skillbook/delete"): skillbook_delete,
+    ("POST", "/api/skillbook/rename"): skillbook_rename,
+    ("POST", "/api/skillbook/history"): skillbook_history,
+    ("POST", "/api/skillbook/restore"): skillbook_restore,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,
