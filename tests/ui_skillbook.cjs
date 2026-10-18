@@ -23,7 +23,7 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   // 0 书架：每个板块一本会浮动的古籍；整块铺满内容区（不再只占中间一列）
   const nBoards=await page.evaluate(async()=>(await api('/api/skillbook')).boards.length);
   assert.equal(await page.locator('.skb-tome').count(),nBoards,'一个板块一本书');
-  assert((await page.locator('.skb-tome').first().evaluate(e=>getComputedStyle(e).animationName)).includes('tome-float'),'有浮动动画');
+  if(subject==='行测')assert((await page.locator('.skb-tome').first().evaluate(e=>getComputedStyle(e).animationName)).includes('tome-float'),'有浮动动画');  // 申论是官场风格：档案盒不浮动
   const wide=await page.evaluate(()=>{const r=document.querySelector('#view .scene-panel').getBoundingClientRect();return r.width/innerWidth;});
   assert(wide>0.9,'藏经阁铺满宽度 '+wide);
   await page.locator('.skb-tome').first().click({force:true});await page.waitForSelector('.skb-root.detail .skb-chip');
