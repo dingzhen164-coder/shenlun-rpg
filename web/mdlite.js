@@ -128,6 +128,7 @@
 
   /** 文件的友好名：book-to-skill 的固定文件名和章节标题换成中文，其余用标题或原文件名 */
   function friendly(rel, title) {
+    if (String(rel).startsWith("蒸馏/")) return String(rel).slice(3).replace(/\.md$/i, "");        // 蒸馏版文件：03-考点/补全逻辑
     const base = String(rel).split("/").pop();
     const fixed = { "SKILL.md": "入口", "cheatsheet.md": "速查表", "glossary.md": "术语表", "patterns.md": "技巧库", "变更记录.md": "变更记录" };
     if (fixed[rel] || (fixed[base] && !rel.includes("/"))) return fixed[rel] || fixed[base];

@@ -7,7 +7,7 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const POS = "skillbook-pos";
   let DATA = [], LOADED = false, SHELF = true, PLANS = {}, BOARD = "", FILE = "", CUR = null, MODE = "view", DRAFT = "", HIST = null, PREVIEW = null, NOTE = "", BUSY = false;
-  let PROPS = [], AI = false;
+  let PROPS = [], AI = false, TAB = "files", PROPS_OPEN = false;
   const name = () => (window.W ? W("skillbook") : "心法");
   const board = () => DATA.find((b) => b.board === BOARD) || null;
   const plan = () => PLANS[BOARD] || null;
@@ -91,15 +91,35 @@
       <button class="ghost small" data-skb="rename" ${CUR && FILE !== "SKILL.md" ? "" : "disabled"}>改名</button><button class="ghost small" data-skb="delete" ${CUR ? "" : "disabled"}>🗑 删除</button>${learn}`;
   }
 
+  // 修改前后对比（按行）：只给“整个文件替换”的建议用，文件不大，简单的最长公共子序列就够
+  function lineDiff(a, b) {
+    const x = String(a).split("\n"), y = String(b).split("\n");
+    if (x.length * y.length > 160000) return `<div class="skb-add">${esc(b)}</div>`;
+    const L = Array.from({ length: x.length + 1 }, () => new Array(y.length + 1).fill(0));
+    for (let i = x.length - 1; i >= 0; i--) for (let j = y.length - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < x.length && j < y.length) {
+      if (x[i] === y[j]) { out.push(`<div class="skb-same">${esc(x[i])}</div>`); i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) out.push(`<div class="skb-del">− ${esc(x[i++])}</div>`);
+      else out.push(`<div class="skb-add">+ ${esc(y[j++])}</div>`);
+    }
+    while (i < x.length) out.push(`<div class="skb-del">− ${esc(x[i++])}</div>`);
+    while (j < y.length) out.push(`<div class="skb-add">+ ${esc(y[j++])}</div>`);
+    return out.join("");
+  }
+
   function proposals() {
     if (!PROPS.length) return "";
     return `<div class="skb-props" role="region" aria-label="待审建议">${PROPS.map((p) => `<div class="skb-prop" data-pid="${esc(p.id)}">
       <div class="skb-prop-h"><b>📝 ${esc(p.summary || "建议")}</b><span class="small faint">${esc(p.created)}${p.source?.label ? " · " + esc(p.source.label) : ""}</span></div>
-      ${p.edits.map((e, i) => `<label class="skb-edit ${e.done ? "done" : ""}"><input type="checkbox" data-skb-pick="${esc(p.id)}" value="${i}" ${e.done ? "disabled" : "checked"}>
-        <span><b>${esc(e.path)}</b> <small>${e.action === "new" ? "新建（已有同名不覆盖）" : "追加到末尾"}${e.done ? " · 已采纳" : ""}</small>
-        ${e.reason ? `<span class="small muted">${esc(e.reason)}</span>` : ""}<details><summary class="small">看内容</summary><div class="skb-diff md">${read(e.text)}</div></details></span></label>`).join("")}
+      ${(p.meta?.changelog || []).length ? `<div class="small muted">${p.meta.changelog.map(esc).join("；")}</div>` : ""}
+      ${p.edits.length > 6 ? `<div class="skb-bulk small"><button class="ghost small" data-skb="pick-all" data-pid="${esc(p.id)}">全选</button><button class="ghost small" data-skb="pick-none" data-pid="${esc(p.id)}">全不选</button></div>` : ""}
+      ${p.edits.map((e, i) => `<label class="skb-edit ${e.done ? "done" : ""}"><input type="checkbox" data-skb-pick="${esc(p.id)}" value="${i}" ${e.done || e.flag ? "" : "checked"} ${e.done ? "disabled" : ""}>
+        <span><b>${esc(e.path)}</b> <small>${e.action === "new" ? "新建（已有同名不覆盖）" : e.action === "replace" ? "整个文件更新" : "追加到末尾"}${e.done ? " · 已采纳" : ""}</small>
+        ${e.flag ? `<span class="small skb-warn">⚠ ${esc(e.flag)}</span>` : ""}${e.reason ? `<span class="small muted">${esc(e.reason)}</span>` : ""}
+        <details><summary class="small">${e.action === "replace" ? "看修改前后" : "看内容"}</summary>${e.action === "replace" ? `<div class="skb-diff skb-lines">${lineDiff(e.before, e.text)}</div>` : `<div class="skb-diff md">${read(e.text)}</div>`}</details></span></label>`).join("")}
       <div class="skb-acts"><button class="primary small" data-skb="accept" data-pid="${esc(p.id)}">采纳勾选的</button><button class="ghost small" data-skb="dismiss" data-pid="${esc(p.id)}">忽略这条</button>
-        <span class="small faint">采纳前不会改任何文件；采纳后写进变更记录，随时可以回滚</span></div></div>`).join("")}</div>`;
+        <span class="small faint">采纳前不会改任何文件；采纳后写进变更记录，随时可以回滚${["distill", "update", "diagnose"].includes(p.kind) ? "，并自动存成新版本" : ""}</span></div></div>`).join("")}</div>`;
   }
 
   function body(b) {
@@ -140,10 +160,12 @@
     if (!DATA.length) return '<div class="card"><p class="muted">还没有连接资料库，或这个科目没有板块。</p></div>';
     const b = board();
     if (SHELF || !b) return shelf();
+    const dist = window.DISTILL?.enabled() ? `<div class="skb-tabs" role="tablist"><button role="tab" class="${TAB === "files" ? "on" : ""}" data-skb-tab="files">📖 心法文件</button><button role="tab" class="${TAB === "distill" ? "on" : ""}" data-skb-tab="distill">🎓 蒸馏</button></div>` : "";
+    const inDist = dist && TAB === "distill";
     return `<aside class="skb-side card" aria-label="文件">${side(b)}</aside>
-      <section class="skb-main card"><div class="skb-head"><h3>${esc(b.board)} · ${esc(name())}${MODE === "view" && FILE ? ` <small class="muted">${esc(nice(FILE, plan()?.items.find((i) => i.rel === FILE)?.title))}</small>` : ""}</h3><div class="skb-tools">${MODE === "view" ? toolbar(b) : ""}</div></div>
-        ${NOTE ? `<div class="skb-note" role="status">${esc(NOTE)}</div>` : ""}${MODE === "view" ? banner(b) : ""}${MODE === "view" ? proposals() : ""}
-        <div class="skb-body">${body(b)}</div></section>`;
+      <section class="skb-main card"><div class="skb-head"><h3>${esc(b.board)} · ${esc(name())}${!inDist && MODE === "view" && FILE ? ` <small class="muted">${esc(nice(FILE, plan()?.items.find((i) => i.rel === FILE)?.title))}</small>` : ""}</h3>${dist}<div class="skb-tools">${!inDist && MODE === "view" ? toolbar(b) : ""}</div></div>
+        ${NOTE ? `<div class="skb-note" role="status">${esc(NOTE)}</div>` : ""}${!inDist && MODE === "view" ? banner(b) : ""}${inDist ? (PROPS.length ? `<details class="skb-propbar" ${PROPS_OPEN ? "open" : ""}><summary><b>📝 ${PROPS.length} 条待审建议</b>（蒸馏 / 更新生成的内容在这里勾选采纳）</summary>${proposals()}</details>` : "") : MODE === "view" ? proposals() : ""}
+        <div class="skb-body">${inDist ? '<div class="dst-root" id="dstRoot"></div>' : body(b)}</div></section>`;
   }
 
   function paint() {
@@ -151,6 +173,8 @@
     if (root) { root.className = "skb-root " + (SHELF || !board() ? "shelf" : "detail"); root.innerHTML = html(); }
     const t = document.getElementById("skbText");
     if (t) t.oninput = () => { DRAFT = t.value; };
+    const dst = document.getElementById("dstRoot");
+    if (dst && window.DISTILL) DISTILL.mount(dst, BOARD, { note: (m) => { NOTE = m; const n = document.querySelector("#skbRoot .skb-note"); if (n) n.textContent = m; else paint(); }, refresh: async (o) => { if (o?.open) PROPS_OPEN = true; await reload(FILE); } });
   }
 
   function paintSide() {                           // 读取情况算好后只刷新左栏和标题，不动正在写的文本框
@@ -188,7 +212,11 @@
         const pid = el.dataset.pid, picks = [...document.querySelectorAll(`[data-skb-pick="${pid}"]:checked`)].map((x) => Number(x.value));
         const r = await api("/api/skillbook/accept", { board: b.board, id: pid, picks });
         await reload(r.applied[0] || FILE);
-        NOTE = (r.applied.length ? `已采纳：${r.applied.join("、")}，下一次解惑就按新内容讲。` : "没有写入任何文件。") + (r.skipped.length ? " 跳过：" + r.skipped.join("；") : "");
+        NOTE = (r.applied.length ? `已采纳：${r.applied.length > 4 ? r.applied.length + " 个文件" : r.applied.join("、")}，下一次解惑就按新内容讲。` : "没有写入任何文件。") + (r.version ? ` 已存成版本 v${r.version}。` : "") + (r.skipped.length ? " 跳过：" + r.skipped.join("；") : "");
+        if (window.DISTILL) DISTILL.invalidate();
+      } else if (kind === "pick-all" || kind === "pick-none") {
+        document.querySelectorAll(`[data-skb-pick="${el.dataset.pid}"]:not(:disabled)`).forEach((x) => { x.checked = kind === "pick-all"; });
+        return;
       } else if (kind === "dismiss") {
         if (!confirm("忽略这条建议？")) return;
         await api("/api/skillbook/dismiss", { board: b.board, id: el.dataset.pid }); await loadProps(); NOTE = "已忽略。";
@@ -241,11 +269,14 @@
           BOARD = bt.dataset.skbBoard; MODE = "view"; NOTE = ""; SHELF = false;
           const fp = loadPos(); await loadFile(board().files.includes(fp.f) && BOARD === fp.b ? fp.f : board().files[0]); await loadProps(); paint(); loadPlan().then(paintSide); return;
         }
+        const tab = e.target.closest("[data-skb-tab]");
+        if (tab) { TAB = tab.dataset.skbTab; NOTE = ""; paint(); return; }
         const f = e.target.closest("[data-skb-file]");
-        if (f) { MODE = "view"; NOTE = ""; await loadFile(f.dataset.skbFile); paint(); return; }
+        if (f) { MODE = "view"; NOTE = ""; TAB = "files"; await loadFile(f.dataset.skbFile); paint(); return; }
         const a = e.target.closest("[data-skb]");
         if (a && !a.disabled) act(a.dataset.skb, a);
       };
+      root.addEventListener("toggle", (e) => { if (e.target.classList?.contains("skb-propbar")) PROPS_OPEN = e.target.open; }, true);
       root.onkeydown = (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && MODE === "edit") { e.preventDefault(); act("save"); }
       };

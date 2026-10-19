@@ -29,7 +29,9 @@ DIR = "技能"
 HIST = ".历史"
 TUTOR_LIMIT = vault.TUTOR_LIMIT          # 讲题时给师傅的资料上限（字），与旧逻辑同一个数
 MAX_FILE = 200_000                         # 单个文件上限（字）
-MAX_FILES = 60                             # 每个板块最多的文件数
+MAX_FILES = 150                            # 每个板块最多的文件数（蒸馏版一张卡一个文件，会比较多）
+DISTILL = "蒸馏"                            # 蒸馏版文件放在 训练/技能/<板块>/蒸馏/ 下（见 distill.py）
+SETTINGS = ".设置.json"
 MAX_DEPTH = 3                              # 相对路径最多几层（含文件名）
 KEEP_HISTORY = 50                          # 每个文件最多留几份历史
 BAD_NAME = re.compile(r'[\\:*?"<>|\x00-\x1f]')
@@ -142,8 +144,38 @@ def own_files(paths, board):
 
 
 def has_own(paths, board):
+    """训练/技能 里已经有心法：有 SKILL.md，或者有蒸馏版文件"""
     try:
-        return (board_dir(paths, board) / "SKILL.md").is_file()
+        d = board_dir(paths, board)
+    except SkillError:
+        return False
+    if (d / "SKILL.md").is_file():
+        return True
+    return (d / DISTILL).is_dir() and any((d / DISTILL).rglob("*.md"))
+
+
+def board_settings(paths, board):
+    """每个板块自己的小设置（训练/技能/<板块>/.设置.json）：only_distilled = 讲题只读蒸馏版"""
+    d = board_dir(paths, board) / SETTINGS
+    data = _load_json(d) if d.is_file() else None
+    return data if isinstance(data, dict) else {}
+
+
+def set_board_setting(paths, board, key, value):
+    data = board_settings(paths, board)
+    data[key] = value
+    _atomic_any(board_dir(paths, board) / SETTINGS, data)
+    _PLAN.clear()
+    return data
+
+
+def only_distilled(paths, board):
+    """讲题只读蒸馏版：有蒸馏版文件，并且（没有复制过原 skill 的 SKILL.md，或者设置里没关掉——默认就是只读蒸馏版）"""
+    try:
+        d = board_dir(paths, board)
+        if not (d / DISTILL).is_dir() or not any((d / DISTILL).rglob("*.md")):
+            return False
+        return not (d / "SKILL.md").is_file() or bool(board_settings(paths, board).get("only_distilled", True))
     except SkillError:
         return False
 
@@ -202,15 +234,18 @@ def reading_plan(paths, board, source):
             total += n
             parts.append("=== %s ===\n%s" % (label, text))
 
+    only = m == "mine" and only_distilled(paths, board)
     if m == "mine":
         d = board_dir(paths, board)
         for rel in own_files(paths, board):
+            if only and not rel.startswith(DISTILL + "/"):
+                continue
             take(rel, rel, _read(d / rel), "method")
     elif m == "source":
         d = vault.skill_dir(paths, source)
         for rel in source_files(paths, source):
             take(rel, rel, _read(d / rel), "method")
-    if m != "none" and vault.skill_dir(paths, source):
+    if m != "none" and not only and vault.skill_dir(paths, source):
         # 原 skill 引用的库内资料：知识在这里，随版本一起读（与 3.3 行为一致）
         _, refs = vault.skill_material(paths, source)
         for ref in refs:
@@ -446,6 +481,7 @@ def create_template(paths, board):
 # ================================================================ 待审建议（整理向导 / 记入心法 生成，用户逐条采纳后才写入）
 PENDING = ".待审"
 MAX_EDITS = 6
+MAX_EDITS_DISTILL = 120
 MAX_EDIT_TEXT = 12000
 
 
@@ -453,15 +489,16 @@ def _pend_dir(paths):
     return root(paths) / PENDING
 
 
-def _clean_edits(edits, allowed_new=None):
-    """校验 AI 给的修改：只允许 append（追加）和 new（新建），路径合法、文字不空不超长；不允许覆盖或删除"""
+def _clean_edits(edits, allowed_new=None, max_edits=MAX_EDITS, allow_replace=False):
+    """校验修改：AI 给的只允许 append（追加）和 new（新建）；蒸馏版的更新（程序生成）还允许 replace（整个文件换成新内容，
+    带打开时的版本号 base，别处改过就不覆盖）。路径合法、文字不空不超长；不允许删除"""
     out = []
     for e in edits or []:
         if not isinstance(e, dict):
             continue
         action = e.get("action")
         text = str(e.get("text") or "").strip()
-        if action not in ("append", "new") or not text:
+        if action not in ("append", "new") + (("replace",) if allow_replace else ()) or not text:
             continue
         try:
             rel = _rel(e.get("path"))
@@ -469,12 +506,16 @@ def _clean_edits(edits, allowed_new=None):
             continue
         if allowed_new is not None and action == "new" and rel not in allowed_new:
             continue
-        out.append({"path": rel, "action": action, "text": text[:MAX_EDIT_TEXT], "reason": str(e.get("reason") or "")[:300],
-                    "done": False})
-    return out[:MAX_EDITS]
+        item = {"path": rel, "action": action, "text": text[:MAX_EDIT_TEXT], "reason": str(e.get("reason") or "")[:300], "done": False}
+        if action == "replace":
+            item.update(base=str(e.get("base") or "")[:40], before=str(e.get("before") or "")[:MAX_EDIT_TEXT], flag=str(e.get("flag") or "")[:100])
+        elif e.get("card"):
+            item["card"] = str(e["card"])[:40]
+        out.append(item)
+    return out[:max_edits]
 
 
-def add_proposal(paths, board, kind, summary, edits, source=None, key=""):
+def add_proposal(paths, board, kind, summary, edits, source=None, key="", meta=None):
     """保存一条待审建议；同一个 key（同一来源同一内容）已有未处理的就直接返回它，不重复保存。"""
     _board_name(board)
     d = _pend_dir(paths)
@@ -482,12 +523,15 @@ def add_proposal(paths, board, kind, summary, edits, source=None, key=""):
         old = _load_json(p)
         if old and key and old.get("board") == board and old.get("key") == key:
             return old
-    edits = _clean_edits(edits)
+    big = kind in ("distill", "update", "diagnose")
+    edits = _clean_edits(edits, max_edits=MAX_EDITS_DISTILL if big else MAX_EDITS, allow_replace=big)
     if not edits:
         raise SkillError("没有可用的修改建议")
     pid = "%s-%s" % (time.strftime("%Y%m%d%H%M%S"), hashlib.sha1((board + str(time.time()) + summary).encode("utf-8")).hexdigest()[:6])
     data = {"id": pid, "board": board, "kind": kind, "summary": str(summary or "")[:200], "source": source or {}, "key": key,
             "created": time.strftime("%Y-%m-%d %H:%M"), "edits": edits}
+    if meta:
+        data["meta"] = meta
     _atomic_any(d / (pid + ".json"), data)
     return data
 
@@ -560,12 +604,20 @@ def accept(paths, board, source, pid, picks):
     chosen = [i for i in (picks or []) if isinstance(i, int) and 0 <= i < len(edits) and not edits[i].get("done")]
     if not chosen:
         raise SkillError("请先勾选要采纳的修改")
-    ensure_own(paths, board, source)
+    kind = data.get("kind")
+    if kind not in ("distill", "update", "diagnose"):
+        ensure_own(paths, board, source)                 # 蒸馏版的文件放在自己的子目录里，不需要先复制原 skill
     applied, skipped = [], []
     for i in chosen:
         e = edits[i]
         target = _file(paths, board, e["path"])
-        if e["action"] == "new" or not target.is_file():
+        if e["action"] == "replace" and target.is_file():
+            cur = _read(target)
+            if e.get("base") and e["base"] != _rev(cur):
+                skipped.append("%s（生成建议后这个文件又被改过，没有覆盖）" % e["path"])
+                continue
+            save(paths, board, e["path"], e["text"].rstrip("\n") + "\n", _rev(cur))
+        elif e["action"] in ("new", "replace") or not target.is_file():
             if target.is_file():
                 skipped.append("%s（已有同名文件，没有覆盖）" % e["path"])
                 continue
@@ -575,6 +627,10 @@ def accept(paths, board, source, pid, picks):
             save(paths, board, e["path"], cur.rstrip("\n") + "\n\n" + e["text"].rstrip("\n") + "\n", _rev(cur))
         e["done"] = True
         applied.append(e["path"])
+    version = None
+    if applied and kind in ("distill", "update", "diagnose"):
+        from . import distill
+        version = distill.after_accept(paths, board, data, [edits[i] for i in chosen if edits[i].get("done")])
     if applied:
         src = data.get("source") or {}
         change_log(paths, board, "%s 采纳「%s」→ %s%s" % (time.strftime("%Y-%m-%d %H:%M"), data.get("summary", ""), "、".join(applied),
@@ -583,4 +639,4 @@ def accept(paths, board, source, pid, picks):
         f.unlink()
     else:
         _atomic_any(f, data)
-    return {"applied": applied, "skipped": skipped, "left": sum(not e.get("done") for e in edits)}
+    return {"applied": applied, "skipped": skipped, "left": sum(not e.get("done") for e in edits), "version": version}

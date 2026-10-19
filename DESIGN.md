@@ -850,6 +850,22 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - **接口**：`POST /api/skillbook/plan|organize|proposals|accept|dismiss`（3.4.4 起；`/api/skillbook` 只给书架概况，`plan` 才算读取情况）。
 - 法考不共用本功能：法考没有 skill，见 fakao-rpg 的 3.4 方案（知识点定位与“我的批注”）。
 
+## 3.5 心法蒸馏：素材 → 卡片 → 版本 → 检验（3.5.0 + 3.5.1）
+
+用户方案见对话（听课逐字稿 / 习题册解题过程 / 自己的话 → 蒸馏成心法；能更新；能用题检验）。只做行测（`api._dboard` 非行测报错；前端 `DISTILL.enabled` 用 `isSL()`，不要直接比较科目名——申论的静态文字会把“行测”换成“申论”）。
+
+- **模块**：`rpg/distill.py`（存储与程序逻辑，不调 AI）、`rpg/distill_ai.py`（提示词 + AI 步骤 + 提示词包 / 导入）、`web/distill.js`（界面，由 `skillbook.js` 在「🎓 蒸馏」页签里 mount）、`tests/test_distill.py`、`tests/ui_distill.cjs`。
+- **存放**（`训练/技能/<板块>/`，点开头的目录不当心法读）：`.素材/<id>.json`（原文 + 片段起止下标）、`.卡片/<id>.json`、`.版本/<号>/{manifest.json, files/}`、`.检验/{测试集.json, run-*.json, result-*.json}`、`.设置.json`；蒸馏版文件在 `蒸馏/` 下：00-总流程、01-总纲、02-识别信号、03-考点/*、04-丑的选项、05-例题/*。
+- **切分**：AI 只给每个片段的类型 + 起止原文各一句，`distill.locate` 在原文里定位（只比较汉字字母数字，标点空白不影响；找不到完整的退到开头 / 结尾 12、8、6 个字），所以不会让 AI 重写原文；长稿按 `SEG_TEXT=9000` 字分块，重跑一块只换这一块的片段；`skipped_ranges` 给出没被盖住的文字供检查。
+- **卡片**：`validate_card`（考点 / 例题 / 总纲三种，未知字段丢掉、列表去重截断、缺必填项报错）。考点同名并入（信号并集；做法不同 → `alt_steps`；自述原话排前）；总纲整个板块一张；例题每道一张。`rev` 记修改次数。`evidence`：讲解数 + 引用它的例题数，≥2 为“已印证”。
+- **汇总**：`render_files` 按模板从卡片生成全部文件（程序，不花额度；总流程可选 AI 写，存在 `.设置.json.flow_draft`）；`build` 和现有文件比较：没有 → `new`，有变化 → `replace`（带打开时的内容哈希 base 和修改前内容 before；与上个版本快照不同的 = 手改过，标 `flag` 默认不勾选）；采纳时哈希对不上就跳过（`skillbook.accept` 的 replace 分支）。`proposal.kind`：distill（第一版）/ update / diagnose，`meta` 带版本号和卡片版本表；采纳后 `distill.after_accept` 存版本快照（`.版本`）并默认打开“讲题只读蒸馏版”。待审建议上限放宽到 120 条（`MAX_EDITS_DISTILL`）；`MAX_FILES` 放宽到 150。
+- **读取**：`skillbook.has_own` 认蒸馏文件；`only_distilled`（默认开）时 `reading_plan` 只读 `蒸馏/` 下的文件、也不读原 skill 引用的库内资料。
+- **提示词包**：每个 AI 步骤（segment / card / flow / test / diagnose）同一套 `_prep` → 提示词 + 上下文，`run`（软件 AI，逐单元：切分按块、拆卡按片段、检验按批；失败时前面已保存的保留）、`pack`（分包；拆卡把几个片段合一包）、`import_result`（`extract_json` 取回复里的 JSON，校验不过指出哪里不对）三条路走同一个 `_apply_*`。运行前 `estimate` 给出调用次数和字数。
+- **检验**：`test_set` 固定测试集（有答案、四个选项、不是例题卡用过的题；换一批要手动 reseed）；`start_run` 存题目快照、按 5 题一批；做题的提示词里只有心法和题干选项；`record_answers` 全部答完由程序判对错存 `result-*.json`，版本列表显示该版本最近一次做对率；诊断把错题交给 AI 起草补充，写成待审建议（追加到对应考点文件，同时记进卡片的 `extra`，之后重新汇总文件不会冲突）。
+- **接口**：`POST /api/distill/state|material/add|material/delete|material/text|segment|card|step|build|version|test`（见 `rpg/api.py`）。
+- **测试**：`tests/test_distill.py`（定位、切分、卡片校验与合并、汇总、版本对比回滚、增量更新与手改冲突、提示词包导入的错误提示、假 AI 运行、检验判分与诊断、接口）；`tests/ui_distill.cjs`（全程走“复制提示词 / 粘贴导入”，不连 AI；`tests/ui_layout_server.py --distill-fixture` 给题库）。
+- 本批顺带修复：待审建议里勾选框被拉到中间的样式（`.skb-edit` 的规则被合并写坏）。
+
 ## 3.3.11 补丁（开发批次，未发布）：删除同步考情与战绩；检查有成绩就更新
 
 - **删除同步**：宗门大比「录入 → 试卷导入 → 已有试卷与导入管理」里删除一季，除了移出题库块，还把这一季的**考情与战绩**移出（`mock_imports.drop_records`）：存档 `mocks.<季>`（成绩单、HTML 导入信息、复盘进度、考情分析对话）、`boss` 里这一季的大比成绩（正则 `(?<!\d)N季`，第133季不会被当成第33季）、`训练/宗门大比/第N季考情分析.md`。页面上考情/复盘/战绩都不再显示这一季（`state.mocks_hidden`，`mock.summary` 跳过）。原试卷、复盘笔记、图片、学习记录不动；已记的学习分钟、经验、悟道奖励不扣不改，`mock_practice` 保留所以重导不会重复记 120 分钟。

@@ -1,4 +1,4 @@
-"""程序版本。3.4.6：修复 AI 调用“回复达到长度上限”：DeepSeek 思考占输出额度。"""
-VERSION = "3.4.6"
+"""程序版本。3.5.1：心法蒸馏（素材→卡片→版本→更新→检验诊断）。"""
+VERSION = "3.5.1"
 APP_NAME = "公考模拟器"
 REPO = "dingzhen164-coder/shenlun-rpg"
