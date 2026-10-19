@@ -53,7 +53,7 @@ def vision_available():
     return bool(s["vision_model"] and s["vision_api_key"])
 
 
-def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=120, vision=False, _retry=True):
+def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=120, vision=False, _retry=True, think=None):
     """发一次对话，返回模型回复的文字。vision=True 用识图模型（消息里可以带图片）"""
     s = settings()
     if vision:
@@ -69,7 +69,7 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
     if json_mode:
         body["response_format"] = {"type": "json_object"}
     if "deepseek" in s["base_url"].lower():
-        if s.get("thinking", True):
+        if (s.get("thinking", True) if think is None else think):
             # DeepSeek 新模型默认先思考，而思考过程也占 max_tokens：只给“正文”那么多额度，正文还没写就用完了（报“回复达到长度上限”）。
             # 所以思考开着时，在要求的额度上再加一份思考额度；正文多长仍由提示词里的字数要求控制。
             body["max_tokens"] = min(max_tokens + THINK_ROOM, 32000)
@@ -80,18 +80,23 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + s["api_key"]},
     )
-    try:
-        with net.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "ignore")[:300]
-        raise AIError(f"AI 接口返回错误 {e.code}：{detail}")
-    except Exception as e:
-        raise AIError(f"连不上 AI 接口：{e}")
+    data, err = None, None
+    for attempt in range(2):                      # 对方没回应就关了连接（常见于长时间思考、网络抖动）：重试一次
+        try:
+            with net.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "ignore")[:300]
+            raise AIError(f"AI 接口返回错误 {e.code}：{detail}")
+        except Exception as e:
+            err = e
+    if data is None:
+        raise AIError(f"连不上 AI 接口：{err}")
     try:
         choice = data["choices"][0]
         if choice.get("finish_reason") == "length" and not (choice.get("message") or {}).get("content") and _retry and max_tokens < 16000:
-            return chat(messages, json_mode, temperature, min(max_tokens * 4, 16000), timeout, vision, _retry=False)   # 正文一个字都没有：额度被思考用完了，放宽一次
+            return chat(messages, json_mode, temperature, min(max_tokens * 4, 16000), timeout, vision, _retry=False, think=think)   # 正文一个字都没有：额度被思考用完了，放宽一次
         if choice.get("finish_reason") == "length":
             raise AIError("AI回复达到长度上限，尚未保存残缺结果，请缩小本次训练单元或提高输出上限")
         return choice["message"]["content"] or ""

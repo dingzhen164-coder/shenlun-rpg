@@ -101,8 +101,13 @@ class LocateTest(Base):
         self.assertIn("连一连箭头", distill.segment_text(m, m["segments"][0]))
         r = distill.apply_segments(self.p, BOARD, m["id"], 0, m["text"], SEGMENTS["segments"][:1] + [{"type": "例题", "title": "找不到", "start": "根本没有这句话", "end": "也没有"}], 0)
         self.assertEqual((r["n"], r["lost"]), (1, ["找不到"]))                       # 重跑这一块：只换这一块；找不到的不采用
-        self.assertEqual(len(distill.get_material(self.p, BOARD, m["id"])["segments"]), 1)
-        self.assertTrue(distill.skipped_ranges(distill.get_material(self.p, BOARD, m["id"])))   # 没被片段盖住的文字能看到
+        m2 = distill.get_material(self.p, BOARD, m["id"])
+        self.assertEqual(len(m2["segments"]), 1)
+        self.assertEqual(m2["segments"][0]["end"], len(m2["text"]))                   # 只给开头句：最后一段一直到这一块结尾，文字不会漏
+        self.assertEqual(distill.skipped_ranges(m2), [])
+        r = distill.apply_segments(self.p, BOARD, m["id"], 0, m["text"], [{"type": "考点", "title": "不从头开始", "start": SEGMENTS["segments"][2]["start"]}], 0)
+        segs = distill.get_material(self.p, BOARD, m["id"])["segments"]               # 第一段不是从开头开始：前面那截归“开头（未分类）”，不采用
+        self.assertEqual((segs[0]["start"], segs[0]["type"], segs[0]["include"], segs[1]["start"]), (0, "闲聊", False, segs[0]["end"]))
 
     def test_update_and_merge_segments(self):
         m = self.material()

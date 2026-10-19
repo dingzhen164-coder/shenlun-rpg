@@ -191,21 +191,42 @@ def locate(text, start, end, lo=0):
     return idx[s], idx[e - 1] + 1
 
 
+def locate_start(text, start, lo=0):
+    """找一句开头原文在 text 里的位置（忽略标点），返回原文下标；找不到返回 None。整句找不到就用前 16、12、8、6 个字再试"""
+    norm, idx = _norm_map(text)
+    base = bisect.bisect_left(idx, lo)
+    a = "".join(_KEEP.findall(str(start or ""))).lower()
+    if len(a) < 4:
+        return None
+    for n in dict.fromkeys((len(a), 16, 12, 8, 6)):
+        if 4 <= n <= len(a):
+            k = norm.find(a[:n], base)
+            if k >= 0:
+                return idx[k]
+    return None
+
+
 def apply_segments(paths, board, mid, offset, chunk_text, segs, chunk_no):
-    """把 AI 给的切分结果（类型 + 起止句）定位到原文，替换这一块之前的结果。返回 {n, lost:[找不到的片段标题]}"""
+    """把 AI 给的切分结果（类型 + 每段的开头句）定位到原文：每段从自己的开头到下一段的开头，整块文字都有归属，不会漏掉。
+    替换这一块之前的结果。返回 {n, lost:[找不到的片段标题]}"""
     m = get_material(paths, board, mid)
-    found, lost, lo = [], [], 0
+    starts, lost, lo = [], [], 0
     for sg in segs:
         typ = sg.get("type") if sg.get("type") in SEG_TYPES else "闲聊"
-        pos = locate(chunk_text, sg.get("start"), sg.get("end"), lo)
-        if not pos:
+        a = locate_start(chunk_text, sg.get("start"), lo)
+        if a is None:
             lost.append(_s(sg.get("title"), 30) or "（没有标题）")
             continue
-        a, b = pos
-        if b <= a:
+        if starts and a <= starts[-1][0]:
             continue
-        found.append((offset + a, offset + b, typ, sg.get("title")))
-        lo = b
+        starts.append((a, typ, sg.get("title")))
+        lo = a + 1
+    found = []
+    if starts and starts[0][0] >= 30:
+        found.append((offset, offset + starts[0][0], "闲聊", "开头（未分类）"))
+    for k, (a, typ, title) in enumerate(starts):
+        e = starts[k + 1][0] if k + 1 < len(starts) else len(chunk_text)
+        found.append((offset + a, offset + e, typ, title))
     lo_abs, hi_abs = offset, offset + len(chunk_text)
     keep = [x for x in m["segments"] if not (lo_abs <= x["start"] < hi_abs)]       # 重跑这一块，只换这一块的结果
     old_cards = {(x["start"], x["end"]): x.get("card") for x in m["segments"] if lo_abs <= x["start"] < hi_abs}

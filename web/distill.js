@@ -73,7 +73,7 @@
         <label title="采用这个片段"><input type="checkbox" data-dst-seg="inc" data-m="${m.id}" data-s="${sg.id}" ${sg.include ? "checked" : ""}></label>
         <select data-dst-seg="type" data-m="${m.id}" data-s="${sg.id}">${TYPES.map((x) => `<option ${x === sg.type ? "selected" : ""}>${x}</option>`).join("")}</select>
         <input data-dst-seg="title" data-m="${m.id}" data-s="${sg.id}" value="${esc(sg.title)}" aria-label="片段标题">
-        <small class="muted">${num(sg.chars)}字</small>
+        <small class="muted">${num(sg.chars)}字</small>${sg.chars > 4000 && sg.type !== "闲聊" ? '<span class="tag draft" title="片段太长，拆卡会不准；可以重新切分，或让 AI 按小主题多切几段">太长</span>' : ""}
         ${sg.card ? '<span class="tag ok">已拆卡</span>' : sg.type === "闲聊" || !sg.include ? "" : '<span class="tag draft">未拆卡</span>'}
         <button class="ghost small" data-dst="seg-text" data-m="${m.id}" data-s="${sg.id}">${t[m.id + sg.id] ? "收起" : "看全文"}</button>
         <button class="ghost small" data-dst="seg-merge" data-m="${m.id}" data-s="${sg.id}" title="和后面一个片段合并（一道题被切成两段时用）">⤓ 合并下一个</button>
