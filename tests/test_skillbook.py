@@ -259,6 +259,11 @@ class SkillbookTest(unittest.TestCase):
         self.assertIn("导入 skill", flow)
         self.assertIn("固定清单", api.skillbook_zongjue({"file": "配置-空白模板.md"})["text"])
         self.assertIn("references/", api.skillbook_zongjue({"file": "蒸馏-第二步-归纳心法.md"})["text"])
+        cfg = api.skillbook_zongjue({"file": "配置-空白模板.md"})["text"]
+        self.assertIn("混合型", cfg)
+        self.assertIn("方法 / 技巧清单", cfg)
+        self.assertIn("混合型文件格式", api.skillbook_zongjue({"file": "蒸馏-第二步-归纳心法.md"})["text"])
+        self.assertIn("用到的技巧", api.skillbook_zongjue({"file": "蒸馏-第一步-提取例题.md"})["text"])
         step3 = api.skillbook_zongjue({"file": "蒸馏-第三步-生成学习版.md"})["text"]
         self.assertIn("老师是怎么讲的", step3)
         self.assertIn("学习版/", step3)
