@@ -1292,7 +1292,7 @@ def ai_profile(body):
 
 
 def settings_test(body):
-    r = ai.chat([{"role": "user", "content": "回复“连接成功”四个字"}], max_tokens=20, timeout=30)
+    r = ai.chat([{"role": "user", "content": "回复“连接成功”四个字"}], max_tokens=200, timeout=30)
     return {"ok": True, "reply": r}
 
 

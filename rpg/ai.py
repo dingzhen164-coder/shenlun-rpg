@@ -49,7 +49,7 @@ def vision_available():
     return bool(s["vision_model"] and s["vision_api_key"])
 
 
-def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=120, vision=False):
+def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=120, vision=False, _retry=True):
     """发一次对话，返回模型回复的文字。vision=True 用识图模型（消息里可以带图片）"""
     s = settings()
     if vision:
@@ -64,6 +64,10 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
     body = {"model": s["model"], "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
     if json_mode:
         body["response_format"] = {"type": "json_object"}
+    if "deepseek" in s["base_url"].lower():
+        # DeepSeek 新模型默认开着“思考”，思考过程也占 max_tokens：额度被思考用完，正文就被截断（报“回复达到长度上限”）。
+        # 这里的任务（讲题、整理、判分）都不需要长思考，关掉，回复又快又省。
+        body["thinking"] = {"type": "disabled"}
     req = urllib.request.Request(
         s["base_url"] + "/chat/completions",
         data=json.dumps(body).encode("utf-8"),
@@ -79,6 +83,8 @@ def chat(messages, json_mode=False, temperature=0.3, max_tokens=1500, timeout=12
         raise AIError(f"连不上 AI 接口：{e}")
     try:
         choice = data["choices"][0]
+        if choice.get("finish_reason") == "length" and not (choice.get("message") or {}).get("content") and max_tokens < 8000 and _retry:
+            return chat(messages, json_mode, temperature, min(max_tokens * 4, 8000), timeout, vision, _retry=False)   # 正文一个字都没有：额度被思考用完了，放宽一次
         if choice.get("finish_reason") == "length":
             raise AIError("AI回复达到长度上限，尚未保存残缺结果，请缩小本次训练单元或提高输出上限")
         return choice["message"]["content"] or ""
