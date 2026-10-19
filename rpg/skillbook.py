@@ -6,7 +6,7 @@
 历史：训练/技能/.历史/<板块>/<相对路径>/<时间>.md（每次保存、导入覆盖、删除、改名前先留一份）。
 
 讲题（解惑、复盘追问、传授等共用 tutor_material）读取：目录里全部 .md，SKILL.md 在前，其余按路径排序；
-references/ 下的文件只供查阅，不自动读入；.历史 不读；SKILL.md 里“被 xxx 调度时”那一节不读（见 vault.strip_dispatch）。
+references/ 和 学习版/ 下的文件只供查阅 / 阅读，不自动读入；.历史 不读；SKILL.md 里“被 xxx 调度时”那一节不读（见 vault.strip_dispatch）。
 读取总量上限 TUTOR_LIMIT 字，超出的文件明确标“未读入”，界面上同样显示，不悄悄截断。
 保存带版本号（内容哈希）：两处同时改，后保存的会收到冲突提示，不会悄悄覆盖。程序算分、判分不读这里的任何内容。
 """
@@ -28,12 +28,13 @@ MAX_FILE = 200_000                         # 单个文件上限（字）
 MAX_FILES = 150                            # 每个板块最多的文件数
 MAX_DEPTH = 3                              # 相对路径最多几层（含文件名）
 KEEP_HISTORY = 50                          # 每个文件最多留几份历史
-REF_DIR = "references"                     # 这个文件夹里的文件只供查阅，不自动读入讲题
+REF_DIRS = ("references", "学习版")        # 这两个文件夹里的文件只供查阅 / 阅读，不自动读入讲题（学习版是给人看的，读进讲题只会白耗额度）
 MAX_PACKAGE = 20_000_000                   # 导入的包解压后总大小上限（字节）
 BAD_NAME = re.compile(r'[\\:*?"<>|\x00-\x1f]')
 ZONGJUE_DIR = Path(__file__).parent / "data" / "zongjue"
 ZONGJUE = [("蒸馏-第一步-提取例题.md", "第一步 · 提取例题", "从课程逐字稿里提取每道例题（只记老师说过的）"),
            ("蒸馏-第二步-归纳心法.md", "第二步 · 归纳心法", "把例题记录归纳成一套心法，并生成 SKILL.md"),
+           ("蒸馏-第三步-生成学习版.md", "第三步 · 生成学习版", "改写成自己能学的学习版：老师怎么讲 + 例题怎么做出来"),
            ("配置-空白模板.md", "配置 · 空白模板", "每门课填一份，告诉 AI 这门课要蒸馏什么"),
            ("使用流程.md", "使用流程", "从配置到导入板块的完整步骤")]
 
@@ -156,7 +157,7 @@ def title_of(text):
 # ---------------------------------------------------------------- 解惑读取（透明度和实际读取共用同一份计划）
 def reading_plan(paths, board):
     """返回 {items:[{rel,chars,words,title,read,kind}], total, words, limit, text}。
-    kind：method=方法文件（自动读入）；ref=references/ 下的资料（只供查阅，不读入）。read=False 且 kind=method 表示超出上限没读入。"""
+    kind：method=方法文件（自动读入）；ref=references/ 或 学习版/ 下的文件（只供查阅 / 阅读，不读入）。read=False 且 kind=method 表示超出上限没读入。"""
     items, parts, total = [], [], 0
     d = board_dir(paths, board)
     for rel in own_files(paths, board):
@@ -164,7 +165,7 @@ def reading_plan(paths, board):
         if rel.rsplit("/", 1)[-1] == "SKILL.md":
             text = vault.strip_dispatch(text)
         n = len(text)
-        if rel.split("/")[0] == REF_DIR and "/" in rel:
+        if rel.split("/")[0] in REF_DIRS and "/" in rel:
             items.append({"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": False, "kind": "ref"})
             continue
         item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": "method"}
