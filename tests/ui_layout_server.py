@@ -48,6 +48,12 @@ def main():
                 skillbook.add_proposal(paths.Paths(Path(vaults[s2]), s2), '论证逻辑' if s2 == '行测' else '归纳概括', 'note', '补一条自编口诀',
                                        [{'path': 'cheatsheet.md', 'action': 'append', 'text': '## 自编口诀二\n看问法', 'reason': '自编原因'},
                                         {'path': '03-陷阱.md', 'action': 'new', 'text': '# 陷阱\n自编陷阱'}], {'label': '试炼复盘 自编'}, 'ui1')
+        if '--distill-fixture' in sys.argv:
+            # 心法蒸馏：论证逻辑题库 13 道（答案都是 B），检验用；不读真实资料
+            d = Path(vaults['行测']) / '训练/题库'; d.mkdir(parents=True, exist_ok=True)
+            (d / '论证逻辑真题.md').write_text(''.join(
+                '## 题目 %03d\n\n### 知识点\n补全逻辑\n\n### 题干\n第%d题题干：因为甲所以乙。\n\n### 选项\nA. 一\nB. 二\nC. 三\nD. 四\n\n### 答案\nB\n\n### 解析\n（待补）\n\n' % (i, i)
+                for i in range(1, 14)), encoding='utf-8')
         if '--art-fixture' in sys.argv:
             # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
             import base64

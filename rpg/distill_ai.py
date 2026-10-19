@@ -41,7 +41,7 @@ SCHEMA = {
     "例题": '''{"card":{"title":"例题小标题","exam":"这道题的来源（如 2026福建事业单位），没说就留空","question":{"complete":false,"stem":"题干（片段里有多少写多少）","options":{"A":"","B":"","C":"","D":""},"answer":"A/B/C/D，没说就留空"},"concepts":["用到的考点名，尽量用已有考点的原名"],"steps":["老师的拆解步骤，每步写清做了什么（抓思考动作，不是只写结论）"],"exclusions":[{"option":"A","reason":"这个选项为什么不选","type":"挖坑类型的短名，如 逻辑外挖坑 / 题干未提及 / 复述论据 / 与题干无关"}],"rules":["老师顺带说的小规则"],"notes":["对照题、补充说明"],"quotes":["原话"],"uncertain":["拿不准的地方"]}}''',
     "总纲": '''{"card":{"name":"体系名称（如 十三美十三丑）","one_line":"一句话","items":[{"name":"清单里提到的一项","note":"说明"}],"priority":{"肉":["考得多又简单的项"],"排骨":["较难的项"],"渣渣":["又难又少的项"]},"ugly":[{"name":"不要选的选项类型","test":"怎么判断"}],"notes":["其他说明"],"uncertain":["拿不准的地方（比如编号和名称对不上）"]}}''',
 }
-CARD_USER = '''板块：{board}。下面是 {k} 个片段，请把每个片段拆成一张{kinds}卡。
+CARD_USER = '''板块：{board}。下面是 {k} 个片段，请把每个片段拆成一张卡（类型对应：考点→考点卡，例题→例题卡，框架→总纲卡；本次涉及：{kinds}）。
 抓的是老师“怎么想、怎么做”的思考动作，不是“选了什么”；写成学员能照着做的步骤。片段里没有的内容留空，不要编。
 已有的考点名：{points}（例题里用到这些考点时请用原名）；已有的“丑”的类型：{uglies}。
 各类卡的格式：
@@ -122,7 +122,7 @@ def _card(paths, board, p):
                                      [x["type"] for c in allc if c["kind"] == "例题" for x in c["data"]["exclusions"] if x["type"]])) or "（还没有）"
     kinds = list(dict.fromkeys(distill.CARD_OF[sg["type"]] for sg, _ in segs.values()))
     parts = "\n\n".join('【片段 %s · 类型：%s · %s】\n"""\n%s\n"""' % (sid, sg["type"], sg.get("title") or "", t) for sid, (sg, t) in segs.items())
-    user = _fill(CARD_USER, board=board, k=len(segs), kinds="、".join(kinds), points=points, uglies=uglies,
+    user = _fill(CARD_USER, board=board, k=len(segs), kinds="、".join(k + "卡" for k in kinds), points=points, uglies=uglies,
                  schemas="\n".join("%s卡：%s" % (k, SCHEMA[k]) for k in kinds), parts=parts)
     return [{"role": "system", "content": COMMON}, {"role": "user", "content": user}], {"material": m["id"], "title": m["title"], "kind": m["kind"], "segs": segs}
 
