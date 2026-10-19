@@ -1,13 +1,16 @@
 """藏经阁·心法（skill）：每个板块一个专属、可随时修改的目录。
 
-存放：训练/技能/<板块>/**.md（程序可写）。用户库里原来的 copilot/skills/<skill名>/ 始终只读，只当“来源”。
+存放：训练/技能/<板块>/**.md（程序可写）。用户库里原来的 copilot/skills/<skill名>/ 始终只读，只当“来源”：
+第一次修改（保存、新建、整理采纳……）时程序自动把它复制到这里，之后就直接改这里——界面上没有“我的版本”的概念，每个板块就是一份心法，
+历史里留着每次修改前的样子。
 历史：训练/技能/.历史/<板块>/<相对路径>/<时间>.md（每次保存、删除、改名前先留一份，可回滚）。
 
 读取顺序（解惑、复盘追问、传授等所有讲题处共用 tutor_material）：
-  1. 训练/技能/<板块>/ 里有 SKILL.md → 用“我的版本”（目录里全部 .md，SKILL.md 在前，.历史 不读）；
+  1. 训练/技能/<板块>/ 里有 SKILL.md → 用这里的（目录里全部 .md，SKILL.md 在前，.历史 不读）；
   2. 没有 → 回退用户库里的原 skill（行为与 3.3 完全一致）；
   3. 都没有 → 空。
-“我的版本”仍会带上原 skill 引用的库内资料（如“六种对应关系.md”），它们是资料、不是方法，不随版本复制。
+讲题时不读 SKILL.md 里“被 xxx 调度时”那一节（给 AI 总调度用的脚本流程，见 vault.strip_dispatch）。
+这里的版本仍会带上原 skill 引用的库内资料（如“六种对应关系.md”），它们是资料、不是方法，不随版本复制。
 读取总量上限 TUTOR_LIMIT 字，超出的文件明确标“未读入”，界面上同样显示，不悄悄截断。
 
 保存带版本号（内容哈希）：两处同时改，后保存的会收到冲突提示，不会悄悄覆盖。程序算分、判分不读这里的任何内容。
@@ -33,12 +36,12 @@ BAD_NAME = re.compile(r'[\\:*?"<>|\x00-\x1f]')
 
 TEMPLATE = {
     "SKILL.md": "# {board} · 心法\n\n> 入口：遇到这类题先做什么、按什么顺序、用到哪些文件。\n\n"
-                "1. 先看 `01-识别.md`，认出这题属于哪一类；\n2. 按 `02-方法.md` 的步骤做；\n"
-                "3. 对照 `03-陷阱.md` 排除干扰项；\n4. 不会时看 `04-例题.md`，记口诀看 `05-速查.md`。\n",
-    "01-识别.md": "# 识别\n\n怎么认出题型：（写出判断标志）\n",
-    "02-方法.md": "# 方法与步骤\n\n1. \n2. \n3. \n",
+                "1. 先看 `01-识别信号.md`，认出这题属于哪一类；\n2. 按 `02-方法卡.md` 的步骤做；\n"
+                "3. 对照 `03-陷阱.md` 排除干扰项；\n4. 不会时看 `04-示范.md`，记口诀看 `05-速查.md`。\n",
+    "01-识别信号.md": "# 识别信号\n\n题干出现什么字眼，就用哪个方法：\n\n| 题干信号 | 用哪个方法 |\n|---|---|\n| | |\n",
+    "02-方法卡.md": "# 方法卡\n\n## 方法一：（名称）\n\n- 什么时候用：\n- 步骤：\n  1. \n  2. \n",
     "03-陷阱.md": "# 常见陷阱与排除\n\n- \n",
-    "04-例题.md": "# 例题\n\n（题目 → 用到哪个方法 → 过程）\n",
+    "04-示范.md": "# 示范\n\n（一道真题 → 每一步用了哪张方法卡 → 过程）\n",
     "05-速查.md": "# 口诀速查\n\n- \n",
 }
 
@@ -120,9 +123,9 @@ def _read(f):
     return f.read_text(encoding="utf-8", errors="ignore")
 
 
-# ---------------------------------------------------------------- 我的版本
+# ---------------------------------------------------------------- 训练/技能 里的心法
 def own_files(paths, board):
-    """我的版本里的 .md（相对路径，SKILL.md 在前，其余按名字排序；.历史 和隐藏文件不算）"""
+    """训练/技能/<板块>/ 里的 .md（相对路径，SKILL.md 在前，其余按名字排序；.历史 和隐藏文件不算）"""
     try:
         d = board_dir(paths, board)
     except SkillError:
@@ -160,10 +163,25 @@ def source_files(paths, source):
 
 
 def mode(paths, board, source):
-    """mine = 用我的版本；source = 用库里原 skill；none = 都没有"""
+    """mine = 用训练/技能里的（已经改过或整理过）；source = 还在用库里原 skill；none = 都没有"""
     if has_own(paths, board):
         return "mine"
     return "source" if vault.skill_dir(paths, source) else "none"
+
+
+_WORD = re.compile(r"[\u3400-\u9fff]|[A-Za-z0-9]+")
+
+
+def words(text):
+    """像文字处理软件那样数“字”：每个汉字算一个，连续的字母或数字算一个词；符号、空格、标记不算。
+    （上限和读取量仍按字符计，因为字符数才是真正交给 AI 的量。）"""
+    return len(_WORD.findall(text))
+
+
+def title_of(text):
+    """文件里第一个 # 标题（去掉标记），没有就是空串"""
+    m = re.search(r"^#{1,3}[ \t]+(.+?)[ \t]*$", text, re.M)
+    return m.group(1).strip()[:60] if m else ""
 
 
 # ---------------------------------------------------------------- 解惑读取（透明度和实际读取共用同一份计划）
@@ -175,13 +193,14 @@ def reading_plan(paths, board, source):
 
     def take(label, rel, text, kind):
         nonlocal total
+        if rel.rsplit("/", 1)[-1] == "SKILL.md" and kind == "method":
+            text = vault.strip_dispatch(text)
         n = len(text)
-        if total + n > TUTOR_LIMIT:
-            items.append({"rel": rel, "chars": n, "read": False, "kind": kind})
-            return
-        total += n
-        parts.append("=== %s ===\n%s" % (label, text))
-        items.append({"rel": rel, "chars": n, "read": True, "kind": kind})
+        item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": kind}
+        items.append(item)
+        if item["read"]:
+            total += n
+            parts.append("=== %s ===\n%s" % (label, text))
 
     if m == "mine":
         d = board_dir(paths, board)
@@ -200,11 +219,12 @@ def reading_plan(paths, board, source):
             f = paths.vault / ref
             if f.is_file():
                 take("资料 " + ref, ref, _read(f), "material")
-    return {"mode": m, "items": items, "total": total, "limit": TUTOR_LIMIT, "text": "\n\n".join(parts)}
+    return {"mode": m, "items": items, "total": total, "words": sum(i["words"] for i in items if i["read"]),
+            "limit": TUTOR_LIMIT, "text": "\n\n".join(parts)}
 
 
 def tutor_material(paths, board, source):
-    """讲题用的资料：(文字, 读到的文件清单)。只在有“我的版本”时返回；没有则返回 None，由调用方走原逻辑。"""
+    """讲题用的资料：(文字, 读到的文件清单)。只在训练/技能里已有心法时返回；没有则返回 None，由调用方走原逻辑。"""
     if not has_own(paths, board):
         return None
     plan = reading_plan(paths, board, source)
@@ -250,7 +270,7 @@ def plan(paths, board, source):
     if hit and hit[1] == sig and time.time() - hit[0] < PLAN_TTL:
         return hit[2]
     p = reading_plan(paths, board, source)
-    out = {"board": board, "mode": p["mode"], "items": p["items"], "total": p["total"], "limit": p["limit"]}
+    out = {"board": board, "mode": p["mode"], "items": p["items"], "total": p["total"], "words": p["words"], "limit": p["limit"]}
     _PLAN[key] = (time.time(), sig, out)
     return out
 
@@ -270,7 +290,7 @@ def read_file(paths, board, source, rel):
     if rel not in source_files(paths, source) or not f.is_file():
         raise SkillError("没有这个文件")
     text = _read(f)
-    return {"path": rel, "text": text, "rev": "", "mode": "source", "editable": False}
+    return {"path": rel, "text": text, "rev": _rev(text), "mode": "source", "editable": True}   # 第一次保存时才复制成自己的目录（见 ensure_own）
 
 
 # ---------------------------------------------------------------- 历史
@@ -381,11 +401,11 @@ def restore(paths, board, rel, vid, base):
     return save(paths, board, rel, history_text(paths, board, rel, vid), base)
 
 
-# ---------------------------------------------------------------- 创建我的版本
+# ---------------------------------------------------------------- 第一次修改时复制
 def create_from_source(paths, board, source):
-    """把库里原 skill 的 .md 复制成我的版本（只复制方法文件；库里原文件不动）。已有我的版本则拒绝。"""
+    """把库里原 skill 的 .md 复制过来（只复制方法文件；库里原文件不动）。已有就拒绝。"""
     if has_own(paths, board):
-        raise SkillError("已经有我的版本了")
+        raise SkillError("这个板块已经有心法了")
     files = source_files(paths, source)
     d = vault.skill_dir(paths, source)
     if not d or "SKILL.md" not in files:
@@ -403,9 +423,21 @@ def create_from_source(paths, board, source):
     return {"files": files}
 
 
+def ensure_own(paths, board, source):
+    """第一次修改前调用：训练/技能/<板块>/ 里还没有心法，就把库里原 skill 复制过来（没有原 skill 就用标准模板）。
+    已经有了什么都不做；复制出来的内容和原来一模一样，所以打开时拿到的版本号照样有效。"""
+    if has_own(paths, board):
+        return False
+    if vault.skill_dir(paths, source) and "SKILL.md" in source_files(paths, source):
+        create_from_source(paths, board, source)
+    else:
+        create_template(paths, board)
+    return True
+
+
 def create_template(paths, board):
     if has_own(paths, board):
-        raise SkillError("已经有我的版本了")
+        raise SkillError("这个板块已经有心法了")
     for rel, text in TEMPLATE.items():
         _atomic(board_dir(paths, board) / rel, text.replace("{board}", board))
     return {"files": list(TEMPLATE)}
@@ -512,14 +544,14 @@ def dismiss(paths, pid):
 def change_log(paths, board, line):
     """在变更记录.md 末尾追加一行（没有就新建）；变更记录也是普通文件，可以自己改"""
     f = board_dir(paths, board) / "变更记录.md"
-    cur = _read(f) if f.is_file() else "# 变更记录\n\n每次采纳建议、发布都会在这里留一行。\n"
+    cur = _read(f) if f.is_file() else "# 变更记录\n\n每次采纳建议都会在这里留一行。\n"
     if f.is_file():
         _stash(paths, board, "变更记录.md", cur)
     _atomic(f, cur.rstrip("\n") + "\n- " + line + "\n")
 
 
 def accept(paths, board, source, pid, picks):
-    """采纳一条建议里被勾选的修改（picks 是下标列表）。没有我的版本会先创建；'new' 遇到同名文件不覆盖；
+    """采纳一条建议里被勾选的修改（picks 是下标列表）。板块还没有自己的目录会先复制原 skill；'new' 遇到同名文件不覆盖；
     写完记进变更记录。全部处理完的建议自动移走。返回 {applied:[...], skipped:[...]}"""
     f, data = _proposal(paths, pid)
     if data.get("board") != board:
@@ -528,14 +560,7 @@ def accept(paths, board, source, pid, picks):
     chosen = [i for i in (picks or []) if isinstance(i, int) and 0 <= i < len(edits) and not edits[i].get("done")]
     if not chosen:
         raise SkillError("请先勾选要采纳的修改")
-    if not has_own(paths, board):
-        if data.get("kind") == "organize":
-            if not any(edits[i]["path"] == "SKILL.md" for i in chosen):
-                raise SkillError("第一次采纳整理结果，请同时勾选入口 SKILL.md")      # 用建议里的 SKILL.md 起头，不混入原文件
-        elif vault.skill_dir(paths, source):
-            create_from_source(paths, board, source)
-        else:
-            create_template(paths, board)
+    ensure_own(paths, board, source)
     applied, skipped = [], []
     for i in chosen:
         e = edits[i]
@@ -559,86 +584,3 @@ def accept(paths, board, source, pid, picks):
     else:
         _atomic_any(f, data)
     return {"applied": applied, "skipped": skipped, "left": sum(not e.get("done") for e in edits)}
-
-
-# ================================================================ 发布回原 skill（手动、默认关闭；写之前备份，可恢复）
-BACKUP = ".发布备份"
-
-
-def _source_md(d):
-    return {r: (d / r) for r in [p.relative_to(d).as_posix() for p in d.rglob("*.md")]
-            if not any(x.startswith(".") or x == "scripts" for x in r.split("/"))}
-
-
-def publish_preview(paths, board, source, others=()):
-    """写回前的差异：每个文件是 new / changed / same；原 skill 里有而我的版本没有的只提示，不删除。others=共用同一原 skill 的其他板块"""
-    if not has_own(paths, board):
-        raise SkillError("这个板块还没有我的版本")
-    d = vault.skill_dir(paths, source)
-    if not d:
-        raise SkillError("库里没有原 skill「%s」，不能写回" % (source or "未配置"))
-    d2 = {}
-    mine = own_files(paths, board)
-    sig = hashlib.sha1()
-    for rel in mine:
-        text = _read(board_dir(paths, board) / rel)
-        f = d / rel
-        old = _read(f) if f.is_file() else None
-        d2[rel] = "new" if old is None else ("same" if old == text else "changed")
-        sig.update((rel + _rev(text) + (_rev(old) if old is not None else "-")).encode("utf-8"))
-    missing = [r for r in _source_md(d) if r not in mine]
-    return {"source": source, "files": [{"path": r, "status": s} for r, s in d2.items()], "only_in_source": missing,
-            "shared_with": [b for b in others if b != board], "digest": sig.hexdigest()}
-
-
-def publish(paths, board, source, digest, others=()):
-    """把我的版本写回库里的原 skill（只写 .md，不删原文件，不碰 scripts/）。写之前把会被改动的原文件备份到 训练/技能/.发布备份/。"""
-    pv = publish_preview(paths, board, source, others)
-    if digest != pv["digest"]:
-        raise SkillError("文件在预览后变化了，请重新预览", conflict=True)
-    d = vault.skill_dir(paths, source)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    bak = root(paths) / BACKUP / _board_name(board) / stamp
-    manifest = {"source": source, "board": board, "at": time.strftime("%Y-%m-%d %H:%M:%S"), "files": []}
-    changes = [(x["path"], x["status"]) for x in pv["files"] if x["status"] != "same"]
-    for rel, status in changes:                                   # 先备份，再写；备份失败就一个都不写
-        if status == "changed":
-            _atomic(bak / rel, _read(d / rel))
-        manifest["files"].append({"path": rel, "had": status == "changed"})
-    _atomic_any(bak / "清单.json", manifest)
-    for rel, _ in changes:
-        _atomic(d / rel, _read(board_dir(paths, board) / rel))
-    change_log(paths, board, "%s 发布回原 skill「%s」：%s" % (time.strftime("%Y-%m-%d %H:%M"), source, "、".join(r for r, _ in changes) or "没有变化"))
-    return {"written": [r for r, _ in changes], "backup": stamp}
-
-
-def publish_backups(paths, board):
-    d = root(paths) / BACKUP / _board_name(board)
-    out = []
-    for p in sorted(d.glob("*/清单.json"), reverse=True) if d.is_dir() else []:
-        m = _load_json(p)
-        if isinstance(m, dict) and not m.get("restored"):
-            out.append({"id": p.parent.name, "at": m.get("at", ""), "source": m.get("source", ""), "files": [x["path"] for x in m.get("files", [])]})
-    return out
-
-
-def publish_restore(paths, board, source, bid):
-    """撤回一次发布：被覆盖的原文件还原，发布时新建的文件删掉"""
-    bid = re.sub(r"[^0-9\-]", "", str(bid or ""))
-    base = root(paths) / BACKUP / _board_name(board) / bid
-    m = _load_json(base / "清单.json") if (base / "清单.json").is_file() else None
-    if not isinstance(m, dict) or m.get("restored") or m.get("source") != source:
-        raise SkillError("这次发布的备份不可用")
-    d = vault.skill_dir(paths, source)
-    if not d:
-        raise SkillError("库里没有原 skill，不能还原")
-    for x in m.get("files", []):
-        rel = _rel(x["path"])
-        if x.get("had"):
-            _atomic(d / rel, _read(base / rel))
-        elif (d / rel).is_file():
-            (d / rel).unlink()
-    m["restored"] = True
-    _atomic_any(base / "清单.json", m)
-    change_log(paths, board, "%s 撤回发布（%s）" % (time.strftime("%Y-%m-%d %H:%M"), bid))
-    return {"restored": [x["path"] for x in m.get("files", [])]}

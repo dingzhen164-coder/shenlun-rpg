@@ -837,12 +837,17 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - **接口**：`GET /api/skillbook`；`POST /api/skillbook/file|create|save|delete|rename|history|restore`（见 `rpg/api.py`）。
 - **界面**：藏经阁新页签（风格词 `skillbook`：行测修仙“心法”、玄幻“秘典”、申论“办事规程”，在 `themes*.py`）；`web/skillbook.js/css`，类名 `skb-`；选中的板块/文件记在 localStorage `skillbook-pos`，未保存草稿留在模块内存里。
 - **测试**：`tests/test_skillbook.py`（读取顺序、旧行为不变、保存即生效、冲突、历史回滚、删除改名、路径与大小限制、未读入标记、接口与讲题实际读取）；`tests/ui_skillbook.cjs --subject=行测|申论`（看/改/保存即生效/刷新还在/回滚/冲突/新建改名删除，电脑与平板不整页滚动）；`tests/ui_layout_server.py --skillbook-fixture` 提供自编 skill。
-- **3.4.2 整理向导**（`rpg/skillbook_ai.py`，提示词在 `prompts.skillbook_organize`）：点「✨ 整理成标准结构」，AI 读原 skill 及其引用资料（上限 60000 字，超出直接拒绝、不喂残缺资料），起草 SKILL.md、01-识别 … 05-速查 六个文件，存成待审建议（`训练/技能/.待审/<id>.json`），**采纳前不改任何文件**；同样的资料不重复花钱（按内容哈希复用）；AI 输出程序校验（路径必须在标准 6 个名字内、必须有 SKILL.md），校验不过重试一次，仍失败不保存。第一次采纳必须同时勾选入口 SKILL.md；`new` 遇到同名文件不覆盖。
-- **3.4.3 解惑后「记入心法」**：行测试炼复盘和模考复盘里，师傅解惑后出现「📘 记入心法」按钮；AI 判断现有方法要不要补（`needed:false` 就明说不用改），要补就起草最多 3 条修改，只允许 `append`（追加）和 `new`（新建），不能改写或删除已有内容，存成待审建议并带题目来源；同一道题同样的讲解不重复请求。申论没有解惑流程，不挂这个按钮，其他修改方式不变。
-- **采纳规则**（`skillbook.accept`）：只处理勾选的修改；没有我的版本会先创建（有原 skill 就复制，没有就用模板）；采纳后写进 `变更记录.md`（时间、摘要、文件、来源），每个被改文件留历史；全部处理完的建议自动移走。
-- **发布回原 skill**（手动、默认关闭，`state.skillbook.publish_back`，心法页底部开关）：这是对“原 skill 只读”规则的唯一例外，只有这个按钮会写库里的原 skill。先预览（每个文件 新增/覆盖/没变、原 skill 里有而我的版本没有的只提示不删除、被其他板块共用时警告），确认后写回；只写 .md，不碰 scripts/；写之前把会被覆盖的原文件备份到 `训练/技能/.发布备份/<板块>/<时间>/`（含清单），备份失败就一个都不写；预览后文件变了则拒绝（digest）；可「撤回这次发布」（还原被覆盖的、删除新建的）。
-- **接口（3.4.2/3.4.3 新增）**：`POST /api/skillbook/settings|organize|proposals|accept|dismiss|publish|publish/backups|publish/restore`。
-- **测试**：`tests/test_skillbook_ai.py`（待审建议校验与复用、采纳规则、不覆盖、整理向导假 AI（缓存、校验、超长拒绝）、记入心法、发布预览/备份/撤回/冲突、开关默认关）；`tests/ui_skillbook.cjs` 增加采纳/忽略/变更记录/发布预览/写回/撤回。
+- **3.4.4 体验反馈修补（取代 3.4.2 的“整理成标准结构”和“我的版本/发布回原 skill”）**：
+  - **没有“我的版本”**：界面只有“心法”。读取时训练/技能 里有 SKILL.md 就用它，否则用库里原 skill（`mode`=mine/source/none 只是内部状态）。`ensure_own`：第一次保存/新建/改名/删除/回滚/采纳时自动把原 skill 的 .md 复制到 训练/技能/<板块>/（没有原 skill 就用模板）；`read_file` 对原 skill 也返回内容哈希 rev 且 editable，所以打开时拿到的版本号在自动复制后仍有效。库里原文件始终不动。**取消**“发布回原 skill”：函数、接口、开关、测试一并删除（`/api/skillbook/settings|publish*` 不再存在，旧存档里的 `state.skillbook.publish_back` 无害忽略）。
+  - **学习版**（`skillbook_ai.organize`，提示词 `prompts.SKILLBOOK_LEARN / skillbook_learn_file / skillbook_learn_demo`）：材料是这个板块现在的心法（`reading_plan` 的文本，已去掉“调度时”一节，含引用资料；有文件超上限未读入则拒绝）。新增 6 个文件：02-方法卡（先写）→ 00-怎么用、01-识别信号、03-陷阱、05-速查（把方法卡内容传给后面几个，方法名对得上）→ 04-示范（`pick_examples`：题库里有答案的题，先挑回炉中的错题、再挑有解析的，共 2 道；原题和答案由程序贴，AI 只写“第几步（用到：方法卡「…」）”和小结）。全中文、不用 LaTeX、逻辑符号第一次出现说明读法（`LEARN_STYLE`）。一次一个文件、截断则换更紧上限重试、次要文件失败可跳过、方法卡必须成功；已有同名文件的这次不重写；示范失败不影响其他文件。待审建议 key 含 `VERSION="learn1"`、材料哈希、文件清单、题目，同样输入不重复花钱；采纳规则不变（`new` 不覆盖，写变更记录）。
+  - **读取**：`vault.strip_dispatch` 去掉 SKILL.md 里“## 被 … 调度时”整节（到下一个二级标题或文末），`reading_plan`、`vault.skill_for_tutor` 都用；阅读区仍显示完整原文。
+  - **字数显示**：`skillbook.words`（汉字各算一个、连续字母数字算一个词，符号空格标记不算）；`plan` 的每个文件有 `words/title`，总量有 `words`；界面显示“约 X 字、占上限 Y%”，上限与读取量仍按字符（`chars`）。原来显示的是字符数（含空格、标记、公式源码），用户按字数数会觉得偏多。
+  - **阅读渲染** `web/mdlite.js`（`window.MDLITE.render/friendly`）：标题（# → h2…）、列表、表格、引用、代码块、加粗斜体、行内代码、$…$ 公式（\neg→¬ 等符号表，公式里的 or/and→∨/∧）、去 YAML 头与注释、链接只留文字；book-to-skill 固定英文小标题（Core Idea、Anti-patterns、Key Takeaways 等）与 Chapter N→第N章、固定说明句换中文；`friendly` 给文件起中文名（SKILL.md→入口、cheatsheet→速查表、章节用标题）。修改区永远是原文。
+  - **界面**：书架（`.tome` 古籍，申论官场风格是档案盒，不浮动）→ 全屏详情；类名 `skb-` / 渲染 `.md`；全屏铺满见 `scene_panels.css` 的 skeleton 路由规则。
+  - **测试**：`tests/test_skillbook.py`（直接改、自动复制、历史、字数、调度节不读）、`tests/test_skillbook_ai.py`（学习版逐文件、重试、跳过、不重写已有、材料不含调度节）、`tests/ui_skillbook.cjs`（书架→详情→直接修改→渲染公式/表格→…）。
+- **3.4.3 解惑后「记入心法」**：行测试炼复盘和模考复盘里，师傅解惑后出现「📘 记入心法」按钮；AI 判断现有方法要不要补（`needed:false` 就明说不用改），要补就起草最多 3 条修改，只允许 `append`（追加）和 `new`（新建），不能改写或删除已有内容，存成待审建议并带题目来源；同一道题同样的讲解不重复请求。申论没有解惑流程，不挂这个按钮。
+- **采纳规则**（`skillbook.accept`）：只处理勾选的修改；板块还没有自己的目录会先 `ensure_own`；采纳后写进 `变更记录.md`（时间、摘要、文件、来源），每个被改文件留历史；全部处理完的建议自动移走。
+- **接口**：`POST /api/skillbook/plan|organize|proposals|accept|dismiss`（3.4.4 起；`/api/skillbook` 只给书架概况，`plan` 才算读取情况）。
 - 法考不共用本功能：法考没有 skill，见 fakao-rpg 的 3.4 方案（知识点定位与“我的批注”）。
 
 ## 3.3.11 补丁（开发批次，未发布）：删除同步考情与战绩；检查有成绩就更新
