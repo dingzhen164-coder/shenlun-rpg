@@ -24,7 +24,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import question_bank, ai, idioms, prompts, skeleton, skillbook, skillbook_ai, subjects, tutor, vault, wording, peak_tutors
+from . import question_bank, ai, idioms, prompts, skeleton, skillbook, subjects, tutor, vault, wording, peak_tutors
 
 SESSIONS = {}
 FINISHED = {}   # 刚结束的会话 {id: (类型, 结束时间)}：结束后看解析的几分钟也算修炼时间
@@ -623,34 +623,8 @@ def _skill_name(g, board):
 
 
 def _tutor_material(g, board):
-    """讲题资料 (文字, 读到的清单)：有“我的版本”（藏经阁·心法）就用它，没有则走原 skill（与 3.3 一致）"""
-    skill = _skill_name(g, board)
-    mine = skillbook.tutor_material(g.paths, board, skill)
-    if mine is not None:
-        return mine
-    return vault.skill_for_tutor(g.paths, skill) if skill else ("", [])
-
-
-def _q_text(q):
-    """一道题的文字（题干 + 选项），给“记入心法”用"""
-    opts = q.get("options")
-    return str(q.get("stem") or "") + ("\n" + "\n".join("%s. %s" % kv for kv in opts.items()) if isinstance(opts, dict) and opts else "")
-
-
-def _skillnote(g, board, q, answer, mine, explain, label):
-    """解惑后「记入心法」：AI 判断现有方法要不要补，要补就起草一条待审建议（采纳前不改任何文件）。返回消息列表"""
-    if not explain:
-        return [_msg("sys", "先点「🧙 师傅解惑」让师傅把这题讲完，再记入%s。" % g.T("skillbook"))]
-    if not ai.available():
-        return [_msg("sys", "没连上 AI（设置里填 API key 后才能起草）。也可以直接到藏经阁「%s」里手动修改。" % g.T("skillbook"))]
-    ctx = {"question": _q_text(q), "answer": answer, "mine": mine, "explain": explain}
-    try:
-        prop, why = skillbook_ai.note(g.paths, board, _skill_name(g, board), ctx, label)
-    except skillbook.SkillError as e:
-        return [_msg("sys", "⚠ %s" % e)]
-    if not prop:
-        return [_msg("sys", "📘 %s。" % why)]
-    return [_msg("sys", "📘 %s：「%s」。到藏经阁「%s」里看看，采纳后下一次解惑就会用上。" % (why, prop.get("summary", ""), g.T("skillbook")))]
+    """讲题资料 (文字, 读到的清单)：只读藏经阁·心法里这个板块自己的文件；板块是空的就没有 skill 可依据"""
+    return skillbook.tutor_material(g.paths, board) or ("", [])
 
 
 def _skill_digest(g, board):
@@ -658,9 +632,8 @@ def _skill_digest(g, board):
 
 
 def _plain_digest(g, board):
-    """例题评分、复盘等用的精简资料：有我的版本用它，没有走原 skill 的 skill_digest"""
-    mine = skillbook.tutor_material(g.paths, board, _skill_name(g, board))
-    return mine[0] if mine is not None else vault.skill_digest(g.paths, g.boards.get(board, {}).get("skill"))
+    """例题评分、复盘等用的资料：藏经阁·心法里这个板块自己的文件"""
+    return _tutor_material(g, board)[0]
 
 
 def _discuss_ask(g, s, text):
@@ -1402,8 +1375,6 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     msgs += extra or []
     wrong_after = [k for k in range(i + 1, len(qs)) if not res[k]['ok']]
     btns = [('exam_explain:%s' % i, '🧙 师傅解惑' if str(i) not in run.get('explain', {}) else '🧙 再问师傅')]
-    if str(i) in run.get('explain', {}):
-        btns.append(('exam_skillnote:%s' % i, '📘 记入' + g.T('skillbook')))
     if i > 0:
         btns.append(('exam_rprev', '← 上一题'))
     if i + 1 < len(qs):
@@ -1446,13 +1417,8 @@ def _review_action(g, s, run, act):
         note = ('📌 已写进 训练/题库/%s 这道题的解析末尾（原解析保留；再问一次会换成新的）' % where if where
                 else '📌 题库里没找到这道题（可能改过编号），讲解存在 训练/题库/师傅解惑.md')
         note += ('\n📜 依据 skill「%s」：%s' % (skill, '、'.join(used[:8]) + (' 等 %d 个文件' % len(used) if len(used) > 8 else ''))
-                 if used else '\n⚠ 这个板块没找到 skill 资料（copilot/skills/%s），师傅只能按通用方法讲' % (skill or '未配置'))
+                 if used else '\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）')
         return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
-    elif act.startswith('exam_skillnote:'):
-        if act.split(':')[1] != str(i):
-            raise TrainError('题目已经切换，请重新点')
-        return _review_show(g, s, run, extra=_skillnote(g, qs[i]['board'], qs[i], qs[i]['answer'], res[i]['answer'],
-                                                        run.get('explain', {}).get(str(i)), '试炼复盘 ' + qs[i]['id']), scroll_bottom=True)
     elif act == 'exam_close':
         group = run['settled']
         table, total = _result_table(g, run)
@@ -1481,7 +1447,7 @@ def _explain_group(g, board, material, items):
 
 def _skill_note(skill, used):
     return ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
-            if used else "\n⚠ 这个板块没找到 skill 资料（%s），师傅只能按通用方法讲" % (skill or "未配置"))
+            if used else "\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）")
 
 
 def _bank_group_explain(g, s, run, i, mat):
@@ -1685,8 +1651,6 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         msgs.append(_msg("me" if h["role"] == "user" else "npc", h["content"]))
     msgs += extra or []
     btns = [("mr_explain:%d" % i, "🧙 师傅解惑" if str(i) not in s["explain"] else "🧙 再问师傅")]
-    if str(i) in s["explain"]:
-        btns.append(("mr_skillnote:%d" % i, "📘 记入" + g.T("skillbook")))
     if i > 0:
         btns.append(("mr_prev", "← 上一题"))
     if i + 1 < len(qs):
@@ -1747,14 +1711,8 @@ def _mreview_action(g, s, act):
         note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
                 else "📌 没找到这道题的复盘文件，讲解没存下来")
         note += ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
-                 if used else "\n⚠ 这个板块没找到 skill 资料（%s），师傅只能按通用方法讲" % (skill or "未配置"))
+                 if used else "\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）")
         return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
-    elif act.startswith("mr_skillnote:"):
-        if act.split(":")[1] != str(i):
-            raise TrainError("题目已经切换，请重新点")
-        pq = _mreview_pq(s, qs[i])
-        return _mreview_show(g, s, extra=_skillnote(g, s["board"] or s["source"], pq, qs[i]["correct"] or "?", qs[i]["mine"] or "未作答",
-                                                    s["explain"].get(str(i)), "模考复盘 第%s季第%s题" % (s["season"], qs[i]["num"])), scroll_bottom=True)
     elif act in ("mr_pause", "bank_pause"):
         mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]
         text = "进度已保存：第%s季 · %s 停在第 %d/%d 题（第 %s 题）。下次在宗门大比点这个板块，从这题接着复盘。" % (

@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook, skillbook_ai, distill, distill_ai
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -655,9 +655,8 @@ def bank_count(body):
 
 # ---------------------------------------------------------------- 藏经阁·心法（skill 可见、可随时修改，见 rpg/skillbook.py）
 def _skill_boards(g):
-    """[(板块, 原skill名)]：板块表里的全部板块，加上只看正确率的副线板块（如常识判断）"""
-    names = list(dict.fromkeys(list(g.boards) + list(getattr(g.rules, "side", {}) or {})))
-    return [(b, trainer._skill_name(g, b)) for b in names]
+    """板块表里的全部板块，加上只看正确率的副线板块（如常识判断）——每个板块一份心法，初始都是空的"""
+    return list(dict.fromkeys(list(g.boards) + list(getattr(g.rules, "side", {}) or {})))
 
 
 def _skill_call(fn, *args):
@@ -667,111 +666,59 @@ def _skill_call(fn, *args):
         raise ApiError(str(e))
 
 
+def _skill_board(g, board):
+    board = str(board or "")
+    if board not in _skill_boards(g):
+        raise ApiError("没有这个板块")
+    return board
+
+
 def skillbook_view(body):
     with open_game(save=False) as g:
         if not g.paths.vault:
             return {"boards": []}
-        rows = skillbook.overview(g.paths, _skill_boards(g))
-        for r in rows:
-            r["pending"] = len(skillbook.proposals(g.paths, r["board"]))
-        return {"boards": rows, "ai": ai.available()}
+        return {"boards": skillbook.overview(g.paths, _skill_boards(g))}
 
 
 def skillbook_plan(body):
     """打开某个板块时才算的“解惑会读到什么”（慢，带缓存）"""
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        return skillbook.plan(g.paths, board, _skill_source(g, board))
-
-
-def skillbook_organize(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        source = _skill_source(g, board)
-        return {"proposal": _skill_call(skillbook_ai.organize, g.paths, board, source, skillbook_ai.pick_examples(g, board))}
-
-
-def skillbook_proposals(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _skill_source(g, board)
-        return {"proposals": skillbook.proposals(g.paths, board)}
-
-
-def skillbook_accept(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        source = _skill_source(g, board)
-        picks = [x for x in (body.get("picks") or []) if isinstance(x, int)]
-        return _skill_call(skillbook.accept, g.paths, board, source, str(body.get("id") or ""), picks)
-
-
-def skillbook_dismiss(body):
-    with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _skill_source(g, board)
-        return _skill_call(skillbook.dismiss, g.paths, str(body.get("id") or ""))
-
-
-def _skill_source(g, board):
-    for b, source in _skill_boards(g):
-        if b == board:
-            return source
-    raise ApiError("没有这个板块")
+        return _skill_call(skillbook.plan, g.paths, _skill_board(g, body.get("board")))
 
 
 def skillbook_file(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        return _skill_call(skillbook.read_file, g.paths, board, _skill_source(g, board), str(body.get("path") or ""))
-
-
-def _own(g, board):
-    """第一次修改前把库里原 skill 复制到 训练/技能（已有就不动）；返回板块名对应的原 skill 名"""
-    source = _skill_source(g, board)
-    _skill_call(skillbook.ensure_own, g.paths, board, source)
-    return source
+        return _skill_call(skillbook.read_file, g.paths, _skill_board(g, body.get("board")), str(body.get("path") or ""))
 
 
 def skillbook_create(body):
+    """新建一个文件（空板块里直接写第一个文件也走这里）"""
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        source = _skill_source(g, board)
-        how = body.get("how")
-        if how == "template":
-            return _skill_call(skillbook.create_template, g.paths, board)
-        if how == "file":   # 新建一个文件
-            _own(g, board)
-            return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), str(body.get("text") or ""), "")
-        raise ApiError("不知道怎么创建")
+        board = _skill_board(g, body.get("board"))
+        return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), str(body.get("text") or ""), "")
 
 
 def skillbook_save(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _own(g, board)
+        board = _skill_board(g, body.get("board"))
         return _skill_call(skillbook.save, g.paths, board, str(body.get("path") or ""), body.get("text"), str(body.get("base") or ""))
 
 
 def skillbook_delete(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _own(g, board)
+        board = _skill_board(g, body.get("board"))
         return _skill_call(skillbook.delete, g.paths, board, str(body.get("path") or ""), str(body.get("base") or ""))
 
 
 def skillbook_rename(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _own(g, board)
+        board = _skill_board(g, body.get("board"))
         return _skill_call(skillbook.rename, g.paths, board, str(body.get("path") or ""), str(body.get("new_path") or ""), str(body.get("base") or ""))
 
 
 def skillbook_history(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _skill_source(g, board)
-        path, vid = str(body.get("path") or ""), body.get("id")
+        board, path, vid = _skill_board(g, body.get("board")), str(body.get("path") or ""), body.get("id")
         if vid:
             return {"text": _skill_call(skillbook.history_text, g.paths, board, path, vid)}
         return {"versions": _skill_call(skillbook.history, g.paths, board, path)}
@@ -779,116 +726,29 @@ def skillbook_history(body):
 
 def skillbook_restore(body):
     with open_game(save=False) as g:
-        board = str(body.get("board") or "")
-        _own(g, board)
+        board = _skill_board(g, body.get("board"))
         return _skill_call(skillbook.restore, g.paths, board, str(body.get("path") or ""), str(body.get("id") or ""), str(body.get("base") or ""))
 
 
-# ---------------------------------------------------------------- 藏经阁·心法·蒸馏（见 rpg/distill.py、distill_ai.py）
-def _dboard(g, body):
-    board = str(body.get("board") or "")
-    _skill_source(g, board)
-    if subjects.active() != "行测":
-        raise ApiError("蒸馏目前只在行测的心法里使用")
-    return board
-
-
-def distill_state(body):
+def skillbook_import(body):
+    """导入别的平台生成的 .skill / .zip（压缩包）或 .md：{board, name, data(base64)}"""
+    import base64
+    raw = str(body.get("data") or "")
+    raw = raw.split(",", 1)[1] if raw.startswith("data:") else raw
+    try:
+        data = base64.b64decode(raw)
+    except Exception:
+        raise ApiError("文件数据不对")
     with open_game(save=False) as g:
-        board = _dboard(g, body)
-        out = _skill_call(distill.overview, g.paths, board)
-        out.update(ai=ai.available(), pack_sizes={"保守": 6000, "常规": 12000, "大": 30000})
-        return out
+        board = _skill_board(g, body.get("board"))
+        return _skill_call(skillbook.import_package, g.paths, board, str(body.get("name") or ""), data)
 
 
-def distill_material_add(body):
-    with open_game(save=False) as g:
-        board = _dboard(g, body)
-        m = _skill_call(distill.add_material, g.paths, board, str(body.get("kind") or ""), body.get("title"), body.get("text"), body.get("whole_type") or None)
-        return {"id": m["id"], "title": m["title"]}
-
-
-def distill_material_delete(body):
-    with open_game(save=False) as g:
-        return _skill_call(distill.delete_material, g.paths, _dboard(g, body), str(body.get("id") or ""))
-
-
-def distill_material_text(body):
-    with open_game(save=False) as g:
-        m = _skill_call(distill.get_material, g.paths, _dboard(g, body), str(body.get("id") or ""))
-        a, b = int(body.get("start") or 0), int(body.get("end") or len(m["text"]))
-        return {"text": m["text"][a:b][:distill.SEG_TEXT]}
-
-
-def distill_segment(body):
-    """切分结果的修改：{action: update（type/include/title）| merge（和后面一个合并）}"""
-    with open_game(save=False) as g:
-        board, mid, sid = _dboard(g, body), str(body.get("material") or ""), str(body.get("segment") or "")
-        if body.get("action") == "merge":
-            return _skill_call(distill.merge_segments, g.paths, board, mid, sid)
-        return _skill_call(distill.update_segment, g.paths, board, mid, sid, body.get("patch") or {})
-
-
-def distill_card(body):
-    """卡片：{action: get | save（data 是手改后的 JSON）| delete}"""
-    with open_game(save=False) as g:
-        board, cid = _dboard(g, body), str(body.get("id") or "")
-        act = body.get("action")
-        if act == "delete":
-            return _skill_call(distill.delete_card, g.paths, board, cid)
-        if act == "save":
-            return {"card": _skill_call(distill.update_card, g.paths, board, cid, body.get("data"))}
-        c = _skill_call(distill.get_card, g.paths, board, cid)
-        return {"card": c, "preview": _skill_call(distill.card_preview, g.paths, board, cid)}
-
-
-def distill_step(body):
-    """一个 AI 步骤：mode = estimate（估算次数和字数）| ai（用软件里的 AI）| pack（生成提示词包）| import（粘贴结果导入）"""
-    with open_game(save=False) as g:
-        board = _dboard(g, body)
-        step, p, mode = str(body.get("step") or ""), body.get("params") or {}, body.get("mode")
-        if mode == "estimate":
-            return _skill_call(distill_ai.estimate, g.paths, board, step, p)
-        if mode == "ai":
-            return _skill_call(distill_ai.run, g.paths, board, step, p)
-        if mode == "pack":
-            return _skill_call(distill_ai.pack, g.paths, board, step, p, int(body.get("size") or 12000))
-        if mode == "import":
-            return _skill_call(distill_ai.import_result, g.paths, board, step, p, str(body.get("text") or ""))
-        raise ApiError("不知道怎么运行")
-
-
-def distill_build(body):
-    with open_game(save=False) as g:
-        board = _dboard(g, body)
-        return {"proposal": _skill_call(distill.build, g.paths, board, _skill_source(g, board))}
-
-
-def distill_version(body):
-    """版本：{action: compare（a, b）| restore（version）| save（major?, note?）| setting（only_distilled）}"""
-    with open_game(save=False) as g:
-        board, act = _dboard(g, body), body.get("action")
-        if act == "compare":
-            return _skill_call(distill.compare, g.paths, board, str(body.get("a") or ""), body.get("b"))
-        if act == "restore":
-            return _skill_call(distill.restore, g.paths, board, str(body.get("version") or ""))
-        if act == "save":
-            return _skill_call(distill.save_version, g.paths, board, bool(body.get("major")), str(body.get("note") or ""))
-        if act == "setting":
-            return _skill_call(skillbook.set_board_setting, g.paths, board, "only_distilled", bool(body.get("only_distilled")))
-        raise ApiError("不认识的操作")
-
-
-def distill_test(body):
-    """检验：{action: start（n, reseed）| result（id）}。做题和诊断走 distill_step"""
-    with open_game(save=False) as g:
-        board, act = _dboard(g, body), body.get("action")
-        if act == "start":
-            run = _skill_call(distill.start_run, g.paths, board, int(body.get("n") or 20), bool(body.get("reseed")))
-            return {"run": run["id"], "version": run["version"], "n": len(run["keys"]), "batches": len(run["batches"])}
-        if act == "result":
-            return _skill_call(distill.get_result, g.paths, board, str(body.get("id") or ""))
-        raise ApiError("不认识的操作")
+def skillbook_zongjue(body):
+    """心法总诀：{file?}；不带 file 返回清单，带 file 返回那一份的全文（随程序发布，只读）"""
+    if body.get("file"):
+        return _skill_call(skillbook.zongjue_read, str(body["file"]))
+    return {"files": skillbook.zongjue_list()}
 
 
 def skeletons(body):
@@ -1486,20 +1346,8 @@ ROUTES = {
     ("POST", "/api/skillbook/history"): skillbook_history,
     ("POST", "/api/skillbook/restore"): skillbook_restore,
     ("POST", "/api/skillbook/plan"): skillbook_plan,
-    ("POST", "/api/distill/state"): distill_state,
-    ("POST", "/api/distill/material/add"): distill_material_add,
-    ("POST", "/api/distill/material/delete"): distill_material_delete,
-    ("POST", "/api/distill/material/text"): distill_material_text,
-    ("POST", "/api/distill/segment"): distill_segment,
-    ("POST", "/api/distill/card"): distill_card,
-    ("POST", "/api/distill/step"): distill_step,
-    ("POST", "/api/distill/build"): distill_build,
-    ("POST", "/api/distill/version"): distill_version,
-    ("POST", "/api/distill/test"): distill_test,
-    ("POST", "/api/skillbook/organize"): skillbook_organize,
-    ("POST", "/api/skillbook/proposals"): skillbook_proposals,
-    ("POST", "/api/skillbook/accept"): skillbook_accept,
-    ("POST", "/api/skillbook/dismiss"): skillbook_dismiss,
+    ("POST", "/api/skillbook/import"): skillbook_import,
+    ("POST", "/api/skillbook/zongjue"): skillbook_zongjue,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/leave"): leave,
@@ -2183,6 +2031,22 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", mimetypes.guess_type(p.name)[0] or "application/octet-stream")
                 self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % quote(p.name))
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return True
+        if url.path == "/zongjue-file" and method == "GET":     # 心法总诀的四份文件（随程序发布，只读）：给“下载 .md”按钮用，平板 App 里也能下载
+            if lan.authorized(addr, self.headers.get("Cookie")):
+                try:
+                    f = skillbook.zongjue_read(unquote(parse_qs(url.query).get("f", [""])[0]))
+                except skillbook.SkillError as e:
+                    self._send(404, {"error": str(e)})
+                    return True
+                from urllib.parse import quote
+                data = f["text"].encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/markdown; charset=utf-8")
+                self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % quote(f["file"]))
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
