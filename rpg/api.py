@@ -72,7 +72,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook, skillbook_ai
+from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook, skillbook_ai, distill, distill_ai
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -784,6 +784,113 @@ def skillbook_restore(body):
         return _skill_call(skillbook.restore, g.paths, board, str(body.get("path") or ""), str(body.get("id") or ""), str(body.get("base") or ""))
 
 
+# ---------------------------------------------------------------- 藏经阁·心法·蒸馏（见 rpg/distill.py、distill_ai.py）
+def _dboard(g, body):
+    board = str(body.get("board") or "")
+    _skill_source(g, board)
+    if subjects.active() != "行测":
+        raise ApiError("蒸馏目前只在行测的心法里使用")
+    return board
+
+
+def distill_state(body):
+    with open_game(save=False) as g:
+        board = _dboard(g, body)
+        out = _skill_call(distill.overview, g.paths, board)
+        out.update(ai=ai.available(), pack_sizes={"保守": 6000, "常规": 12000, "大": 30000})
+        return out
+
+
+def distill_material_add(body):
+    with open_game(save=False) as g:
+        board = _dboard(g, body)
+        m = _skill_call(distill.add_material, g.paths, board, str(body.get("kind") or ""), body.get("title"), body.get("text"), body.get("whole_type") or None)
+        return {"id": m["id"], "title": m["title"]}
+
+
+def distill_material_delete(body):
+    with open_game(save=False) as g:
+        return _skill_call(distill.delete_material, g.paths, _dboard(g, body), str(body.get("id") or ""))
+
+
+def distill_material_text(body):
+    with open_game(save=False) as g:
+        m = _skill_call(distill.get_material, g.paths, _dboard(g, body), str(body.get("id") or ""))
+        a, b = int(body.get("start") or 0), int(body.get("end") or len(m["text"]))
+        return {"text": m["text"][a:b][:distill.SEG_TEXT]}
+
+
+def distill_segment(body):
+    """切分结果的修改：{action: update（type/include/title）| merge（和后面一个合并）}"""
+    with open_game(save=False) as g:
+        board, mid, sid = _dboard(g, body), str(body.get("material") or ""), str(body.get("segment") or "")
+        if body.get("action") == "merge":
+            return _skill_call(distill.merge_segments, g.paths, board, mid, sid)
+        return _skill_call(distill.update_segment, g.paths, board, mid, sid, body.get("patch") or {})
+
+
+def distill_card(body):
+    """卡片：{action: get | save（data 是手改后的 JSON）| delete}"""
+    with open_game(save=False) as g:
+        board, cid = _dboard(g, body), str(body.get("id") or "")
+        act = body.get("action")
+        if act == "delete":
+            return _skill_call(distill.delete_card, g.paths, board, cid)
+        if act == "save":
+            return {"card": _skill_call(distill.update_card, g.paths, board, cid, body.get("data"))}
+        c = _skill_call(distill.get_card, g.paths, board, cid)
+        return {"card": c, "preview": _skill_call(distill.card_preview, g.paths, board, cid)}
+
+
+def distill_step(body):
+    """一个 AI 步骤：mode = estimate（估算次数和字数）| ai（用软件里的 AI）| pack（生成提示词包）| import（粘贴结果导入）"""
+    with open_game(save=False) as g:
+        board = _dboard(g, body)
+        step, p, mode = str(body.get("step") or ""), body.get("params") or {}, body.get("mode")
+        if mode == "estimate":
+            return _skill_call(distill_ai.estimate, g.paths, board, step, p)
+        if mode == "ai":
+            return _skill_call(distill_ai.run, g.paths, board, step, p)
+        if mode == "pack":
+            return _skill_call(distill_ai.pack, g.paths, board, step, p, int(body.get("size") or 12000))
+        if mode == "import":
+            return _skill_call(distill_ai.import_result, g.paths, board, step, p, str(body.get("text") or ""))
+        raise ApiError("不知道怎么运行")
+
+
+def distill_build(body):
+    with open_game(save=False) as g:
+        board = _dboard(g, body)
+        return {"proposal": _skill_call(distill.build, g.paths, board, _skill_source(g, board))}
+
+
+def distill_version(body):
+    """版本：{action: compare（a, b）| restore（version）| save（major?, note?）| setting（only_distilled）}"""
+    with open_game(save=False) as g:
+        board, act = _dboard(g, body), body.get("action")
+        if act == "compare":
+            return _skill_call(distill.compare, g.paths, board, str(body.get("a") or ""), body.get("b"))
+        if act == "restore":
+            return _skill_call(distill.restore, g.paths, board, str(body.get("version") or ""))
+        if act == "save":
+            return _skill_call(distill.save_version, g.paths, board, bool(body.get("major")), str(body.get("note") or ""))
+        if act == "setting":
+            return _skill_call(skillbook.set_board_setting, g.paths, board, "only_distilled", bool(body.get("only_distilled")))
+        raise ApiError("不认识的操作")
+
+
+def distill_test(body):
+    """检验：{action: start（n, reseed）| result（id）}。做题和诊断走 distill_step"""
+    with open_game(save=False) as g:
+        board, act = _dboard(g, body), body.get("action")
+        if act == "start":
+            run = _skill_call(distill.start_run, g.paths, board, int(body.get("n") or 20), bool(body.get("reseed")))
+            return {"run": run["id"], "version": run["version"], "n": len(run["keys"]), "batches": len(run["batches"])}
+        if act == "result":
+            return _skill_call(distill.get_result, g.paths, board, str(body.get("id") or ""))
+        raise ApiError("不认识的操作")
+
+
 def skeletons(body):
     with open_game(save=False) as g:
         out = []
@@ -1379,6 +1486,16 @@ ROUTES = {
     ("POST", "/api/skillbook/history"): skillbook_history,
     ("POST", "/api/skillbook/restore"): skillbook_restore,
     ("POST", "/api/skillbook/plan"): skillbook_plan,
+    ("POST", "/api/distill/state"): distill_state,
+    ("POST", "/api/distill/material/add"): distill_material_add,
+    ("POST", "/api/distill/material/delete"): distill_material_delete,
+    ("POST", "/api/distill/material/text"): distill_material_text,
+    ("POST", "/api/distill/segment"): distill_segment,
+    ("POST", "/api/distill/card"): distill_card,
+    ("POST", "/api/distill/step"): distill_step,
+    ("POST", "/api/distill/build"): distill_build,
+    ("POST", "/api/distill/version"): distill_version,
+    ("POST", "/api/distill/test"): distill_test,
     ("POST", "/api/skillbook/organize"): skillbook_organize,
     ("POST", "/api/skillbook/proposals"): skillbook_proposals,
     ("POST", "/api/skillbook/accept"): skillbook_accept,
