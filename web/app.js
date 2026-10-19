@@ -681,6 +681,7 @@ const views = {
       <div class="row" style="margin-top:8px">
         <div style="flex:2"><label class="small muted">接口地址 <select id="sPreset" class="ai-preset"><option value="">常用接口…</option>${AI_PRESETS.map((p, i) => `<option value="${i}">${esc(p[0])}</option>`).join("")}</select></label><input id="sBase" value="${esc(s.base_url)}"></div>
         <div style="flex:1"><label class="small muted">模型</label><input id="sModel" value="${esc(s.model)}"></div></div>
+      <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="sThink" style="width:auto" ${s.thinking === false ? "" : "checked"}> 🧠 让 AI 先思考（DeepSeek 用：更准，但更慢、更费 token；思考也算在输出额度里，程序已自动多留）</label>
       <details class="sv-vision" style="margin-top:10px"${s.vision_model ? " open" : ""}><summary class="small">🪶 识图模型（师傅制卡读扫描版 PDF 用，可不填）</summary>
       <p class="small muted">填一个能看图的模型（如 qwen-vl-max、gpt-4o、glm-4v）：「🧙 师傅制卡」遇到扫描版 PDF（页面是图片）时让它看图认字。接口地址、key 和上面一样时留空。</p>
       <div class="row">
@@ -1540,7 +1541,7 @@ function bindSettings() {
     pre.value = "";
   };
   function formBody() {
-    const body = { base_url: $("#sBase").value, model: $("#sModel").value };
+    const body = { base_url: $("#sBase").value, model: $("#sModel").value, thinking: $("#sThink").checked };
     if ($("#sKey").value.trim()) body.api_key = $("#sKey").value.trim();
     body.vision_model = $("#sVModel").value.trim(); body.vision_base_url = $("#sVBase").value.trim();
     if ($("#sVKey").value.trim()) body.vision_api_key = $("#sVKey").value.trim();

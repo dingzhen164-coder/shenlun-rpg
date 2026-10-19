@@ -599,3 +599,4 @@ shared tests/ui_layout335.cjs
 shared tests/test_builtin_art.py
 shared tests/ui_art338.cjs
 diverged web/assets/beauty/builtin-art.json
+diverged tests/test_ai_thinking.py
