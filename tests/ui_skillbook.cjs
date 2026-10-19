@@ -81,7 +81,7 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert.match(await page.locator('.skb-read').textContent(),/导入的内容/);
   assert.equal(await page.locator('.skb-chip[title="cheatsheet.md"]').count(),1,'原有的其他文件还在');
   assert.match(await page.locator('.skb-chip[title="references/逐题表.md"]').textContent(),/仅查阅/);
-  assert.match(await page.locator('.skb-meter').textContent(),/references 里的 1 个文件只供查阅/);
+  assert.match(await page.locator('.skb-meter').textContent(),/references \/ 学习版 里的 1 个文件只供查阅或阅读/);
   await page.locator('[data-skb="history"]').click();await page.waitForSelector('.skb-ver');assert((await page.locator('.skb-ver').count())>=1);await page.locator('[data-skb="back"]').click();
   await fit(page,label+' 导入后');
   // 7 空板块：提示导入或新建；导入后下一次解惑就读到
@@ -98,7 +98,7 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   // 8 心法总诀：四份文件、复制、下载
   await page.locator('[data-skb="shelf"]').click();await page.waitForSelector('.skb-root.shelf .skb-zj-card');
   await page.locator('.skb-zj-card').click();await page.waitForSelector('.skb-zj-text');
-  assert.equal(await page.locator('[data-skb-zj]').count(),4,'四份文件');
+  assert.equal(await page.locator('[data-skb-zj]').count(),5,'五份文件');
   assert.match(await page.locator('.skb-zj-text').textContent(),/提取|例题/);
   await page.locator('[data-skb-zj="使用流程.md"]').click();await page.waitForFunction(()=>/导入 skill/.test(document.querySelector('.skb-zj-text')?.textContent||''));
   await page.locator('[data-skb-zj="配置-空白模板.md"]').click();await page.waitForFunction(()=>/固定清单/.test(document.querySelector('.skb-zj-text')?.textContent||''));

@@ -57,9 +57,9 @@
     const skipped = pl.items.filter((i) => i.kind === "method" && !i.read);
     const refs = pl.items.filter((i) => i.kind === "ref").length;
     return `<div class="skb-meter" role="group" aria-label="解惑读取情况">
-      <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>解惑时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references 里的 ${refs} 个文件只供查阅，不自动读入</span>` : ""}</div>
+      <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>解惑时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references / 学习版 里的 ${refs} 个文件只供查阅或阅读，不自动读入</span>` : ""}</div>
       <div class="skb-bar"><i style="width:${pct}%"></i></div>
-      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。请精简、拆分，或把它们放进 references/ 文件夹。</div>` : ""}</div>`;
+      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。请精简、拆分，或把它们放进 references/ 文件夹（只供查阅，不自动读入）。</div>` : ""}</div>`;
   }
 
   function chips(b) {
@@ -110,7 +110,7 @@
 
   function shelf() {
     return `<p class="lib-tip skb-tip small">每本古籍是一个板块的${esc(name())}，一开始都是空的：点开可看、可改、可导入别的平台生成的 skill，保存后下一次解惑就按新内容讲。</p>
-      <button class="skb-zj-card" data-skb="zj"><b>📜 ${esc(name())}总诀</b><span class="small muted">蒸馏第一步、第二步、配置空白模板、使用流程——拿到 GPT / Gemini / DeepSeek 等平台生成 skill，再导入下面的板块</span></button>
+      <button class="skb-zj-card" data-skb="zj"><b>📜 ${esc(name())}总诀</b><span class="small muted">蒸馏第一步、第二步、第三步（学习版）、配置空白模板、使用流程——拿到 GPT / Gemini / DeepSeek 等平台生成 skill 或学习版，再导入下面的板块</span></button>
       <div class="tome-grid skb-shelf">${DATA.map((x, i) => {
         const seal = x.n_files ? x.n_files + " 篇" : "空";
         return `<div class="tome-slot"><button class="tome skb-tome ${x.n_files ? "" : "none"}" style="--h:${(i * 47 + 20) % 360};--d:${(i * 0.9).toFixed(1)}s" data-skb-board="${esc(x.board)}" aria-label="${esc(x.board)}（${seal}）">
@@ -122,7 +122,7 @@
   function zjHtml() {
     return `<aside class="skb-side card" aria-label="总诀文件"><button class="ghost small" data-skb="shelf">← 回书架</button>
         <div class="skb-who"><b>📜 ${esc(name())}总诀</b></div>
-        <p class="small muted">四份可以直接复制到别的 AI 平台使用的说明。用法：配置（填一份）→ 第一步（每份逐字稿一次）→ 第二步（攒够再跑）→ 得到 .skill → 回来导入到板块。</p>
+        <p class="small muted">五份可以直接复制到别的 AI 平台使用的说明。用法：配置（填一份）→ 第一步（每份逐字稿一次）→ 第二步（攒够再跑，得到做题用的 .skill）→ 第三步（可选，生成学习版）→ 回来导入到板块。</p>
         <div class="skb-files" role="tablist">${ZJFILES.map((f) => `<button role="tab" class="skb-chip ${f.file === ZJFILE ? "on" : ""}" data-skb-zj="${esc(f.file)}" aria-selected="${f.file === ZJFILE}"><span>${esc(f.title)}</span></button>`).join("")}</div></aside>
       <section class="skb-main card"><div class="skb-head"><h3>${esc(ZJFILES.find((f) => f.file === ZJFILE)?.title || "")} <small class="muted">${esc(ZJFILES.find((f) => f.file === ZJFILE)?.desc || "")}</small></h3>
         <div class="skb-tools"><button class="primary small" data-skb="zj-copy">📋 复制全文</button><a class="ghost small skb-dl" href="/zongjue-file?f=${encodeURIComponent(ZJFILE)}" download="${esc(ZJFILE)}">⬇ 下载 .md</a></div></div>

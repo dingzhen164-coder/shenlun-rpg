@@ -70,15 +70,22 @@ class SkillbookTest(unittest.TestCase):
         self.put("心法/01-分类.md", "分类内容")
         self.put("cheatsheet.md", "速查内容")
         self.put("references/大资料.md", "资料内容" * 50)
+        self.put("学习版/01-建立联系.md", "学习版内容")
+        self.put("学习版/例题精讲/01-电梯.md", "精讲内容")
         text, used = skillbook.tutor_material(self.p, BOARD)
         self.assertEqual(used, ["SKILL.md", "cheatsheet.md", "心法/01-分类.md"])
         self.assertTrue(text.index("先识别") < text.index("速查内容") < text.index("分类内容"))
         self.assertIn("保留这段", text)
         self.assertNotIn("jiexi.py", text)
         self.assertNotIn("资料内容", text)
+        self.assertNotIn("学习版内容", text)                                              # 学习版只供阅读，不自动读入讲题
+        self.assertNotIn("精讲内容", text)
         plan = skillbook.plan(self.p, BOARD)
         ref = next(i for i in plan["items"] if i["rel"] == "references/大资料.md")
         self.assertEqual((ref["kind"], ref["read"]), ("ref", False))
+        study = {i["rel"]: i for i in plan["items"] if i["rel"].startswith("学习版/")}
+        self.assertEqual({v["kind"] for v in study.values()}, {"ref"})
+        self.assertEqual(len(study), 2)
 
     def test_history_folder_and_hidden_files_are_never_read(self):
         f = self.put()
@@ -242,9 +249,9 @@ class SkillbookTest(unittest.TestCase):
             self.assertIn(needed, routes)
 
     # ---- 心法总诀
-    def test_zongjue_has_the_four_files_readable_and_in_sync(self):
+    def test_zongjue_has_the_five_files_readable_and_in_sync(self):
         lst = api.skillbook_zongjue({})["files"]
-        self.assertEqual([x["file"] for x in lst], ["蒸馏-第一步-提取例题.md", "蒸馏-第二步-归纳心法.md", "配置-空白模板.md", "使用流程.md"])
+        self.assertEqual([x["file"] for x in lst], ["蒸馏-第一步-提取例题.md", "蒸馏-第二步-归纳心法.md", "蒸馏-第三步-生成学习版.md", "配置-空白模板.md", "使用流程.md"])
         for x in lst:
             t = api.skillbook_zongjue({"file": x["file"]})["text"]
             self.assertTrue(len(t) > 300, x["file"])
@@ -252,6 +259,10 @@ class SkillbookTest(unittest.TestCase):
         self.assertIn("导入 skill", flow)
         self.assertIn("固定清单", api.skillbook_zongjue({"file": "配置-空白模板.md"})["text"])
         self.assertIn("references/", api.skillbook_zongjue({"file": "蒸馏-第二步-归纳心法.md"})["text"])
+        step3 = api.skillbook_zongjue({"file": "蒸馏-第三步-生成学习版.md"})["text"]
+        self.assertIn("老师是怎么讲的", step3)
+        self.assertIn("学习版/", step3)
+        self.assertIn("老师的讲解", api.skillbook_zongjue({"file": "蒸馏-第一步-提取例题.md"})["text"])       # 第一步要把概念讲解记详细
         for bad in ("../x.md", "不存在.md"):
             with self.assertRaises(api.ApiError):
                 api.skillbook_zongjue({"file": bad})
