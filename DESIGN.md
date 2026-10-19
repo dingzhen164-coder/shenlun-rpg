@@ -826,45 +826,19 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 
 快捷键存储键使用map前缀，避免申论静态措辞转换把xrpg改成srpg而造成两科偏好分离；浏览器实际切换两科验证同一绑定。
 
-## 3.4 藏经阁·心法：skill 可见、可随时修改（开发批次 3.4.0+3.4.1，未发布）
+## 3.5.3 藏经阁·心法（取代 3.4 的“原 skill / 整理 / 待审建议”与 3.5 的“蒸馏”）
 
-方案见 `3.4版本更新方案.md`。本批做了方案里的 3.4.0（只读阅读与透明度）和 3.4.1（随时修改）；整理向导、从做题更新、发布回原 skill 留到后续批次。
+用户决定（2026-10-19）：蒸馏改到别的平台（GPT / Gemini / DeepSeek 等）做，软件里只留“放 skill、改 skill、导入 skill”。所以：
 
-- **存放**：`训练/技能/<板块>/**.md`（程序可写）；库里原 `copilot/skills/<skill名>/` 始终只读，只当来源。每个板块一个目录（共用的 skill 拆开：申论四题型各一份）。历史在 `训练/技能/.历史/<板块>/<相对路径>/<时间>.md`，以点开头，不当 skill 文本读。
-- **读取顺序**（`rpg/skillbook.py`，讲题处共用 `trainer._tutor_material` / `_plain_digest`）：板块有 `SKILL.md` 的“我的版本”→用它（目录里全部 .md，SKILL.md 在前）；没有→走原 skill（与 3.3 逐字相同，测试里对照）；都没有→空。我的版本仍会带上原 skill 引用的库内资料（知识在那里），它们不随版本复制。总量上限仍是 `TUTOR_LIMIT=60000` 字，超出的文件标“未读入”，界面同样显示（`reading_plan` 是界面与实际读取共用的同一份计划）。
-- **随时修改**：每个文件常驻「✎ 修改」；原 skill 状态下点修改会先确认并复制成我的版本，再进入编辑；保存即生效，下一次解惑就用新内容。保存带版本号（内容哈希，CAS）：别处先改过则提示冲突、草稿保留、不覆盖。每次保存/改名/删除前留历史（同内容不重复，每文件最多 50 份），可查看与回滚；回滚前的内容也进历史。SKILL.md 不能改名。
-- **安全**：路径只允许 `.md`、最多 3 层、禁止 `..`/绝对路径/隐藏名/特殊字符；单文件 ≤ 200000 字、每板块 ≤ 60 个文件；原子写入。不调用 AI，不计学习时长，不改成绩/经验/评分（申论评分仍由 `rubric.py` 算）。
-- **接口**：`GET /api/skillbook`；`POST /api/skillbook/file|create|save|delete|rename|history|restore`（见 `rpg/api.py`）。
-- **界面**：藏经阁新页签（风格词 `skillbook`：行测修仙“心法”、玄幻“秘典”、申论“办事规程”，在 `themes*.py`）；`web/skillbook.js/css`，类名 `skb-`；选中的板块/文件记在 localStorage `skillbook-pos`，未保存草稿留在模块内存里。
-- **测试**：`tests/test_skillbook.py`（读取顺序、旧行为不变、保存即生效、冲突、历史回滚、删除改名、路径与大小限制、未读入标记、接口与讲题实际读取）；`tests/ui_skillbook.cjs --subject=行测|申论`（看/改/保存即生效/刷新还在/回滚/冲突/新建改名删除，电脑与平板不整页滚动）；`tests/ui_layout_server.py --skillbook-fixture` 提供自编 skill。
-- **3.4.4 体验反馈修补（取代 3.4.2 的“整理成标准结构”和“我的版本/发布回原 skill”）**：
-  - **没有“我的版本”**：界面只有“心法”。读取时训练/技能 里有 SKILL.md 就用它，否则用库里原 skill（`mode`=mine/source/none 只是内部状态）。`ensure_own`：第一次保存/新建/改名/删除/回滚/采纳时自动把原 skill 的 .md 复制到 训练/技能/<板块>/（没有原 skill 就用模板）；`read_file` 对原 skill 也返回内容哈希 rev 且 editable，所以打开时拿到的版本号在自动复制后仍有效。库里原文件始终不动。**取消**“发布回原 skill”：函数、接口、开关、测试一并删除（`/api/skillbook/settings|publish*` 不再存在，旧存档里的 `state.skillbook.publish_back` 无害忽略）。
-  - **学习版**（`skillbook_ai.organize`，提示词 `prompts.SKILLBOOK_LEARN / skillbook_learn_file / skillbook_learn_demo`）：材料是这个板块现在的心法（`reading_plan` 的文本，已去掉“调度时”一节，含引用资料；有文件超上限未读入则拒绝）。新增 6 个文件：02-方法卡（先写）→ 00-怎么用、01-识别信号、03-陷阱、05-速查（把方法卡内容传给后面几个，方法名对得上）→ 04-示范（`pick_examples`：题库里有答案的题，先挑回炉中的错题、再挑有解析的，共 2 道；原题和答案由程序贴，AI 只写“第几步（用到：方法卡「…」）”和小结）。全中文、不用 LaTeX、逻辑符号第一次出现说明读法（`LEARN_STYLE`）。一次一个文件、截断则换更紧上限重试、次要文件失败可跳过、方法卡必须成功；已有同名文件的这次不重写；示范失败不影响其他文件。待审建议 key 含 `VERSION="learn1"`、材料哈希、文件清单、题目，同样输入不重复花钱；采纳规则不变（`new` 不覆盖，写变更记录）。
-  - **读取**：`vault.strip_dispatch` 去掉 SKILL.md 里“## 被 … 调度时”整节（到下一个二级标题或文末），`reading_plan`、`vault.skill_for_tutor` 都用；阅读区仍显示完整原文。
-  - **字数显示**：`skillbook.words`（汉字各算一个、连续字母数字算一个词，符号空格标记不算）；`plan` 的每个文件有 `words/title`，总量有 `words`；界面显示“约 X 字、占上限 Y%”，上限与读取量仍按字符（`chars`）。原来显示的是字符数（含空格、标记、公式源码），用户按字数数会觉得偏多。
-  - **阅读渲染** `web/mdlite.js`（`window.MDLITE.render/friendly`）：标题（# → h2…）、列表、表格、引用、代码块、加粗斜体、行内代码、$…$ 公式（\neg→¬ 等符号表，公式里的 or/and→∨/∧）、去 YAML 头与注释、链接只留文字；book-to-skill 固定英文小标题（Core Idea、Anti-patterns、Key Takeaways 等）与 Chapter N→第N章、固定说明句换中文；`friendly` 给文件起中文名（SKILL.md→入口、cheatsheet→速查表、章节用标题）。修改区永远是原文。
-  - **界面**：书架（`.tome` 古籍，申论官场风格是档案盒，不浮动）→ 全屏详情；类名 `skb-` / 渲染 `.md`；全屏铺满见 `scene_panels.css` 的 skeleton 路由规则。
-  - **测试**：`tests/test_skillbook.py`（直接改、自动复制、历史、字数、调度节不读）、`tests/test_skillbook_ai.py`（学习版逐文件、重试、跳过、不重写已有、材料不含调度节）、`tests/ui_skillbook.cjs`（书架→详情→直接修改→渲染公式/表格→…）。
-- **3.4.3 解惑后「记入心法」**：行测试炼复盘和模考复盘里，师傅解惑后出现「📘 记入心法」按钮；AI 判断现有方法要不要补（`needed:false` 就明说不用改），要补就起草最多 3 条修改，只允许 `append`（追加）和 `new`（新建），不能改写或删除已有内容，存成待审建议并带题目来源；同一道题同样的讲解不重复请求。申论没有解惑流程，不挂这个按钮。
-- **采纳规则**（`skillbook.accept`）：只处理勾选的修改；板块还没有自己的目录会先 `ensure_own`；采纳后写进 `变更记录.md`（时间、摘要、文件、来源），每个被改文件留历史；全部处理完的建议自动移走。
-- **接口**：`POST /api/skillbook/plan|organize|proposals|accept|dismiss`（3.4.4 起；`/api/skillbook` 只给书架概况，`plan` 才算读取情况）。
-- 法考不共用本功能：法考没有 skill，见 fakao-rpg 的 3.4 方案（知识点定位与“我的批注”）。
-
-## 3.5 心法蒸馏：素材 → 卡片 → 版本 → 检验（3.5.0 + 3.5.1）
-
-用户方案见对话（听课逐字稿 / 习题册解题过程 / 自己的话 → 蒸馏成心法；能更新；能用题检验）。只做行测（`api._dboard` 非行测报错；前端 `DISTILL.enabled` 用 `isSL()`，不要直接比较科目名——申论的静态文字会把“行测”换成“申论”）。
-
-- **模块**：`rpg/distill.py`（存储与程序逻辑，不调 AI）、`rpg/distill_ai.py`（提示词 + AI 步骤 + 提示词包 / 导入）、`web/distill.js`（界面，由 `skillbook.js` 在「🎓 蒸馏」页签里 mount）、`tests/test_distill.py`、`tests/ui_distill.cjs`。
-- **存放**（`训练/技能/<板块>/`，点开头的目录不当心法读）：`.素材/<id>.json`（原文 + 片段起止下标）、`.卡片/<id>.json`、`.版本/<号>/{manifest.json, files/}`、`.检验/{测试集.json, run-*.json, result-*.json}`、`.设置.json`；蒸馏版文件在 `蒸馏/` 下：00-总流程、01-总纲、02-识别信号、03-考点/*、04-丑的选项、05-例题/*。
-- **切分**：AI 只给每个片段的类型 + 起止原文各一句，`distill.locate` 在原文里定位（只比较汉字字母数字，标点空白不影响；找不到完整的退到开头 / 结尾 12、8、6 个字），所以不会让 AI 重写原文；长稿按 `SEG_TEXT=9000` 字分块，重跑一块只换这一块的片段；`skipped_ranges` 给出没被盖住的文字供检查。
-- **卡片**：`validate_card`（考点 / 例题 / 总纲三种，未知字段丢掉、列表去重截断、缺必填项报错）。考点同名并入（信号并集；做法不同 → `alt_steps`；自述原话排前）；总纲整个板块一张；例题每道一张。`rev` 记修改次数。`evidence`：讲解数 + 引用它的例题数，≥2 为“已印证”。
-- **汇总**：`render_files` 按模板从卡片生成全部文件（程序，不花额度；总流程可选 AI 写，存在 `.设置.json.flow_draft`）；`build` 和现有文件比较：没有 → `new`，有变化 → `replace`（带打开时的内容哈希 base 和修改前内容 before；与上个版本快照不同的 = 手改过，标 `flag` 默认不勾选）；采纳时哈希对不上就跳过（`skillbook.accept` 的 replace 分支）。`proposal.kind`：distill（第一版）/ update / diagnose，`meta` 带版本号和卡片版本表；采纳后 `distill.after_accept` 存版本快照（`.版本`）并默认打开“讲题只读蒸馏版”。待审建议上限放宽到 120 条（`MAX_EDITS_DISTILL`）；`MAX_FILES` 放宽到 150。
-- **读取**：`skillbook.has_own` 认蒸馏文件；`only_distilled`（默认开）时 `reading_plan` 只读 `蒸馏/` 下的文件、也不读原 skill 引用的库内资料。
-- **提示词包**：每个 AI 步骤（segment / card / flow / test / diagnose）同一套 `_prep` → 提示词 + 上下文，`run`（软件 AI，逐单元：切分按块、拆卡按片段、检验按批；失败时前面已保存的保留）、`pack`（分包；拆卡把几个片段合一包）、`import_result`（`extract_json` 取回复里的 JSON，校验不过指出哪里不对）三条路走同一个 `_apply_*`。运行前 `estimate` 给出调用次数和字数。
-- **检验**：`test_set` 固定测试集（有答案、四个选项、不是例题卡用过的题；换一批要手动 reseed）；`start_run` 存题目快照、按 5 题一批；做题的提示词里只有心法和题干选项；`record_answers` 全部答完由程序判对错存 `result-*.json`，版本列表显示该版本最近一次做对率；诊断把错题交给 AI 起草补充，写成待审建议（追加到对应考点文件，同时记进卡片的 `extra`，之后重新汇总文件不会冲突）。
-- **接口**：`POST /api/distill/state|material/add|material/delete|material/text|segment|card|step|build|version|test`（见 `rpg/api.py`）。
-- **测试**：`tests/test_distill.py`（定位、切分、卡片校验与合并、汇总、版本对比回滚、增量更新与手改冲突、提示词包导入的错误提示、假 AI 运行、检验判分与诊断、接口）；`tests/ui_distill.cjs`（全程走“复制提示词 / 粘贴导入”，不连 AI；`tests/ui_layout_server.py --distill-fixture` 给题库）。
-- 本批顺带修复：待审建议里勾选框被拉到中间的样式（`.skb-edit` 的规则被合并写坏）。
+- **每个板块一份心法，初始为空**：`训练/技能/<板块>/**.md`（程序可写）。没有“原版 / 我的版本”：直接修改，历史（`训练/技能/.历史/<板块>/<相对路径>/<时间>.md`）留着每次修改、导入覆盖、改名、删除前的样子，可回滚。库里的 `copilot/skills` **不再读取**（要用就导入）。
+- **读取**（`rpg/skillbook.py`，讲题处共用 `trainer._tutor_material` / `_plain_digest`）：只读本板块自己的文件，`SKILL.md` 在前，其余按路径排序；`references/` 下的文件**只供查阅、不自动读入**（`reading_plan` 里 `kind="ref"`，界面标“仅查阅”）；`.历史` 和隐藏文件不读；`vault.strip_dispatch` 去掉 SKILL.md 里“被 … 调度时”整节；总量上限 `TUTOR_LIMIT`，超出的文件明确标“未读入”。板块是空的 → 没有 skill 可依据（讲题提示“藏经阁里还没有内容”）。
+- **导入**（`skillbook.import_package`，`POST /api/skillbook/import {board, name, data(base64)}`）：支持 `.skill` / `.zip`（压缩包，最外层同一个文件夹会去掉，`__MACOSX` 和隐藏文件忽略）和单个 `.md`；只导入 `.md`，其余（yaml、json）列入“跳过”；路径 `..`、过深（>3 层）、单文件过长（>200000 字）、导入后超过 150 个文件都挡掉或跳过并说明；同名文件覆盖（旧内容先进历史），包里没有的现有文件不动；解压总大小上限 20MB。
+- **心法总诀**（`rpg/data/zongjue/` 四份：蒸馏-第一步-提取例题、蒸馏-第二步-归纳心法、配置-空白模板、使用流程；`POST /api/skillbook/zongjue` 给清单与全文，`GET /zongjue-file?f=` 给下载）：随程序发布、只读，可复制全文、可下载；方法见这四份文件本身（两步法：第一步从逐字稿提取例题记录，第二步归纳成心法并生成 SKILL.md；配置里可写固定清单、任务方向；第二步要求把篇幅大的 05 逐题表、06 底稿放到 `references/`）。
+- **取消**（入口、接口、测试一并删）：✨生成学习版 / 整理成标准结构（`skillbook_ai`）、待审建议与采纳（`accept/dismiss/proposals`）、解惑后「📘 记入心法」、🎓蒸馏页签及其全部后端（`distill.py` / `distill_ai.py` / `web/distill.js`）、“讲题只读蒸馏版”开关。
+- **接口**：`GET /api/skillbook`（每板块只给 `{board, n_files, files}`）；`POST /api/skillbook/file|create|save|delete|rename|history|restore|plan|import|zongjue`。
+- **界面**：藏经阁页签（风格词 `skillbook`：行测修仙“心法”、玄幻“秘典”、申论“办事规程”）：书架（最前一张「总诀」入口卡 + 一板块一本 `.tome`，空板块是灰色封面写“空”）→ 全屏详情（左栏文件与读取情况，右侧阅读 / 修改 / 历史）；类名 `skb-` 前缀；阅读渲染 `web/mdlite.js`。
+- **测试**：`tests/test_skillbook.py`（初始为空、读取顺序与 references、保存即生效、冲突、历史回滚、删除改名、路径与大小限制、导入各种包与攻击路径、总诀）、`tests/ui_skillbook.cjs`（真实浏览器：空板块、直接改、历史、冲突、导入覆盖、总诀复制与下载、已取消的功能不再出现）。
+- 法考不共用本功能：法考没有 skill，见 fakao-rpg 的方案。
 
 ## 3.3.11 补丁（开发批次，未发布）：删除同步考情与战绩；检查有成绩就更新
 

@@ -1,51 +1,41 @@
-"""藏经阁·心法（skill）：每个板块一个专属、可随时修改的目录。
+"""藏经阁·心法（skill）：每个板块一个专属、可随时修改的目录（3.5.3 起一律从空开始）。
 
-存放：训练/技能/<板块>/**.md（程序可写）。用户库里原来的 copilot/skills/<skill名>/ 始终只读，只当“来源”：
-第一次修改（保存、新建、整理采纳……）时程序自动把它复制到这里，之后就直接改这里——界面上没有“我的版本”的概念，每个板块就是一份心法，
-历史里留着每次修改前的样子。
-历史：训练/技能/.历史/<板块>/<相对路径>/<时间>.md（每次保存、删除、改名前先留一份，可回滚）。
+存放：训练/技能/<板块>/**.md（程序可写）。初始是空的；内容来自三处：自己新建文件、在界面里直接修改、
+导入别的平台生成的 .skill / .zip 包（见 import_package）。没有“原版 / 我的版本”之分：每个板块就是一份心法，
+历史里留着每次修改前的样子，可以回滚。用户库里的 copilot/skills 不再读取（要用就导入进来）。
+历史：训练/技能/.历史/<板块>/<相对路径>/<时间>.md（每次保存、导入覆盖、删除、改名前先留一份）。
 
-读取顺序（解惑、复盘追问、传授等所有讲题处共用 tutor_material）：
-  1. 训练/技能/<板块>/ 里有 SKILL.md → 用这里的（目录里全部 .md，SKILL.md 在前，.历史 不读）；
-  2. 没有 → 回退用户库里的原 skill（行为与 3.3 完全一致）；
-  3. 都没有 → 空。
-讲题时不读 SKILL.md 里“被 xxx 调度时”那一节（给 AI 总调度用的脚本流程，见 vault.strip_dispatch）。
-这里的版本仍会带上原 skill 引用的库内资料（如“六种对应关系.md”），它们是资料、不是方法，不随版本复制。
+讲题（解惑、复盘追问、传授等共用 tutor_material）读取：目录里全部 .md，SKILL.md 在前，其余按路径排序；
+references/ 下的文件只供查阅，不自动读入；.历史 不读；SKILL.md 里“被 xxx 调度时”那一节不读（见 vault.strip_dispatch）。
 读取总量上限 TUTOR_LIMIT 字，超出的文件明确标“未读入”，界面上同样显示，不悄悄截断。
-
 保存带版本号（内容哈希）：两处同时改，后保存的会收到冲突提示，不会悄悄覆盖。程序算分、判分不读这里的任何内容。
 """
 import hashlib
+import io
 import os
 import re
-import shutil
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 from . import vault
 
 DIR = "技能"
 HIST = ".历史"
-TUTOR_LIMIT = vault.TUTOR_LIMIT          # 讲题时给师傅的资料上限（字），与旧逻辑同一个数
+TUTOR_LIMIT = vault.TUTOR_LIMIT          # 讲题时给师傅的资料上限（字）
 MAX_FILE = 200_000                         # 单个文件上限（字）
-MAX_FILES = 150                            # 每个板块最多的文件数（蒸馏版一张卡一个文件，会比较多）
-DISTILL = "蒸馏"                            # 蒸馏版文件放在 训练/技能/<板块>/蒸馏/ 下（见 distill.py）
-SETTINGS = ".设置.json"
+MAX_FILES = 150                            # 每个板块最多的文件数
 MAX_DEPTH = 3                              # 相对路径最多几层（含文件名）
 KEEP_HISTORY = 50                          # 每个文件最多留几份历史
+REF_DIR = "references"                     # 这个文件夹里的文件只供查阅，不自动读入讲题
+MAX_PACKAGE = 20_000_000                   # 导入的包解压后总大小上限（字节）
 BAD_NAME = re.compile(r'[\\:*?"<>|\x00-\x1f]')
-
-TEMPLATE = {
-    "SKILL.md": "# {board} · 心法\n\n> 入口：遇到这类题先做什么、按什么顺序、用到哪些文件。\n\n"
-                "1. 先看 `01-识别信号.md`，认出这题属于哪一类；\n2. 按 `02-方法卡.md` 的步骤做；\n"
-                "3. 对照 `03-陷阱.md` 排除干扰项；\n4. 不会时看 `04-示范.md`，记口诀看 `05-速查.md`。\n",
-    "01-识别信号.md": "# 识别信号\n\n题干出现什么字眼，就用哪个方法：\n\n| 题干信号 | 用哪个方法 |\n|---|---|\n| | |\n",
-    "02-方法卡.md": "# 方法卡\n\n## 方法一：（名称）\n\n- 什么时候用：\n- 步骤：\n  1. \n  2. \n",
-    "03-陷阱.md": "# 常见陷阱与排除\n\n- \n",
-    "04-示范.md": "# 示范\n\n（一道真题 → 每一步用了哪张方法卡 → 过程）\n",
-    "05-速查.md": "# 口诀速查\n\n- \n",
-}
+ZONGJUE_DIR = Path(__file__).parent / "data" / "zongjue"
+ZONGJUE = [("蒸馏-第一步-提取例题.md", "第一步 · 提取例题", "从课程逐字稿里提取每道例题（只记老师说过的）"),
+           ("蒸馏-第二步-归纳心法.md", "第二步 · 归纳心法", "把例题记录归纳成一套心法，并生成 SKILL.md"),
+           ("配置-空白模板.md", "配置 · 空白模板", "每门课填一份，告诉 AI 这门课要蒸馏什么"),
+           ("使用流程.md", "使用流程", "从配置到导入板块的完整步骤")]
 
 
 class SkillError(ValueError):
@@ -97,7 +87,7 @@ def _file(paths, board, rel):
 
 
 def _order(rel):
-    """SKILL.md 在前，其余与原读取逻辑一致（按路径各层比较）"""
+    """SKILL.md 在前，其余按路径各层比较"""
     return (rel != "SKILL.md", tuple(rel.split("/")))
 
 
@@ -144,61 +134,8 @@ def own_files(paths, board):
 
 
 def has_own(paths, board):
-    """训练/技能 里已经有心法：有 SKILL.md，或者有蒸馏版文件"""
-    try:
-        d = board_dir(paths, board)
-    except SkillError:
-        return False
-    if (d / "SKILL.md").is_file():
-        return True
-    return (d / DISTILL).is_dir() and any((d / DISTILL).rglob("*.md"))
-
-
-def board_settings(paths, board):
-    """每个板块自己的小设置（训练/技能/<板块>/.设置.json）：only_distilled = 讲题只读蒸馏版"""
-    d = board_dir(paths, board) / SETTINGS
-    data = _load_json(d) if d.is_file() else None
-    return data if isinstance(data, dict) else {}
-
-
-def set_board_setting(paths, board, key, value):
-    data = board_settings(paths, board)
-    data[key] = value
-    _atomic_any(board_dir(paths, board) / SETTINGS, data)
-    _PLAN.clear()
-    return data
-
-
-def only_distilled(paths, board):
-    """讲题只读蒸馏版：有蒸馏版文件，并且（没有复制过原 skill 的 SKILL.md，或者设置里没关掉——默认就是只读蒸馏版）"""
-    try:
-        d = board_dir(paths, board)
-        if not (d / DISTILL).is_dir() or not any((d / DISTILL).rglob("*.md")):
-            return False
-        return not (d / "SKILL.md").is_file() or bool(board_settings(paths, board).get("only_distilled", True))
-    except SkillError:
-        return False
-
-
-def source_files(paths, source):
-    """用户库里原 skill 的 .md（只读；scripts/ 和隐藏文件不要）"""
-    d = vault.skill_dir(paths, source)
-    if not d:
-        return []
-    out = []
-    for p in d.rglob("*.md"):
-        rel = p.relative_to(d)
-        if any(x.startswith(".") or x == "scripts" for x in rel.parts):
-            continue
-        out.append(rel.as_posix())
-    return sorted(out, key=_order)
-
-
-def mode(paths, board, source):
-    """mine = 用训练/技能里的（已经改过或整理过）；source = 还在用库里原 skill；none = 都没有"""
-    if has_own(paths, board):
-        return "mine"
-    return "source" if vault.skill_dir(paths, source) else "none"
+    """这个板块里有没有心法文件（没有 = 空板块）"""
+    return bool(own_files(paths, board))
 
 
 _WORD = re.compile(r"[\u3400-\u9fff]|[A-Za-z0-9]+")
@@ -217,66 +154,44 @@ def title_of(text):
 
 
 # ---------------------------------------------------------------- 解惑读取（透明度和实际读取共用同一份计划）
-def reading_plan(paths, board, source):
-    """返回 {mode, items:[{rel,chars,read,kind}], total, limit, text}。
-    kind：method=方法文件；material=skill 引用的库内资料。read=False 表示超出上限没读入。"""
-    m = mode(paths, board, source)
+def reading_plan(paths, board):
+    """返回 {items:[{rel,chars,words,title,read,kind}], total, words, limit, text}。
+    kind：method=方法文件（自动读入）；ref=references/ 下的资料（只供查阅，不读入）。read=False 且 kind=method 表示超出上限没读入。"""
     items, parts, total = [], [], 0
-
-    def take(label, rel, text, kind):
-        nonlocal total
-        if rel.rsplit("/", 1)[-1] == "SKILL.md" and kind == "method":
+    d = board_dir(paths, board)
+    for rel in own_files(paths, board):
+        text = _read(d / rel)
+        if rel.rsplit("/", 1)[-1] == "SKILL.md":
             text = vault.strip_dispatch(text)
         n = len(text)
-        item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": kind}
+        if rel.split("/")[0] == REF_DIR and "/" in rel:
+            items.append({"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": False, "kind": "ref"})
+            continue
+        item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": "method"}
         items.append(item)
         if item["read"]:
             total += n
-            parts.append("=== %s ===\n%s" % (label, text))
-
-    only = m == "mine" and only_distilled(paths, board)
-    if m == "mine":
-        d = board_dir(paths, board)
-        for rel in own_files(paths, board):
-            if only and not rel.startswith(DISTILL + "/"):
-                continue
-            take(rel, rel, _read(d / rel), "method")
-    elif m == "source":
-        d = vault.skill_dir(paths, source)
-        for rel in source_files(paths, source):
-            take(rel, rel, _read(d / rel), "method")
-    if m != "none" and not only and vault.skill_dir(paths, source):
-        # 原 skill 引用的库内资料：知识在这里，随版本一起读（与 3.3 行为一致）
-        _, refs = vault.skill_material(paths, source)
-        for ref in refs:
-            if ref.endswith("）"):
-                continue
-            f = paths.vault / ref
-            if f.is_file():
-                take("资料 " + ref, ref, _read(f), "material")
-    return {"mode": m, "items": items, "total": total, "words": sum(i["words"] for i in items if i["read"]),
+            parts.append("=== %s ===\n%s" % (rel, text))
+    return {"items": items, "total": total, "words": sum(i["words"] for i in items if i["read"]),
             "limit": TUTOR_LIMIT, "text": "\n\n".join(parts)}
 
 
-def tutor_material(paths, board, source):
-    """讲题用的资料：(文字, 读到的文件清单)。只在训练/技能里已有心法时返回；没有则返回 None，由调用方走原逻辑。"""
+def tutor_material(paths, board):
+    """讲题用的资料：(文字, 读到的文件清单)；板块是空的就返回 None（讲题时没有 skill 可依据）。"""
     if not has_own(paths, board):
         return None
-    plan = reading_plan(paths, board, source)
-    used = [i["rel"] if i["read"] else i["rel"] + "（未读入：超出上限）" for i in plan["items"]]
+    plan = reading_plan(paths, board)
+    used = [i["rel"] if i["read"] else i["rel"] + "（未读入：超出上限）" for i in plan["items"] if i["kind"] == "method"]
     return plan["text"], used
 
 
 # ---------------------------------------------------------------- 概览与读取（界面）
 def overview(paths, boards):
-    """书架用：boards：[(板块, 原skill名)]。每个板块只给状态和文件数，**不算读取计划**——
-    读取计划要在整个库里找 skill 引用的资料，很慢（12 个板块一起算会卡很久），打开某个板块时再算（见 plan）。"""
+    """书架用：boards：板块名列表。每个板块只给文件清单，**不算读取计划**（打开某个板块时再算，见 plan）。"""
     out = []
-    for board, source in boards:
-        m = mode(paths, board, source)
-        files = own_files(paths, board) if m == "mine" else source_files(paths, source)
-        out.append({"board": board, "source": source or "", "mode": m, "source_exists": bool(vault.skill_dir(paths, source)),
-                    "n_files": len(files), "files": files})
+    for board in boards:
+        files = own_files(paths, board)
+        out.append({"board": board, "n_files": len(files), "files": files})
     return out
 
 
@@ -284,48 +199,38 @@ _PLAN = {}
 PLAN_TTL = 60
 
 
-def _plan_sig(paths, board, source):
+def _plan_sig(paths, board):
     out = []
-    for kind, d, fs in (("o", board_dir(paths, board), own_files(paths, board)),
-                        ("s", vault.skill_dir(paths, source), source_files(paths, source))):
-        for rel in fs:
-            try:
-                st = (d / rel).stat()
-                out.append((kind, rel, st.st_mtime_ns, st.st_size))
-            except OSError:
-                pass
+    d = board_dir(paths, board)
+    for rel in own_files(paths, board):
+        try:
+            st = (d / rel).stat()
+            out.append((rel, st.st_mtime_ns, st.st_size))
+        except OSError:
+            pass
     return tuple(out)
 
 
-def plan(paths, board, source):
+def plan(paths, board):
     """打开某个板块时的读取计划（文件、字数、哪些未读入）；带缓存：文件没变且 60 秒内不重复计算。去掉正文，只留清单"""
-    sig = _plan_sig(paths, board, source)
-    key = (str(paths.vault), board, source)
+    sig = _plan_sig(paths, board)
+    key = (str(paths.train), board)
     hit = _PLAN.get(key)
     if hit and hit[1] == sig and time.time() - hit[0] < PLAN_TTL:
         return hit[2]
-    p = reading_plan(paths, board, source)
-    out = {"board": board, "mode": p["mode"], "items": p["items"], "total": p["total"], "words": p["words"], "limit": p["limit"]}
+    p = reading_plan(paths, board)
+    out = {"board": board, "items": p["items"], "total": p["total"], "words": p["words"], "limit": p["limit"]}
     _PLAN[key] = (time.time(), sig, out)
     return out
 
 
-def read_file(paths, board, source, rel):
+def read_file(paths, board, rel):
     rel = _rel(rel)
-    if has_own(paths, board):
-        f = _file(paths, board, rel)
-        if not f.is_file():
-            raise SkillError("没有这个文件")
-        text = _read(f)
-        return {"path": rel, "text": text, "rev": _rev(text), "mode": "mine", "editable": True}
-    d = vault.skill_dir(paths, source)
-    if not d:
-        raise SkillError("这个板块还没有心法")
-    f = d / rel
-    if rel not in source_files(paths, source) or not f.is_file():
+    f = _file(paths, board, rel)
+    if not f.is_file():
         raise SkillError("没有这个文件")
     text = _read(f)
-    return {"path": rel, "text": text, "rev": _rev(text), "mode": "source", "editable": True}   # 第一次保存时才复制成自己的目录（见 ensure_own）
+    return {"path": rel, "text": text, "rev": _rev(text), "editable": True}
 
 
 # ---------------------------------------------------------------- 历史
@@ -436,207 +341,92 @@ def restore(paths, board, rel, vid, base):
     return save(paths, board, rel, history_text(paths, board, rel, vid), base)
 
 
-# ---------------------------------------------------------------- 第一次修改时复制
-def create_from_source(paths, board, source):
-    """把库里原 skill 的 .md 复制过来（只复制方法文件；库里原文件不动）。已有就拒绝。"""
-    if has_own(paths, board):
-        raise SkillError("这个板块已经有心法了")
-    files = source_files(paths, source)
-    d = vault.skill_dir(paths, source)
-    if not d or "SKILL.md" not in files:
-        raise SkillError("没有可复制的原 skill")
-    if len(files) > MAX_FILES:
-        raise SkillError("原 skill 文件太多（%d 个），请先精简" % len(files))
-    if any(len(r.split("/")) > MAX_DEPTH for r in files):
-        raise SkillError("原 skill 的文件夹层数太深（最多 %d 层），请先整理" % MAX_DEPTH)
-    for rel in files:
-        text = _read(d / rel)
-        if len(text) > MAX_FILE:
-            raise SkillError("原文件 %s 太长（上限 %d 字），请先拆分" % (rel, MAX_FILE))
-    for rel in files:
-        _atomic(board_dir(paths, board) / rel, _read(d / rel))
-    return {"files": files}
-
-
-def ensure_own(paths, board, source):
-    """第一次修改前调用：训练/技能/<板块>/ 里还没有心法，就把库里原 skill 复制过来（没有原 skill 就用标准模板）。
-    已经有了什么都不做；复制出来的内容和原来一模一样，所以打开时拿到的版本号照样有效。"""
-    if has_own(paths, board):
-        return False
-    if vault.skill_dir(paths, source) and "SKILL.md" in source_files(paths, source):
-        create_from_source(paths, board, source)
-    else:
-        create_template(paths, board)
-    return True
-
-
-def create_template(paths, board):
-    if has_own(paths, board):
-        raise SkillError("这个板块已经有心法了")
-    for rel, text in TEMPLATE.items():
-        _atomic(board_dir(paths, board) / rel, text.replace("{board}", board))
-    return {"files": list(TEMPLATE)}
-
-
-# ================================================================ 待审建议（整理向导 / 记入心法 生成，用户逐条采纳后才写入）
-PENDING = ".待审"
-MAX_EDITS = 6
-MAX_EDITS_DISTILL = 120
-MAX_EDIT_TEXT = 12000
-
-
-def _pend_dir(paths):
-    return root(paths) / PENDING
-
-
-def _clean_edits(edits, allowed_new=None, max_edits=MAX_EDITS, allow_replace=False):
-    """校验修改：AI 给的只允许 append（追加）和 new（新建）；蒸馏版的更新（程序生成）还允许 replace（整个文件换成新内容，
-    带打开时的版本号 base，别处改过就不覆盖）。路径合法、文字不空不超长；不允许删除"""
-    out = []
-    for e in edits or []:
-        if not isinstance(e, dict):
-            continue
-        action = e.get("action")
-        text = str(e.get("text") or "").strip()
-        if action not in ("append", "new") + (("replace",) if allow_replace else ()) or not text:
-            continue
-        try:
-            rel = _rel(e.get("path"))
-        except SkillError:
-            continue
-        if allowed_new is not None and action == "new" and rel not in allowed_new:
-            continue
-        item = {"path": rel, "action": action, "text": text[:MAX_EDIT_TEXT], "reason": str(e.get("reason") or "")[:300], "done": False}
-        if action == "replace":
-            item.update(base=str(e.get("base") or "")[:40], before=str(e.get("before") or "")[:MAX_EDIT_TEXT], flag=str(e.get("flag") or "")[:100])
-        elif e.get("card"):
-            item["card"] = str(e["card"])[:40]
-        out.append(item)
-    return out[:max_edits]
-
-
-def add_proposal(paths, board, kind, summary, edits, source=None, key="", meta=None):
-    """保存一条待审建议；同一个 key（同一来源同一内容）已有未处理的就直接返回它，不重复保存。"""
-    _board_name(board)
-    d = _pend_dir(paths)
-    for p in sorted(d.glob("*.json")) if d.is_dir() else []:
-        old = _load_json(p)
-        if old and key and old.get("board") == board and old.get("key") == key:
-            return old
-    big = kind in ("distill", "update", "diagnose")
-    edits = _clean_edits(edits, max_edits=MAX_EDITS_DISTILL if big else MAX_EDITS, allow_replace=big)
-    if not edits:
-        raise SkillError("没有可用的修改建议")
-    pid = "%s-%s" % (time.strftime("%Y%m%d%H%M%S"), hashlib.sha1((board + str(time.time()) + summary).encode("utf-8")).hexdigest()[:6])
-    data = {"id": pid, "board": board, "kind": kind, "summary": str(summary or "")[:200], "source": source or {}, "key": key,
-            "created": time.strftime("%Y-%m-%d %H:%M"), "edits": edits}
-    if meta:
-        data["meta"] = meta
-    _atomic_any(d / (pid + ".json"), data)
-    return data
-
-
-def _load_json(f):
-    import json
-    try:
-        return json.loads(f.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _atomic_any(f, data):
-    import json
-    f.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(dir=str(f.parent), prefix=".tmp-", suffix=".json")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fp:
-            json.dump(data, fp, ensure_ascii=False, indent=1)
-        os.replace(name, f)
-    except Exception:
-        try:
-            os.unlink(name)
-        except OSError:
-            pass
-        raise
-
-
-def proposals(paths, board=None):
-    d = _pend_dir(paths) if root(paths) else None
-    out = []
-    for p in sorted(d.glob("*.json"), reverse=True) if d and d.is_dir() else []:
-        data = _load_json(p)
-        if isinstance(data, dict) and data.get("id") == p.stem and (board is None or data.get("board") == board):
-            out.append(data)
-    return out
-
-
-def _proposal(paths, pid):
-    pid = re.sub(r"[^0-9a-f\-]", "", str(pid or ""))
-    f = _pend_dir(paths) / (pid + ".json")
-    data = _load_json(f) if f.is_file() else None
-    if not isinstance(data, dict) or data.get("id") != pid:
-        raise SkillError("这条建议已经不存在了")
-    return f, data
-
-
-def dismiss(paths, pid):
-    f, _ = _proposal(paths, pid)
-    f.unlink()
-    return {"dismissed": True}
-
-
-def change_log(paths, board, line):
-    """在变更记录.md 末尾追加一行（没有就新建）；变更记录也是普通文件，可以自己改"""
-    f = board_dir(paths, board) / "变更记录.md"
-    cur = _read(f) if f.is_file() else "# 变更记录\n\n每次采纳建议都会在这里留一行。\n"
+# ---------------------------------------------------------------- 导入别的平台生成的 skill 包
+def _put(paths, board, rel, text):
+    """写入一个文件：已有同名文件就先把旧内容存进历史再覆盖。返回 'new' / 'overwritten' / 'same'"""
+    f = _file(paths, board, rel)
     if f.is_file():
-        _stash(paths, board, "变更记录.md", cur)
-    _atomic(f, cur.rstrip("\n") + "\n- " + line + "\n")
+        cur = _read(f)
+        if cur == text:
+            return "same"
+        _stash(paths, board, rel, cur)
+        _atomic(f, text)
+        return "overwritten"
+    _atomic(f, text)
+    return "new"
 
 
-def accept(paths, board, source, pid, picks):
-    """采纳一条建议里被勾选的修改（picks 是下标列表）。板块还没有自己的目录会先复制原 skill；'new' 遇到同名文件不覆盖；
-    写完记进变更记录。全部处理完的建议自动移走。返回 {applied:[...], skipped:[...]}"""
-    f, data = _proposal(paths, pid)
-    if data.get("board") != board:
-        raise SkillError("这条建议不属于这个板块")
-    edits = data["edits"]
-    chosen = [i for i in (picks or []) if isinstance(i, int) and 0 <= i < len(edits) and not edits[i].get("done")]
-    if not chosen:
-        raise SkillError("请先勾选要采纳的修改")
-    kind = data.get("kind")
-    if kind not in ("distill", "update", "diagnose"):
-        ensure_own(paths, board, source)                 # 蒸馏版的文件放在自己的子目录里，不需要先复制原 skill
-    applied, skipped = [], []
-    for i in chosen:
-        e = edits[i]
-        target = _file(paths, board, e["path"])
-        if e["action"] == "replace" and target.is_file():
-            cur = _read(target)
-            if e.get("base") and e["base"] != _rev(cur):
-                skipped.append("%s（生成建议后这个文件又被改过，没有覆盖）" % e["path"])
-                continue
-            save(paths, board, e["path"], e["text"].rstrip("\n") + "\n", _rev(cur))
-        elif e["action"] in ("new", "replace") or not target.is_file():
-            if target.is_file():
-                skipped.append("%s（已有同名文件，没有覆盖）" % e["path"])
-                continue
-            save(paths, board, e["path"], e["text"].rstrip("\n") + "\n", "")
-        else:
-            cur = _read(target)
-            save(paths, board, e["path"], cur.rstrip("\n") + "\n\n" + e["text"].rstrip("\n") + "\n", _rev(cur))
-        e["done"] = True
-        applied.append(e["path"])
-    version = None
-    if applied and kind in ("distill", "update", "diagnose"):
-        from . import distill
-        version = distill.after_accept(paths, board, data, [edits[i] for i in chosen if edits[i].get("done")])
-    if applied:
-        src = data.get("source") or {}
-        change_log(paths, board, "%s 采纳「%s」→ %s%s" % (time.strftime("%Y-%m-%d %H:%M"), data.get("summary", ""), "、".join(applied),
-                                                      "（来源：%s）" % src["label"] if src.get("label") else ""))
-    if all(e.get("done") for e in edits):
-        f.unlink()
-    else:
-        _atomic_any(f, data)
-    return {"applied": applied, "skipped": skipped, "left": sum(not e.get("done") for e in edits), "version": version}
+def _package_entries(name, raw):
+    """把上传的文件变成 [(相对路径, 文字)]：.skill / .zip 是压缩包（去掉最外层同一个文件夹），.md / .txt 是单个文件。
+    返回 (entries, skipped)；skipped 是 [(名字, 原因)]。"""
+    skipped = []
+    lower = str(name or "").lower()
+    if lower.endswith((".md", ".txt", ".markdown")):
+        base = re.sub(r"\.(txt|markdown)$", ".md", Path(str(name)).name, flags=re.I)
+        return [(base, raw.decode("utf-8", errors="ignore"))], skipped
+    if not raw[:2] == b"PK":
+        raise SkillError("这不是 .skill / .zip 压缩包，也不是 .md 文件")
+    try:
+        z = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        raise SkillError("压缩包打不开，文件可能已损坏")
+    infos = [i for i in z.infolist() if not i.is_dir()]
+    if sum(i.file_size for i in infos) > MAX_PACKAGE:
+        raise SkillError("压缩包解压后太大（上限 %d MB）" % (MAX_PACKAGE // 1_000_000))
+    names = [i.filename.replace("\\", "/") for i in infos]
+    usable = [n for n in names if not n.startswith("__MACOSX/") and "/__MACOSX/" not in n]
+    tops = {n.split("/")[0] for n in usable if "/" in n}
+    strip = len(tops) == 1 and all("/" in n for n in usable)           # 整包外面套了一层文件夹：去掉它
+    out = []
+    for i, n in zip(infos, names):
+        if n not in usable:
+            continue
+        rel = n.split("/", 1)[1] if strip else n
+        if any(x.startswith(".") and x not in (".", "..") for x in rel.split("/")):
+            continue                                                    # .DS_Store 之类的隐藏文件：悄悄忽略，不算“跳过”
+        if not rel.lower().endswith(".md"):
+            skipped.append((rel, "不是 .md 文件（只导入文字说明）"))
+            continue
+        out.append((rel, z.read(i).decode("utf-8", errors="ignore")))
+    return out, skipped
+
+
+def import_package(paths, board, name, raw):
+    """导入 .skill / .zip / .md 到这个板块：同名文件覆盖（旧内容进历史），其余文件原样保留。
+    返回 {added:[...], overwritten:[...], same:[...], skipped:[(名字, 原因)]}"""
+    _board_name(board)
+    entries, skipped = _package_entries(name, raw)
+    existing = set(own_files(paths, board))
+    todo = []
+    for rel, text in entries:
+        try:
+            r = _rel(rel)
+        except SkillError:
+            skipped.append((rel, "路径不合法或层数超过 %d 层" % MAX_DEPTH))
+            continue
+        if len(text) > MAX_FILE:
+            skipped.append((rel, "文件太长（超过 %d 字）" % MAX_FILE))
+            continue
+        todo.append((r, text))
+    if not todo:
+        raise SkillError("包里没有可以导入的 .md 文件" + ("（%s）" % "；".join("%s：%s" % s for s in skipped[:3]) if skipped else ""))
+    if len(existing | {r for r, _ in todo}) > MAX_FILES:
+        raise SkillError("导入后这个板块会超过 %d 个文件，请先删掉一些再导入" % MAX_FILES)
+    added, overwritten, same = [], [], []
+    for r, text in sorted(todo, key=lambda x: _order(x[0])):
+        {"new": added, "overwritten": overwritten, "same": same}[_put(paths, board, r, text)].append(r)
+    return {"added": added, "overwritten": overwritten, "same": same, "skipped": skipped}
+
+
+# ---------------------------------------------------------------- 心法总诀（随程序发布的四份文件，只读，可复制 / 下载）
+def zongjue_list():
+    return [{"file": f, "title": t, "desc": d} for f, t, d in ZONGJUE]
+
+
+def zongjue_read(fname):
+    if fname not in {f for f, _, _ in ZONGJUE}:
+        raise SkillError("没有这份文件")
+    f = ZONGJUE_DIR / fname
+    if not f.is_file():
+        raise SkillError("文件缺失，请重新安装程序")
+    return {"file": fname, "text": f.read_text(encoding="utf-8")}

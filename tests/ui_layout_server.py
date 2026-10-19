@@ -35,25 +35,13 @@ def main():
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
         if '--skillbook-fixture' in sys.argv:
-            # 藏经阁·心法：自编 skill（行测 xue-rui-argument-logic；申论 shenlun-xiaoti / shenlun-dawenti），不读真实资料。
-            for s2, names in (('行测', ('xue-rui-argument-logic',)), ('申论', ('shenlun-xiaoti', 'shenlun-dawenti'))):
-                for nm in names:
-                    d = Path(vaults[s2]) / 'copilot/skills' / nm
-                    (d / 'chapters').mkdir(parents=True, exist_ok=True); (d / 'scripts').mkdir(exist_ok=True)
-                    (d / 'SKILL.md').write_text('# 自编入口\n先识别题型，再用方法。\n- 第一步：找条件\n- 第二步：排除干扰', encoding='utf-8')
-                    (d / 'cheatsheet.md').write_text('# 速查\n口诀：自编口诀一', encoding='utf-8')
-                    (d / 'chapters/01.md').write_text('## 第一章\n自编方法正文。', encoding='utf-8')
-                    (d / 'scripts/run.md').write_text('脚本说明不读', encoding='utf-8')
-                from rpg import skillbook
-                skillbook.add_proposal(paths.Paths(Path(vaults[s2]), s2), '论证逻辑' if s2 == '行测' else '归纳概括', 'note', '补一条自编口诀',
-                                       [{'path': 'cheatsheet.md', 'action': 'append', 'text': '## 自编口诀二\n看问法', 'reason': '自编原因'},
-                                        {'path': '03-陷阱.md', 'action': 'new', 'text': '# 陷阱\n自编陷阱'}], {'label': '试炼复盘 自编'}, 'ui1')
-        if '--distill-fixture' in sys.argv:
-            # 心法蒸馏：论证逻辑题库 13 道（答案都是 B），检验用；不读真实资料
-            d = Path(vaults['行测']) / '训练/题库'; d.mkdir(parents=True, exist_ok=True)
-            (d / '论证逻辑真题.md').write_text(''.join(
-                '## 题目 %03d\n\n### 知识点\n补全逻辑\n\n### 题干\n第%d题题干：因为甲所以乙。\n\n### 选项\nA. 一\nB. 二\nC. 三\nD. 四\n\n### 答案\nB\n\n### 解析\n（待补）\n\n' % (i, i)
-                for i in range(1, 14)), encoding='utf-8')
+            # 藏经阁·心法：只有一个板块（行测 论证逻辑 / 申论 归纳概括）预先放了自编的三个文件，其余板块都是空的；不读真实资料。
+            from rpg import skillbook
+            for s2, board in (('行测', '论证逻辑'), ('申论', '归纳概括')):
+                pp = paths.Paths(Path(vaults[s2]), s2)
+                for rel, text in (('SKILL.md', '# 自编入口\n先识别题型，再用方法。\n- 第一步：找条件\n- 第二步：排除干扰'),
+                                  ('cheatsheet.md', '# 速查\n口诀：自编口诀一'), ('chapters/01.md', '## 第一章\n自编方法正文。')):
+                    skillbook.save(pp, board, rel, text, '')
         if '--art-fixture' in sys.argv:
             # 美术文件夹覆盖测试：首页白天全景、洞府背景各放一张纯色小图
             import base64
