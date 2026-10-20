@@ -45,9 +45,10 @@ async function main(){
    await cursorToggle.evaluate(el=>{const d=el.closest('details');if(d)d.open=true;});
    for(const theme of ['light','dark']){
     await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-    await page.locator('.subpage-place h2').click();await page.locator('.sl-cursor-stamp').first().waitFor();
-    await page.locator('.sl-cursor-stamp').first().evaluate(el=>el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;}));
-    assert.equal(await page.locator('.sl-cursor-effects').evaluate(el=>getComputedStyle(el).pointerEvents),'none');
+    // 特效650ms后移除；在真实点击前监听插入，避免通用reveal辅助器等待时节点已经消失。
+    await page.evaluate(()=>{window.brandStamp=null;const observer=new MutationObserver(()=>{const el=document.querySelector('.sl-cursor-stamp');if(!el)return;el.getAnimations().forEach(a=>{a.pause();a.currentTime=160;});window.brandStamp={text:el.textContent,pointerEvents:getComputedStyle(el.parentElement).pointerEvents};observer.disconnect();});observer.observe(document.body,{childList:true,subtree:true});});
+    await page.locator('.subpage-place h2').click();await page.waitForFunction(()=>window.brandStamp);
+    assert.deepEqual(await page.evaluate(()=>window.brandStamp),{text:'阅',pointerEvents:'none'});
     await page.screenshot({path:path.join(out,`sl-cursor-desktop-${theme}.png`),animations:'allow'});
     await page.evaluate(()=>SL_CURSOR.sync());
    }
