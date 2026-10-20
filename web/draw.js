@@ -166,7 +166,7 @@
   }
   function move(e) {
     if (!st.cur) return;
-    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    const evs = (e.getCoalescedEvents?.().length ? e.getCoalescedEvents() : [e]);
     for (const x of evs) st.cur.pts.push([x.clientX, x.clientY]);
     paint();
     e.preventDefault();
