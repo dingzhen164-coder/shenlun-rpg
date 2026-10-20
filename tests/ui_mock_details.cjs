@@ -18,7 +18,7 @@ async function bounds(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(
   await p.evaluate(()=>{if(window.CEREMONY)CEREMONY.contest=async()=>{};});await p.locator('#mkUseReported').click();const [saved]=await Promise.all([p.waitForResponse(r=>r.url().endsWith('/api/mock/save')),p.locator('[data-cs-save]').click()]);const record=(await saved.json()).summary.seasons[0];assert.equal(record.score,70.6);assert.equal(record.score_source,'html');
   await p.locator('#mkScore').waitFor({state:'attached'});assert.equal(await p.locator('#mkScore').inputValue(),'70.6');
   if(process.argv.includes('--shots')&&size==='tablet'){fs.mkdirSync(output,{recursive:true});await p.evaluate(()=>document.documentElement.dataset.theme='light');await p.screenshot({path:path.join(output,'tablet-scores.png')});}
-  await p.evaluate(()=>startTask({task:{type:'mock_review',season:39,board:'政治理论'}}));await p.locator('.train').filter({hasText:'原答题用时：1:25'}).waitFor();const content=await p.locator('.train').innerText();assert(content.indexOf('正确答案')<content.indexOf('原答题用时'));assert(content.indexOf('原答题用时')<content.indexOf('复盘解析'));
+  await p.evaluate(()=>startTask({task:{type:'mock_review',season:39,board:'政治理论'}}));await p.locator('.train').filter({hasText:'原答题用时：1:25'}).waitFor();const content=await p.locator('.train').innerText();assert(content.indexOf('正确答案')<content.indexOf('原答题用时'));assert(!content.includes('还没写复盘解析'));
   for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds(p);}
  }
  assert.deepEqual(errors,[]);await p.close();srv.kill();console.log((law?'法考':'行测')+' '+size+'：小数识别、成绩精度与边界'+(law?'（不启用行测参考表）':'、核分/保存/草稿、原用时顺序')+'通过');
