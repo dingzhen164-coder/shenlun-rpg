@@ -32,7 +32,7 @@
   function setBgm(name) {
     if (name === curName) { if (cur) ramp(cur, targetVol(), 400); return; }
     var old = cur; curName = name;
-    if (old) ramp(old, 0, 1200, function () { old.pause(); });
+    if (old) { if (S.src !== "builtin") { clearInterval(old._r); old.pause(); } else ramp(old, 0, 1200, function () { old.pause(); }); }
     cur = null;
     if (!name || missing["bgm/" + name]) return;
     var a = new Audio(BASE + "bgm/" + name + ".ogg"); a.loop = true; a.volume = 0;
@@ -67,7 +67,7 @@
 
   function unlock() {
     if (unlocked) return; unlocked = true;
-    refresh();
+    apply();
   }
 
   // ---- 事件：点击、悬停、弹窗、答对答错、奖励
@@ -101,7 +101,7 @@
   }
   document.addEventListener("beauty:view", function () { sfx("page", 0.7); });
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { if (cur) cur.pause(); if (amb) amb.pause(); } else { if (cur && unlocked && S.bgm && S.src === "builtin") cur.play().catch(function () {}); if (amb && unlocked && S.sfx) amb.play().catch(function () {}); }
+    if (document.hidden) { if (cur) cur.pause(); if (amb) amb.pause(); window.AMB?.bgm.pauseHidden(); } else { syncMine(); if (cur && unlocked && S.bgm && S.src === "builtin") cur.play().catch(function () {}); if (amb && unlocked && S.sfx) amb.play().catch(function () {}); }
   });
 
   // 仪式：升级/破境时放对应音效，并短暂切到仪式曲
@@ -121,8 +121,9 @@
   var mineOn = function () { return !!(window.AMB && AMB.bgm && AMB.bgm.on); };
   function syncMine() {
     if (!window.AMB || !AMB.bgm) return;
-    var should = S.bgm && S.src === "mine";
-    if (should && !mineOn()) AMB.bgm.toggle(); else if (!should && mineOn()) AMB.bgm.toggle();
+    var should = S.bgm && S.src === "mine" && unlocked;
+    if (should && !document.hidden) { if (!mineOn()) AMB.bgm.start(); else AMB.bgm.resume(); }
+    else if (!should && mineOn()) AMB.bgm.stop();
   }
   function apply() {
     refresh();
@@ -131,6 +132,7 @@
   }
   function paintBtn() { var b = document.querySelector(".beauty-audio-btn"); if (b) { b.textContent = (S.sfx || S.bgm) ? "🔊" : "🔇"; if (window.BeautyIcons) BeautyIcons.scan(b.parentNode); } }
   var API = {
+    sync: apply,
     sfx: sfx, bgm: function (n) { override = n || ""; refresh(); },
     settings: S,
     set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; save(); apply(); paintBtn(); },

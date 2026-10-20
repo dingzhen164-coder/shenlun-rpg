@@ -1,0 +1,5 @@
+/* 题干/选项小公式随文字排版；大材料图沿用原块级样式。 */
+.msg.sys img.inline-img, .mat-pane img.inline-img, .q-pin img.inline-img {
+  display:inline-block; width:auto; height:auto; max-width:min(100%,12em);
+  max-height:2.6em; vertical-align:middle; margin:0 2px; border-radius:0;
+}

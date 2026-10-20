@@ -413,10 +413,10 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_pick:0:D')
         r = trainer.action(self.g, sid, 'exam_pick:1:B')
         r = trainer.action(self.g, sid, 'exam_submit')
-        self.assertIn('成语实词录新收 2 个：蕴含、方兴未艾', str(r['events']))      # 关联词不收
+        self.assertIn('成语实词录新收 1 个：方兴未艾', str(r['events']))      # 关联词不收
         book = idioms.listing(self.g)
-        self.assertEqual([e['word'] for e in book['entries']], ['方兴未艾', '蕴含'])
-        self.assertEqual(book['letters'], {'F': 1, 'Y': 1})
+        self.assertEqual([e['word'] for e in book['entries']], ['方兴未艾'])
+        self.assertEqual(book['letters'], {'F': 1})
         e = next(x for x in book['entries'] if x['word'] == '方兴未艾')
         s = e['sources'][0]
         self.assertEqual(s['meaning'], '形容形势或事物正在蓬勃发展')
@@ -424,14 +424,14 @@ class BankTest(unittest.TestCase):
                          [('A', '如火如荼', '形容气势旺盛、热烈或激烈'), ('B', '此起彼伏', '形容此处起来，彼处落下'), ('C', '崭露头角', '')])
         self.assertTrue(s['compare'].startswith('第二空'))
         self.assertEqual((s['key'], s['blank'], s['answer'], s['source']), ('逻辑填空::F1', 2, 'D', '逻辑填空真题.md'))
-        self.assertEqual(next(x for x in book['entries'] if x['word'] == '蕴含')['sources'][0]['meaning'], '指包含')
+        self.assertNotIn('蕴含', idioms.data(self.g))
         text = (self.paths.train / '成语实词录.md').read_text(encoding='utf-8')
         self.assertIn('## F\n\n### 方兴未艾', text)
         self.assertIn('[[逻辑填空真题#题目 F1|F1]]', text)
         self.assertIn('如火如荼（A项）：形容气势旺盛、热烈或激烈', text)
         # 补收以前做过的：不重复
         r = idioms.backfill(self.g)
-        self.assertEqual((r['new'], r['total']), ([], 2))
+        self.assertEqual((r['new'], r['total']), ([], 1))
         self.assertEqual(len(idioms.data(self.g)['方兴未艾']['sources']), 1)
         # 师傅答疑：一句话辨析替换原辨析，解析没写的释义补上
         reply = {'辨析': '方兴未艾重“正在兴起”，如火如荼重“热烈”，此处写发展势头，选方兴未艾。', '释义': {'崭露头角': '比喻初显才能'}}
@@ -454,19 +454,18 @@ class BankTest(unittest.TestCase):
         self.assertIn('辨析（🧙 师傅）', (self.paths.train / '成语实词录.md').read_text(encoding='utf-8'))
         idioms.backfill(self.g)                                                    # 再收一次不覆盖师傅的
         self.assertEqual(idioms.data(self.g)['方兴未艾']['sources'][0]['compare'], reply['辨析'])
-        # 修改：释义自己写，改名
-        idioms.edit(self.g, '蕴含', {'word': '蕴涵', 'sources': {'0': {'meaning': '包含（自己写的）'}}})
-        book = idioms.data(self.g)
-        self.assertNotIn('蕴含', book)
-        self.assertEqual((book['蕴涵']['letter'], book['蕴涵']['sources'][0]['meaning']), ('Y', '包含（自己写的）'))
-        idioms.backfill(self.g)                                                    # 旧名字不会被收回来
-        self.assertNotIn('蕴含', idioms.data(self.g))
-        # 删除：以后也不收回来
-        idioms.delete(self.g, '方兴未艾')
-        self.assertEqual(idioms.backfill(self.g)['new'], [])
-        self.assertEqual(sorted(idioms.data(self.g)), ['蕴涵'])
-        with self.assertRaises(ValueError):
-            idioms.delete(self.g, '方兴未艾')
+        # 仅允许改为有效成语；失败的短词改名不能覆盖原释义。
+        with self.assertRaises(ValueError):idioms.edit(self.g,'方兴未艾',{'word':'蕴涵','sources':{'0':{'meaning':'不能写入'}}})
+        self.assertEqual(idioms.data(self.g)['方兴未艾']['sources'][0]['compare'],reply['辨析'])
+        idioms.edit(self.g,'方兴未艾',{'word':'蒸蒸日上','sources':{'0':{'meaning':'自己写的释义'}}})
+        self.assertNotIn('方兴未艾',idioms.data(self.g))
+        self.assertEqual(idioms.data(self.g)['蒸蒸日上']['sources'][0]['meaning'],'自己写的释义')
+        idioms.backfill(self.g)
+        self.assertNotIn('方兴未艾',idioms.data(self.g))
+        idioms.delete(self.g,'蒸蒸日上')
+        self.assertEqual(idioms.backfill(self.g)['new'],[])
+        self.assertEqual(idioms.data(self.g),{})
+        with self.assertRaises(ValueError):idioms.delete(self.g,'方兴未艾')
 
     def test_idiom_book_splits_joined_options(self):
         from rpg import idioms
@@ -483,12 +482,10 @@ class BankTest(unittest.TestCase):
             {'key': '逻辑填空::粉笔36季-047', 'board': '逻辑填空', 'date': '2026-09-01', 'blank': 1}]}}
         self.assertTrue(idioms.migrate(self.g))
         book = idioms.data(self.g)
-        self.assertEqual(sorted(book), ['克服', '渐进性', '纠正'])
-        self.assertEqual(book['渐进性']['sources'][0]['date'], '2026-09-01')        # 收录日期保留
-        self.assertEqual([o['word'] for o in book['渐进性']['sources'][0]['others']], ['持续性', '阶段性', '累积性'])
+        self.assertEqual(sorted(book), [])
         self.assertFalse(idioms.migrate(self.g))
         new = idioms.harvest(self.g, [qs['粉笔36季-045']])
-        self.assertEqual(new, ['满足', '屡禁不止', '挫伤'])
+        self.assertEqual(new, ['屡禁不止'])
         self.assertEqual([o['word'] for o in book['屡禁不止']['sources'][0]['others']], ['层出不穷', '沉渣泛起', '俯拾皆是'])
 
     def test_tutor_reads_the_boards_own_skill_and_hides_distilled(self):

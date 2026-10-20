@@ -1134,9 +1134,12 @@ def _bank_blocks(g, board, text, question=False):
         line = text[line_start:m.start()] + text[m.end():len(text) if line_end < 0 else line_end]
         buf += text[pos:m.start()]
         pos = m.end()
-        # 行内小图（公式）。题目图（图表、表格）总是单独成块；同一行只有来源括号“（2026年云南省等3卷）”的也算单独一行
-        if line.strip() and rel and "题目图/" not in name and not re.fullmatch(r"（[^\n]{0,60}）", line.strip()):
-            buf += "![[%s]]" % rel
+        from . import inline_images
+        size_hint = inline_images.small(g.paths, rel) if rel else None
+        inline = (rel and "/_净化/符号/" in rel) or size_hint is True or (size_hint is None and line.strip() and "题目图/" not in name and not re.fullmatch(r"（[^\n]{0,60}）", line.strip()))
+        if rel and inline:
+            buf = inline_images.before(buf) + "![[%s]]" % rel
+            pos = inline_images.after(text, pos)
             continue
         flush()
         blocks.append({"t": "img", "v": rel} if rel else {"t": "text", "v": "（缺图：%s，请把图片放到 训练/题库/图片/%s/）" % (name, board)})
@@ -1488,6 +1491,7 @@ def _explain(g, q, r):
         text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
+    idioms.from_explanation(g,q,text)
     return text, skill, used
 
 
@@ -1683,8 +1687,12 @@ def _mreview_pq(s, q):
     """按试炼题的样子给师傅看：材料 + 题干（含选项）、答案、复盘解析"""
     mat = vault.material_text(q)
     stem = mat + ("\n\n" if mat else "") + q["body"]
-    return {"board": s["board"] or s["source"], "topic": s["source"], "stem": stem, "options": "（见题目）",
-            "answer": q["correct"], "analysis": q["analysis"]}
+    board=s["board"] or s["source"]
+    ident='粉笔%s季-%03d'%(s["season"],q["num"])
+    options={m.group(2):m.group(3).strip() for m in (OPT_LINE.match(ln) for ln in q["body"].splitlines()) if m}
+    return {"board":board,"topic":s["source"],"stem":stem,"options":options,
+            "id":ident,"key":board+'::'+ident,"paper":'第%s季'%s["season"],
+            "answer":q["correct"],"analysis":q["analysis"]}
 
 
 def _mreview_action(g, s, act):

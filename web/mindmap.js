@@ -151,7 +151,7 @@
           <option value="md">Markdown（.md）</option><option value="json">JSON</option></select>
         <span class="spacer"></span><button class="ghost" data-c="new">＋ 新一幅</button><button class="ghost danger" data-c="trash" title="删掉这一幅">🗑</button>
         <input type="file" id="lnFile" accept=".xmind,.md,.markdown,.txt,.json,.smm" hidden></div>` : `<div class="ln-reading-tabs" role="group" aria-label="阅读方式">
-        <button data-ln-mode="map" aria-pressed="false">灵脉图</button><button data-ln-mode="document" aria-pressed="false">分级文档</button><button data-ln-mode="split" aria-pressed="true">双栏对照</button><span class="spacer"></span><button id="lnReload">↻ 重新载入</button>
+        <button data-ln-mode="map" aria-pressed="false">灵脉图</button><button data-ln-mode="document" aria-pressed="false">分级文档</button><button data-ln-mode="split" aria-pressed="true">双栏对照</button><button id="lnZoomIn" type="button" aria-label="放大左侧思维导图" title="放大左侧思维导图">🔍＋</button><button id="lnZoomOut" type="button" aria-label="缩小左侧思维导图" title="缩小左侧思维导图">🔍－</button><span class="spacer"></span><button id="lnReload">↻ 重新载入</button>
         ${d.document_path ? `<button id="lnDocument" title="${esc(d.document_path)}">本地文档</button>` : ''}</div>`}
       <div class="ln-reading-body" data-mode="${manage?'map':'split'}"><div class="ln-canvas" id="lnCanvas"></div><article class="ln-document" id="lnMarkdown" ${manage?'hidden':''}>${outline(plain(JSON.parse(JSON.stringify(data.root || {data:{text:board}}))))}</article></div>
       ${manage ? '<div class="ln-tip small faint">点节点选中 · 双击改字 · 拖动节点换位置 · 改了自动保存</div>' : ''}`;
@@ -189,6 +189,9 @@
       s.querySelectorAll('[data-ln-mode]').forEach(b=>b.onclick=()=>setViewMode(b.dataset.lnMode));
       document.getElementById('lnReload').onclick=async()=>{const mode=viewMode;await open(board, CUR.name, false);setViewMode(mode);};
       const doc=document.getElementById('lnDocument');if(doc)doc.onclick=()=>localDocument();
+      const zoom=(direction)=>{if(!mm||viewMode==='document')return;direction>0?mm.view.enlarge():mm.view.narrow();queuePosition();};
+      document.getElementById('lnZoomIn').onclick=()=>zoom(1);
+      document.getElementById('lnZoomOut').onclick=()=>zoom(-1);
       updateStudyDot();return;
     }
     mm.on("data_change", queueSave);
@@ -301,6 +304,7 @@
     if(!['map','document','split'].includes(mode))return;
     const body=document.querySelector('.ln-reading-body');if(!body)return;
     savePosition();const inst=mm,current=CUR,view=mm?validView(mm.view.getTransformData()):null;
+    for(const id of ['lnZoomIn','lnZoomOut'])document.getElementById(id)?.toggleAttribute('disabled',mode==='document');
     viewMode=mode;body.dataset.mode=mode;document.getElementById('lnCanvas').hidden=mode==='document';document.getElementById('lnMarkdown').hidden=mode==='map';
     document.querySelectorAll('[data-ln-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lnMode===mode)));
     requestAnimationFrame(()=>{if(mm!==inst||CUR!==current||!body.isConnected)return;try{if(mode!=='document'){inst.resize();if(view)inst.view.setTransformData(view);}const doc=document.getElementById('lnMarkdown');if(mode!=='map'){doc.scrollTop=current.readScroll?.top||0;doc.scrollLeft=current.readScroll?.left||0;}}catch(_){}});

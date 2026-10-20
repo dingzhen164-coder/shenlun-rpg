@@ -142,7 +142,7 @@ class QuestionImagesTest(unittest.TestCase):
         p=self.p.train/'题库/图片/定义判断/解析.png';p.parent.mkdir(parents=True);p.write_bytes(self.png())
         text='这是解析中的关系示意图，需要结合完整解析阅读。\n![[训练/题库/图片/定义判断/解析.png]]'
         blocks=trainer._bank_blocks(type('G',(),{'paths':self.p})(),'定义判断',text)
-        self.assertTrue(any(b['t']=='img' for b in blocks))
+        self.assertIn('解析.png',str(blocks))  # 小图可行内显示，原解析图不能被净化丢弃。
     def test_new_splitter_uses_same_rules_and_training_output(self):
         pdf,script=self.fixture();out=self.p.train/'模考复盘/第38季';out.mkdir(parents=True)
         with patch.dict(os.environ,{'XINGCE_CLEAN_VAULT':str(self.p.vault)}),patch.object(sys_module(),'argv',list(sys_module().argv)):

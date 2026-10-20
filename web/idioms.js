@@ -1,5 +1,5 @@
 /* 藏经阁·成语实词录（数据来自 /api/idioms，见 rpg/idioms.py）。
-   逻辑填空每做完一组，正确选项里的成语 / 实词自动收成词条，按首字拼音首字母排：
+   逻辑填空每做完一组，正确选项里的成语自动收成词条，按首字拼音首字母排：
    字母索引条 → 每个字母一节 → 词条卡（释义、本题其他选项、辨析、真题跳转）。 */
 (function () {
   let DATA = null;
@@ -44,11 +44,11 @@
     const d = DATA;
     const list = Q ? d.entries.filter((e) => e.word.includes(Q) || e.sources.some((s) => s.others.some((o) => o.word.includes(Q)))) : d.entries;
     const bar = `<div class="card id-bar"><div class="row">
-        <input id="idQ" placeholder="查词：成语或实词（本题其他选项里的词也能查到）" value="${esc(Q)}">
+        <input id="idQ" placeholder="查词：成语（本题其他选项里的词也能查到）" value="${esc(Q)}">
         <button class="primary" id="idGo">查</button>
         <button class="ghost" id="idFill" title="把以前做过的逻辑填空题（作答记录里有的）一次收进来">⟳ 收录以前做过的逻辑填空</button></div>
       <div class="id-letters">${LETTERS.map((L) => `<a class="${d.letters[L] ? "" : "off"}" data-idletter="${L}">${L}<small>${d.letters[L] || ""}</small></a>`).join("")}</div>
-      <p class="small muted" style="margin:6px 0 0">共 ${d.total} 个词条。逻辑填空每做完一组，正确选项里的成语 / 实词自动收进来（关联词、虚词不收），同时写进 训练/${esc(d.file)}。</p></div>`;
+      <p class="small muted" style="margin:6px 0 0">共 ${d.total} 个词条。逻辑填空交卷或点师傅解惑后，正确选项里的成语自动收进来（二字、三字词和普通短语不收），同时写进 训练/${esc(d.file)}。</p></div>`;
     if (!list.length) {
       return bar + `<p class="muted lib-tip">${Q ? "没有查到这个词。" : "还没有词条：去修炼殿做一组逻辑填空（板块试炼、知识点试炼、整套试炼都行），交卷后自动收录；或者点上面的「收录以前做过的逻辑填空」。"}</p>`;
     }

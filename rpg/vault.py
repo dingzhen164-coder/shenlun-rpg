@@ -484,12 +484,14 @@ def text_blocks(paths, folder, text):
         if p and paths.vault:
             try:
                 rel=p.resolve().relative_to(paths.vault.resolve()).as_posix()
-                if '/_净化/符号/' in rel:
-                    buffer+='![[%s]]'%rel
+                from . import inline_images
+                if '/_净化/符号/' in rel or inline_images.small(paths,rel) is True:
+                    buffer=inline_images.before(buffer)+'![[%s]]'%rel
+                    pos=inline_images.after(text,m.end())
                 else:
                     flush();blocks.append({"t":"img","v":rel})
             except ValueError:pass
-        pos=m.end()
+        pos=max(pos,m.end())
     buffer+=text[pos:];flush()
     return blocks
 
