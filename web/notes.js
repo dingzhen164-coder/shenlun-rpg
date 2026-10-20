@@ -25,7 +25,6 @@
   let lastWrite = 0;          // 最后一次落笔 / 打字的时刻：记笔记算复习时间，停笔超过 1 分钟就不算（app.js 心跳读）
   const LS = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   // 手指：draw 写字 / scroll 只翻页。用过一次手写笔就自动变成 scroll（像 Notability），每台设备记住；工具栏 👆 可以切
-  let FINGER = LS.get("xrpg-nt-finger", "draw");
   let SIDE_MIN = LS.get("xrpg-nt-side", "") === "min";          // 左栏收起
   const OPEN = new Set(JSON.parse(LS.get("xrpg-nt-open", "[]")));   // 调阅里展开的板块
   const touchDev = () => document.documentElement.classList.contains("touch") || matchMedia("(pointer: coarse)").matches;
@@ -204,7 +203,6 @@
           <button class="${tool.t === "er" ? "on" : ""}" data-tool="er" title="橡皮">🧽</button>
           <button data-act="undo" title="撤销（Ctrl+Z）" ${undo.length ? "" : "disabled"}>↶</button>
           <button data-act="redo" title="重做（Ctrl+Y）" ${redo.length ? "" : "disabled"}>↷</button>
-          ${touchDev() ? `<button data-act="finger" class="${FINGER === "draw" ? "on" : ""}" title="手指写字（关掉 = 手指只翻页，笔写字）">☝</button>` : ""}
         </span>
         <span class="spacer"></span>
         ${NB.article ? '<button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存状态，点击可重试保存">已保存 · 公务手账</button>' : ""}
@@ -307,8 +305,6 @@
     document.querySelectorAll(".nt-tools [data-act]").forEach((b) => (b.onclick = () => {
       const a = b.dataset.act;
       if (a === "undo") doUndo(); else if (a === "redo") doRedo();
-      else { FINGER = FINGER === "draw" ? "scroll" : "draw"; LS.set("xrpg-nt-finger", FINGER); b.classList.toggle("on", FINGER === "draw");
-        toast(FINGER === "draw" ? "☝ 手指也能写字" : "☝ 手指只翻页，用笔写字"); }
     }));
   }
   function syncTools() {
@@ -428,28 +424,35 @@
     if (x) strokeOn(x, s);                                       // 只把这一笔加到墨迹层上
     liveStroke = null;
   }
-  // 笔 / 鼠标 → 写；手指 → 翻页（FINGER=scroll 时，翻页由这里自己做，浏览器不插手，笔写字时页面不会跟着滑）
-  let inking = false;
+  // 笔 / 鼠标 → 写；手指 → 只翻页（3.5.6起手指永不写字；翻页由这里自己做，浏览器不插手，笔写字时页面不会跟着滑）
+  let inking = false, lastPen = 0;                              // lastPen：最近一次笔在纸上（含悬停）的时间，用来挡掌心
   function bindInk(c) {
     const i = Number(c.dataset.pg);
     let cur = null, pid = null, drag = null;
+    c.addEventListener("contextmenu", (e) => e.preventDefault());          // 笔按住不放不弹菜单/放大镜，不打断书写
+    c.addEventListener("selectstart", (e) => e.preventDefault());
+    const finish = () => {                                   // 收笔：正常抬笔、被系统抢走指针、或上一笔的抬笔事件丢了，都走这里
+      if (!cur) return;
+      const s = cur; cur = null; pid = null; inking = false;
+      NB.pages[i].strokes.push(s);
+      undo.push({ page: i, stroke: s }); redo = [];
+      commitLive(i, s); lastWrite = Date.now();
+      syncTools(); queueSave();
+    };
     const pt = (e) => { const r = c.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * PW / r.width * 10) / 10, Math.round((e.clientY - r.top) * ph(i) / r.height * 10) / 10]; };
     const box = () => document.getElementById("ntPages");
     c.onpointerdown = (e) => {
-      if (e.pointerType === "pen" && FINGER === "draw" && LS.get("xrpg-nt-finger", "") === "") {   // 第一次用笔：手指改成只翻页
-        FINGER = "scroll"; LS.set("xrpg-nt-finger", FINGER);
-        const b = document.querySelector('.nt-tools [data-act="finger"]'); if (b) b.classList.remove("on");
-      }
       e.preventDefault();
-      if (e.pointerType === "touch" && (FINGER === "scroll" || inking)) {
-        if (inking || drag) return;                           // 正在写字时手掌碰到：不理
+      if (e.pointerType === "pen") lastPen = Date.now();
+      if (e.pointerType === "touch") {                       // 手指永远不写字：只翻页；笔刚离开纸面不久时的触碰当作掌心，不理
+        if (inking || drag || Date.now() - lastPen < 1200) return;
         stopFling();
         drag = { id: e.pointerId, y: e.clientY, x: e.clientX, t: e.timeStamp, v: 0, vx: 0 };
         try { c.setPointerCapture(e.pointerId); } catch (_) {}
         return;
       }
       if (e.button > 0 && e.button !== 5) return;
-      if (cur) return;
+      if (cur) finish();                                      // 上一笔没收尾（抬笔事件丢了）：先收掉，新的一笔照常写
       stopFling();
       try { c.setPointerCapture(e.pointerId); } catch (_) {}
       pid = e.pointerId; inking = true;
@@ -458,6 +461,7 @@
       live(i, cur);
     };
     c.onpointermove = (e) => {
+      if (e.pointerType === "pen") lastPen = Date.now();
       if (drag && e.pointerId === drag.id) {
         const b = box(), dy = e.clientY - drag.y, dx = e.clientX - drag.x, dt = Math.max(1, e.timeStamp - drag.t);
         if (b) { b.scrollTop -= dy; b.scrollLeft -= dx; }
@@ -477,12 +481,9 @@
         return;
       }
       if (!cur || e.pointerId !== pid) return;
-      NB.pages[i].strokes.push(cur);
-      undo.push({ page: i, stroke: cur }); redo = [];
-      commitLive(i, cur);
-      cur = null; pid = null; inking = false; lastWrite = Date.now();
-      syncTools(); queueSave();
+      finish();
     };
+    c.onlostpointercapture = (e) => { if (cur && e.pointerId === pid) finish(); };      // iPad系统抢走指针时也保住已写的笔画
   }
   let flingT = 0;
   function stopFling() { cancelAnimationFrame(flingT); flingT = 0; }

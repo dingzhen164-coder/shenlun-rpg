@@ -92,6 +92,7 @@ shared tests/ui_workspace_309.cjs
 shared tests/ui_world.cjs
 shared tools/compile_narrative.cjs
 shared tools/shared_files.txt
+shared tests/ui_back_button.cjs
 shared tools/sync_shared.py
 shared web/ambience.js
 shared web/contest.js

@@ -73,6 +73,8 @@ jobs:
           node tests/test_journey_dom.cjs --subject=行测
           node tests/ui_map_navigation.cjs --subject=申论
           node tests/ui_map_navigation.cjs --subject=行测
+          node tests/ui_back_button.cjs --subject=申论
+          node tests/ui_back_button.cjs --subject=行测
           node tests/ui_status_navigation.cjs --subject=申论
           node tests/ui_study_regions.cjs --subject=申论
           node tests/ui_status_navigation.cjs --subject=行测

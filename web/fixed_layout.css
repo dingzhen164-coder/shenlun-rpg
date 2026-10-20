@@ -226,11 +226,17 @@ html.fixed-app.study-workspace body:not(.portal-home){padding-top:env(safe-area-
 .fixed-app .modal-box>.fx-scroll{max-height:none;flex:1}
 .fixed-app .narrative-body{flex:1;min-height:0}
 .fixed-app .narrative-paper,.fixed-app .narrative-person{max-height:none;flex:1}
-.page-settings-gear{position:fixed;right:max(9px,env(safe-area-inset-right));bottom:max(9px,env(safe-area-inset-bottom));z-index:90;display:grid;place-items:center;width:44px;height:44px;padding:8px;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--gold);opacity:.5;box-shadow:0 2px 12px #0002;cursor:pointer}
-.page-settings-gear:hover,.page-settings-gear:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:2px}
-.page-settings-gear svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}
-.fixed-app .composer,.fixed-app .fx-actions{padding-right:64px!important}
-html.drawing .page-settings-gear{display:none}
+.page-settings-gear,.page-back-btn{position:fixed;right:max(9px,env(safe-area-inset-right));bottom:max(9px,env(safe-area-inset-bottom));z-index:90;display:grid;place-items:center;width:44px;height:44px;padding:8px;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--gold);opacity:.5;box-shadow:0 2px 12px #0002;cursor:pointer}
+.page-back-btn{right:auto;left:max(9px,env(safe-area-inset-left))}
+.page-back-btn[hidden]{display:none}
+/* 3.5.6 iPad（添加到主屏/全面屏）：地图首页铺满整个屏幕含安全区，不再在上下露出底层背景 */
+html.fixed-app body.portal-home{padding:0}
+html.fixed-app body.portal-home #view{position:fixed;inset:0;width:auto;max-width:none;height:auto;margin:0;padding:0}
+html.fixed-app body.portal-home .study-hud{padding-top:max(12px,env(safe-area-inset-top));padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
+.page-settings-gear:hover,.page-settings-gear:focus-visible,.page-back-btn:hover,.page-back-btn:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:2px}
+.page-settings-gear svg,.page-back-btn svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}
+.fixed-app .composer,.fixed-app .fx-actions{padding-right:64px!important;padding-left:64px!important}
+html.drawing .page-settings-gear,html.drawing .page-back-btn{display:none}
 @media(max-width:1100px){.fx-records-list{display:block}.fx-records-list>.card{margin-bottom:10px!important}}
 
 .fixed-app dialog.narrative-dialog,.fixed-app dialog.sl-topic-dialog{inset:0}

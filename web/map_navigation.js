@@ -33,6 +33,11 @@
   function mount(view) {
     document.getElementById('mapPageTools')?.remove();
     if(!document.getElementById('pageSettingsGear')){const b=document.createElement('button');b.id='pageSettingsGear';b.type='button';b.dataset.hudSettings='';b.className='page-settings-gear';b.setAttribute('aria-label','打开设置');b.title='打开设置';b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2 3 3-1 1 4 4 2-2 3 1 4-4 1-3 4-2-3-4 1-1-4-4-2 2-3-1-4 4-1Z"/><circle cx="12" cy="12" r="3"/></svg>';document.body.append(b);}
+    // 3.5.6 iPad没有Esc键：左下角放与设置齿轮同大的返回钮；地图首页没有上一层，隐藏
+    let back=document.getElementById('pageBackBtn');
+    if(!back){back=document.createElement('button');back.id='pageBackBtn';back.type='button';back.className='page-back-btn';back.setAttribute('aria-label','返回上一界面');back.title='返回上一界面';
+      back.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>';document.body.append(back);}
+    back.hidden=view==='home';
     const tools=document.querySelector('.top-tools'),slot=document.querySelector('[data-scene-tools]');
     if(tools)(view==='settings'&&slot?slot:document.querySelector('.topbar'))?.appendChild(tools);
     if(view!=='settings')recording='';
@@ -77,6 +82,7 @@
   document.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
     if(b.hasAttribute('data-hud-home'))return toggle('home').catch(err=>actions.error(err));
+    if(b.id==='pageBackBtn'){if(closeTransient())return;return toggle(actions.current()==='settings'?'settings':'home').catch(err=>actions.error(err));}
     if(b.hasAttribute('data-hud-settings')){closeTransient();return toggle('settings').catch(err=>actions.error(err));}
     if(b.dataset.shortcutRecord){recording=b.dataset.shortcutRecord;status('现在按下新的快捷键…');return;}
     if(b.hasAttribute('data-shortcut-reset')){draft={...DEFAULTS};recording='';updateFields();status('已恢复默认，保存后生效');}
