@@ -3,6 +3,9 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+shared web/tablet_shell.js
+shared tests/ui_tablet_shell.cjs
+shared tests/fixture_tablet.py
 shared rpg/inline_images.py
 shared web/question_images.css
 shared tests/test_inline_images.py

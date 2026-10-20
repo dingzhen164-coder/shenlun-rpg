@@ -193,8 +193,22 @@
   function themeKey(){return document.body.classList.contains('guantu')?'office':document.body.classList.contains('xuanhuan')?'mage':'peaks';}
   function notes(root) {
     const n=root.querySelector('.notes');if(!n)return;
-    if(!n.dataset.fxNotes){n.dataset.fxNotes='1';const panels=[...n.children].filter(x=>x.matches('.nt-side,.nt-main'));
-    if(panels.length>1){const bar=make('div','fx-note-switch');root.prepend(bar);tabs(bar,panels.map((panel,i)=>({panel,label:i===0?'目录':'书写与阅读'})),'notes:'+themeKey(),1);}}
+    const key='notes:'+themeKey(),compact=matchMedia('(max-width:820px), (max-width:1100px) and (orientation:portrait)').matches;
+    // notes.repaintSide会替换整个aside。每轮按当前节点设置hidden，不能让标签闭包一直指向旧目录。
+    if(n.dataset.fxCompact!==String(compact)){n.dataset.fxCompact=String(compact);if(compact)choices.set(key,1);}
+    let bar=root.querySelector('.fx-note-switch');
+    if(!bar){
+      bar=make('div','fx-note-switch');const nav=make('div','fx-tabs');nav.setAttribute('role','tablist');nav.setAttribute('aria-label','手札目录与正文');bar.append(nav);root.prepend(bar);
+      ['目录','书写与阅读'].forEach((label,i)=>{const b=make('button','fx-tab');b.type='button';b.textContent=label;b.setAttribute('role','tab');b.id='fx-note-tab-'+i;
+        b.onclick=()=>{choices.set(key,i);schedule();};
+        b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const j=e.key==='Home'?0:e.key==='End'?1:1-i;nav.children[j].click();nav.children[j].focus();};nav.append(b);});
+    }
+    const panels=[n.querySelector('.nt-side'),n.querySelector('.nt-main')],selected=choices.get(key)??1;
+    let changed=false;
+    panels.forEach((panel,i)=>{if(!panel)return;const hidden=selected!==i;if(panel.hidden!==hidden){panel.hidden=hidden;changed=true;}
+      const button=bar.querySelectorAll('.fx-tab')[i];panel.id=i===0?'ntSide':'ntMain';panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);
+      button.setAttribute('aria-controls',panel.id);button.setAttribute('aria-selected',String(selected===i));button.tabIndex=selected===i?0:-1;});
+    if(changed)window.dispatchEvent(new Event('resize'));
     const main=n.querySelector('.nt-main');if(main&&!main.querySelector('.fx-reader-switch')){const panes=[...main.children].filter(x=>x.matches('.nt-book,.nt-reader'));if(panes.length>1){const bar=make('div','fx-reader-switch');main.prepend(bar);tabs(bar,panes.map((panel,i)=>({panel,label:i===0?'书写':'阅读'})),'note-panes');}}
   }
   function tianji(root) {
@@ -259,7 +273,8 @@
   }
   function measure() {
     const h=document.documentElement,viewport=window.visualViewport;
-    const height=Math.round(viewport?.height||innerHeight);
+    // 浏览器缩放改变的是可视视口；还原到布局尺寸，避免误判为软键盘并挤压整页。
+    const height=Math.round((viewport?.height||innerHeight)*(viewport?.scale||1));
     const keyboard=height<innerHeight-150;if(h.classList.contains('fx-keyboard')!==keyboard)h.classList.toggle('fx-keyboard',keyboard);
     if(h.style.getPropertyValue('--fx-height')!==height+'px')h.style.setProperty('--fx-height',height+'px');
     const hud=document.getElementById('studyHud');if(hud)h.style.setProperty('--study-workspace-height',Math.ceil(hud.classList.contains('subpage-heading')?hud.getBoundingClientRect().bottom:hud.getBoundingClientRect().height)+'px');
@@ -282,6 +297,6 @@
   function schedule(){if(!pending){pending=true;requestAnimationFrame(apply);}}
   const observer=new MutationObserver(schedule);observer.observe(document.body,{childList:true,subtree:true});
   new MutationObserver(schedule).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
-  window.addEventListener('resize',schedule);window.visualViewport?.addEventListener('resize',schedule);
-  window.FIXED_LAYOUT={mount(view){route=view;schedule();},refresh:schedule};
+  window.addEventListener('resize',schedule);window.addEventListener('pageshow',schedule);window.addEventListener('orientationchange',schedule);window.visualViewport?.addEventListener('resize',schedule);
+  window.FIXED_LAYOUT={mount(view){route=view;schedule();},refresh:schedule,notesContentOpened(){choices.set('notes:'+themeKey(),1);schedule();}};
 })();
