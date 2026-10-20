@@ -111,7 +111,7 @@
       document.getElementById("ntFiles").innerHTML = filesHtml(); bindSide();
     }));
     const sm = document.getElementById("ntSideMin"), so = document.getElementById("ntSideOpen");
-    if (sm) sm.onclick = () => { SIDE_MIN = true; LS.set("xrpg-nt-side", "min"); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
+    if (sm) sm.onclick = () => { SIDE_MIN = true; LS.set("xrpg-nt-side", "min"); const k = resizeKeep(); repaintSide(); window.FIXED_LAYOUT?.notesContentOpened(); setTimeout(k, 0); };
     if (so) so.onclick = () => { SIDE_MIN = false; LS.set("xrpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0); };
     if (SIDE_MIN) document.querySelectorAll(".nt-side [data-ntab]").forEach((b) => (b.onclick = async () => {
       TAB = b.dataset.ntab; SIDE_MIN = false; LS.set("xrpg-nt-side", ""); const k = resizeKeep(); repaintSide(); setTimeout(k, 0);
@@ -152,6 +152,7 @@
     m.innerHTML = (READ ? readerHtml() : "") + (NB ? bookHtml() : "");
     if (READ) bindReader();
     if (NB) bindBook();
+    window.FIXED_LAYOUT?.notesContentOpened();
   }
 
   // ---------------------------------------------------------------- 本子
