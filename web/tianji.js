@@ -397,6 +397,8 @@
 
   function bindIssue() {
     const v = ROOT, $$ = (s) => v.querySelectorAll(s), $1 = (s) => v.querySelector(s);
+    window.WORD_NOTES?.close();
+    if(MODE==='read')window.WORD_NOTES?.mount($1('.tj-news-body'),{source:'tianji',kind:CUR.kind,id:CUR.id,news:NEWS});
     $1("#tjBack").onclick = close;
     $$("[data-mode]").forEach((a) => (a.onclick = () => { MODE = a.dataset.mode; store.set("mode", MODE); renderIssue(); window.scrollTo(0, 0); }));
     const cat = $1("#tjCat");

@@ -12,6 +12,17 @@ from rpg.paths import DEFAULTS_DIR, FROZEN, WEB_DIR
 assert FROZEN, "not frozen"
 assert (WEB_DIR / "index.html").exists(), WEB_DIR
 assert (WEB_DIR / "device.js").exists()
+for name in ('political_atlas.html', 'atlas.js', 'atlas.css', 'atlas_theme.css', 'word_notes.js', 'word_notes.css', 'wanxiang.css'):
+    assert (WEB_DIR / name).is_file(), name
+import json
+import hashlib
+from rpg.paths import RES_DIR
+seed = RES_DIR / 'rpg/data/political_atlas.json'
+spec = json.loads((RES_DIR / 'rpg/data/political_atlas_seed.json').read_text(encoding='utf-8'))
+assert seed.is_file(), '缺少离线时政资料'
+assert hashlib.sha256(seed.read_bytes()).hexdigest() == spec['sha256'], '时政资料摘要不符'
+atlas_data = json.loads(seed.read_text(encoding='utf-8'))
+assert len(atlas_data['materials']) == 38 and len(atlas_data['questions']) == 135, '时政资料不完整'
 assert DEFAULTS_DIR.exists(), DEFAULTS_DIR
 from PIL import Image
 portraits=list((DEFAULTS_DIR/'人物'/'行测').glob('xc-*/立绘/*.png'))

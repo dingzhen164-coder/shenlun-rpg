@@ -6,12 +6,37 @@ on:
     branches: [main, 'validate/**']
     paths: [.github/release-request.json]
   workflow_dispatch:
+    inputs:
+      atlas_part:
+        description: '时政资料分块：0、1或finalize；普通验证留空'
+        default: ''
+        required: false
+      atlas_payload:
+        description: 'gzip分块base64，仅手动资料通道使用'
+        default: ''
+        required: false
 
 permissions:
   contents: write
   actions: read
 
 jobs:
+  atlas-content:
+    if: github.event_name == 'workflow_dispatch' && inputs.atlas_part != '' && !startsWith(github.ref, 'refs/heads/validate/') && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: political-atlas-content
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Upload or finalize verified atlas data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATLAS_PART: ${{ inputs.atlas_part }}
+          ATLAS_PAYLOAD: ${{ inputs.atlas_payload }}
+        run: python tools/publish_atlas_seed.py
+
   build:
     if: startsWith(github.ref, 'refs/heads/validate/')
     runs-on: windows-latest
@@ -40,6 +65,9 @@ jobs:
 
       - name: Tests
         run: python -m unittest discover -s tests
+
+      - name: Fetch verified political atlas content
+        run: python tools/fetch_atlas_seed.py
 
       - name: Build exe
         run: >
@@ -122,6 +150,9 @@ jobs:
 
       - name: Install build tools
         run: pip install pyinstaller pywebview segno pymupdf pillow pyobjc-framework-Vision certifi
+
+      - name: Fetch verified political atlas content
+        run: python tools/fetch_atlas_seed.py
 
       - name: Build app
         run: >

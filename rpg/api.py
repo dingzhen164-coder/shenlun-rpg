@@ -2194,4 +2194,7 @@ def mm_local(body):
         return {'ok': True}
     return _mm(open_document)
 ROUTES[("POST", "/api/mindmap/local")] = mm_local
+
+from . import politics
+politics.register(__import__(__name__, fromlist=['ROUTES']))
 LOCAL_ONLY.add('/api/mindmap/local')

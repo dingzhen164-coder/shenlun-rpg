@@ -11,7 +11,13 @@
     {id:'shu',name:'演数峰',subject:'数量关系',hint:'推演变化 · 寻找解法',boards:['数量关系']},
     {id:'zi',name:'观星峰',subject:'资料分析',hint:'观测数据 · 看清趋势',boards:['资料分析']}
   ];
-  let selected='',subject='',images={};
+  let selected='',subject='',images={},branch='',category='';
+  const common=[
+    {id:'geo',name:'地理',hint:'山川形胜 · 经纬天地',icon:'◎',aliases:['地理','地理常识','地理知识','自然地理','人文地理','中国地理','世界地理']},
+    {id:'history',name:'文史',hint:'读史明理 · 文脉千年',icon:'▤',aliases:['文史','文史常识','文史知识','历史','历史常识','人文','人文常识','文化','文化常识']},
+    {id:'economy',name:'经济',hint:'经世济用 · 通晓运行',icon:'◈',aliases:['经济','经济常识','经济知识']},
+    {id:'science',name:'科技',hint:'格物致知 · 探索万象',icon:'✧',aliases:['科技','科技常识','科技知识','科学','科学常识']}
+  ];
   // 复用功能判断，避免申论静态文件的术语替换改写科目比较常量。
   const office=()=>typeof isSL==='function'&&isSL();
   const peaksMode=()=>typeof isSL==='function'&&!isSL();
@@ -21,9 +27,18 @@
     const fallback=office()?['归纳概括','综合分析','提出对策','贯彻执行','大作文']:['民法','刑法','民诉','刑诉','行政法','商经知','三国法','理论法'];
     return (boards.length?boards:fallback).map((b,i)=>({id:'board-'+i,name:b,subject:b,hint:office()?'知识办理 · 专题梳理':'典籍研习 · 知识脉络',boards:[b]}));
   }
-  function chooseSubject(){if(subject!==DASH.subject){subject=DASH.subject;selected='';}}
+  function chooseSubject(){if(subject!==DASH.subject){subject=DASH.subject;selected='';branch='';category='';}}
   function active(){chooseSubject();return groups().find(g=>g.id===selected);}
   function belongs(name,id){
+    if(id.startsWith('chang-')){
+      if(!belongs(name,'chang'))return false;
+      const parts=String(name).split('::').map(x=>x.trim());
+      const board=[...parts].reverse().find(x=>['政治理论','常识判断'].includes(x));
+      if(id==='chang-politics')return board==='政治理论';
+      if(board!=='常识判断')return false;
+      const found=common.find(c=>parts.some(x=>c.aliases.includes(x)));
+      return id==='chang-other'?!found:found?.id===id.slice(6);
+    }
     let found;
     for(const part of String(name).split('::')){
       const g=groups().find(g=>[...g.boards,...(g.aliases||[])].includes(part.trim()));
@@ -49,11 +64,35 @@
     const g=active(),title=SCENE_PORTAL.title('train'),xingce=peaksMode();
     if(!g){try{images=(await api("/api/study-regions")).images||{};}catch(_){images={};}}
     if(!g)return `<section class="study-regions ${xingce?'study-peaks':office()?'study-offices':'study-towers'}" aria-label="${esc(title)}分区选择"><header class="study-regions-heading"><span class="small muted">${xingce?'青衡宗 · 五脉同修':office()?'分题型办理':'分科目研习'}</span><h2>${esc(title)}</h2><p>${xingce?'择一峰而入，专心温简、梳理灵脉。':'选择一个板块，查看对应的记忆卡片与知识导图。'}</p></header><div class="study-region-grid">${groups().map((r,i)=>`<button class="study-region" data-study-region="${esc(r.id)}">${images[r.name]?`<img class="study-region-image" src="${esc(images[r.name])}" alt="${esc(r.name)}" data-region-image="${i}">`:xingce?mountain(i):`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`}<span class="study-region-copy"><b>${esc(r.name)}</b><span>${esc(r.subject)}</span><small>${esc(r.hint)}</small></span></button>`).join('')}</div></section>`;
+    if(xingce&&g.id==='chang')return `<section class="wx-workspace">${await changHtml()}</section>`;
     const boards=[...g.boards,...(g.aliases||[])];
     const [cards,maps]=await Promise.all([CARDS.hubHtml({id:g.id,label:g.name,deck:g.boards[0]}),MINDMAP.hubHtml(boards)]);
     return `<header class="study-region-heading" aria-label="${esc(g.name)}"><h2>${esc(g.name)}</h2></header>${cards}${maps}`;
   }
+  const backButton=label=>`<button class="ghost" data-wx-back>← ${label}</button>`;
+  function wxHead(title,subtitle,back){return `<header class="wx-heading">${backButton(back)}<div><small>万象峰 · 研习之境</small><h2>${title}</h2><p>${subtitle}</p></div></header>`;}
+  async function changHtml(){
+    if(!branch)return `<section class="wx-home">${wxHead('万象峰','观天下之势，识万物之理','主地图')}<div class="wx-gates"><button class="wx-gate wx-politics" data-wx-branch="politics"><span class="wx-art" aria-hidden="true">☀</span><small>明大势 · 理脉络</small><h3>政治理论</h3><p>理论要点 · 重要会议 · 时事政治</p><span>进入研习 →</span></button><button class="wx-gate wx-common" data-wx-branch="common"><span class="wx-art" aria-hidden="true">山</span><small>知万物 · 通古今</small><h3>常识判断</h3><p>地理 · 文史 · 经济 · 科技</p><span>进入研习 →</span></button></div></section>`;
+    if(branch==='atlas')return `<section class="wx-atlas-shell">${wxHead('时政知识地图','理解脉络，辨清词义','政治理论')}<iframe class="wx-atlas-frame" title="时政知识地图" src="political_atlas.html"></iframe></section>`;
+    if(branch==='politics'){
+      const [cards,maps]=await Promise.all([CARDS.hubHtml({id:'chang-politics',label:'政治理论',deck:'政治理论'}),MINDMAP.hubHtml(['政治理论'])]);
+      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<button class="wx-atlas-entry" data-wx-branch="atlas"><span aria-hidden="true">▤</span><div><b>时政知识地图</b><small>沿知识主线研读原文，辨析重点，练习巩固</small></div><span>进入地图 →</span></button>${cards}${maps}`;
+    }
+    if(category){
+      const item=common.find(c=>c.id===category),label=item?.name||'其他玉简';
+      const cards=await CARDS.hubHtml({id:'chang-'+category,label,deck:'常识判断'});
+      return `${wxHead(label+' · 玉简','知万物 · 通古今','常识分类')}${cards||'<div class="card muted">此分类暂无玉简，可在藏经阁管理已有牌组。</div>'}`;
+    }
+    const [other,maps]=await Promise.all([CARDS.hubHtml({id:'chang-other',label:'其他玉简',deck:'常识判断'}),MINDMAP.hubHtml(['常识判断'])]);
+    return `${wxHead('常识判断','知万物 · 通古今','万象峰')}<div class="wx-categories">${common.map(c=>`<button class="wx-category" data-wx-category="${c.id}"><span class="wx-category-icon" aria-hidden="true">${c.icon}</span><div><h3>${c.name}</h3><small>${c.hint}</small></div><span>进入玉简 →</span></button>`).join('')}</div>${other?'<button class="ghost wx-other" data-wx-category="other">其他玉简（保留未归入四类的资料） →</button>':''}${maps}`;
+  }
   function bind(root){
+    root.querySelectorAll('[data-wx-branch]').forEach(b=>b.onclick=async()=>{branch=b.dataset.wxBranch;category='';await renderTrain();window.STUDY_HUD?.refresh();});
+    root.querySelectorAll('[data-wx-category]').forEach(b=>b.onclick=async()=>{category=b.dataset.wxCategory;await renderTrain();window.STUDY_HUD?.refresh();});
+    const wb=root.querySelector('[data-wx-back]');if(wb)wb.onclick=async()=>{
+      if(category)category='';else if(branch==='atlas')branch='politics';else if(branch)branch='';else return go('home');
+      await renderTrain();window.STUDY_HUD?.refresh();
+    };
     root.querySelectorAll('[data-region-image]').forEach(img=>img.addEventListener('error',()=>{
       if(peaksMode())img.outerHTML=mountain(Number(img.dataset.regionImage));
       else img.outerHTML=`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`;
@@ -62,6 +101,6 @@
     const back=root.querySelector('[data-study-regions-back]');if(back)back.onclick=async()=>{selected='';if(peaksMode()){go('home');return;}await renderTrain();window.STUDY_HUD?.refresh();window.scrollTo(0,0);};   // 行测五峰在地图上各有入口：返回就回地图，不再经过“问道群峰”选择页
   }
   // 地图上的五峰入口：直接进入某一峰（行测）；传入未知id则回到分区列表
-  function select(id){chooseSubject();selected=groups().some(g=>g.id===id)?id:'';}
+  function select(id){chooseSubject();selected=groups().some(g=>g.id===id)?id:'';branch='';category='';}
   window.STUDY_REGIONS={html,bind,belongs,select,title:()=>active()?.name||''};
 })();
