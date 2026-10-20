@@ -65,10 +65,17 @@ async function main() {
       for (const [type,y] of [['pointerdown',300],['pointermove',280],['pointerup',280]]) el.dispatchEvent(new PointerEvent(type,{pointerType:'touch',pointerId:10,clientX:r.left+100,clientY:r.top+y,bubbles:true,button:0}));
     });
     await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 2, '手指只翻页不能新增笔画');
+    assert.equal(await page.locator('[data-act="finger"]').count(), 0, '不再有手指写字开关：手指永远只翻页');
+    await first.evaluate(el => {   // 上一笔的抬笔事件丢了（iPad断联）：下一笔不能被卡住，卡住的那笔也要保住
+      const r = el.getBoundingClientRect(), fire = (type,id,x,y) => el.dispatchEvent(new PointerEvent(type,{pointerType:'pen',pointerId:id,clientX:r.left+x,clientY:r.top+y,bubbles:true,button:0}));
+      fire('pointerdown',20,100,400); fire('pointermove',20,150,410);
+      fire('pointerdown',21,100,450); fire('pointermove',21,160,460); fire('pointerup',21,160,460);
+    });
+    await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 4, '丢了抬笔事件后新一笔照常写出，卡住的一笔也保存');
     await page.locator('.ar-typed summary').click(); await page.locator('#ntArticleText').fill('从实际需要出发，让技术创新落到服务群众的具体行动中。');
     await page.locator('#arBack').click(); await page.locator('[data-open="abcd1234"]').click(); await page.locator('#ntArticleText').waitFor({state:'attached'});
     assert.equal(await page.locator('#ntArticleText').inputValue(), '从实际需要出发，让技术创新落到服务群众的具体行动中。');
-    assert.equal((await book()).pages[0].strokes.length, 2);
+    assert.equal((await book()).pages[0].strokes.length, 4);
     await page.locator('#arSideToggle').click(); assert.equal(await page.locator('#arSide').isVisible(), false); await page.locator('#arSideToggle').click();
     await page.locator('#ntFull').click(); assert.equal(await page.locator('html').evaluate(el=>el.classList.contains('nt-full')), true); await page.locator('#ntFull').click();
     const pdfResult = page.waitForResponse(r => r.url().endsWith('/api/notes/pdf') && r.request().method() === 'POST');
@@ -87,7 +94,7 @@ async function main() {
       }
     }
     await page.locator('#arLedger').click(); await page.locator('[data-nb="article-abcd1234"]').waitFor();
-    assert.equal((await book()).pages[0].strokes.length,2);
+    assert.equal((await book()).pages[0].strokes.length,4);
     await page.locator('[data-nb="article-abcd1234"]').click(); await page.locator('.nt-ink').first().waitFor();
     await page.screenshot({path:path.join(out,'ledger-tablet-dark.png'),fullPage:true});
     // 强制旧版本写入必须失败，新笔迹及正文仍在。

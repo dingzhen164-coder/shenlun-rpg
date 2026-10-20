@@ -538,7 +538,7 @@
     const x = c.getContext("2d"); x.scale(dpr, dpr); x.lineCap = x.lineJoin = "round"; x.lineWidth = 3; x.strokeStyle = "#222";
     let down = false, any = false, last = null;
     const pt = (e) => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    c.onpointerdown = (e) => { if (e.pointerType === "touch" && LS.get("xrpg-nt-finger", "draw") === "scroll") return; down = true; last = pt(e); try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); };
+    c.onpointerdown = (e) => { if (e.pointerType === "touch") return; down = true; last = pt(e); try { c.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); };
     c.onpointermove = (e) => { if (!down) return; const p = pt(e); x.beginPath(); x.moveTo(...last); x.lineTo(...p); x.stroke(); last = p; any = true; };
     c.onpointerup = c.onpointercancel = () => { down = false; };
     m.querySelector('[data-p="clear"]').onclick = () => { x.clearRect(0, 0, w, h); any = false; };
