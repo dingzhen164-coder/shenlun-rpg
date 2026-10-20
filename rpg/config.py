@@ -392,10 +392,14 @@ class Persona:
 class Lines:
     """台词库：lines.pick("开场·落后", 称呼="小岸", 落后天数=3)"""
 
+    RETIRED = ("为师没教过你吗？先读解析，不懂再问",)      # 已撤下的台词：用户的台词库副本里还留着也不再抽到
+
     def __init__(self, text="", fallback=""):
         # 自己的台词库里没有的场景（程序新加的），用默认台词库里的
         self.sec = mdconf.sections(fallback)
         self.sec.update({k: v for k, v in mdconf.sections(text).items() if v})
+        for k, v in list(self.sec.items()):
+            self.sec[k] = [x for x in v if not any(r in x for r in self.RETIRED)]
 
     def pick(self, scene, **vals):
         opts = self.sec.get(scene) or []

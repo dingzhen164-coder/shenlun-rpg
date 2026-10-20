@@ -1360,8 +1360,11 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     qb, mat = _bank_q(g, q)
     msgs.append(_msg('sys', '复盘 第 %s/%s 题 · 编号 %s · %s · 用时 %s' % (i + 1, len(qs), q['id'], '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
                      qb, pin=True, material=mat, qkey='bank:' + q['id']))
-    msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s\n\n解析：' % (r['answer'], q['answer'], q['topic']),
-                     _bank_blocks(g, q['board'], q['analysis'] or '（这题没有解析，点「师傅解惑」让师傅讲）')))
+    if q['analysis']:
+        msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s\n\n解析：' % (r['answer'], q['answer'], q['topic']),
+                         _bank_blocks(g, q['board'], q['analysis'])))
+    else:                                           # 没有解析：只显示答案和知识点，不再摆一行“这题没有解析”的提示
+        msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s' % (r['answer'], q['answer'], q['topic'])))
     if not r['ok'] and not head:
         line = _say(g, '试炼·复盘错题', 你的答案=r['answer'], 正确答案=q['answer'])
         if line:
@@ -1638,9 +1641,11 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
         qkey="mock:" + q["key"]))
     duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
-    msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?",duration),
-                     vault.render_blocks(g.paths, {"body": q["analysis"] or "（这题还没写复盘解析，点「师傅解惑」让师傅讲；讲完自动写进这题的复盘笔记）",
-                                                   "dir": q["dir"]})))
+    if q["analysis"]:
+        msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?", duration),
+                         vault.render_blocks(g.paths, {"body": q["analysis"], "dir": q["dir"]})))
+    else:                                           # 还没有复盘解析：只显示答案，不再摆一行“还没写解析”的提示
+        msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s" % (q["mine"] or "没做", q["correct"] or "?", duration)))
     if q["icon"] != "✅" and not head:
         line = _say(g, "试炼·复盘错题", 你的答案=q["mine"] or "没做", 正确答案=q["correct"])
         if line:
