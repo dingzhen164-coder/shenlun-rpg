@@ -25,7 +25,9 @@ async function setTime(p,mode){await p.evaluate(m=>{localStorage.setItem('scene-
    assert.equal(await p.evaluate(()=>scrollY>0||document.documentElement.scrollWidth>innerWidth+2||document.documentElement.scrollHeight>innerHeight+2),false);
   }
  }}
- await p.evaluate(()=>go('dwelling'));const before=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage);await p.evaluate(()=>{window.__view=document.querySelector('#view').firstElementChild;window.__requests=0;const raw=fetch;window.fetch=(...a)=>{__requests++;return raw(...a);};});
+ await p.evaluate(()=>go('dwelling'));
+ // 页面返回时布局在下一帧建立洞府页签，先等对应背景就绪，再验证昼夜切换本身不重建页面。
+ await p.waitForFunction(()=>document.querySelector('.fx-tab[aria-selected="true"]')&&getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('/dwelling-growth.webp'));const before=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage);await p.evaluate(()=>{window.__view=document.querySelector('#view').firstElementChild;window.__requests=0;const raw=fetch;window.fetch=(...a)=>{__requests++;return raw(...a);};});
  await p.evaluate(()=>{document.documentElement.dataset.scenePhase='dusk';document.documentElement.dataset.sceneTime='day';});await p.waitForFunction(()=>getComputedStyle(document.querySelector('#bgLayer')).filter.includes('sepia'),null,{timeout:5000}).catch(()=>{});const dusk=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).filter);assert(dusk.includes('sepia'));
  await setTime(p,'night');assert.equal(await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage),before);assert(await p.evaluate(()=>__view===document.querySelector('#view').firstElementChild));assert.equal(await p.evaluate(()=>__requests),0);
  if(process.argv.includes('--shots')&&size==='desktop'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-night.png')});await setTime(p,'day');await p.screenshot({path:path.join(out,(subject||'法考')+'-day.png')});}
