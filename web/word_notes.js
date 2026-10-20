@@ -40,7 +40,10 @@
       for(const block of blocks()){
         // 先去掉本组件旧标记；保留原文strong/mark及文本顺序。
         block.querySelectorAll('.wn-word').forEach(el=>el.replaceWith(...el.childNodes));block.normalize();
-        const paragraph=block.textContent,entries=Object.values(notes).filter(n=>n.paragraph===paragraph).sort((a,b)=>a.start-b.start);
+        const paragraph=block.textContent,chosen=[];
+        // 重叠选词优先显示最新批注；旧解释仍留存，避免新选词被旧范围遮住。
+        for(const n of Object.values(notes).reverse())if(n.paragraph===paragraph&&!chosen.some(x=>n.start<x.end&&n.end>x.start))chosen.push(n);
+        const entries=chosen.sort((a,b)=>a.start-b.start);
         let lastEnd=-1;
         for(const n of entries){
           if(n.start<lastEnd||Array.from(paragraph).slice(n.start,n.end).join('')!==n.word)continue;
@@ -48,6 +51,8 @@
           const mark=document.createElement('strong');mark.className='wn-word';mark.dataset.wnKey=n.key;mark.setAttribute('role','button');mark.tabIndex=0;mark.setAttribute('aria-label',n.word+'，查看解释批注');
           mark.append(r.extractContents());r.insertNode(mark);lastEnd=n.end;
         }
+        // Range跨原重点边界时会留下空strong/mark，移除它们避免空白触控/键盘入口。
+        block.querySelectorAll('.source-emphasis,.tj-key').forEach(el=>{if(!el.textContent.trim())el.remove();});
       }
     }
     function anchorFor(block,start,end,rect){
@@ -92,7 +97,8 @@
     document.addEventListener('selectionchange',selection,opts);
     function clickWord(e){
       if(window.getSelection()?.toString().trim())return;
-      const el=e.target.closest('.wn-word,.source-emphasis,.tj-key');if(!el||!root.contains(el))return;
+      // 已保存词句可能包住原文strong/mark，优先使用整条批注，避免点到内部重点重复请求。
+      const el=e.target.closest('.wn-word')||e.target.closest('.source-emphasis,.tj-key');if(!el||!root.contains(el))return;
       const block=blockOf(el);if(!block||el.textContent.length>200)return;
       e.preventDefault();
       const r=document.createRange();r.selectNodeContents(block);r.setEndBefore(el);const start=r.toString().length;
