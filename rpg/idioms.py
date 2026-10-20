@@ -9,6 +9,11 @@
 存档 state["idioms"]，每次收录后整份重写 训练/成语实词录.md。
 """
 import re
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
 
 from . import question_bank
 
@@ -31,8 +36,10 @@ FUNCTION = set('就 才 也 都 而 且 却 但 则 并 又 还 更 再 已 及 
     '不管', '不过', '可是', '只是', '仍然', '依然', '已经', '曾经', '正在', '将要', '必须', '应该', '可能', '或许', '也许', '究竟', '到底', '虽说', '固然', '与其', '不如', '宁可', '一旦', '由于', '以致', '以至', '乃至', '就是', '而是', '不是', '还是'}
 
 
+IDIOM_WORDS = frozenset((Path(__file__).parent/'data/idioms/words.txt').read_text(encoding='utf-8').splitlines())
+
 def is_word(w):
-    return bool(re.fullmatch(r'[\u4e00-\u9fff]{2,12}', w or '')) and w not in FUNCTION   # 只收汉字词（排序题的③①②、字母数字不收）
+    return w in IDIOM_WORDS   # 只收汉字词（排序题的③①②、字母数字不收）
 
 
 STOP = re.compile(r'；|。|\n|“|，(?:[A-D](?:项|、)|均|都|皆|符合|不符合|与文|与语|与后|与前|与“|与大|与上|与下|置于|用于此|填入|放到|放于|体现|说明|对应|和文|同文|这里|此处|放在|放入|用在|代入|搭配|故|保留|排除|当选|文段|可以|能够|不能|无法|没有|而文|但文|且)')
@@ -280,7 +287,7 @@ def harvest(g, questions):
         if not is_fill(q):
             continue
         if words is None:
-            words = vocab(g)
+            words = vocab(g) | IDIOM_WORDS
         for w, src in entries_of(q, words):
             if w in deleted(g):
                 continue
@@ -300,7 +307,7 @@ def harvest(g, questions):
     return new
 
 
-VERSION = 3   # 2：粉笔模考选项连在一起时按空数切词；3：只收汉字词
+VERSION = 4   # 4：离线成语筛选；备份清理旧短词，保留正常成语和手工笔记
 
 
 TAG = '（师傅补）'
@@ -324,6 +331,12 @@ def migrate(g):
     if g.state.get('idioms_ver') == VERSION:
         return False
     book = data(g)
+    backup_non_idioms(g)
+    previous = g.state.get('idioms_ver',0)
+    g.state['idioms_ver'] = VERSION  # 先标记，避免旧版本重收时递归迁移。
+    if previous >= 3:
+        clean_non_idioms(g)
+        return True
     if book:
         dates = {}
         for e in book.values():
@@ -336,15 +349,65 @@ def migrate(g):
         book.clear()
         harvest(g, qs)
         for w, e in kept.items():          # 改过的、师傅答过的词条原样留着
-            if is_word(w) or any(s.get('edited') for s in e['sources']):
+            if is_word(w):
                 book[w] = e
         for e in book.values():
             for s in e['sources']:
                 s['date'] = dates.get(s['key'], s['date'])
             e['added'] = min(s['date'] for s in e['sources'])
         write_file(g)
+    clean_non_idioms(g)
     g.state['idioms_ver'] = VERSION
     return True
+
+
+
+def backup_non_idioms(g):
+    """升级清理先持久备份：原词条/生成卡映射/排期及受影响卡片原文件，可恢复。"""
+    removed={w:e for w,e in data(g).items() if not is_word(w)}
+    if not removed or not g.paths.train:return
+    links={w:n for w,n in g.state.get('idiom_cards',{}).items() if w in removed}
+    files={}
+    if links:
+        for f in (g.paths.train/'卡片').glob('*.md'):
+            content=f.read_bytes()
+            if any(str(n).encode() in content for n in links.values()):files[str(f.relative_to(g.paths.train))]=base64.b64encode(content).decode()
+    old=g.paths.train/FILE
+    if old.is_file():files[FILE]=base64.b64encode(old.read_bytes()).decode()
+    raw=json.dumps(dict(schema=1,reason='3.5.9仅收成语',removed=removed,idiom_cards=links,
+                        cards=g.state.get('cards',{}),files=files),ensure_ascii=False,indent=1).encode('utf-8')
+    folder=g.paths.train/'词录备份';folder.mkdir(exist_ok=True)
+    target=folder/('成语筛选-'+hashlib.sha256(raw).hexdigest()[:16]+'.json')
+    if not target.exists():
+        with target.open('xb') as f:f.write(raw);f.flush();os.fsync(f.fileno())
+
+
+def clean_non_idioms(g):
+    removed=[w for w in data(g) if not is_word(w)]
+    links=g.state.setdefault('idiom_cards',{})
+    for w in removed:
+        data(g).pop(w)
+        sync_card(g,w)  # 只删除词录自动生成且有映射的卡片；原文与其他卡片保留。
+    if removed:write_file(g)
+
+
+def from_explanation(g,q,text):
+    """逻辑填空解惑成功立即收正确选项成语，不增AI请求/奖励，手改释义优先。"""
+    if getattr(g,'subject','行测')!='行测' or not is_fill(q) or not isinstance(q.get('options'),dict):return []
+    source=dict(q,analysis=_analysis(q)+'\n'+text)
+    harvest(g,[source])
+    touched=[]
+    for w,src in entries_of(source,vocab(g)|IDIOM_WORDS):
+        entry=data(g).get(w)
+        if not entry:continue  # 尊重用户主动删除。
+        saved=next((x for x in entry['sources'] if x['key']==src['key'] and x['blank']==src['blank']),None)
+        if saved and not saved.get('edited'):
+            saved['compare']=_blank_paragraph(text,src['blank']-1,src['blanks'],[w]+[x['word'] for x in src['others']])[:900]
+            saved['tutor']=True
+            if not saved.get('meaning'):saved['meaning']=define(text,w)
+        sync_card(g,w);touched.append(w)
+    if touched:write_file(g)
+    return touched
 
 
 def _keep_mine(old, src):
@@ -375,6 +438,8 @@ def _entry(g, word):
 def edit(g, word, body):
     """修改词条：词本身（改名，和已有的同名词条合并）、每条出处的释义和辨析"""
     e = _entry(g, word)
+    new = str(body.get('word') or word).strip()
+    if not is_word(new):raise ValueError('词录只收录四字及以上成语')
     for i, s in enumerate(e['sources']):
         mine = (body.get('sources') or {}).get(str(i)) or {}
         for k in ('meaning', 'compare'):
@@ -383,8 +448,8 @@ def edit(g, word, body):
                 s['edited'] = True
     new = str(body.get('word') or word).strip()
     if new and new != word:
-        if len(new) > 12:
-            raise ValueError('词条名太长')
+        if not is_word(new):
+            raise ValueError('词录只收录四字及以上成语，不收二字、三字词或普通短语')
         book = data(g)
         book.pop(word)
         if new in book:
@@ -497,6 +562,7 @@ def sync_card(g, word):
 
 def sync_cards(g):
     """把已经答疑过的词条一次补成玉简（升级后第一次打开修炼殿时做一次）"""
+    migrate(g)
     n = 0
     for w, e in list(data(g).items()):
         if any(s.get('tutor') for s in e['sources']) and w not in g.state.get('idiom_cards', {}):
@@ -530,7 +596,7 @@ def write_file(g):
         return
     d = listing(g)
     out = ['# 成语实词录', '',
-           '> 逻辑填空每做完一组，正确选项里的成语 / 实词自动收进来，按首字拼音首字母排（程序生成，整份重写；自己的笔记请记在别处）。',
+           '> 逻辑填空交卷或师傅解惑后，正确选项里的成语自动收进来，按首字拼音首字母排（程序生成，整份重写；自己的笔记请记在别处）。',
            '> 共 %d 个词条。' % d['total'], '']
     cur = None
     for e in d['entries']:

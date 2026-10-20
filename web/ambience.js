@@ -49,7 +49,7 @@ const AMB = (() => {
   let loadedAt=0;
   async function load({cached=false}={}) {
     if(cached&&DATA&&Date.now()-loadedAt<30000)return;
-    try { DATA = await fetch("/api/appearance").then((r) => r.json());loadedAt=Date.now();apply(); } catch (e) { /* 没有库时不影响使用 */ }
+    try { DATA = await fetch("/api/appearance").then((r) => r.json());loadedAt=Date.now();apply(); window.BeautyAudio?.sync(); } catch (e) { /* 没有库时不影响使用 */ }
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { if (themeMode() === "auto") { setTheme("auto"); apply(); } });
 
@@ -66,12 +66,15 @@ const AMB = (() => {
     let on = false, audio = null, list = [], idx = 0, vol = 0.35;
 
     function playFile() {
-      if (!list.length) return;
-      audio = new Audio(`/vault-file?p=${encodeURIComponent(list[idx % list.length])}`);
-      audio.volume = vol;
-      audio.onended = () => { idx = nextIdx(); if (on) playFile(); };
-      audio.play().catch(() => {});
+      if (!list.length || !on) return;
+      if (audio) { audio.onended = null; audio.pause(); }
+      const current = audio = new Audio(`/vault-file?p=${encodeURIComponent(list[idx % list.length])}`);
+      current.volume = vol;
+      current.onended = () => { idx = nextIdx(); if (on) playFile(); };
+      current.onerror = () => { if (audio === current) { on = false; current.pause(); btn(); status('这首音乐无法播放，请检查文件格式或换一首。'); } };
+      current.play().catch(() => { if (audio === current) { on = false; btn(); status('音乐未能开始，请再点一次播放。'); } });
     }
+    function status(text) { const el = document.getElementById('ambMusicStatus'); if (el) el.textContent = text; }
 
     // 随机播放：把整个列表洗一遍，放完一轮再洗（不会连着两首一样，也不会一首老不轮到）
     let bag = [];
@@ -81,21 +84,17 @@ const AMB = (() => {
       return bag.shift();
     }
     function start() {
-      const cur = DATA?.current || {};
-      const music = DATA?.music || [];
-      if (!music.length) {
-        alert(`还没有背景音乐：把 mp3 / ogg / m4a / wav 放进库里的「${DATA?.folders?.music || "训练/外观/音乐/"}」，刷新网页后再点 ♪。`);
-        return;
-      }
+      if (on) return;
+      const cur = DATA?.current || {}, music = DATA?.music || [];
+      if (!music.length) { status('音乐库为空，请先放入音乐文件，再刷新本页。'); return; }
       vol = cur.volume ?? 0.35;
       list = music; bag = [];
       idx = cur.shuffle ? Math.floor(Math.random() * music.length) : Math.max(0, music.indexOf(cur.track));
-      playFile();
-      on = true; btn();
+      on = true; playFile(); btn(); status('');
     }
     function stop() {
       on = false;
-      if (audio) { audio.pause(); audio = null; }
+      if (audio) { audio.onended = null; audio.pause(); audio = null; }
       btn();
     }
     function btn() {
@@ -105,7 +104,10 @@ const AMB = (() => {
       b.title = on ? "背景音乐：开（点一下关闭）" : "背景音乐：关（点一下打开）";
     }
     return {
-      toggle() { on ? stop() : start(); },
+      start, stop,
+      pauseHidden() { if (audio) audio.pause(); },
+      resume() { if (on && audio?.paused) audio.play().catch(() => {}); },
+      toggle() { if (window.BeautyAudio) { const st = BeautyAudio.settings; BeautyAudio.set({ src: 'mine', bgm: !(st.src === 'mine' && st.bgm) }); } else on ? stop() : start(); },
       restart() { if (on) { stop(); start(); } },
       setVolume(v) { vol = v ?? vol; if (audio) audio.volume = vol; },
       get on() { return on; },
@@ -146,11 +148,11 @@ const AMB = (() => {
 
   // 背景音乐与声音（3.2.x：内置场景音乐、我的音乐、音效合在一起）
   function musicHtml(c, esc2) {
-    const st = window.BeautyAudio?.settings || { sfx: true, bgm: true, vs: 0.6, src: "builtin" }, has = DATA.music.length > 0;
-    const src = st.src === "mine" && has ? "mine" : "builtin";
+    const st = window.BeautyAudio?.settings || { sfx: false, bgm: BGM.on, vs: 0.6, src: "mine" }, has = DATA.music.length > 0;
+    const src = st.src === "mine" ? "mine" : "builtin";
     return `<label class="small muted">背景音乐与音效</label>
       <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baBgm" ${st.bgm ? "checked" : ""} style="width:auto"> 背景音乐</label>
-        <label style="flex:2;min-width:200px">来源 <select id="baSrc"><option value="builtin" ${src === "builtin" ? "selected" : ""}>内置场景音乐（随地图、洞府、答题自动切换）</option>
+        <label style="flex:2;min-width:200px">来源 <select id="baSrc"><option value="builtin" ${!window.BeautyAudio ? "disabled" : ""} ${src === "builtin" ? "selected" : ""}>内置场景音乐（随地图、洞府、答题自动切换）</option>
           <option value="mine" ${src === "mine" ? "selected" : ""} ${has ? "" : "disabled"}>我的音乐${has ? "" : "（库里还没有）"}</option></select></label>
         <label style="flex:1;min-width:160px">音乐音量 <input type="range" id="ambVol" min="0" max="1" step="0.05" value="${c.volume}"></label></div>
       <div class="row" id="ambMine" style="${src === "mine" ? "" : "display:none"}">${has ? `<label style="flex:2">曲目 <select id="ambTrack">
@@ -158,7 +160,7 @@ const AMB = (() => {
         <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : ""}</div>
       <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效与环境声（点击、答题、翻页、鸟虫流水等）</label>
         <label style="flex:1;min-width:160px">音效音量 <input type="range" id="baSfxVol" min="0" max="1" step="0.05" value="${st.vs}"></label></div>
-      <p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，想换成自己的，同名覆盖即可（见该文件夹说明）。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
+      <p id="ambMusicStatus" class="small muted" role="status"></p><p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，想换成自己的，同名覆盖即可（见该文件夹说明）。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
   }
 
   function bindSettings(onErr) {
@@ -185,7 +187,7 @@ const AMB = (() => {
     vol.oninput = () => { BGM.setVolume(Number(vol.value)); BA?.setBgmVolume(Number(vol.value)); };
     vol.onchange = () => guard(save({ volume: Number(vol.value) }));
     const mine = document.getElementById("ambMine");
-    document.getElementById("baBgm").onchange = (e) => BA?.set({ bgm: e.target.checked });
+    document.getElementById("baBgm").onchange = (e) => BA ? BA.set({ bgm: e.target.checked }) : e.target.checked ? BGM.start() : BGM.stop();
     document.getElementById("baSrc").onchange = (e) => { if (mine) mine.style.display = e.target.value === "mine" ? "" : "none"; BA?.set({ src: e.target.value }); };
     document.getElementById("baSfx").onchange = (e) => BA?.set({ sfx: e.target.checked });
     document.getElementById("baSfxVol").oninput = (e) => BA?.setSfxVolume(Number(e.target.value));
@@ -198,3 +200,6 @@ const AMB = (() => {
 
   return { load, apply, save, settingsHtml, bindSettings, bgm: BGM };
 })();
+
+// 场景播放器与设置共用同一个音乐库实例（const全局绑定不等于window属性）。
+window.AMB = AMB;

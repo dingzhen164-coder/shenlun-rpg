@@ -62,6 +62,10 @@ jobs:
           node tests/ui_mock_html.cjs
           node tests/ui_mock_details.cjs
           node tests/ui_mock_imports.cjs
+          node tests/ui_fixes359.cjs
+          node tests/ui_zoom359.cjs
+          node tests/ui_fixes359.cjs --subject=申论
+          node tests/ui_zoom359.cjs --subject=申论
           node tests/ui_skillbook.cjs --subject=行测
           node tests/ui_skillbook.cjs --subject=申论
           node tests/ui_tutor_format.cjs --subject=行测

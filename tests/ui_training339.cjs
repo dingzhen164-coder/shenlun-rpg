@@ -1,7 +1,7 @@
 /* 3.3.9：假HOME自编题；顶栏计时/材料开合、倒计时保存与场景入口，电脑平板明暗。 */
 const {chromium}=require('playwright'),{spawn}=require('node:child_process'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1];
-const service=spawn('python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--art-fixture'],{env:process.env});
+const service=spawn('python3',['tests/ui_layout_server.py',...(subject?[subject]:[]),'--art-fixture','--fixes359-fixture'],{env:process.env});
 let browser,active,logs='';service.stderr.on('data',x=>logs+=x);
 const ready=new Promise((ok,no)=>{let output='';const timer=setTimeout(()=>no(Error(logs||'服务启动超时')),20000);service.stdout.on('data',x=>{output+=x;const m=output.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);ok(m[1]);}});service.on('exit',()=>{clearTimeout(timer);no(Error(logs));});});
 const out=path.resolve('ui-artifacts/training339');
@@ -21,7 +21,7 @@ async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(do
    for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);await fits(p);assert(await p.evaluate(()=>{const c=document.querySelector('.cs-calendar').getBoundingClientRect();return [...document.querySelectorAll('[data-cs-enter]')].every(e=>{const r=e.getBoundingClientRect();return r.right<=c.left||r.left>=c.right||r.bottom<=c.top||r.top>=c.bottom;});}),'横幅不能遮住入口');if(process.argv.includes('--shots')){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-'+size+'-'+theme+'-calendar.png')});}}
    await p.locator('[data-cs-enter=overview]').click();await p.locator('[data-cs-close]').click();
    await p.evaluate(()=>go('bank'));await p.locator('.trial-hall').waitFor();assert.equal(await p.locator('[data-th-motion]').count(),0);
-   const board=await p.evaluate(async subject=>{const b=subject==='行测'?'资料分析':DASH.tree[0].board;for(let i=0;i<25;i++)await api('/api/bank/add',{board:b,topic:'自编',source:'隔离测试',stem:(subject==='行测'?'自编材料组'+Math.floor(i/5)+'：这一段数据仅用于隔离测试，甲乙丙丁各有不同的统计结果。\n\n![[训练/外观/美术/子地图背景/洞府.png]]\n\n':'')+'自编第'+i+'题：哪项符合条件？',options:{A:'符合',B:'不符',C:'无关',D:'未说明'},answer:'A',analysis:'核对条件。'});await api('/api/bank/count',{count:20});return b;},subject);
+   const board=await p.evaluate(async subject=>{const b=subject==='行测'?'资料分析':DASH.tree[0].board;for(let i=0;i<25;i++)await api('/api/bank/add',{board:b,topic:'自编',source:'隔离测试',stem:(subject==='行测'?'自编材料组'+Math.floor(i/5)+'：这一段数据仅用于隔离测试，甲乙丙丁各有不同的统计结果。\n\n![[训练/题库/图片/题目图/自编大图.png]]\n\n':'')+'自编第'+i+'题：哪项符合条件？',options:{A:'符合',B:'不符',C:'无关',D:'未说明'},answer:'A',analysis:'核对条件。'});await api('/api/bank/count',{count:20});return b;},subject);
    await p.evaluate(b=>startTask({task:{type:'bank',board:b}}),board);await p.locator('.subpage-nav .bank-head').waitFor();assert.equal(await p.evaluate(()=>T.battle.total),20);assert.equal(await p.locator('.chat>.review-head').count(),0);
    const timer=await p.locator('#tT').textContent();await p.waitForFunction(t=>document.getElementById('tT')?.textContent!==t,timer);
    const timeNode=await p.locator('#tT').evaluate(e=>{window.__timeNode=e;STUDY_HUD.refresh();return e===document.getElementById('tT');});assert(timeNode,'同值HUD刷新保留计时节点');
