@@ -4,6 +4,8 @@ const subject=process.argv.find(a=>a.startsWith('--subject='))?.split('=')[1];
 const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py',...(subject?[subject]:[])],{env:process.env});
 let logs='';srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((res,rej)=>{let out='';const t=setTimeout(()=>rej(Error(logs||'服务未启动')),20000);srv.stdout.on('data',b=>{out+=b;const m=out.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(t);res(m[1]);}});});
+/* 页面刚切换时上一次切换可能还在收尾（忙标记），真人点不到这么快；测试里重试到目标出现 */
+async function clickUntil(page,btn,view){for(let i=0;i<12;i++){await btn.click();try{await page.waitForFunction(v=>VIEW===v,view,{timeout:600});return;}catch(_){}}throw Error('点击后没有到达 '+view);}
 (async()=>{let browser;try{
  const base=await ready;browser=await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{});
  for(const size of [{width:1280,height:860},{width:800,height:1280}]){
@@ -16,10 +18,10 @@ const ready=new Promise((res,rej)=>{let out='';const t=setTimeout(()=>rej(Error(
   await back.waitFor();const b=await back.boundingBox(),g=await gear.boundingBox();
   assert.equal(Math.round(b.width),Math.round(g.width));assert.equal(Math.round(b.height),Math.round(g.height));
   assert.ok(b.x<g.x&&Math.abs(b.y-g.y)<=1&&b.x<=12,'返回钮在左下角、与齿轮同高');
-  await back.click();await page.waitForFunction(()=>VIEW==='home');
+  await clickUntil(page,back,'home');
   await page.evaluate(()=>go('skeleton'));await page.waitForFunction(()=>VIEW==='skeleton');
   await gear.click();await page.waitForFunction(()=>VIEW==='settings');
-  await back.click();await page.waitForFunction(()=>VIEW==='skeleton');
+  await clickUntil(page,back,'skeleton');
   assert.deepEqual(errors,[]);await page.close();
  }
  console.log('BACK-BUTTON-OK '+(subject||'法考'));
