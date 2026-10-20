@@ -95,6 +95,7 @@
     };
     layer.addEventListener('contextmenu', (e) => e.preventDefault());     // 平板长按不弹菜单、不选字
     layer.addEventListener('selectstart', (e) => e.preventDefault());
+    guard = window.PEN_GUARD ? PEN_GUARD.make(canvas) : null;
     canvas.addEventListener('pointerdown', down);
     canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up);
@@ -156,23 +157,35 @@
     ctx.restore();
   }
 
+  let guard = null;
+  function beginStroke(e) {
+    const erase = st.tool === 'eraser' || e.button === 5;          // 手写笔的橡皮头也算橡皮
+    st.cur = { erase, color: st.color, width: erase ? 22 : st.width, pts: [[e.clientX, e.clientY]], mat: !!st.mkey && inMat(e.clientX, e.clientY) };
+  }
   function down(e) {
     if (e.button && e.button !== 0) return;
-    canvas.setPointerCapture(e.pointerId);
+    if (guard) { const had = !!st.cur; if (had) up(); guard.down(had); }   // 上一笔没收尾：先收掉，新一笔照常写
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* 指针已失效也要照常记这一笔 */ }
     const erase = st.tool === 'eraser' || e.button === 5;          // 手写笔的橡皮头也算橡皮
     st.cur = { erase, color: st.color, width: erase ? 22 : st.width, pts: [[e.clientX, e.clientY]], mat: !!st.mkey && inMat(e.clientX, e.clientY) };
     paint();
+    if (guard) guard.idle(() => up());
     e.preventDefault();
   }
   function move(e) {
+    if (guard && guard.missedDown(e, !!st.cur)) { try { canvas.setPointerCapture(e.pointerId); } catch (_) {} beginStroke(e); }   // 落笔事件被吞：笔压着在动，补一笔
+    if (st.cur && guard && guard.lifted(e, true)) { up(); return; }
     if (!st.cur) return;
     const evs = (e.getCoalescedEvents?.().length ? e.getCoalescedEvents() : [e]);
     for (const x of evs) st.cur.pts.push([x.clientX, x.clientY]);
     paint();
+    if (guard) guard.idle(() => up());
     e.preventDefault();
   }
-  function up() {
+  function up(e) {
+    if (e && guard && guard.lateUp(e)) return;     // 上一笔晚到的抬笔，不是这一笔的
     if (!st.cur) return;
+    if (guard) guard.idle();
     st.strokes.push(st.cur);
     st.cur = null;
     st.redo = [];

@@ -93,6 +93,9 @@ shared tests/ui_world.cjs
 shared tools/compile_narrative.cjs
 shared tools/shared_files.txt
 shared tests/ui_back_button.cjs
+shared tests/ui_pen_draw.cjs
+shared tests/test_pen_guard.cjs
+shared web/pen_guard.js
 shared tools/sync_shared.py
 shared web/ambience.js
 shared web/contest.js
