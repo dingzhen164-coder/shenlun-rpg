@@ -72,10 +72,24 @@ async function main() {
       fire('pointerdown',21,100,450); fire('pointermove',21,160,460); fire('pointerup',21,160,460);
     });
     await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 4, '丢了抬笔事件后新一笔照常写出，卡住的一笔也保存');
+    await first.evaluate(el => {   // 抬笔事件晚到：新一笔已落下，上一笔的 pointerup 才到——新一笔不能被它收掉
+      const r = el.getBoundingClientRect(), fire = (type,id,x,y,extra={}) => el.dispatchEvent(new PointerEvent(type,{pointerType:'pen',pointerId:id,clientX:r.left+x,clientY:r.top+y,bubbles:true,button:0,buttons:type==='pointerup'?0:1,pressure:type==='pointerup'?0:0.5,...extra}));
+      fire('pointerdown',30,100,500); fire('pointermove',30,140,505);
+      fire('pointerdown',30,100,540); fire('pointerup',30,140,505);
+      fire('pointermove',30,150,545); fire('pointermove',30,200,550); fire('pointerup',30,200,550);
+    });
+    await page.evaluate(() => NOTES.save()); const late = await book();
+    assert.equal(late.pages[0].strokes.length, 6, '晚到的抬笔不能吞掉新一笔：两笔都在');
+    assert.ok(late.pages[0].strokes[5].p.length >= 3, '新一笔完整保存 ' + late.pages[0].strokes[5].p.length);
+    await first.evaluate(el => {   // 落笔事件被吞：笔压着在动，补出这一笔
+      const r = el.getBoundingClientRect();
+      for (const [type,x,y] of [['pointermove',100,600],['pointermove',130,610],['pointermove',170,615],['pointerup',170,615]]) el.dispatchEvent(new PointerEvent(type,{pointerType:'pen',pointerId:31,clientX:r.left+x,clientY:r.top+y,bubbles:true,button:0,buttons:type==='pointerup'?0:1,pressure:type==='pointerup'?0:0.5}));
+    });
+    await page.evaluate(() => NOTES.save()); assert.equal((await book()).pages[0].strokes.length, 7, '落笔被吞也能写出这一笔');
     await page.locator('.ar-typed summary').click(); await page.locator('#ntArticleText').fill('从实际需要出发，让技术创新落到服务群众的具体行动中。');
     await page.locator('#arBack').click(); await page.locator('[data-open="abcd1234"]').click(); await page.locator('#ntArticleText').waitFor({state:'attached'});
     assert.equal(await page.locator('#ntArticleText').inputValue(), '从实际需要出发，让技术创新落到服务群众的具体行动中。');
-    assert.equal((await book()).pages[0].strokes.length, 4);
+    assert.equal((await book()).pages[0].strokes.length, 7);
     await page.locator('#arSideToggle').click(); assert.equal(await page.locator('#arSide').isVisible(), false); await page.locator('#arSideToggle').click();
     await page.locator('#ntFull').click(); assert.equal(await page.locator('html').evaluate(el=>el.classList.contains('nt-full')), true); await page.locator('#ntFull').click();
     const pdfResult = page.waitForResponse(r => r.url().endsWith('/api/notes/pdf') && r.request().method() === 'POST');
@@ -94,7 +108,7 @@ async function main() {
       }
     }
     await page.locator('#arLedger').click(); await page.locator('[data-nb="article-abcd1234"]').waitFor();
-    assert.equal((await book()).pages[0].strokes.length,4);
+    assert.equal((await book()).pages[0].strokes.length,7);
     await page.locator('[data-nb="article-abcd1234"]').click(); await page.locator('.nt-ink').first().waitFor();
     await page.screenshot({path:path.join(out,'ledger-tablet-dark.png'),fullPage:true});
     // 强制旧版本写入必须失败，新笔迹及正文仍在。
