@@ -15,6 +15,13 @@
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
+// 师傅（npc）的讲解：带表格 / 列表 / 小标题的 Markdown 渲染成真正的表格、分段、加粗（MDLITE 先转义再渲染，安全）；纯文字仍走 md()
+const tutorMd = (s) => {
+  const t = String(s ?? "");
+  const rich = /^\s*\|.+\|\s*$/m.test(t) || /^\s*([-*]|\d+[.、])\s+\S/m.test(t) || /\n\s*\n/.test(t.trim());
+  const tidy = t.replace(/^(\*\*[^*\n]{1,24}\*\*)[ \t]*$/gm, "$1\n");          // 单独一行的加粗小标题自成一段，不和下一行连在一起
+  return window.MDLITE && rich ? `<div class="md tutor-md">${MDLITE.render(tidy)}</div>` : md(t);
+};
 const pct = (x) => Math.round((x || 0) * 100);
 
 let DASH = null;
@@ -378,7 +385,7 @@ function blocksHtml(list, trim = false, question = false) {
 function msgHtml(m) {
   const blocks = blocksHtml(m.blocks, false, !!m.pin);
   if (m.fold) return `<details class="fold"><summary>${esc(m.fold)}</summary><div>${md(m.text)}</div></details>`;
-  if (m.who === "npc") { const mentor=m.mentor||T.mentor;return `<div class="npc">${tutorFace(mentor)}<div class="say"><div class="who">${esc(mentor?.name || DASH?.persona?.tutor || "导师")}</div>${md(m.text)}</div></div>`; }
+  if (m.who === "npc") { const mentor=m.mentor||T.mentor;return `<div class="npc">${tutorFace(mentor)}<div class="say"><div class="who">${esc(mentor?.name || DASH?.persona?.tutor || "导师")}</div>${tutorMd(m.text)}</div></div>`; }
   if (m.who === "me") return `<div class="msg me">${esc(m.text)}</div>`;
   if (m.pin) return `<div class="q-pin ${PIN_MINI ? "mini" : ""}"><div class="msg sys pin-body"><span class="pin-tools">${m.material?.length
       ? `<button class="pin-btn mat-btn ${MAT_OPEN ? "on" : ""}" title="材料放在左边，对照着看">📄 ${MAT_OPEN ? "收起材料" : "弹出材料"}</button>` : ""}<button class="pin-btn pin-fold" title="${PIN_MINI ? "展开题目" : "把题目收成一行"}">📌 ${PIN_MINI ? "展开" : "收起"}</button></span>${md(m.text)}${blocks}</div>

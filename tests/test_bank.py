@@ -619,7 +619,8 @@ class BankTest(unittest.TestCase):
         self.assertTrue(any('粉笔第36季模考' in b['v'] for b in blocks if b['t'] == 'text'))
         trainer.action(self.g, r['session'], 'exam_pick:0:C')
         r = trainer.action(self.g, r['session'], 'exam_submit')
-        self.assertIn('这题没有解析', str(r))
+        self.assertNotIn('这题没有解析', str(r))                      # 没有解析时不再摆提示
+        self.assertIn('正确答案', str(r))
 
 if __name__ == '__main__':
     unittest.main()
