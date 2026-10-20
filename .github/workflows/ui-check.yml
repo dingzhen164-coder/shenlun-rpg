@@ -75,6 +75,9 @@ jobs:
           node tests/ui_map_navigation.cjs --subject=行测
           node tests/ui_back_button.cjs --subject=申论
           node tests/ui_back_button.cjs --subject=行测
+          node tests/test_pen_guard.cjs
+          node tests/ui_pen_draw.cjs --subject=申论
+          node tests/ui_pen_draw.cjs --subject=行测
           node tests/ui_status_navigation.cjs --subject=申论
           node tests/ui_study_regions.cjs --subject=申论
           node tests/ui_status_navigation.cjs --subject=行测
