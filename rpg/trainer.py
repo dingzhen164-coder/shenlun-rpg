@@ -659,10 +659,11 @@ def _discuss_reply(g, s, text):
 
 def _discuss_action(g, s, act):
     if act == "ask_explain":
-        n = len(s["discuss"]["history"])
-        msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + _discuss_ask(g, s, "请独立把这道题完整讲一遍", independent=True)
-        if s["type"] == "wrong" and len(s["discuss"]["history"]) > n:   # 讲成了：存进这题的复盘笔记，下次“复盘解析”能看到
-            where = vault.save_tutor_note(g.paths, s["key"], s["discuss"]["history"][-1]["content"], g.t)
+        reply = _discuss_ask(g, s, "请独立把这道题完整讲一遍", independent=True)
+        msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + reply
+        generated = next((m['text'] for m in reply if m.get('fold') == '🧙 师傅解惑'), None)
+        if s["type"] == "wrong" and generated is not None:  # 不以历史长度判断成功，历史截到10条后也要保存最新讲解
+            where = vault.save_tutor_note(g.paths, s["key"], generated, g.t)
             if where:
                 msgs.append(_msg("sys", "📌 已存入复盘解析：%s 第 %s 题（再问一次会换成新的）" % (where, s["key"].split("|")[2])))
         return _resp(s, msgs, input=_remember(s, _wrong_input(s)))

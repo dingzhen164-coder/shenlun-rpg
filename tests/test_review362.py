@@ -66,3 +66,14 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertTrue(any(m['text']=='自编已保存讲解' for m in folds))
         self.assertEqual(first,again)
         self.assertTrue(all(not m.get('open') for m in folds))
+
+    def test_explain_still_saves_when_discussion_history_reaches_limit(self):
+        session={'id':'mock-session','type':'wrong','title':'自编错题','task':{},'key':'38|类比推理|1',
+                 'discuss':{'board':'类比推理','question':'自编题干A甲B乙','answer':'A','reference':'原解析_CANARY',
+                            'history':[{'role':'assistant','content':'历史_CANARY'} for _ in range(10)]}}
+        with patch.object(trainer.ai,'available',return_value=True),patch.object(trainer.ai,'chat',return_value='自编最新讲解') as chat,patch.object(trainer.vault,'save_tutor_note',return_value='自编资料') as save:
+            result=trainer._discuss_action(self.g,session,'ask_explain')
+        self.assertEqual(len(session['discuss']['history']),10)
+        self.assertEqual(save.call_args.args[2],'自编最新讲解')
+        self.assertIn('已存入复盘解析',str(result))
+        self.assertNotIn('_CANARY',str(chat.call_args.args[0]))
