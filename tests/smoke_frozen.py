@@ -23,6 +23,9 @@ assert seed.is_file(), '缺少离线时政资料'
 assert hashlib.sha256(seed.read_bytes()).hexdigest() == spec['sha256'], '时政资料摘要不符'
 atlas_data = json.loads(seed.read_text(encoding='utf-8'))
 assert len(atlas_data['materials']) == 38 and len(atlas_data['questions']) == 135, '时政资料不完整'
+assert (WEB_DIR / 'wanxiang_art.js').is_file()
+assert (WEB_DIR / 'wanxiang_art.css').is_file()
+assert (WEB_DIR / 'assets/beauty/wanxiang/scholarly-instruments.png').is_file()
 assert DEFAULTS_DIR.exists(), DEFAULTS_DIR
 from PIL import Image
 portraits=list((DEFAULTS_DIR/'人物'/'行测').glob('xc-*/立绘/*.png'))
