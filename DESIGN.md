@@ -1,4 +1,7 @@
 ## 3.6.2：折叠复盘与独立解题（2026-10-21）
+
+正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.2 。源97d4e4ee57889565637388be4add75ff348b6395，同源三端构建39605192097、完整UI39605196566全部成功；PR #53以merge合入main（d1a88c59d77814dae76560e4fa26a4f12c046df6），正式包复用同提交资源。Release/latest/标签/三包及SHA256SUMS摘要已核对。本地503项单元完成（3项平台条件跳过），503条共享规则一致。
+
 - trainer题库顺序答题/交卷复盘与mock_review将作答摘要保留在外，解析blocks放fold消息；saved explain也用fold，不存展开状态。错题解惑新消息同样fold；前端msgHtml折叠区同时渲染text与blocks、图片及tutorMd表格，避免原fold忽略blocks。天机台、地图练习、题目浏览内已有解析也改native details默认关闭，重绘/重开关闭，展开不调用AI。原解析/旧生成内容不重写。
 - bank_explain/group_explain使用明确字段白名单，只发题干（含共用材料）、选项与正确答案；旧签名mine/digest/skill参数兼容但不序列化。trainer不检索心法资料，错题ask_explain使用独立提示词，排除reference/mine/history/previous。人设与排版规则保留，直接解题，不评价学员选项或对错。追问、授课、评分功能仍按各自原约定读取资料；心法界面的读取说明同步为方法学习与追问。已有保存逻辑和成语提取保留，不追加AI请求、不改成绩。
 - reading_tools.js/css由fixed_layout在整理页头后挂载到固定操作栏，增大/缩小按钮复用chatLayout.fs（80–160%，每次10），默认保持旧110%或本机原设置，与设置页字号同步；题干、选项、共用材料和解析沿原chat-fs缩放，不缩放视口、手写画布或图片。偏好仅存本机浏览器，无新训练数据格式。
