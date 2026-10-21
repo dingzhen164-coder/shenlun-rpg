@@ -46,6 +46,17 @@
     }
     return found===id;
   }
+  // 兼容独立分类板块，以及旧“常识判断”板块下按分类命名的导图；不改原路径。
+  function commonMapCategory(board,name){
+    const parts=String(board).split('::').map(x=>x.trim());
+    const known=[...parts].reverse().find(x=>peaks.some(g=>[...g.boards,...(g.aliases||[])].includes(x)));
+    if(known&&known!=='常识判断')return '';
+    const direct=[...parts].reverse().map(x=>common.find(c=>c.aliases.includes(x))).find(Boolean);
+    if(direct)return direct.id;
+    if(known!=='常识判断')return '';
+    const words=String(name).split(/::|[\s·•_—–()（）【】\[\]：:、.-]+/).map(x=>x.trim());
+    return words.map(x=>common.find(c=>c.aliases.includes(x))).find(Boolean)?.id||'';
+  }
   function mountain(i){
     const summit=[110,94,119,102,112][i],snow=[25,34,20,28,24][i];
     // 每座峰一点自己的特征（3.2.x）：万象＝山腰旗幡，辨言＝瀑布，明理＝棋盘平台，演数＝齿轮，观星＝观星台与星点
@@ -81,8 +92,8 @@
     }
     if(category){
       const item=common.find(c=>c.id===category),label=item?.name||'其他玉简';
-      const cards=await CARDS.hubHtml({id:'chang-'+category,label,deck:'常识判断'});
-      return `${wxHead(label+' · 玉简','知万物 · 通古今','常识分类')}${cards||'<div class="card muted">此分类暂无玉简，可在藏经阁管理已有牌组。</div>'}`;
+      const [cards,maps]=await Promise.all([CARDS.hubHtml({id:'chang-'+category,label,deck:'常识判断'}),item?MINDMAP.hubHtml(null,false,(board,name)=>commonMapCategory(board,name)===category):Promise.resolve('')]);
+      return `${wxHead(label,'玉简温习 · 灵脉梳理','常识分类')}${cards||'<div class="card muted">此分类暂无玉简，可在藏经阁管理已有牌组。</div>'}${maps|| (item?'<div class="card muted">此分类暂无灵脉图，可在藏经阁导入或整理。</div>':'')}`;
     }
     const [other,maps]=await Promise.all([CARDS.hubHtml({id:'chang-other',label:'其他玉简',deck:'常识判断'}),MINDMAP.hubHtml(['常识判断'])]);
     return `${wxHead('常识判断','知万物 · 通古今','万象峰')}<div class="wx-categories">${common.map(c=>`<button class="wx-category" data-wx-category="${c.id}"><span class="wx-category-icon">${icon(c.id)}</span><div><h3>${c.name}</h3><small>${c.hint}</small></div><span>进入玉简 →</span></button>`).join('')}</div>${other?'<button class="ghost wx-other" data-wx-category="other">其他玉简（保留未归入四类的资料） →</button>':''}${maps}`;
