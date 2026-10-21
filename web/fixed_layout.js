@@ -294,7 +294,7 @@
       else if(regions(root)){}
       else {let host=root;while(true){const children=[...host.children].filter(n=>!n.matches('.subpage-heading'));if(children.length!==1||children[0].matches('.card,details,.grid')||!children[0].children.length)break;host=children[0];}host.classList.add('fx-host');sections(host,route+':'+themeKey()+':'+(root.querySelector('[data-libtab].on')?.dataset.libtab||''));}
     }
-    pageBar(root);overlays();window.SCENE_PANELS?.mount(root,route);
+    pageBar(root);window.READING_TOOLS?.mount(root);overlays();window.SCENE_PANELS?.mount(root,route);
   }
   function schedule(){if(!pending){pending=true;requestAnimationFrame(apply);}}
   const observer=new MutationObserver(schedule);observer.observe(document.body,{childList:true,subtree:true});

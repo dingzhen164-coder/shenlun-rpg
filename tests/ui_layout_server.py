@@ -142,6 +142,12 @@ def main():
                         body += '### %d. %s\n自编题：增长率为多少？\n- **A.** 20%%\n- **B.** 30%%\n\n> [!check]- 答案\n> 正确答案：**A**　我的答案：**B**　错误\n\n> [!note] 复盘\n> 自编解析：用增加量除以原值。\n\n---\n' % (i, icon)
                     (folder / ('01-' + board + '.md')).write_text(body, encoding='utf-8')
                 api.bank_add(dict(board=board, topic='自编条件验证', source='UI测试', stem='自编题：哪个选项符合条件？', options=dict(A='符合', B='不符合', C='无关', D='无关'), answer='A', analysis='自编解析：逐项核对条件。'))
+        if '--review362-fixture' in sys.argv:
+            from rpg import ai
+            ai.available = lambda: True
+            def fake_independent(messages, **kwargs):
+                return '**结论：选 A**\n\n自编独立解析：先核对题干条件。\n\n| 选项 | 判断 | 理由 |\n|---|---|---|\n| A | 正确 | 符合条件 |\n| B | 错误 | 缺少条件 |'
+            ai.chat = fake_independent
         if '--reader-fixture' in sys.argv:
             from rpg import cards, mindmap
             with api.open_game() as g:

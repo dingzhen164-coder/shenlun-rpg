@@ -88,7 +88,7 @@
     if(branch==='atlas')return `<section class="wx-atlas-shell"><iframe class="wx-atlas-frame" title="考试时政地图" src="political_atlas.html?exam=${encodeURIComponent(exam)}"></iframe></section>`;
     if(branch==='politics'){
       const [cards,catalog]=await Promise.all([CARDS.hubHtml({id:'chang-politics',label:'政治理论',deck:'政治理论'}),api('/api/politics/catalog')]);
-      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<div class="wx-exam-list">${catalog.exams.map(e=>`<button class="wx-atlas-entry" data-wx-branch="atlas" data-wx-exam="${e.id}"><div><b>${esc(e.title)}</b><small>时政范围：${esc(e.range)}</small><span class="wx-source-counts">${Object.entries(e.counts.kinds).map(([k,v])=>`${k} ${v}`).join(' · ')}<br>共 ${e.counts.total} 项</span></div><span>进入地图 →</span></button>`).join('')}</div>${POLITICS_IMPORT.html(catalog.exams,exam)}${cards}`;
+      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<div class="wx-exam-list">${catalog.exams.map((e,index)=>`<button class="wx-atlas-entry" data-wx-branch="atlas" data-wx-exam="${e.id}" aria-label="${esc(e.title)}"><span class="wx-exam-art">${window.WANXIANG_ART?.atlasIcon(index)||icon("politics")}</span><div class="wx-exam-copy"><span class="wx-exam-kicker">备考时政 · ${["壹","贰","叁"][index]}</span><b>${esc(e.title)}</b><small>时政范围：${esc(e.range)}</small><span class="wx-source-counts">${Object.entries(e.counts.kinds).map(([k,v])=>`${k} ${v}`).join(' · ')}<br>共 ${e.counts.total} 项</span></div><span class="wx-exam-enter" aria-hidden="true">启卷<svg viewBox="0 0 40 12"><path d="M1 6h36m-6-5 6 5-6 5"/></svg></span></button>`).join('')}</div>${POLITICS_IMPORT.html(catalog.exams,exam)}${cards}`;
     }
     if(category){
       const item=common.find(c=>c.id===category),label=item?.name||'其他玉简';

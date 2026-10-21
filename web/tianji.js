@@ -355,7 +355,7 @@
       const news = q.news != null ? d.news[q.news] : null;
       const ana = fresh ? "" : `<div class="tj-ana ${r.ok ? "ok" : "no"}"><div class="tj-ana-h">${r.ok ? "✓ 答对了" : `✗ 你选 ${r.a}，正确答案 ${q.answer || "（没找到）"}`}
           <span class="spacer"></span>${news ? `<a data-goread="${q.news}">📖 回原文</a>` : ""}<a data-redo="${q.key}">↺ 重做这题</a></div>
-        <div class="tj-ana-b">${esc(q.analysis || "（没有解析）")}</div></div>`;
+        <details class="tj-answer-analysis"><summary>题目解析</summary><div class="tj-ana-b">${esc(q.analysis || "（没有解析）")}</div></details></div>`;
       return `${g}<div class="card tj-q ${fresh ? "" : r.ok ? "is-ok" : "is-no"}" id="tjq${q.key}">
         <div class="tj-q-h"><span class="tj-q-n">${q.no}</span><span class="tag">${esc(q.kind)}</span>${news && CUR.kind === "month" ? `<span class="faint small">${esc(news.title)}</span>` : ""}</div>
         <div class="tj-q-stem">${esc(q.stem)}</div>

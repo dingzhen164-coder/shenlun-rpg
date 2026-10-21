@@ -15,5 +15,14 @@
     return `<span class="wx-sigil wx-sigil--${key}" aria-hidden="true"><span class="wx-illumination"></span><span class="wx-object"></span><svg class="wx-instrument-motion" viewBox="0 0 192 192">${motifs[key]}</svg><span class="wx-dust wx-dust-one"></span><span class="wx-dust wx-dust-two"></span><span class="wx-dust wx-dust-three"></span></span>`;
   }
   document.addEventListener('visibilitychange',()=>document.documentElement.classList.toggle('wx-motion-paused',document.hidden));
-  window.WANXIANG_ART={icon};
+  // 三考期各用独立的镂空器物：星盘定向、卷轴积学、玉笔启新。
+  function atlasIcon(index){
+    const forms=[
+      `<g class="wx-atlas-orbit"><circle cx="72" cy="65" r="42"/><ellipse cx="72" cy="65" rx="25" ry="48" transform="rotate(35 72 65)"/><path d="M23 65h98M72 15v100"/></g><path class="wx-atlas-solid" d="M46 91q15-6 26 1 12-7 26-1v25q-16-5-26 1-12-6-26-1Z"/><path d="M72 93v24M51 98l15 1m-15 7 15 1m12-8 14-1m-14 10 14-1"/><path class="wx-atlas-glint" d="m72 32 4 20 19 13-19 4-4 21-5-21-20-4 20-13Z"/>`,
+      `<g class="wx-atlas-orbit"><path d="M29 29q40-15 84 0M23 109q51 18 98-2"/><circle cx="111" cy="29" r="3"/></g><path class="wx-atlas-solid" d="M38 36h65v70H38z"/><path d="M38 35q-11-10-13 0v69q0 10 13 2m65-70q12-9 13 1v67q-2 11-13 2M45 45h49M45 52h38M48 61v29m9-29v33m9-33v24m9-24v31m9-31v27m9-27v35"/><path class="wx-atlas-glint" d="m93 16 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z"/>`,
+      `<g class="wx-atlas-orbit"><ellipse cx="70" cy="74" rx="48" ry="35" transform="rotate(-30 70 74)"/><path d="M29 104q35 17 87-30"/></g><path class="wx-atlas-solid" d="m78 25 14 8-40 70-14 8 3-17Z"/><path d="m73 35 14 8M47 84l14 8m-21 6 11 6M38 111l-5 13M94 101q10-38 30-52-1 32-30 52m-1 3 23-31"/><path class="wx-atlas-glint" d="m109 18 2 7 8 2-8 3-2 7-3-7-7-3 7-2Z"/>`
+    ];
+    return `<svg class="wx-atlas-instrument" viewBox="0 0 144 144" aria-hidden="true"><g>${forms[index%3]}</g></svg>`;
+  }
+  window.WANXIANG_ART={icon,atlasIcon};
 })();

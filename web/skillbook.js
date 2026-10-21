@@ -1,5 +1,5 @@
 /* 藏经阁·心法（skill）：每个板块一份可随时修改的解题方法，初始是空的（数据来自 /api/skillbook，见 rpg/skillbook.py）。
-   先是一排会浮动的古籍书架（一个板块一本，最前面还有一本「心法总诀」），点开才进入全屏的阅读/修改页；“解惑会读到什么”的计算较慢，打开板块时才算并缓存。
+   先是一排会浮动的古籍书架（一个板块一本，最前面还有一本「心法总诀」），点开才进入全屏的阅读/修改页；“方法学习与追问会读到什么”的计算较慢，打开板块时才算并缓存。
    没有“原版 / 我的版本”：直接改就是了，每次修改前的样子都留在历史里，可以回滚；别的平台生成的 .skill / .zip / .md 可以直接导入进来。
    心法总诀：随程序发布的四份文件（蒸馏第一步、第二步、配置空白模板、使用流程），只读，可复制、可下载，拿到别的平台用。
    阅读区用 MDLITE 渲染（逻辑符号、表格、英文小标题换中文）；修改区永远是原文。
@@ -51,13 +51,13 @@
   function meter(b) {
     if (!b.n_files) return "";
     const pl = plan();
-    if (!pl) return '<div class="skb-meter small muted" role="status">正在计算解惑时会读到什么……</div>';
+    if (!pl) return '<div class="skb-meter small muted" role="status">正在计算方法学习与追问时会读到什么……</div>';
     if (pl.failed) return '<div class="skb-meter small muted">读取情况暂时算不出来，不影响查看和修改。</div>';
     const pct = Math.min(100, Math.round((pl.total / pl.limit) * 100));
     const skipped = pl.items.filter((i) => i.kind === "method" && !i.read);
     const refs = pl.items.filter((i) => i.kind === "ref").length;
-    return `<div class="skb-meter" role="group" aria-label="解惑读取情况">
-      <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>解惑时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references / 学习版 里的 ${refs} 个文件只供查阅或阅读，不自动读入</span>` : ""}</div>
+    return `<div class="skb-meter" role="group" aria-label="方法学习与追问读取情况">
+      <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>方法学习与追问时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references / 学习版 里的 ${refs} 个文件只供查阅或阅读，不自动读入</span>` : ""}</div>
       <div class="skb-bar"><i style="width:${pct}%"></i></div>
       ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。请精简、拆分，或把它们放进 references/ 文件夹（只供查阅，不自动读入）。</div>` : ""}</div>`;
   }
@@ -71,8 +71,8 @@
   }
 
   function banner(b) {
-    if (!b.n_files) return `<div class="skb-banner">这个板块的${esc(name())}还是空的。可以「📥 导入 skill」（别的平台生成的 .skill 压缩包，或 .md 文件），也可以「＋ 新建文件」自己写。导入、修改后，下一次解惑就按这里的内容讲；每次修改前的样子都留在「🕘 历史」里。</div>`;
-    return `<div class="skb-banner skb-tip2">直接修改就行：保存后下一次解惑就按新内容讲，每次修改前的样子都留在「🕘 历史」里，可以回滚。</div>`;
+    if (!b.n_files) return `<div class="skb-banner">这个板块的${esc(name())}还是空的。可以「📥 导入 skill」（别的平台生成的 .skill 压缩包，或 .md 文件），也可以「＋ 新建文件」自己写。导入、修改后，下一次方法学习与追问就按这里的内容讲；每次修改前的样子都留在「🕘 历史」里。</div>`;
+    return `<div class="skb-banner skb-tip2">直接修改就行：保存后下一次方法学习与追问就按新内容讲，每次修改前的样子都留在「🕘 历史」里，可以回滚。</div>`;
   }
 
   function toolbar(b) {
@@ -86,7 +86,7 @@
   function body(b) {
     if (!b) return '<div class="muted">还没有板块。</div>';
     if (MODE === "edit" && CUR) {
-      return `<div class="skb-editor"><div class="small muted">正在修改 <b>${esc(FILE)}</b>（原文，可以看到 Markdown 和公式的写法）· 保存后<b>下一次解惑</b>就按新内容讲 · Ctrl+S 保存</div>
+      return `<div class="skb-editor"><div class="small muted">正在修改 <b>${esc(FILE)}</b>（原文，可以看到 Markdown 和公式的写法）· 保存后<b>下一次方法学习与追问</b>就按新内容讲 · Ctrl+S 保存</div>
         <textarea id="skbText" spellcheck="false" aria-label="修改 ${esc(FILE)}">${esc(DRAFT)}</textarea>
         <div class="skb-acts"><button class="primary" data-skb="save" ${BUSY ? "disabled" : ""}>保存</button><button class="ghost" data-skb="cancel">取消</button>
         <span class="small faint">${num(DRAFT.length)} 字符</span></div></div>`;
@@ -109,7 +109,7 @@
   }
 
   function shelf() {
-    return `<p class="lib-tip skb-tip small">每本古籍是一个板块的${esc(name())}，一开始都是空的：点开可看、可改、可导入别的平台生成的 skill，保存后下一次解惑就按新内容讲。</p>
+    return `<p class="lib-tip skb-tip small">每本古籍是一个板块的${esc(name())}，一开始都是空的：点开可看、可改、可导入别的平台生成的 skill，保存后下一次方法学习与追问就按新内容讲。</p>
       <button class="skb-zj-card" data-skb="zj"><b>📜 ${esc(name())}总诀</b><span class="small muted">蒸馏第一步、第二步、第三步（学习版）、配置空白模板、使用流程——拿到 GPT / Gemini / DeepSeek 等平台生成 skill 或学习版，再导入下面的板块</span></button>
       <div class="tome-grid skb-shelf">${DATA.map((x, i) => {
         const seal = x.n_files ? x.n_files + " 篇" : "空";
@@ -177,7 +177,7 @@
     const touched = [...r.added, ...r.overwritten];
     await reload(touched.includes("SKILL.md") ? "SKILL.md" : (touched[0] || FILE));
     const sk = r.skipped || [];
-    NOTE = `已导入：新增 ${r.added.length} 个、覆盖 ${r.overwritten.length} 个、内容相同 ${r.same.length} 个${sk.length ? `；跳过 ${sk.length} 个（${sk.slice(0, 3).map((x) => x[0] + "：" + x[1]).join("；")}${sk.length > 3 ? " 等" : ""}）` : ""}。下一次解惑就按这里的内容讲。`;
+    NOTE = `已导入：新增 ${r.added.length} 个、覆盖 ${r.overwritten.length} 个、内容相同 ${r.same.length} 个${sk.length ? `；跳过 ${sk.length} 个（${sk.slice(0, 3).map((x) => x[0] + "：" + x[1]).join("；")}${sk.length > 3 ? " 等" : ""}）` : ""}。下一次方法学习与追问就按这里的内容讲。`;
   }
 
   async function act(kind, el) {
@@ -202,7 +202,7 @@
         BUSY = true; paint();
         try {
           const r = await api("/api/skillbook/save", { board: b.board, path: FILE, text: DRAFT, base: CUR.rev });
-          NOTE = r.changed ? "已保存，下一次解惑就按新内容讲。" : "内容没有变化。";
+          NOTE = r.changed ? "已保存，下一次方法学习与追问就按新内容讲。" : "内容没有变化。";
           MODE = "view"; await reload(FILE);
         } finally { BUSY = false; }
       } else if (kind === "history") {
@@ -212,7 +212,7 @@
       else if (kind === "restore") {
         if (!confirm("回滚到这一版？现在的内容会先存进历史，可以再回来。")) return;
         await api("/api/skillbook/restore", { board: b.board, path: FILE, id: el.dataset.id, base: CUR.rev });
-        MODE = "view"; await reload(FILE); NOTE = "已回滚，下一次解惑就按这一版讲。";
+        MODE = "view"; await reload(FILE); NOTE = "已回滚，下一次方法学习与追问就按这一版讲。";
       } else if (kind === "newfile") {
         const n = (prompt("新文件名（.md，可带一层文件夹，如 chapters/02.md；入口文件叫 SKILL.md）", b.n_files ? "新文件.md" : "SKILL.md") || "").trim();
         if (!n) return;

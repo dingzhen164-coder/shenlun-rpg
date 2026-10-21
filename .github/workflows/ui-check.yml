@@ -30,7 +30,9 @@ jobs:
           npm install --no-save playwright jsdom
           npx playwright install --with-deps chromium
       - name: Political atlas and contextual word annotations (fake AI)
-        run: node tests/ui_politics.cjs
+        run: |
+          node tests/ui_politics.cjs
+          node tests/ui_updates362.cjs
       - name: Sect and mentor quick regressions
         run: |
           node tests/test_guide.cjs

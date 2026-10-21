@@ -330,3 +330,10 @@ html.drawing .page-settings-gear,html.drawing .page-back-btn{display:none}
 .ln-compact .yj-top>.spacer,.ln-compact #lnSaved{display:none}
 .ln-compact .ln-reading-tabs{flex:1;min-width:0;padding:0;border:0}
 .ln-compact .ln-reading-tabs button{padding:6px 9px}
+
+/* 设置一级分组内，每个小项保持独立边框；覆盖通用fx-panel的去框规则。 */
+.fx-settings-group-body{display:grid;gap:16px;padding:12px 4px 4px}
+.fixed-app .fx-settings-group-body>.fx-settings-section{flex:none;min-width:0;margin:0;padding:18px 20px;border:1px solid color-mix(in srgb,var(--muted) 42%,var(--line));border-radius:var(--ds-r-12);background:var(--panel2);box-shadow:0 3px 12px color-mix(in srgb,var(--text) 4%,transparent)}
+.fixed-app .fx-settings-section>h3{margin-top:0;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.fixed-app .fx-settings-section .sv-vision{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel)}
+@supports not (color:color-mix(in srgb,black,white)){.fixed-app .fx-settings-group-body>.fx-settings-section{border-color:var(--muted);box-shadow:none}}

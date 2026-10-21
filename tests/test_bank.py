@@ -296,7 +296,8 @@ class BankTest(unittest.TestCase):
             r = trainer.action(self.g, sid, 'exam_explain:0')
         self.assertEqual(len(calls), 1)
         self.assertTrue(all('【Y%s】' % n in calls[0] for n in '123'))
-        self.assertIn('学员选了：D', calls[0])
+        self.assertNotIn('学员选了', calls[0])
+        self.assertNotIn('官方解析', calls[0])
         self.assertIn('一拖五整组讲解', str(r))
         self.assertEqual(f.read_text(encoding='utf-8').count('整组讲解：先排表。'), 3)
         r = trainer.action(self.g, sid, 'exam_rnext')
@@ -347,7 +348,8 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.ai, 'available', return_value=True), patch.object(trainer.ai, 'chat', side_effect=fake_chat):
             r = trainer.action(self.g, sid, 'exam_explain:2')
         self.assertIn('坑都写脸上了', str(r))
-        self.assertIn('学员选了：C（答错）', sent['prompt'])
+        self.assertNotIn('学员选了',sent['prompt'])
+        self.assertNotIn('秘密解析',sent['prompt'])
         self.assertIn('已写进 训练/题库/类比推理真题.md', str(r))
         self.assertEqual(bank.tutor_notes(self.paths), {'03': '选C？坑都写脸上了。'})
         text = f.read_text(encoding='utf-8')
@@ -488,7 +490,7 @@ class BankTest(unittest.TestCase):
         self.assertEqual(new, ['屡禁不止'])
         self.assertEqual([o['word'] for o in book['屡禁不止']['sources'][0]['others']], ['层出不穷', '沉渣泛起', '俯拾皆是'])
 
-    def test_tutor_reads_the_boards_own_skill_and_hides_distilled(self):
+    def test_tutor_reads_only_question_options_and_correct_answer(self):
         from rpg import skillbook
         skillbook.save(self.paths, '逻辑填空', 'SKILL.md', '---\nname: x\n---\n# 逻辑填空\n先读方法总纲', '')
         skillbook.save(self.paths, '逻辑填空', '方法/六种对应关系.md', '解释对应、并列对应、转折对应、递进对应、因果对应、总分对应', '')
@@ -507,13 +509,14 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.ai, 'available', return_value=True), patch.object(trainer.ai, 'chat', side_effect=fake_chat):
             r = trainer.action(self.g, sid, 'exam_explain:0')
         p = sent['p']
-        self.assertIn('六种对应关系', p.split('题目')[0])          # 板块自己的心法文件放在题目前面
+        self.assertNotIn('六种对应关系', p)          # 板块自己的心法文件放在题目前面
         self.assertNotIn('只供查阅的资料不该读', p)                 # references 文件夹不自动读入
-        self.assertIn('官方：C项“催生”指催促问世。', p)
+        self.assertNotIn('官方：C项“催生”指催促问世。', p)
         self.assertNotIn('蒸馏的推理', p)                           # 蒸馏小节、旧的师傅解惑不给师傅看
         self.assertNotIn('旧的讲解', p)
-        self.assertIn('哪个方法', p)
-        self.assertIn('SKILL.md、方法/六种对应关系.md', str(r))
+        self.assertIn('____了更多职业。', p)
+        self.assertIn('正确答案：C',p)
+        self.assertNotIn('SKILL.md、方法/六种对应关系.md',str(r))
 
     def test_exam_timing_table_and_log(self):
         f = self.paths.train / '题库/类比推理真题.md'
