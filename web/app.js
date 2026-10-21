@@ -384,7 +384,7 @@ function blocksHtml(list, trim = false, question = false) {
 }
 function msgHtml(m) {
   const blocks = blocksHtml(m.blocks, false, !!m.pin);
-  if (m.fold) return `<details class="fold"><summary>${esc(m.fold)}</summary><div>${md(m.text)}</div></details>`;
+  if (m.fold) return `<details class="fold review-fold"><summary>${esc(m.fold)}</summary><div>${m.who==="npc"?tutorMd(m.text):md(m.text)}${blocks}</div></details>`;
   if (m.who === "npc") { const mentor=m.mentor||T.mentor;return `<div class="npc">${tutorFace(mentor)}<div class="say"><div class="who">${esc(mentor?.name || DASH?.persona?.tutor || "导师")}</div>${tutorMd(m.text)}</div></div>`; }
   if (m.who === "me") return `<div class="msg me">${esc(m.text)}</div>`;
   if (m.pin) return `<div class="q-pin ${PIN_MINI ? "mini" : ""}"><div class="msg sys pin-body"><span class="pin-tools">${m.material?.length
@@ -1461,7 +1461,7 @@ async function yjOpen(row) {
     d.innerHTML = `<div class="msg sys">${blocksHtml(q.stem)}${q.options.map(o => `<div class="yj-opt"><b>${o.k}.</b> ${blocksHtml(o.blocks)}</div>`).join('')}</div>
       ${q.papers.length ? `<div class="small faint">出处：${q.papers.map(esc).join('；')}</div>` : ''}
       <button class="small yj-reveal">🔓 显现答案与解析</button>
-      <div class="yj-ans" hidden><div class="msg sys"><b>答案：${esc(q.answer)}</b> · 知识点：${esc(q.topic)}${blocksHtml(q.analysis)}</div>${q.tutor?.length ? `<div class="msg sys"><b>🧙 师傅解惑</b>${blocksHtml(q.tutor)}</div>` : ''}<div class="small muted">我的作答：<br>${hist}</div></div>`;
+      <div class="yj-ans" hidden><div class="msg sys"><b>答案：${esc(q.answer)}</b> · 知识点：${esc(q.topic)}${q.analysis?.length?`<details class="review-fold"><summary>题目解析</summary>${blocksHtml(q.analysis)}</details>`:""}</div>${q.tutor?.length ? `<details class="review-fold"><summary>🧙 师傅解惑</summary>${blocksHtml(q.tutor)}</details>` : ''}<div class="small muted">我的作答：<br>${hist}</div></div>`;
     d.querySelector('.yj-reveal').onclick = (e) => { e.target.hidden = true; d.querySelector('.yj-ans').hidden = false; };
   } catch (e) { d.innerHTML = `⚠ ${esc(e.message)}`; }
 }

@@ -273,14 +273,14 @@ class FlowTest(unittest.TestCase):
         r = api.session_reply({"session": r["session"], "text": "为什么不选B"})
         self.assertIn("师傅：先看问法。为什么不选B", str(r["messages"]))
         r = api.session_action({"session": r["session"], "action": "ask_explain"})
-        self.assertIn("请按 skill 的方法", str(r["messages"]))
+        self.assertTrue(any(m.get("fold")=="🧙 师傅解惑" for m in r["messages"]))
         self.assertIn("已存入复盘解析", str(r["messages"]))
         r = api.session_action({"session": r["session"], "action": "ask_explain"})     # 再问一次：换掉，不重复
         files = [f for f in (self.vault / "FB模考试卷复盘").rglob("*.md") if "师傅解惑" in f.read_text(encoding="utf-8")]
         self.assertEqual(len(files), 1)
         text = files[0].read_text(encoding="utf-8")
         self.assertEqual(text.count("🧙 师傅解惑"), 1)
-        self.assertIn("> 师傅：先看问法。请按 skill 的方法", text)
+        self.assertIn("> 好的", text)
         r = api.session_action({"session": r["session"], "action": "discuss_end"})
         self.assertTrue(r["finished"])
 

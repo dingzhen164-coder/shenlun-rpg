@@ -1,0 +1,11 @@
+/* 复盘和字号控件；颜色/字号沿用设计令牌。 */
+.reading-size-tools{display:inline-flex;align-items:center;gap:4px;flex:none;margin-left:auto;padding-left:8px}
+.reading-size-tools button{display:grid;place-items:center;width:40px;height:40px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:var(--ds-r-8);color:var(--accent)}
+.reading-size-tools button:disabled{opacity:.4}
+.reading-size-tools svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.reading-size-tools output{min-width:38px;text-align:center;font-size:var(--ds-fs-11);font-variant-numeric:tabular-nums;color:var(--muted)}
+.review-fold{padding:10px 14px;border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel)}
+.review-fold>summary,.tj-answer-analysis>summary,.atlas-answer-analysis>summary{cursor:pointer;min-height:28px;color:var(--accent);line-height:1.8}
+.review-fold[open]>summary{margin-bottom:10px}
+.review-fold>div{min-width:0;overflow-wrap:anywhere}
+.review-fold img:not(.inline-img){max-width:100%;height:auto}

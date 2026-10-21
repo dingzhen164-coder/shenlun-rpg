@@ -636,18 +636,20 @@ def _plain_digest(g, board):
     return _tutor_material(g, board)[0]
 
 
-def _discuss_ask(g, s, text):
+def _discuss_ask(g, s, text, independent=False):
     d = s["discuss"]
     if not ai.available():
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
-        r = ai.chat(prompts.discuss(peak_tutors.persona(g, d["board"]), d, _skill_digest(g, d["board"]), text), temperature=0.6, max_tokens=1500)
+        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}, 'answer':d.get('answer','')})
+                    if independent else prompts.discuss(peak_tutors.persona(g,d['board']),d,_skill_digest(g,d['board']),text))
+        r = ai.chat(messages, temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     d["history"] += [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
     d["history"] = d["history"][-10:]
-    return [_msg("npc", r)]
+    return [_msg("npc", r, fold="🧙 师傅解惑" if independent else None)]
 
 
 def _discuss_reply(g, s, text):
@@ -658,7 +660,7 @@ def _discuss_reply(g, s, text):
 def _discuss_action(g, s, act):
     if act == "ask_explain":
         n = len(s["discuss"]["history"])
-        msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + _discuss_ask(g, s, "请按 skill 的方法把这道题完整讲一遍")
+        msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + _discuss_ask(g, s, "请独立把这道题完整讲一遍", independent=True)
         if s["type"] == "wrong" and len(s["discuss"]["history"]) > n:   # 讲成了：存进这题的复盘笔记，下次“复盘解析”能看到
             where = vault.save_tutor_note(g.paths, s["key"], s["discuss"]["history"][-1]["content"], g.t)
             if where:
@@ -1035,7 +1037,7 @@ def _bank_show(g, s, run, events=None):
         msg = '你的答案：%s · %s\n正确答案：%s\n知识点：%s\n\n解析：' % (
             r['answer'], '破关成功（正确）' if r['ok'] else '失手（错误），' + g.T('bank_record'), q['answer'], q['topic'])
         # 解析里可能有图（图形推理的讲解图），和题干一样转成网页块
-        msgs = [_msg('sys', msg, _bank_blocks(g, q['board'], q['analysis'] or '（解析待补，之后可以用 skill 补写）'))]
+        msgs = [_msg('sys', msg.rsplit('\n\n解析：',1)[0]), _msg('sys','',_bank_blocks(g,q['board'],q['analysis'] or '解析待补'),fold='题目解析')]
         if r.get('reasoning'):
             msgs.append(_msg('sys', '你的拆题：\n' + r['reasoning'] + '\n方法审核：' + (
                 '通过' if r.get('method_ok') is True else '未通过' if r.get('method_ok') is False else '未验证（未连接AI）')
@@ -1364,16 +1366,16 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     msgs.append(_msg('sys', '复盘 第 %s/%s 题 · 编号 %s · %s · 用时 %s' % (i + 1, len(qs), q['id'], '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
                      qb, pin=True, material=mat, qkey='bank:' + q['id']))
     if q['analysis']:
-        msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s\n\n解析：' % (r['answer'], q['answer'], q['topic']),
-                         _bank_blocks(g, q['board'], q['analysis'])))
+        msgs.append(_msg('sys','你的答案：%s · 正确答案：%s\n知识点：%s' % (r['answer'],q['answer'],q['topic'])))
+        msgs.append(_msg('sys','',_bank_blocks(g,q['board'],q['analysis']),fold='题目解析'))
     else:                                           # 没有解析：只显示答案和知识点，不再摆一行“这题没有解析”的提示
         msgs.append(_msg('sys', '你的答案：%s · 正确答案：%s\n知识点：%s' % (r['answer'], q['answer'], q['topic'])))
-    if not r['ok'] and not head:
+    if not r['ok'] and not head and str(i) not in run.get('explain',{}):
         line = _say(g, '试炼·复盘错题', 你的答案=r['answer'], 正确答案=q['answer'])
         if line:
             msgs.append(_msg('npc', line))
     if str(i) in run.get('explain', {}):
-        msgs.append(_msg('npc', run['explain'][str(i)]))
+        msgs.append(_msg('npc', run['explain'][str(i)],fold='🧙 师傅解惑'))
     elif question_bank.TUTOR_HEAD not in (q['analysis'] or '') and q['id'] in question_bank.tutor_notes(g.paths):   # 旧版存在单独文件里的
         msgs.append(_msg('sys', question_bank.tutor_notes(g.paths)[q['id']], fold='🧙 上次的师傅解惑'))
     for h in run.get('chat', {}).get(str(i), []):          # 这道题上追问师傅的对话
@@ -1422,8 +1424,7 @@ def _review_action(g, s, run, act):
         where = question_bank.save_tutor_to_bank(g.paths, qs[i], text, g.t)
         note = ('📌 已写进 训练/题库/%s 这道题的解析末尾（原解析保留；再问一次会换成新的）' % where if where
                 else '📌 题库里没找到这道题（可能改过编号），讲解存在 训练/题库/师傅解惑.md')
-        note += ('\n📜 依据 skill「%s」：%s' % (skill, '、'.join(used[:8]) + (' 等 %d 个文件' % len(used) if len(used) > 8 else ''))
-                 if used else '\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）')
+        note += '\n本次仅依据题干、选项和正确答案独立讲解。'
         return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
     elif act == 'exam_close':
         group = run['settled']
@@ -1443,17 +1444,16 @@ GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整�
 def _explain_group(g, board, material, items):
     """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, board)
-    digest, used = _tutor_material(g, board)
+    used = []
     try:
-        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest, skill), temperature=0.5, max_tokens=2800)
+        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items), temperature=0.5, max_tokens=2800)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
 
 
 def _skill_note(skill, used):
-    return ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
-            if used else "\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）")
+    return "\n本次仅依据共用材料、题干、选项和正确答案独立讲解。"
 
 
 def _bank_group_explain(g, s, run, i, mat):
@@ -1486,9 +1486,9 @@ def _bank_group_explain(g, s, run, i, mat):
 def _explain(g, q, r):
     """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, q['board'])
-    digest, used = _tutor_material(g, q['board'])
+    used = []
     try:
-        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, r['answer'], digest, skill), temperature=0.5, max_tokens=1800)
+        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q), temperature=0.5, max_tokens=1800)
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     idioms.from_explanation(g,q,text)
@@ -1646,16 +1646,16 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         qkey="mock:" + q["key"]))
     duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
     if q["analysis"]:
-        msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s\n\n复盘解析：" % (q["mine"] or "没做", q["correct"] or "?", duration),
-                         vault.render_blocks(g.paths, {"body": q["analysis"], "dir": q["dir"]})))
+        msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s" % (q["mine"] or "没做", q["correct"] or "?", duration)))
+        msgs.append(_msg("sys", "", vault.render_blocks(g.paths, {"body":q["analysis"], "dir":q["dir"]}),fold="复盘解析"))
     else:                                           # 还没有复盘解析：只显示答案，不再摆一行“还没写解析”的提示
         msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s" % (q["mine"] or "没做", q["correct"] or "?", duration)))
-    if q["icon"] != "✅" and not head:
+    if q["icon"] != "✅" and not head and str(i) not in s["explain"]:
         line = _say(g, "试炼·复盘错题", 你的答案=q["mine"] or "没做", 正确答案=q["correct"])
         if line:
             msgs.append(_msg("npc", line))
     if str(i) in s["explain"]:
-        msgs.append(_msg("npc", s["explain"][str(i)]))
+        msgs.append(_msg("npc", s["explain"][str(i)],fold="🧙 师傅解惑"))
     for h in s["chat"].get(str(i), []):
         msgs.append(_msg("me" if h["role"] == "user" else "npc", h["content"]))
     msgs += extra or []
@@ -1723,8 +1723,7 @@ def _mreview_action(g, s, act):
         where = vault.save_tutor_note(g.paths, q["key"], text, g.t)
         note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
                 else "📌 没找到这道题的复盘文件，讲解没存下来")
-        note += ("\n📜 依据 skill「%s」：%s" % (skill, "、".join(used[:8]) + (" 等 %d 个文件" % len(used) if len(used) > 8 else ""))
-                 if used else "\n⚠ 这个板块在藏经阁里还没有内容，师傅只能按通用方法讲（可以到藏经阁导入 skill）")
+        note += '\n本次仅依据题干、选项和正确答案独立讲解。'
         return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
     elif act in ("mr_pause", "bank_pause"):
         mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]
