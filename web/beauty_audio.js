@@ -15,7 +15,7 @@
     try {
       var a = cache[name];
       if (!a) { a = cache[name] = new Audio(BASE + "sfx/" + name + ".ogg"); a.preload = "auto"; a.addEventListener("error", function () { missing[name] = 1; }); }
-      var c = a.cloneNode(); c.volume = Math.min(1, S.vs * (vol || 1)); c.play().catch(function () {});
+      var c = a.cloneNode(); AudioBus.volume(c, Math.min(1, S.vs * (vol ?? 1))); AudioBus.resume(); c.play().catch(function () {});
     } catch (e) { /* 静音 */ }
   }
 
@@ -23,9 +23,9 @@
   var cur = null, curName = "", want = "", override = "", timer = 0;
   function targetVol() { return S.bgm && S.src === "builtin" ? S.vb * (want === "study" ? 0.6 : 1) : 0; }
   function ramp(a, to, ms, done) {
-    var from = a.volume, t0 = Date.now(); clearInterval(a._r);
+    var from = AudioBus.getVolume(a), t0 = Date.now(); clearInterval(a._r);
     a._r = setInterval(function () {
-      var k = Math.min(1, (Date.now() - t0) / ms); a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+      var k = Math.min(1, (Date.now() - t0) / ms); AudioBus.volume(a, Math.max(0, Math.min(1, from + (to - from) * k)));
       if (k >= 1) { clearInterval(a._r); if (done) done(); }
     }, 50);
   }
@@ -35,7 +35,7 @@
     if (old) { if (S.src !== "builtin") { clearInterval(old._r); old.pause(); } else ramp(old, 0, 1200, function () { old.pause(); }); }
     cur = null;
     if (!name || missing["bgm/" + name]) return;
-    var a = new Audio(BASE + "bgm/" + name + ".ogg"); a.loop = true; a.volume = 0;
+    var a = new Audio(BASE + "bgm/" + name + ".ogg"); a.loop = true; AudioBus.volume(a, 0);
     a.addEventListener("error", function () { missing["bgm/" + name] = 1; if (cur === a) cur = null; });
     cur = a;
     if (unlocked && S.bgm) a.play().then(function () { ramp(a, targetVol(), 1500); }).catch(function () {});
@@ -57,7 +57,7 @@
     var old = amb; ambName = name; amb = null;
     if (old) ramp(old, 0, 1200, function () { old.pause(); });
     if (!name || missing["sfx/" + name]) return;
-    var a = new Audio(BASE + "sfx/" + name + ".ogg"); a.loop = true; a.volume = 0;
+    var a = new Audio(BASE + "sfx/" + name + ".ogg"); a.loop = true; AudioBus.volume(a, 0);
     a.addEventListener("error", function () { missing["sfx/" + name] = 1; if (amb === a) amb = null; });
     amb = a;
     if (unlocked && S.sfx) a.play().then(function () { ramp(a, ambVol(), 1500); }).catch(function () {});
@@ -66,7 +66,7 @@
   function soon() { clearTimeout(timer); timer = setTimeout(refresh, 500); }
 
   function unlock() {
-    if (unlocked) return; unlocked = true;
+    AudioBus.resume(); if (unlocked) return; unlocked = true;
     apply();
   }
 
@@ -136,8 +136,8 @@
     sfx: sfx, bgm: function (n) { override = n || ""; refresh(); },
     settings: S,
     set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; save(); apply(); paintBtn(); },
-    setBgmVolume: function (v) { S.vb = v; save(); if (cur) cur.volume = targetVol(); },
-    setSfxVolume: function (v) { S.vs = v; save(); if (amb) amb.volume = ambVol(); sfx("click"); }
+    setBgmVolume: function (v) { S.vb = v; save(); if (cur) { clearInterval(cur._r); AudioBus.volume(cur, targetVol()); } },
+    setSfxVolume: function (v) { S.vs = v; save(); if (amb) { clearInterval(amb._r); AudioBus.volume(amb, ambVol()); } sfx("click"); }
   };
   // 右下角只留一个“全部静音/恢复”小按钮（详细设置在 设置 → 外观与音乐）
   function ui() {

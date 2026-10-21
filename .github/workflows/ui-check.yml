@@ -33,6 +33,7 @@ jobs:
         run: |
           node tests/ui_politics.cjs
           node tests/ui_updates362.cjs
+          node tests/ui_updates363.cjs
       - name: Sect and mentor quick regressions
         run: |
           node tests/test_guide.cjs

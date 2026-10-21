@@ -1065,11 +1065,15 @@ def art_info(body):
     return {"folder": "训练/外观/美术/", "count": len(art.files(p, subjects.active())), "exists": d.is_dir(), "path": str(d), **art.diagnose(p, subjects.active())}
 
 
-def art_export(body):
-    vp = find_vault()
-    if not vp:
-        raise ApiError("请先在设置中指定库路径")
-    return art.export(Paths(vp), subjects.active(), WEB_DIR / "assets")
+def scene_layout_save(body):
+    from . import scene_layout
+    with open_game() as g:
+        if not g.paths.vault:
+            raise ApiError('请先指定学习库')
+        try:
+            return {'layout': scene_layout.save(g.state, body)}
+        except ValueError as e:
+            raise ApiError(str(e))
 
 
 def appearance_set(body):
@@ -1305,8 +1309,8 @@ ROUTES = {
     ("POST", "/api/lecture/delete"): lecture_delete,
     ("POST", "/api/lecture/board"): lecture_board,
     ("POST", "/api/appearance"): appearance_set,
+    ("POST", "/api/scene-layout"): scene_layout_save,
     ("GET", "/api/art"): art_info,
-    ("POST", "/api/art/export"): art_export,
     ("POST", "/api/retreat/start"): retreat_start,
     ("POST", "/api/retreat/end"): retreat_end,
     ("POST", "/api/tutor/greet"): tutor_greet,
@@ -1959,7 +1963,7 @@ ROUTES[("GET", "/api/update/check")] = update_check
 ROUTES[("POST", "/api/update/apply")] = update_apply
 ROUTES[("GET", "/api/lan")] = lan_get
 ROUTES[("POST", "/api/lan")] = lan_set
-LOCAL_ONLY = {"/api/lan", "/api/settings", "/api/update/apply", "/api/notes/open", "/api/art/export"}     # 只有电脑本机能改的
+LOCAL_ONLY = {"/api/lan", "/api/settings", "/api/update/apply", "/api/notes/open"}     # 只有电脑本机能改的
 
 
 class Handler(BaseHTTPRequestHandler):

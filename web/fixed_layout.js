@@ -76,7 +76,7 @@
         else group('other','成长记录',n);
       }else if(route==='settings'){
         if(has('.shortcut-settings,.portal-settings'))group('navigation','地图与操作',n,true);
-        else if(has('#ambTheme,#cwR,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
+        else if(has('#baBgm,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
         else if(has('#sSave'))group('ai','AI与资料',n);
         else if(has('#scheduleSave,[data-subject],.qb-settings,.cc-settings')||/改规则/.test(name))group('learning','学习与成长',n);
         else if(has('#updCheck')||/版本/.test(name))group('updates','版本与更新',n);
@@ -133,7 +133,6 @@
         group.dataset.fxGroup=id;h.textContent=label;summary.append(h);group.append(summary,body);
         group.open=folds.get(key+':group:'+id)??false;
         group.addEventListener('toggle',()=>{folds.set(key+':group:'+id,group.open);window.dispatchEvent(new Event('resize'));});
-        if(id==='appearance'&&window.SCENE_PANELS)entry.nodes.unshift(SCENE_PANELS.controls());
         entry.nodes.forEach(n=>body.append(settingSection(n)));
         if(!entry.nodes.length){const empty=make('p','small muted');empty.textContent='此设备暂无需要调整的项目。';body.append(empty);}
         scroll.append(group);

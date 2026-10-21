@@ -210,7 +210,7 @@ function configurePortal() {
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
-  SCENE_PORTAL.configure({progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
     else{if(p.region)window.STUDY_REGIONS?.select(p.region);go(p.view);}
   });
@@ -660,16 +660,9 @@ const views = {
   async settings() {
     const [s,schedule,taskSettings,deviceHtml,calendarHtml]=await Promise.all([api('/api/settings'),api('/api/study/schedule',{}),TASK_BOARD.settingsHtml(),DEVICE.html(),CONTEST_SCENE.settingsHtml()]);
     if(window.SUBJECT0&&s.subject&&s.subject!==window.SUBJECT0){location.reload();throw Error('科目已变更，正在重新载入');}
-    const cur=DASH?.theme?.name,cp=chatPrefs();
+    const cur=DASH?.theme?.name;
     const scheduleHtml=`<div class="card"><h3>${isSL()?'仕途备考日程':'修炼备考历'}</h3><div class="row"><label>${isSL()?'履新学习日':'入道修炼日'}<input type="date" id="scheduleStart" value="${esc(schedule.start)}"></label><label>${isSL()?'赴考日':'登科试炼日'}<input type="date" id="scheduleExam" value="${esc(schedule.exam)}"></label><button class="primary" id="scheduleSave">保存日程</button></div><p class="small muted" id="scheduleInfo">备考${schedule.days}天，${schedule.remaining>=0?'距考试'+schedule.remaining+'天':'考试日期已过'}。理想总${isSL()?'政绩':'修为'}为${schedule.ideal_total}；调整日期会重新计算成长进度，累计${isSL()?'政绩':'修为'}保留。</p></div>`;
-    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + deviceHtml + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + taskSettings + calendarHtml + `<div class="card"><h3>🪟 对话框大小与字体 <small>做功课时的对话框；只存在这台设备里（电脑、平板各调各的）</small></h3>
-      <div class="row"><label style="flex:1">宽度 <b id="cwV">${cp.w}%</b><input type="range" id="cwR" min="40" max="100" step="5" value="${cp.w}" style="width:100%"></label>
-        <label style="flex:1">高度 <b id="chV">${cp.h}%</b><input type="range" id="chR" min="40" max="100" step="5" value="${cp.h}" style="width:100%"></label></div>
-      <div class="row"><label style="flex:1">对话框字体 <b id="cfV">${cp.fs}%</b><input type="range" id="cfR" min="80" max="160" step="5" value="${cp.fs}" style="width:100%"></label>
-        <div style="flex:1" class="small muted" id="cfDemo">示例：<span style="font-size:calc(15px * ${cp.fs / 100})">人民是历史的创造者，人民是真正的英雄。</span></div></div>
-      <div class="row"><button class="ghost small" id="cResetR">恢复默认（宽 100%、高 100%、字体 110%）</button></div>
-      <p class="small muted">高度 100% = 从顶栏下面一直到屏幕底；对话框底边总是贴着屏幕底。改了马上生效，下次做功课就是这个大小。</p></div>
-      <div class="card"><h3>📚 科目</h3>
+    return MAP_NAVIGATION.settingsHtml() + SCENE_PORTAL.settingsHtml() + deviceHtml + AMB.settingsHtml() + (isSL()?SL_CURSOR.settingsHtml():XC_CURSOR.settingsHtml()) + scheduleHtml + taskSettings + calendarHtml + `      <div class="card"><h3>📚 科目</h3>
       <div class="row">${(DASH.subjects || []).map((x) => `<button class="${x.name === DASH.subject ? "primary" : ""}" data-subject="${esc(x.name)}">${esc(x.brand)}</button>`).join("")}</div>
       <p class="small muted">每个科目有自己的库、存档、规则和风格，进度互不影响。点另一个科目会重新加载页面。</p></div>
       <div class="card"><h3>本机设置 <small>保存在本机 ~/.shenlun-rpg/settings.json，不会同步、不会上传</small></h3>
@@ -1508,14 +1501,6 @@ function bindSettings() {
   window.CONTEST_SCENE?.bindSettings();
   SCENE_PORTAL.mount("settings");
   DEVICE.bind();
-  const saveChat = (p) => { try { localStorage.setItem("chatLayout", JSON.stringify({...p,schema:2})); } catch {} };
-  const readChat = () => ({ w: Number($("#cwR").value), h: Number($("#chR").value), fs: Number($("#cfR").value) });
-  if ($("#cwR")) {
-    const upd = () => { const p = readChat(); $("#cwV").textContent = p.w + "%"; $("#chV").textContent = p.h + "%"; $("#cfV").textContent = p.fs + "%";
-      $("#cfDemo span").style.fontSize = `calc(15px * ${p.fs / 100})`; saveChat(p); applyChatLayout(p); };
-    $("#cwR").oninput = upd; $("#chR").oninput = upd; $("#cfR").oninput = upd;
-    $("#cResetR").onclick = () => { $("#cwR").value = CHAT_DEF.w; $("#chR").value = CHAT_DEF.h; $("#cfR").value = CHAT_DEF.fs; upd(); };
-  }
   AMB.bindSettings(showError);
   window.SL_CURSOR?.bind();
   window.XC_CURSOR?.bind();

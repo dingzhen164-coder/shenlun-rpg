@@ -16,11 +16,11 @@ assert.equal(roundtrip.desktop.edge.y,0);assert.equal(roundtrip.narrow.edge.y,2)
 api.configure({id:'xingce',title:'宗门',image:'map.webp',places},()=>{});api.settingsHtml();api.mount('settings');
 const changed={matches:s=>s.includes('data-portal-x'),valueAsNumber:37};listeners.change({target:changed});
 const click=selector=>listeners.click({target:{closest:s=>s===selector?{}:null}});
-click('[data-portal-save]');assert.equal(JSON.parse(storage.get('scene-layout:xingce')).desktop.dwelling.x,37);
+click('[data-portal-save]');assert.equal(JSON.parse(storage.get('scene-layout:xingce:saved')).desktop.dwelling.x,37);
 api.configure({id:'guantu',title:'政务',image:'hall.webp',places},()=>{});api.settingsHtml();api.mount('settings');assert.equal(values.get('[data-portal-x]').value,12);
 const point={dataset:{portalPoint:'dwelling'},setPointerCapture(){},closest:()=>({getBoundingClientRect:()=>({left:0,top:0,width:100,height:100})})};
 listeners.pointerdown({target:{closest:()=>point},button:0,pointerId:2,preventDefault(){}});listeners.pointermove({pointerId:2,clientX:88,clientY:22});assert.equal(values.get('[data-portal-x]').value,88);
 listeners.pointercancel();assert.equal(values.get('[data-portal-x]').value,12);
-fail=true;click('[data-portal-save]');assert.ok(values.get('[data-portal-status]').textContent.includes('保存失败'));assert.equal(storage.has('scene-layout:guantu'),false);
+fail=true;click('[data-portal-save]');assert.ok(values.get('[data-portal-status]').textContent.includes('保存失败'));assert.equal(storage.has('scene-layout:guantu:saved'),false);
 ctx.window.innerWidth=800;ctx.window.innerHeight=1280;assert.equal(api.profile(),'narrow');
 console.log('SCENE-LAYOUT-OK');

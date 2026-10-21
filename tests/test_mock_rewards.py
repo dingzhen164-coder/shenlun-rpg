@@ -54,7 +54,7 @@ class MockRewardTest(unittest.TestCase):
                 g.state['claimed'] = score
                 info = g.realm_info()
                 amount = rewards.amount(g)
-                expected = 1 if info['big'] < 2 else .5
+                expected = (1 if info['big'] < 2 else 1/6 if info['big'] == 2 else 1/12) if getattr(g, 'subject', '法考') == '行测' else (1 if info['big'] < 2 else .5)
                 self.assertEqual(amount['rate'], expected)
                 self.assertEqual(amount['amount'], math.ceil(info['need'] * expected))
 

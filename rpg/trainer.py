@@ -1012,12 +1012,13 @@ def _chat(g, s, text):
 # ---------------------------------------------------------------- 顺序真题实战（答案与解析只在提交后返回）
 def _start_bank(g, task):
     try:
-        run = question_bank.begin(g, task['board'], 'review' if task['type'] == 'bank_review' else 'new')
+        run = (question_bank.reopen(g, task['group']) if 'group' in task else
+               question_bank.begin(g, task['board'], 'review' if task['type'] == 'bank_review' else 'new'))
     except question_bank.BankError as e:
         raise TrainError(str(e))
     # 新入口也可以恢复同板块未完成的错题组，计时类型与实际模式一致。
     typ = 'bank_review' if run['mode'] == 'review' else 'bank'
-    s = new_session(typ, '%s · %s' % (g.T(typ), question_bank.label(task['board'])), task, board=task['board'], token=run['token'])
+    s = new_session(typ, '%s · %s' % (g.T(typ), question_bank.label(task['board'])), task, board=run.get('slot', task['board']), token=run['token'])
     # 所有板块默认都是点选项、交卷判分；“写拆题过程逐题审方法”只在功课里明确要求时才用（task.reasoning）
     if run.get('reasoning') and not task.get('reasoning') and not run['results']:
         run['reasoning'] = False          # 以前按“写拆题过程”开的组、还没交过题：改成正常答题
@@ -1359,6 +1360,7 @@ def _rank_scene(group):
 
 
 def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=False):
+    question_bank.archive(g, run)
     qs, res, group = run['questions'], run['results'], run['settled']
     i = run.setdefault('rpos', 0)
     q, r = qs[i], res[i]

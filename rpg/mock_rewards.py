@@ -8,7 +8,7 @@ import math
 import re
 
 SCHEMA = 1
-MODEL = 'stage-manual-v1'
+MODEL = 'stage-manual-v2'
 
 
 def exam_key(name, kind='大比'):
@@ -76,7 +76,12 @@ def amount(g):
     cost = 0 if at_max else max(0, int(info['need']))
     rate_key = '模考悟道.入门倍率' if info['big'] < 2 else '模考悟道.进阶倍率'
     rate = max(0, float(g.rules.num(rate_key)))
-    return dict(amount=int(math.ceil(cost * rate)), cost=cost, rate=rate,
+    # 行测按实际境界分配；申论、法考保留各自原奖励，不回收已领取修为。
+    divisor = 1
+    if getattr(g, 'subject', '法考') == '行测' and info['big'] >= 2:
+        divisor = max(1, int(g.rules.num('模考悟道.筑基分母' if info['big'] == 2 else '模考悟道.金丹及以后分母')))
+        rate = 1.0 / divisor
+    return dict(amount=int(math.ceil(cost * rate)), cost=cost, rate=rate, divisor=divisor,
                 realm=info['name'], next=info['next'] or info.get('gate_realm', ''),
                 available=cost > 0 and rate > 0)
 
@@ -98,8 +103,9 @@ def claim(g, key):
     if not preview['available']:
         raise ValueError('当前阶段没有可领取的突破修为')
     reward = preview['amount']
-    events = g._award(reward, 'insight', note='模考悟道「%s」：按%s突破所需修为的%s%%奖励，手动领取' %
-                      (record['name'], preview['realm'], int(preview['rate'] * 100)), bonus=False)
+    ratio = '1/%d' % preview['divisor'] if preview['divisor'] > 1 else '%g%%' % (preview['rate'] * 100)
+    events = g._award(reward, 'insight', note='模考悟道「%s」：按%s突破所需修为的%s奖励，手动领取' %
+                      (record['name'], preview['realm'], ratio), bonus=False)
     # _award同时可能生成境界提醒；只为这笔悟道经验添加规则标记。
     event = next(e for e in reversed(g.state['events']) if e['type'] == 'insight' and e['xp'] == reward)
     event.update(reward_model=MODEL, exam_key=key)

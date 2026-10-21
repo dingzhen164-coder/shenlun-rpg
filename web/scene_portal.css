@@ -32,3 +32,21 @@ html:not([data-theme="dark"]) .portal-landscape.portal-night{display:none}
 
 /* 地点坐标随HUD测量即时更新，避免通用按钮过渡造成主页与编辑预览漂移。 */
 .portal-place{transition:none}
+
+/* 全景保留左右边缘，平板不再用cover裁掉天机台和试炼塔。 */
+@media(max-width:1100px),(pointer:coarse){
+ .portal-place{left:clamp(48px,var(--px),calc(100% - 48px))}
+}
+.th-history-row{width:100%;text-align:left;color:var(--text)}
+
+/* 比例差异用同图柔和延展衬底，完整全景保持清楚，不留下突兀空带。 */
+.portal-landscape-fill{display:none}
+@media(max-width:1100px),(pointer:coarse){
+ .portal-landscape-fill{display:block;position:absolute;inset:-20px;background-image:var(--portal-fill-day);background-position:center;background-size:cover;filter:blur(16px);opacity:.55;pointer-events:none}
+ html[data-scene-time="night"] .portal-landscape-fill{background-image:var(--portal-fill-night)}
+}
+
+/* 横屏保留整幅全景；竖屏沿用满屏景物与独立地点排布，避免把地图压成窄带。 */
+@media(orientation:landscape) and (max-width:1100px),(orientation:landscape) and (pointer:coarse){
+ .portal-landscape{object-fit:contain}
+}
