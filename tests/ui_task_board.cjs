@@ -45,7 +45,7 @@ async function open(page){await page.evaluate(()=>go('home'));await page.locator
   if(subject==='行测'){
    await page.evaluate(()=>go('tianji'));await page.waitForSelector('.tj-hub');const widths=await page.evaluate(()=>[document.querySelector('.tj-hub').clientWidth,document.querySelector('#view').clientWidth]);assert(widths[0]>=widths[1]-4,'天机台全宽');
   }
-  await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator('[data-study-region]').first().click();await page.waitForSelector('.fx-region-work');assert.equal(await page.locator('.yj-empty,.yj-moved,[data-yjgear],.ln-slot').count(),0,'空分区没有制作提示和空导图');await fit(page);
+  await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator(subject==='行测'?'[data-study-region="yan"]':'[data-study-region]').first().click();await page.waitForSelector('.fx-region-work');assert.equal(await page.locator('.yj-empty,.yj-moved,[data-yjgear],.ln-slot').count(),0,'空分区没有制作提示和空导图');await fit(page);
   assert.deepEqual(errors,[]);await page.close();console.log((subject||'法考')+' '+label+'：任务签、保存重启、单次累计、旧委托、横排/全宽/一级设置通过');
  }
 }catch(e){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure-'+(subject||'法考')+'.png')}).catch(()=>{});}throw e;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exit(1);});

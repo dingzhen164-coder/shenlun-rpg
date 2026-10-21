@@ -34,6 +34,29 @@ def main():
             vaults[s] = str(v)
             paths.Paths(v, s).ensure_train_dir()
         paths.save_settings({'subject': subject, 'vaults': vaults})
+        if '--politics-fixture' in sys.argv:
+            from rpg import politics
+            from tests.politics_fixture import atlas_data
+            pp = paths.Paths(Path(vaults['行测']), '行测')
+            data = atlas_data()
+            politics.atomic_json(pp.train / '时政知识地图/内容.json', data)
+            news = {'id': '2026-10-上', 'kind': 'month', 'title': '自编十月上时政', 'label': '自编时政', 'year': 2026,
+                    'month': 10, 'half': '上', 'category': '其他', 'overview': '自编理解练习', 'groups': [],
+                    'news': [{'no': 1, 'stars': 1, 'tag': '农业', 'title': '自编政策材料', 'group': '',
+                              'paras': [data['materials'][0]['original']], 'qs': []}],
+                    'cloze': [{'no': 1, 'title': '自编政策材料', 'news': 0,
+                               'parts': [{'t': '在'}, {'a': '主产区'}, {'t': '布局产能。'}]}], 'questions': []}
+            politics.atomic_json(pp.train / '天机简报/月半时政/2026-10-上.json', news)
+            settings = paths.load_settings()
+            settings['api_key'] = 'fake-key-for-local-test-only'
+            paths.save_settings(settings)
+            def fake_explain(*args, **kwargs):
+                import json
+                return json.dumps({'meaning': '本段讨论生产地区的发展支持。', 'role': '主产区限定政策对象。',
+                                   'compare': '主销区改变了支持对象，不能替换本段原文。', 'plain': '让主要生产的地方发展产业。',
+                                   'evidence': '在主产区布局产能'}, ensure_ascii=False)
+            politics.ai.chat = fake_explain
+            print('UI-POLITICS ' + str(pp.train), flush=True)
         if '--skillbook-fixture' in sys.argv:
             # 藏经阁·心法：只有一个板块（行测 论证逻辑 / 申论 归纳概括）预先放了自编的三个文件，其余板块都是空的；不读真实资料。
             from rpg import skillbook

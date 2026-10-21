@@ -102,7 +102,7 @@ async function main(){
    await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator('.study-peaks').waitFor();
    assert.equal(await page.locator('[data-study-region]').count(),5);
    for(const region of ['chang','yan','li','shu','zi']){
-    const entry=page.locator(`[data-study-region="${region}"]`);while(!await entry.isVisible())await page.locator('.fx-pager button').filter({hasText:'下一页'}).click();await entry.click();await page.locator('.study-region-heading').waitFor({state:'attached'});
+    const entry=page.locator(`[data-study-region="${region}"]`);while(!await entry.isVisible())await page.locator('.fx-pager button').filter({hasText:'下一页'}).click();await entry.click();await page.locator('.study-region-heading,.wx-heading').waitFor({state:'attached'});
     assert.equal(await page.locator('.xc-sect-chamber,#bankCount').count(),0);
     await page.keyboard.press('Escape');await page.locator('.portal-world').waitFor();await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator('.study-peaks').waitFor();   // 行测五峰：返回回到地图
    }

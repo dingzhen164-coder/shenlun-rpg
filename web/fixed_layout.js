@@ -180,6 +180,8 @@
     const resize=new ResizeObserver(()=>{if(grid.isConnected)update();else resize.disconnect();});resize.observe(grid.parentElement);update();
   }
   function regions(root) {
+    // 万象峰已有逐层导航和独立滚动，不能再将标题/入口拆成通用页签。
+    if(root.querySelector('.wx-workspace'))return true;
     const select=root.querySelector('.study-regions');
     if(select){select.classList.add('fx-region-select');paginate(select.querySelector('.study-region-grid'),'regions:'+themeKey(),'regions');return true;}
     const heading=root.querySelector('.study-region-heading');if(!heading)return false;

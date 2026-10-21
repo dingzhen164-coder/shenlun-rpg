@@ -9,3 +9,4 @@ dist/
 /ui-artifacts/
 /node_modules/
 /package-lock.json
+/rpg/data/political_atlas.json

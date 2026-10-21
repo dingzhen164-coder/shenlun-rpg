@@ -1,0 +1,44 @@
+/* 玉器、金工与纸卷动效；同一张透明精细插画图集，颜色与主题令牌一致。 */
+.wx-sigil{position:relative;display:inline-block;isolation:isolate;width:var(--wx-icon-size,192px);height:var(--wx-icon-size,192px);flex:none;contain:layout style;pointer-events:none;vertical-align:middle}
+.wx-illumination{position:absolute;inset:8%;z-index:-1;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--gold) 18%,transparent),transparent 68%);animation:wx-halo 6s ease-in-out infinite}
+.wx-object{position:absolute;inset:0;background-image:url('assets/beauty/wanxiang/scholarly-instruments.png');background-size:200% 300%;background-repeat:no-repeat;filter:drop-shadow(0 9px 9px color-mix(in srgb,var(--gold) 18%,transparent));transform-origin:50% 76%;animation:wx-poise 7s ease-in-out infinite}
+.wx-sigil--politics .wx-object{background-position:0 0}.wx-sigil--common .wx-object{background-position:100% 0}.wx-sigil--geo .wx-object{background-position:0 50%}.wx-sigil--history .wx-object{background-position:100% 50%}.wx-sigil--economy .wx-object{background-position:0 100%}.wx-sigil--science .wx-object{background-position:100% 100%}
+.wx-sigil--politics .wx-object,.wx-sigil--history .wx-object{clip-path:inset(0 0 5% 0)}
+.wx-instrument-motion{position:absolute;inset:0;width:100%;height:100%;overflow:visible;fill:none;stroke:var(--gold);stroke-width:.85;stroke-linecap:round;stroke-linejoin:round;opacity:.68}
+.wx-solar{transform-origin:60px 68px;animation:wx-revolve 32s linear infinite;opacity:.7}.wx-script{stroke-dasharray:8 25;animation:wx-ink 7s ease-in-out infinite}.wx-ribbon{stroke-dasharray:4 75;animation:wx-ribbon 5s linear infinite}
+.wx-armillary,.wx-latitudes{stroke-dasharray:2 12 24 120;animation:wx-orbit 12s linear infinite}.wx-stream,.wx-current{stroke:var(--accent);stroke-dasharray:5 45;animation:wx-orbit 8s linear infinite}
+.wx-starfield{fill:var(--gold);stroke:none;animation:wx-halo 4s ease-in-out infinite}.wx-cartography{stroke-dasharray:2 26;stroke-width:.5;animation:wx-orbit 22s linear infinite;opacity:.45}
+.wx-page{fill:color-mix(in srgb,var(--gold) 10%,transparent);stroke:color-mix(in srgb,var(--gold) 58%,transparent);transform-origin:91px 128px;animation:wx-leaf 7s ease-in-out infinite}.wx-page-two{animation-delay:-3.5s}.wx-book-light{stroke-dasharray:1 22;stroke-width:.5;animation:wx-halo 6s ease-in-out infinite}
+.wx-bead{fill:var(--gold);stroke:none;animation:wx-reckon 5s ease-in-out infinite}.wx-bead-two{animation-delay:-1.5s}.wx-bead-three{animation-delay:-3s}.wx-coins{stroke-dasharray:8 65;animation:wx-orbit 9s linear infinite}.wx-ledger{stroke-width:.6;stroke-dasharray:3 80;animation:wx-orbit 7s linear infinite}
+.wx-gyroscope{stroke-dasharray:4 36;animation:wx-orbit 10s linear infinite}.wx-core{stroke:var(--accent);fill:color-mix(in srgb,var(--accent) 10%,transparent);animation:wx-core 5s ease-in-out infinite}.wx-science-star{fill:var(--gold);stroke:none;transform-origin:96px 84px;animation:wx-revolve 20s linear infinite}
+.wx-dust{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px var(--gold);opacity:0;animation:wx-dust 7s ease-in-out infinite}.wx-dust-one{left:20%;top:70%}.wx-dust-two{left:78%;top:44%;animation-delay:-2.4s}.wx-dust-three{left:43%;top:24%;animation-delay:-4.8s}
+.wx-art{--wx-icon-size:208px;display:block;height:208px;font-size:0;line-height:1}.wx-category-icon{--wx-icon-size:176px;display:block;font-size:0;line-height:1}.wx-category{display:flex;flex-direction:column;justify-content:center;gap:8px;min-height:292px;overflow:visible;padding:12px 20px}.wx-category>div{min-width:0}.wx-category>span:last-child{margin:2px 0 0}.wx-category small{display:block;line-height:1.7}.wx-gate{gap:12px;min-height:470px;padding-top:26px;padding-bottom:32px}.wx-gate>span:last-child{margin-top:10px}
+@keyframes wx-poise{0%,100%{transform:translateY(0) rotate(-.6deg)}50%{transform:translateY(-3px) rotate(.7deg)}}
+@keyframes wx-halo{0%,100%{opacity:.3}50%{opacity:.9}}
+@keyframes wx-revolve{to{transform:rotate(360deg)}}
+@keyframes wx-ink{0%,100%{stroke-dashoffset:70;opacity:.2}50%{stroke-dashoffset:0;opacity:.85}}
+@keyframes wx-orbit{to{stroke-dashoffset:-180}}
+@keyframes wx-ribbon{to{stroke-dashoffset:-158}}
+@keyframes wx-leaf{0%,100%{transform:skewY(0deg) scaleX(1);opacity:.05}35%{opacity:.45}60%{transform:skewY(-5deg) scaleX(.9);opacity:.12}}
+@keyframes wx-reckon{0%,25%,100%{transform:translate(0,0);opacity:.08}45%,65%{transform:translate(7px,-3px);opacity:.85}}
+@keyframes wx-core{0%,100%{transform:scale(.94);opacity:.18}50%{transform:scale(1.04);opacity:.65}}
+@keyframes wx-dust{0%,100%{transform:translate(0,5px);opacity:0}45%{opacity:.8}80%{transform:translate(5px,-13px);opacity:0}}
+.wx-core{transform-origin:96px 84px}
+.wx-motion-paused .wx-sigil *{animation-play-state:paused!important}
+@media(max-width:1100px) and (orientation:portrait){.wx-category{gap:6px;padding:10px 12px;min-height:266px}.wx-category-icon{--wx-icon-size:152px}.wx-category small{font-size:var(--ds-fs-11)}.wx-category h3{font-size:var(--ds-fs-22)}.wx-art{--wx-icon-size:176px;height:176px}.wx-gate{min-height:430px;gap:12px;padding:24px 12px 28px}}
+@media(prefers-reduced-motion:reduce){.wx-sigil *{animation:none!important}.wx-page,.wx-dust{opacity:0}}
+
+/* 器物题签：沿用离线小薇书法字体的原生字重，避免伪粗体挤压笔画。 */
+.wx-gate .wx-title,.wx-category .wx-title{font-family:var(--display);font-weight:400;font-synthesis:none;letter-spacing:.24em;padding-left:.24em;line-height:1.45;margin:0;color:var(--text);text-shadow:0 1px 8px var(--panel)}
+.wx-gate .wx-title{font-size:calc(var(--ds-fs-26) * 1.65);margin-top:6px}
+.wx-category .wx-title{font-size:calc(var(--ds-fs-26) * 1.2);margin-bottom:6px}
+.wx-gate .wx-motto,.wx-category .wx-motto{font-family:var(--display);font-weight:400;font-synthesis:none;font-size:var(--ds-fs-16);letter-spacing:.12em;line-height:1.8;color:var(--text);opacity:.84}
+.wx-gate .wx-detail{font-family:var(--display);font-weight:400;font-size:var(--ds-fs-13);letter-spacing:.14em;line-height:1.8;color:var(--muted)}
+.wx-gate>.wx-type-rule,.wx-category>.wx-type-rule{display:block;flex:none;width:44px;height:1px;margin:6px auto;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.65}
+.wx-gate>.wx-entry-link:last-child,.wx-category>.wx-entry-link:last-child{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin:8px 0 0;font-family:var(--display);font-weight:400;font-size:var(--ds-fs-12);letter-spacing:.2em;line-height:1.8;color:var(--gold)}
+.wx-entry-link svg{width:25px;height:11px;fill:none;stroke:currentColor;stroke-width:.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s ease}
+.wx-gate:hover .wx-entry-link svg,.wx-category:hover .wx-entry-link svg{transform:translateX(3px)}
+.wx-gate,.wx-category{gap:8px}.wx-category-copy{display:flex;flex-direction:column;align-items:center}
+.wx-heading h2{font-weight:400;font-synthesis:none;letter-spacing:.24em}.wx-heading p{font-family:var(--display);letter-spacing:.1em}.wx-heading small{font-family:var(--display);font-weight:400;letter-spacing:.25em}
+@media(max-width:1100px) and (orientation:portrait){.wx-gate .wx-title{font-size:calc(var(--ds-fs-26) * 1.4)}.wx-category .wx-title{font-size:calc(var(--ds-fs-26) * 1.1)}.wx-gate .wx-motto,.wx-category .wx-motto{font-size:var(--ds-fs-14)}.wx-gate .wx-detail{font-size:var(--ds-fs-12);letter-spacing:.08em}.wx-gate>.wx-entry-link:last-child,.wx-category>.wx-entry-link:last-child{font-size:var(--ds-fs-11)}.wx-category{min-height:282px}}
+@media(prefers-reduced-motion:reduce){.wx-entry-link svg{transition:none;transform:none!important}}

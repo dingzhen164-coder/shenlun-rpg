@@ -79,25 +79,28 @@
     return `<svg viewBox="0 0 100 100" class="ln-svg"><circle cx="50" cy="50" r="46" class="ln-ring"/><circle cx="50" cy="50" r="38" class="ln-ring2"/>
       ${rays}<circle cx="50" cy="50" r="7" class="ln-core"/></svg>`;
   }
-  async function hubHtml(boards, manage = false) {
+  // 可选筛选只影响研习入口，不搬动导图；每个入口保留本次可打开的文件名单。
+  async function hubHtml(boards, manage = false, mapFilter = null) {
     try { LIST = await api("/api/mindmap"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
     let shown=boards?boards.map(board=>LIST.boards.find(b=>b.board===board)||{board,maps:[]}).filter(b=>!['言语理解','成语实词','判断推理'].includes(b.board)||b.maps.length):LIST.boards;
+    if (mapFilter) shown=shown.map(b=>({...b,maps:b.maps.filter(m=>mapFilter(b.board,m.name))}));
     if (!manage) shown=shown.filter(b=>b.maps.length);
     if (!manage && !shown.length) return "";
     return `<div class="card ln-hall" data-ln-manage="${manage}"><div class="row"><h3 style="margin:0">🌿 灵脉图</h3>
         <span class="small muted">${manage ? "绘制、导入与整理知识导图；Markdown可在本地文档中编辑" : "只读复习 · 导图 / 分级文档 / 双栏对照"}</span></div>
       <div class="ln-grid">${shown.map((b, i) => {
         const n = b.maps.reduce((a, m) => a + m.nodes, 0);
-        return `<div class="ln-slot" data-ln="${esc(b.board)}"><div class="ln-disk ${b.maps.length ? "lit" : ""}" style="--h:${HUES[i % HUES.length]};--d:${(i % 6) * 0.7}s">${disk(i)}</div>
+        return `<div class="ln-slot" data-ln="${esc(b.board)}"${mapFilter ? ` data-ln-maps="${esc(JSON.stringify(b.maps.map(m=>m.name)))}"` : ''}><div class="ln-disk ${b.maps.length ? "lit" : ""}" style="--h:${HUES[i % HUES.length]};--d:${(i % 6) * 0.7}s">${disk(i)}</div>
           <div class="ln-name">${esc(b.board)}</div><div class="ln-cap">${b.maps.length ? `${b.maps.length} 幅 · ${n} 节` : "未绘"}</div></div>`;
       }).join("")}</div></div>`;
   }
   function bindHub(root = document) {
-    root.querySelectorAll("[data-ln]").forEach((el) => (el.onclick = () => openBoard(el.dataset.ln, el.closest("[data-ln-manage]")?.dataset.lnManage === "true")));
+    root.querySelectorAll("[data-ln]").forEach((el) => (el.onclick = () => openBoard(el.dataset.ln, el.closest("[data-ln-manage]")?.dataset.lnManage === "true", el.dataset.lnMaps ? JSON.parse(el.dataset.lnMaps) : null)));
   }
-  async function openBoard(board, manage = false) {
+  async function openBoard(board, manage = false, names = null) {
     const b = (LIST?.boards || []).find((x) => x.board === board);
-    const maps = b ? b.maps : [];
+    const maps = b ? b.maps.filter(m=>!names||names.includes(m.name)) : [];
+    if (!manage && !maps.length) return;
     if (maps.length > 1) return pickMap(board, maps, manage);
     open(board, maps[0]?.name || board, manage);
   }
