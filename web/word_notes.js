@@ -30,7 +30,12 @@
       pop.querySelector('header button').onclick=()=>{pop.hidden=true;};
       place(pop,anchor.rect);
     }
-    const showNote=(anchor,note)=>show(anchor,Object.entries(labels).map(([k,label])=>`<section><h4>${label}</h4><p>${esc(note.explanation[k])}</p></section>`).join(''));
+    function showNote(anchor,note){
+      const x=note.explanation,short=t=>esc(note.version===2?(t||''):(String(t||'').length>130?String(t).slice(0,128)+'…':t||''));
+      show(anchor,`<section class="wn-core"><h4>先弄懂概念</h4><p>${short(x.meaning)}</p><h4>放回这句话</h4><p>${short(x.role)}</p><p class="wn-memory">${short(x.plain)}</p></section><details class="wn-detail"><summary>举个例子</summary><section><p>${esc(x.example||'这是旧版批注，可使用下方按钮更新为带通俗例子的解释。')}</p></section></details><details class="wn-detail"><summary>为什么这样说 · 易混辨析</summary><section><h4>背景与原因</h4><p>${esc(x.background||x.role)}</p><h4>相近表述有什么不同</h4><p>${esc(x.compare)}</p><h4>原文依据</h4><p>${esc(x.evidence)}</p></section>${note.version===2?'':`<section><h4>原批注全文</h4>${Object.entries(labels).map(([k,label])=>`<p><b>${label}</b>：${esc(x[k])}</p>`).join('')}</section>`}</details>${note.version===2?'':'<button type="button" class="wn-upgrade">更新为通俗解释（调用一次 API）</button>'}`);
+      const upgrade=pop.querySelector('.wn-upgrade');if(upgrade)upgrade.onclick=()=>explain(anchor,true);
+      pop.querySelectorAll('details').forEach(el=>el.addEventListener('toggle',()=>{if(!pop.hidden)place(pop,anchor.rect);},{once:false}));
+    }
     function textRange(block,start,end){
       const walk=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let node,offset=0,a=null,b=null;
       while((node=walk.nextNode())){const len=node.textContent.length;if(a===null&&start<=offset+len)a=[node,start-offset];if(end<=offset+len){b=[node,end-offset];break;}offset+=len;}
@@ -59,7 +64,7 @@
       const paragraph=block.textContent;
       return {paragraph,start:Array.from(paragraph.slice(0,start)).length,end:Array.from(paragraph.slice(0,end)).length,word:paragraph.slice(start,end),rect};
     }
-    async function explain(anchor){
+    async function explain(anchor,refresh=false){
       toolbar.hidden=true;
       await notesReady;
       if(!alive||!root.isConnected)return;
@@ -68,18 +73,18 @@
         pop.querySelector('.wn-retry').onclick=()=>{notesReady=loadNotes();explain(anchor);};return;
       }
       const cached=Object.values(notes).find(n=>n.paragraph===anchor.paragraph&&n.start===anchor.start&&n.end===anchor.end);
-      if(cached){showNote(anchor,cached);return;}
+      if(cached&&!refresh){showNote(anchor,cached);return;}
       if(loading)return;
       loading=anchor;show(anchor,'<p class="wn-hint" role="status">正在生成解释，成功后自动保存…</p>');
       try{
         const {rect,...payload}=anchor;
-        const result=await api('/api/politics/explain',{...source,...payload});
+        const result=await api('/api/politics/explain',{...source,...payload,refresh});
         if(!alive||!root.isConnected)return;
         notes[result.note.key]=result.note;paint();showNote(anchor,result.note);
         window.getSelection()?.removeAllRanges();
       }catch(e){
         show(anchor,`<p class="wn-hint">${esc(e.message||e)}</p><button type="button" class="wn-retry">重试</button>`);
-        const retry=pop.querySelector('.wn-retry');if(retry)retry.onclick=()=>explain(anchor);
+        const retry=pop.querySelector('.wn-retry');if(retry)retry.onclick=()=>explain(anchor,refresh);
       }finally{loading=null;}
     }
     toolbar.addEventListener('pointerdown',e=>e.preventDefault(),opts);

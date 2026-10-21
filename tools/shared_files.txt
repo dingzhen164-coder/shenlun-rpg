@@ -615,3 +615,6 @@ shared tests/test_builtin_art.py
 shared tests/ui_art338.cjs
 diverged web/assets/beauty/builtin-art.json
 diverged tests/test_ai_thinking.py
+
+# 3.6.1 专题导航元数据；资料与考试地图只在公考仓库。
+shared rpg/political_outline.py

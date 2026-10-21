@@ -11,7 +11,7 @@
     {id:'shu',name:'演数峰',subject:'数量关系',hint:'推演变化 · 寻找解法',boards:['数量关系']},
     {id:'zi',name:'观星峰',subject:'资料分析',hint:'观测数据 · 看清趋势',boards:['资料分析']}
   ];
-  let selected='',subject='',images={},branch='',category='';
+  let selected='',subject='',images={},branch='',category='',exam='2026-10-guokao';
   const common=[
     {id:'geo',name:'地理',hint:'山川形胜 · 经纬天地',icon:'◎',aliases:['地理','地理常识','地理知识','自然地理','人文地理','中国地理','世界地理']},
     {id:'history',name:'文史',hint:'读史明理 · 文脉千年',icon:'▤',aliases:['文史','文史常识','文史知识','历史','历史常识','人文','人文常识','文化','文化常识']},
@@ -85,10 +85,10 @@
   function wxHead(title,subtitle,back){return `<header class="wx-heading">${backButton(back)}<div><small>万象峰 · 研习之境</small><h2>${title}</h2><p>${subtitle}</p></div></header>`;}
   async function changHtml(){
     if(!branch)return `<section class="wx-home">${wxHead('万象峰','观天下之势，识万物之理','主地图')}<div class="wx-gates"><button class="wx-gate wx-politics" data-wx-branch="politics"><span class="wx-art">${icon('politics')}</span><h3 class="wx-title">政治理论</h3><small class="wx-motto">明大势 · 理脉络</small><span class="wx-type-rule" aria-hidden="true"></span><p class="wx-detail">理论脉络 / 时政研读</p><span class="wx-entry-link">启卷研习 <svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6h25m-5-5 5 5-5 5"/></svg></span></button><button class="wx-gate wx-common" data-wx-branch="common"><span class="wx-art">${icon('common')}</span><h3 class="wx-title">常识判断</h3><small class="wx-motto">知万物 · 通古今</small><span class="wx-type-rule" aria-hidden="true"></span><p class="wx-detail">地理 / 文史 / 经济 / 科技</p><span class="wx-entry-link">启卷研习 <svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6h25m-5-5 5 5-5 5"/></svg></span></button></div></section>`;
-    if(branch==='atlas')return `<section class="wx-atlas-shell"><iframe class="wx-atlas-frame" title="时政知识地图" src="political_atlas.html"></iframe></section>`;
+    if(branch==='atlas')return `<section class="wx-atlas-shell"><iframe class="wx-atlas-frame" title="考试时政地图" src="political_atlas.html?exam=${encodeURIComponent(exam)}"></iframe></section>`;
     if(branch==='politics'){
-      const [cards,maps]=await Promise.all([CARDS.hubHtml({id:'chang-politics',label:'政治理论',deck:'政治理论'}),MINDMAP.hubHtml(['政治理论'])]);
-      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<button class="wx-atlas-entry" data-wx-branch="atlas"><span aria-hidden="true">▤</span><div><b>时政知识地图</b><small>沿知识主线研读原文，辨析重点，练习巩固</small></div><span>进入地图 →</span></button>${cards}${maps}`;
+      const [cards,catalog]=await Promise.all([CARDS.hubHtml({id:'chang-politics',label:'政治理论',deck:'政治理论'}),api('/api/politics/catalog')]);
+      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<div class="wx-exam-list">${catalog.exams.map(e=>`<button class="wx-atlas-entry" data-wx-branch="atlas" data-wx-exam="${e.id}"><div><b>${esc(e.title)}</b><small>时政范围：${esc(e.range)}</small><span class="wx-source-counts">${Object.entries(e.counts.kinds).map(([k,v])=>`${k} ${v}`).join(' · ')}<br>共 ${e.counts.total} 项</span></div><span>进入地图 →</span></button>`).join('')}</div>${POLITICS_IMPORT.html(catalog.exams,exam)}${cards}`;
     }
     if(category){
       const item=common.find(c=>c.id===category),label=item?.name||'其他玉简';
@@ -103,7 +103,8 @@
     await renderTrain();window.STUDY_HUD?.refresh();
   }
   function bind(root){
-    root.querySelectorAll('[data-wx-branch]').forEach(b=>b.onclick=async()=>{branch=b.dataset.wxBranch;category='';await renderTrain();window.STUDY_HUD?.refresh();});
+    window.POLITICS_IMPORT?.bind(root,()=>renderTrain());
+    root.querySelectorAll('[data-wx-branch]').forEach(b=>b.onclick=async()=>{branch=b.dataset.wxBranch;if(b.dataset.wxExam)exam=b.dataset.wxExam;category='';await renderTrain();window.STUDY_HUD?.refresh();});
     root.querySelectorAll('[data-wx-category]').forEach(b=>b.onclick=async()=>{category=b.dataset.wxCategory;await renderTrain();window.STUDY_HUD?.refresh();});
     const wb=root.querySelector('[data-wx-back]');if(wb)wb.onclick=back;
     root.querySelectorAll('[data-region-image]').forEach(img=>img.addEventListener('error',()=>{

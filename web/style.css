@@ -2125,3 +2125,19 @@ html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
 .sl-claimed-title b { overflow-wrap:anywhere; line-height:1.7; }
 .sl-claimed-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .sl-claims-empty { padding:0 15px 10px; }
+
+/* 3.6.1 考试地图与专题原文分组 */
+.wx-exam-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}
+.wx-exam-list .wx-atlas-entry{height:100%;margin:0;align-items:flex-start;flex-direction:column;gap:16px;text-align:left}
+.wx-exam-list .wx-atlas-entry b{font-size:var(--ds-fs-18)}
+.wx-source-counts{display:block;margin-top:14px;color:var(--muted);font-size:var(--ds-fs-13);line-height:1.8}
+.wx-import{margin:20px 0;padding:18px;border:1px solid var(--line);border-radius:var(--ds-r-12);background:var(--panel)}
+.wx-import summary{cursor:pointer;color:var(--accent);font-weight:600}
+.wx-import form{display:flex;flex-wrap:wrap;align-items:end;gap:14px;margin:16px 0}
+.wx-import label{display:grid;gap:7px;font-size:var(--ds-fs-13)}
+.wx-pdf-file{flex:1;min-width:210px}
+.wx-pdf-file input{max-width:100%}
+.tj-chapter-count{display:block;margin-top:4px;color:var(--muted);font-size:var(--ds-fs-11)}
+.tj-chapter-parts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
+.tj-chapter-parts .on{background:var(--accent);color:var(--panel)}
+@media(max-width:1100px){.wx-exam-list{grid-template-columns:1fr}.wx-exam-list .wx-atlas-entry{flex-direction:row;align-items:center}.wx-source-counts{margin-top:7px}}

@@ -1526,7 +1526,7 @@ def cards_answer(body):
         scope = cards.scope_names(body.get("scope"))
         if scope is not None:
             current = cards.card_view(g, body.get("key"))
-            if not cards.in_scope(current["deck"], scope) or not cards._in(current["deck"], body.get("deck") or ""):
+            if not cards.note_in_scope(current, scope) or not cards._in(current["deck"], body.get("deck") or ""):
                 raise cards.CardError("这张玉简不属于当前分区")
         ev = tutor.enrich(g, cards.answer(g, body.get("key"), int(body.get("rating") or 0), body.get("secs") or 0))
         r = cards.next_card(g, body.get("deck") or "", body.get("scope"))

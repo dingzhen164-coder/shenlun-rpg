@@ -17,7 +17,9 @@
     let scopeInfo=null;
     try { OV = await api("/api/cards"); } catch (e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
     if (region) {
-      const scope=OV.decks.filter(d=>STUDY_REGIONS.belongs(d.name,region.id)).map(d=>d.name);
+      const common=/^chang-(geo|history|economy|science|other)$/.exec(region.id);
+      const decks=OV.decks.filter(d=>common?STUDY_REGIONS.belongs(d.name,'chang')&&!STUDY_REGIONS.belongs(d.name,'chang-politics'):STUDY_REGIONS.belongs(d.name,region.id)).map(d=>d.name);
+      const scope=common?{decks,category:common[1]}:decks;
       try { OV=await api("/api/cards",{scope}); } catch(e) { return `<div class="card"><p class="muted">${esc(e.message)}</p></div>`; }
       scopeInfo={scope,label:region.label,deck:region.deck};
     }
@@ -204,7 +206,7 @@
   // ---------------------------------------------------------------- 温简
   async function review(deck, selection) {
     MODE = "review";
-    R = { deck, ask: [], scope: selection?.scope, label: deck || selection?.label, addDeck: deck || selection?.deck };
+    R = { deck, ask: [], scope: selection?.scope, label: selection?.scope?.category ? [selection.label,deck].filter(Boolean).join(' · ') : deck || selection?.label, addDeck: deck || selection?.deck };
     stage().innerHTML = head(`🌙 ${esc(T("yj_review"))} · ${esc(R.label || "全部" + T("yj_deck"))}`) + `<div class="yj-wait">取简中…</div>`;
     bindBack();
     try { show(await api("/api/cards/next", { deck, scope: R.scope })); } catch (e) { showError(e); closeStage(); }

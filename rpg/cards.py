@@ -296,17 +296,60 @@ def _in(deck, parent):
     return not parent or deck == parent or deck.startswith(parent + "::")
 
 
+COMMON_CATEGORIES = {
+    'geo': ('地理', '地理常识', '地理知识', '自然地理', '人文地理', '中国地理', '世界地理'),
+    'history': ('文史', '文史常识', '文史知识', '历史', '历史常识', '人文', '人文常识', '文化', '文化常识'),
+    'economy': ('经济', '经济常识', '经济知识'),
+    'science': ('科技', '科技常识', '科技知识', '科学', '科学常识'),
+}
+
+
+class CardScope(set):
+    """精确简匣白名单，可附常识单卡类别；不改卡片原简匣或排期。"""
+    def __init__(self, decks, category=None):
+        super().__init__(decks)
+        self.category = category
+
+
 def scope_names(scope):
-    """可选的精确简匣集合：None 保持旧行为，空列表表示本分区没有卡；不含子匣通配。"""
-    if scope is None:
-        return None
+    if scope is None or isinstance(scope, CardScope):
+        return scope
+    category = None
+    if isinstance(scope, dict):
+        category = scope.get('category')
+        if category not in tuple(COMMON_CATEGORIES) + ('other',):
+            raise CardError('常识分类无效')
+        scope = scope.get('decks')
     if not isinstance(scope, (list, tuple, set)) or any(not isinstance(n, str) for n in scope):
-        raise CardError("分区简匣格式不正确")
-    return set(scope)
+        raise CardError('分区简匣格式不正确')
+    return CardScope(scope, category)
 
 
 def in_scope(deck, scope):
     return scope is None or deck in scope
+
+
+def common_category(note):
+    # 先看真实卡片标题标记，兼容全部卡片同放“常识判断”；政治等深层板块不误归类。
+    parts = [x.strip() for x in note['deck'].split('::')]
+    boards = set(default_decks()) | {'政治理论', '常识判断', '言语理解', '判断推理', '成语实词'}
+    owner = next((x for x in reversed(parts) if x in boards), None)
+    if owner != '常识判断':
+        return None
+    text = re.sub(r'<[^>]*>', '', note.get('front', '')).lstrip(' \n#*_')
+    mark = re.match(r'^[【\[]([^】\]]+)[】\]]', text)
+    if mark:
+        found = next((k for k, names in COMMON_CATEGORIES.items() if mark.group(1).strip() in names), None)
+        if found:
+            return found
+    return next((k for part in reversed(parts) for k, names in COMMON_CATEGORIES.items() if part in names), 'other')
+
+
+def note_in_scope(note, scope):
+    if not in_scope(note['deck'], scope):
+        return False
+    category = getattr(scope, 'category', None)
+    return category is None or common_category(note) == category
 
 
 def _ancestors(deck):
@@ -357,7 +400,7 @@ def queue(g, deck, now=None, scope=None):
     seen = _siblings_today(c, today)
     new_left, rev_left = {}, {}
     for key, n, o in all_cards(notes):
-        if not _in(n["deck"], deck) or not in_scope(n["deck"], scope):
+        if not _in(n["deck"], deck) or not note_in_scope(n, scope):
             continue
         s = _sched(c, key)
         if s.get("susp"):
@@ -545,6 +588,11 @@ def undo(g, deck="", scope=None):
         raise CardError("没有可以撤销的")
     if scope is not None and (not in_scope(c["undo"][-1]["deck"], scope) or not _in(c["undo"][-1]["deck"], deck)):
         raise CardError("上一张玉简不属于当前分区，未撤销")
+    if getattr(scope, 'category', None):
+        notes, _ = load(g.paths)
+        note, _ = _find(notes, c['undo'][-1]['key'])
+        if not note_in_scope(note, scope):
+            raise CardError('上一张玉简不属于当前分类，未撤销')
     u = c["undo"].pop()
     if u["old"] is None:
         c["sched"].pop(u["key"], None)
@@ -593,10 +641,12 @@ def tree(g, scope=None):
     c = data(g)
     notes, _ = load(g.paths)
     names = [n for n in deck_names(c, notes) if in_scope(n, scope)]
+    if getattr(scope, 'category', None):
+        names = [name for name in names if any(note_in_scope(n, scope) and _in(n['deck'], name) for n in notes)]
     out = []
     for nm in names:
         order, counts, _ = queue(g, nm, scope=scope)
-        total = sum(1 for _, n, _ in all_cards(notes) if _in(n["deck"], nm) and in_scope(n["deck"], scope))
+        total = sum(1 for _, n, _ in all_cards(notes) if _in(n["deck"], nm) and note_in_scope(n, scope))
         out.append({"name": nm, "label": nm.split("::")[-1], "depth": nm.count("::"), **counts, "total": total})
     return out
 
@@ -613,7 +663,7 @@ def overview(g, scope=None):
         c["idiom_sync"] = True
     notes, _ = load(g.paths)
     return {"decks": tree(g, scope), "today": {"n": c["today"]["n"], "secs": c["today"]["secs"]}, "defaults": opts(c, ""),
-            "cards": sum(1 for _, n, _ in all_cards(notes) if in_scope(n["deck"], scope)), "notes": len(notes), "can_undo": bool(c["undo"])}
+            "cards": sum(1 for _, n, _ in all_cards(notes) if note_in_scope(n, scope)), "notes": len(notes), "can_undo": bool(c["undo"])}
 
 
 def card_view(g, key):
