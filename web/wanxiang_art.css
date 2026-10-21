@@ -27,3 +27,18 @@
 .wx-motion-paused .wx-sigil *{animation-play-state:paused!important}
 @media(max-width:1100px) and (orientation:portrait){.wx-category{gap:6px;padding:10px 12px;min-height:266px}.wx-category-icon{--wx-icon-size:152px}.wx-category small{font-size:var(--ds-fs-11)}.wx-category h3{font-size:var(--ds-fs-22)}.wx-art{--wx-icon-size:176px;height:176px}.wx-gate{min-height:430px;gap:12px;padding:24px 12px 28px}}
 @media(prefers-reduced-motion:reduce){.wx-sigil *{animation:none!important}.wx-page,.wx-dust{opacity:0}}
+
+/* 器物题签：沿用离线小薇书法字体的原生字重，避免伪粗体挤压笔画。 */
+.wx-gate .wx-title,.wx-category .wx-title{font-family:var(--display);font-weight:400;font-synthesis:none;letter-spacing:.24em;padding-left:.24em;line-height:1.45;margin:0;color:var(--text);text-shadow:0 1px 8px var(--panel)}
+.wx-gate .wx-title{font-size:calc(var(--ds-fs-26) * 1.65);margin-top:6px}
+.wx-category .wx-title{font-size:calc(var(--ds-fs-26) * 1.2);margin-bottom:6px}
+.wx-gate .wx-motto,.wx-category .wx-motto{font-family:var(--display);font-weight:400;font-synthesis:none;font-size:var(--ds-fs-16);letter-spacing:.12em;line-height:1.8;color:var(--text);opacity:.84}
+.wx-gate .wx-detail{font-family:var(--display);font-weight:400;font-size:var(--ds-fs-13);letter-spacing:.14em;line-height:1.8;color:var(--muted)}
+.wx-gate>.wx-type-rule,.wx-category>.wx-type-rule{display:block;flex:none;width:44px;height:1px;margin:6px auto;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.65}
+.wx-gate>.wx-entry-link:last-child,.wx-category>.wx-entry-link:last-child{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin:8px 0 0;font-family:var(--display);font-weight:400;font-size:var(--ds-fs-12);letter-spacing:.2em;line-height:1.8;color:var(--gold)}
+.wx-entry-link svg{width:25px;height:11px;fill:none;stroke:currentColor;stroke-width:.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s ease}
+.wx-gate:hover .wx-entry-link svg,.wx-category:hover .wx-entry-link svg{transform:translateX(3px)}
+.wx-gate,.wx-category{gap:8px}.wx-category-copy{display:flex;flex-direction:column;align-items:center}
+.wx-heading h2{font-weight:400;font-synthesis:none;letter-spacing:.24em}.wx-heading p{font-family:var(--display);letter-spacing:.1em}.wx-heading small{font-family:var(--display);font-weight:400;letter-spacing:.25em}
+@media(max-width:1100px) and (orientation:portrait){.wx-gate .wx-title{font-size:calc(var(--ds-fs-26) * 1.4)}.wx-category .wx-title{font-size:calc(var(--ds-fs-26) * 1.1)}.wx-gate .wx-motto,.wx-category .wx-motto{font-size:var(--ds-fs-14)}.wx-gate .wx-detail{font-size:var(--ds-fs-12);letter-spacing:.08em}.wx-gate>.wx-entry-link:last-child,.wx-category>.wx-entry-link:last-child{font-size:var(--ds-fs-11)}.wx-category{min-height:282px}}
+@media(prefers-reduced-motion:reduce){.wx-entry-link svg{transition:none;transform:none!important}}
