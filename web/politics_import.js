@@ -15,7 +15,7 @@
     const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('无法读取文件'));reader.readAsDataURL(file);});
     const result=await api('/api/politics/import',{exam:form.elements.exam.value,kind:form.elements.kind.value,name:file.name,data});
     message=result.duplicate?'这份PDF已导入，未重复添加。':`已加入 ${result.added} 份材料、${result.questions} 道题。${result.unanswered?`${result.unanswered} 道题未找到参考答案，暂不判分。`:''}${result.whole_document_questions?`${result.whole_document_questions} 道题保留为整份讲义配套练习。`:''}`;
-    await onDone();const panel=root.querySelector('.wx-import');if(panel)panel.open=true;
+    await onDone(form.elements.exam.value);const panel=root.querySelector('.wx-import');if(panel)panel.open=true;
    }catch(error){output.textContent='导入未完成：'+error.message;}finally{button.disabled=false;}
   };
  }

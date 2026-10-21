@@ -103,7 +103,7 @@
     await renderTrain();window.STUDY_HUD?.refresh();
   }
   function bind(root){
-    window.POLITICS_IMPORT?.bind(root,()=>renderTrain());
+    window.POLITICS_IMPORT?.bind(root,target=>{exam=target;return renderTrain();});
     root.querySelectorAll('[data-wx-branch]').forEach(b=>b.onclick=async()=>{branch=b.dataset.wxBranch;if(b.dataset.wxExam)exam=b.dataset.wxExam;category='';await renderTrain();window.STUDY_HUD?.refresh();});
     root.querySelectorAll('[data-wx-category]').forEach(b=>b.onclick=async()=>{category=b.dataset.wxCategory;await renderTrain();window.STUDY_HUD?.refresh();});
     const wb=root.querySelector('[data-wx-back]');if(wb)wb.onclick=back;
