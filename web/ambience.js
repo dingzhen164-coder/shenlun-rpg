@@ -69,7 +69,7 @@ const AMB = (() => {
       if (!list.length || !on) return;
       if (audio) { audio.onended = null; audio.pause(); }
       const current = audio = new Audio(`/vault-file?p=${encodeURIComponent(list[idx % list.length])}`);
-      current.volume = vol;
+      window.AudioBus.volume(current, vol);
       current.onended = () => { idx = nextIdx(); if (on) playFile(); };
       current.onerror = () => { if (audio === current) { on = false; current.pause(); btn(); status('这首音乐无法播放，请检查文件格式或换一首。'); } };
       current.play().catch(() => { if (audio === current) { on = false; btn(); status('音乐未能开始，请再点一次播放。'); } });
@@ -109,7 +109,7 @@ const AMB = (() => {
       resume() { if (on && audio?.paused) audio.play().catch(() => {}); },
       toggle() { if (window.BeautyAudio) { const st = BeautyAudio.settings; BeautyAudio.set({ src: 'mine', bgm: !(st.src === 'mine' && st.bgm) }); } else on ? stop() : start(); },
       restart() { if (on) { stop(); start(); } },
-      setVolume(v) { vol = v ?? vol; if (audio) audio.volume = vol; },
+      setVolume(v) { vol = v ?? vol; if (audio) window.AudioBus.volume(audio, vol); },
       get on() { return on; },
     };
   })();
@@ -118,20 +118,8 @@ const AMB = (() => {
   function settingsHtml() {
     if (!DATA?.current) return `<div class="card"><h3>🌄 外观与音乐</h3><p class="small muted">先在下面设置好行测库路径。</p></div>`;
     const c = DATA.current, esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-    const tile = (key, label) => `<button class="bg-tile ${c.bg === key ? "sel" : ""}" data-bg="${esc2(key)}" title="${esc2(label)}">
-      <span class="bg-thumb" style='background-image:${bgCss(key) || "none"}'></span><span class="bg-name">${esc2(label)}</span></button>`;
-    const files = DATA.backgrounds.map((p) => tile("file:" + p, p.split("/").pop())).join("");
     const qOpt = (v, t) => `<option value="${v}" ${c.quote === v ? "selected" : ""}>${t}</option>`;
-    const tm = themeMode(), tOpt = (v, t) => `<option value="${v}" ${tm === v ? "selected" : ""}>${t}</option>`;
-    return `<div class="card"><h3>🌄 外观与音乐 <small>选择会同步到另一台电脑（明暗除外）</small></h3>
-      <div class="row" style="align-items:center;gap:10px;margin-bottom:8px"><label>明暗 <select id="ambTheme" style="width:auto">
-        ${tOpt("light", "浅色 · 宣纸（默认）")}${tOpt("dark", "深色 · 墨夜")}${tOpt("auto", "跟随系统")}</select></label>
-        <span class="small muted">只影响这台设备（电脑、平板各选各的）</span></div>
-      <label class="small muted">背景（点一下立即换）</label>
-      <div class="bg-grid">${tile("none", "不用背景")}${files}</div>
-      <p class="small muted">背景用自己的图片：放进库里的 <b>${esc2(DATA.folders.bg)}</b>（jpg / png / webp），刷新本页就会出现在上面。</p><p class="small muted">分区图片：放入 <b>训练/外观/五脉/</b>，以分区名称命名，例如万象峰.png；申论按题型名，法考按科目名命名。返回分区选择页即可刷新。</p>
-      <div class="row"><label style="flex:1">背景遮罩（越大越暗、字越清楚）<input type="range" id="ambDim" min="0" max="0.85" step="0.05" value="${c.dim}"></label></div>
-      <hr class="soft">
+    return `<div class="card"><h3>语录与声音</h3>
       <div class="row"><label style="flex:1">语录 <select id="ambQuote">${qOpt("daily", "每日一句")}${qOpt("random", "每次打开随机")}${qOpt("fixed", "固定一句")}${qOpt("off", "不显示")}</select></label>
         <label style="flex:2">固定显示哪一句 <select id="ambFixed">${DATA.quotes.map((q) => `<option ${q === c.fixed ? "selected" : ""}>${esc2(q)}</option>`).join("")}</select></label></div>
       <div class="row" style="align-items:center;gap:12px;margin-top:6px"><label style="flex:1">语录大小 <b id="ambQSizeV">${Math.round((c.quote_size ?? 1) * 100)}%</b>
@@ -139,11 +127,7 @@ const AMB = (() => {
       <p class="small muted">语录在库里的 <b>${esc2(DATA.folders.quotes)}</b>，一行一句（“- ”开头），自己加、改、删，刷新生效。现在共 ${DATA.quotes.length} 句。</p>
       <hr class="soft">
       ${musicHtml(c, esc2)}
-      <hr class="soft">
-      <label class="small muted">美术文件夹（换首页全景、每个子地图的背景、人物立绘、内置音乐音效，不用改源代码）</label>
-      <p class="small" style="margin:4px 0">位置：库里的 <b>训练/外观/美术/</b>（<span id="artState">…</span>）。里面按中文名分文件夹：<b>首页全景</b>（白天、夜晚）、<b>子地图背景</b>（地点名、地点名-白天、地点名-夜晚）、<b>人物立绘</b>、<b>音乐</b>、<b>音效</b>。放进去、刷新网页就生效；删掉文件就恢复程序自带的。</p>
-      <div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><button id="artExport" class="small">导出程序自带美术（当模板）</button><span id="artMsg" class="small muted"></span></div>
-      <p class="small muted">导出会把程序自带的全景、立绘、音乐、音效按上面的名字复制进美术文件夹（已有的不覆盖）；文件夹里的“说明.txt”写了每个文件的用途和建议尺寸。</p></div>`;
+      </div>`;
   }
 
   // 背景音乐与声音（3.2.x：内置场景音乐、我的音乐、音效合在一起）
@@ -160,23 +144,12 @@ const AMB = (() => {
         <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : ""}</div>
       <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效与环境声（点击、答题、翻页、鸟虫流水等）</label>
         <label style="flex:1;min-width:160px">音效音量 <input type="range" id="baSfxVol" min="0" max="1" step="0.05" value="${st.vs}"></label></div>
-      <p id="ambMusicStatus" class="small muted" role="status"></p><p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，想换成自己的，同名覆盖即可（见该文件夹说明）。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
+      <p id="ambMusicStatus" class="small muted" role="status"></p><p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
   }
 
   function bindSettings(onErr) {
     const guard = (p) => p.catch((e) => onErr ? onErr(e) : alert(e.message));
-    document.querySelectorAll("[data-bg]").forEach((b) => (b.onclick = () => guard(save({ bg: b.dataset.bg }).then(() => {
-      document.querySelectorAll("[data-bg]").forEach((x) => x.classList.toggle("sel", x === b));
-    }))));
-    const th = document.getElementById("ambTheme");
-    if (th) th.onchange = () => { setTheme(th.value); apply(); if (typeof render === "function") render(); };
-    fetch("/api/art").then((r) => r.json()).then((d) => { const el = document.getElementById("artState"); if (el) el.textContent = d.path ? `${d.path}，已有 ${d.count} 个覆盖文件${d.characters && d.characters.length ? "；人物立绘：" + d.characters.join("、") : ""}${d.pillow === false ? "；⚠ 没装 Pillow，纯色底立绘无法自动去底（pip install pillow）" : ""}` : (d.exists ? `已有 ${d.count} 个覆盖文件` : "还没创建，点下面导出会自动创建"); }).catch(() => {});
-    const ex = document.getElementById("artExport");
-    if (ex) ex.onclick = () => { ex.disabled = true; fetch("/api/art/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((d) => { const m = document.getElementById("artMsg"); if (d.error) throw new Error(d.error); if (m) m.textContent = `已复制 ${d.copied} 个，已有 ${d.skipped} 个未覆盖。到 ${d.folder} 里看看。`; }).catch((e) => { const m = document.getElementById("artMsg"); if (m) m.textContent = "导出失败：" + e.message; }).finally(() => { ex.disabled = false; }); };
-    const dim = document.getElementById("ambDim");
-    if (!dim) return;
-    dim.oninput = () => document.getElementById("bgLayer").style.setProperty("--dim", dim.value);
-    dim.onchange = () => guard(save({ dim: Number(dim.value) }));
+    if (!document.getElementById("ambQuote")) return;
     document.getElementById("ambQuote").onchange = (e) => { QUOTE = ""; guard(save({ quote: e.target.value })); };
     const qs = document.getElementById("ambQSize");
     qs.oninput = () => { document.getElementById("quoteLayer").style.setProperty("--quote-scale", qs.value);

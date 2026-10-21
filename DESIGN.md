@@ -1,4 +1,17 @@
+## 3.6.3：平板固定布局、历史复盘与真实考试顺序（2026-10-21）
+
+- 用户明确授权本轮八条统一开发并发布。行测`mock_rewards.amount`在现有完整小境界`need`上计算：凡人/炼气沿原入门倍率，big=2筑基取1/配置分母6，big>=3取1/配置分母12；向上取整，缺规则用默认。申论、法考原倍率不变，触发条件/手动领取/同次幂等不变，已领账本不重算。MODEL stage-manual-v2日志写精确分数；考情与洞府同一奖励组件显示规则。
+- `mocks[季].date`仍是唯一考试日期，ISO校验先于写入，录入默认当天；summary按(date或空串,season)稳定排序，未知日期在前且不猜测。同日原季序稳定。latest/latest_rank/双图/历次成绩/考情上一场统一沿该顺序，不另建日期按钮或并列日期字段，不因改日期重发录分奖。
+- 题库`groups[i].review={questions,results,explain,chat,rpos}`保存已结组快照，finish记录group_index，复盘显示/关闭时归档；目录只返回group索引及成绩，绝不返回快照答案。记录按钮用原bank_review训练入口带group，建立独立历史槽，避免覆盖未完成练习；直接进入review阶段，前后翻题/折叠解析/已存解惑沿原逻辑，不再结算、重记正确率或发奖。旧组按编号+板块+同日同mode第几次作答还原，缺失/同号不明确则提示原成绩保留，不编造历史。
+- 固定内容框用CSS适配宽度：普通页最大960，平板全宽；高度用可用工作区，设置列表内部滚动。不再读取scene-panels-v1宽高或提供其控件，对话框宽高滑块及重复字体滑块撤掉，chatLayout字号和既有110%默认保持，工具栏加减继续读同一偏好。html固定且宽度100%，正文有界滚动，长表/导图仍由各自组件管理横向操作。
+- 首页位置从随美术版本变动的scene-layout:<layoutId>迁移为稳定键，保留desktop/narrow及names；本机优先，`state.scene_layouts[地图]`为后备默认。POST /api/scene-layout在原存档锁内校验有限坐标/地点/名称；seed仅首次且不覆盖，显式保存更新后备。没有浏览器旧值且从未备份的位置无法凭空还原；用户自定义坐标不进源码。平板横屏object-fit:contain保留完整两侧并用同图柔和延展填补比例差异；竖屏沿用cover满屏景物与独立地点排布，入口left限界避免边缘按钮裁切。
+- 外观设置移除明暗/背景/遮罩/美术路径与导出入口，删除POST /api/art/export；底层用户覆盖读取与文件保持兼容，音乐/音效和语录仍可设置。`audio_bus.js`用同源MediaElementSource+GainNode控制音乐、音效、环境声，手势/前台resume，弱引用复用节点；无WebAudio回退媒体volume，原淡变通过增益执行，拖滑块清旧ramp防回弹。音效本机存储及音乐存档音量沿用原格式。
+- 回归使用自编题/隔离HOME，覆盖新旧历史、删除题库后快照、未完成组、重开无奖励、日期改动重排及API校验、阶段分数、排布seed不覆盖。真实浏览器检查平板800×1280/1180×820/1024×1366明暗、内滚动、排布迁移与存档恢复、模拟iOS忽略media.volume后实际GainNode变化。模拟不等于iPad/安卓真机验收。
+
 ## 3.6.2：折叠复盘与独立解题（2026-10-21）
+
+正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.2 。源97d4e4ee57889565637388be4add75ff348b6395，同源三端构建39605192097、完整UI39605196566全部成功；PR #53以merge合入main（d1a88c59d77814dae76560e4fa26a4f12c046df6），正式包复用同提交资源。Release/latest/标签/三包及SHA256SUMS摘要已核对。本地503项单元完成（3项平台条件跳过），503条共享规则一致。
+
 - trainer题库顺序答题/交卷复盘与mock_review将作答摘要保留在外，解析blocks放fold消息；saved explain也用fold，不存展开状态。错题解惑新消息同样fold；前端msgHtml折叠区同时渲染text与blocks、图片及tutorMd表格，避免原fold忽略blocks。天机台、地图练习、题目浏览内已有解析也改native details默认关闭，重绘/重开关闭，展开不调用AI。原解析/旧生成内容不重写。
 - bank_explain/group_explain使用明确字段白名单，只发题干（含共用材料）、选项与正确答案；旧签名mine/digest/skill参数兼容但不序列化。trainer不检索心法资料，错题ask_explain使用独立提示词，排除reference/mine/history/previous。人设与排版规则保留，直接解题，不评价学员选项或对错。追问、授课、评分功能仍按各自原约定读取资料；心法界面的读取说明同步为方法学习与追问。已有保存逻辑和成语提取保留，不追加AI请求、不改成绩。
 - reading_tools.js/css由fixed_layout在整理页头后挂载到固定操作栏，增大/缩小按钮复用chatLayout.fs（80–160%，每次10），默认保持旧110%或本机原设置，与设置页字号同步；题干、选项、共用材料和解析沿原chat-fs缩放，不缩放视口、手写画布或图片。偏好仅存本机浏览器，无新训练数据格式。

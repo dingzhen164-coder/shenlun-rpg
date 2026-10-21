@@ -25,18 +25,17 @@ async function fits(page){
   await page.goto(base);await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');await page.evaluate(()=>go('settings'));await page.waitForSelector('.fx-settings-group');
   assert.equal(await page.locator('.fx-settings-group').count(),6);
   assert.equal(await page.locator('.fx-settings-group[open]').count(),0,'初次仅显示六组标题');
-  const box=await page.locator('.fx-settings').boundingBox();assert(Math.abs(box.x+box.width/2-viewport.width/2)<2);assert(Math.abs(box.width-viewport.width/2)<2,'默认半宽');assert(box.height<420,'收起后自动缩短');await fits(page);
+  const box=await page.locator('.fx-settings').boundingBox();assert(Math.abs(box.x+box.width/2-viewport.width/2)<2);assert(Math.abs(box.width-Math.min(960,viewport.width))<2,'固定阅读宽度');await fits(page);
+  assert.equal(await page.locator('#scenePanelWidth,#scenePanelHeight,#cwR,#chR,#cfR').count(),0,'移除重复尺寸与字号设置');
   if(process.argv.includes('--shots')&&label==='desktop'){fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'settings-'+(subject||'法考')+'.png')});}
   await reveal(page,'#sModel');await page.locator('#sModel').fill('未保存的自编模型');const count=await page.locator('#view input').count();
   const ai=page.locator('.fx-settings-group[data-fx-group="ai"]');await ai.locator(':scope>summary').click();await ai.locator(':scope>summary').click();
   assert.equal(await page.locator('#sModel').inputValue(),'未保存的自编模型');assert.equal(await page.locator('#view input').count(),count);
-  await reveal(page,'#scenePanelWidth');await range(page,'#scenePanelWidth',75);await range(page,'#scenePanelHeight',60);await fits(page);
-  assert.match(await page.locator('#scenePanelWidthValue').textContent(),/75%/);
-  assert(Math.abs((await page.locator('.fx-settings').boundingBox()).width-viewport.width*.75)<2);
+  await page.locator('.fx-settings-group').evaluateAll(es=>es.forEach(e=>e.open=true));
   const list=page.locator('.fx-settings-list');await list.evaluate(el=>{el.scrollTop=el.scrollHeight;});assert(await list.evaluate(el=>el.scrollTop>0),'长设置在框内滚动');
+  await page.evaluate(()=>localStorage.setItem('scene-panels-v1',JSON.stringify({width:40,height:40})));
   await page.reload();await page.evaluate(()=>go('settings'));await page.waitForSelector('.fx-settings');
-  assert(Math.abs((await page.locator('.fx-settings').boundingBox()).width-viewport.width*.75)<2,'重新载入保留本机尺寸');
-  await reveal(page,'#scenePanelReset');await page.locator('#scenePanelReset').click();
+  assert(Math.abs((await page.locator('.fx-settings').boundingBox()).width-box.width)<2,'旧尺寸偏好不再压窄窗口');
   await page.evaluate(async subject=>{const board=subject==='行测'?'片段阅读':subject==='申论'?(DASH.tree[0]?.board||'归纳概括'):'民法';await api('/api/cards/add',{deck:board,type:'问答',front:'自编条件是什么？',back:'先说明适用条件。'});await api('/api/mindmap/create',{board,name:'自编知识图'});},subject);
   await page.evaluate(()=>{STUDY_REGIONS.select('');return go('train');});await page.locator(subject==='行测'?'[data-study-region="yan"]':'[data-study-region]').first().click();await page.waitForSelector('.fx-region-work');
   for(const theme of ['light','dark']){
@@ -45,10 +44,10 @@ async function fits(page){
    assert(a&&b&&a.height>70&&b.height>70,'两栏同时可见');assert(a.y+a.height<=b.y+1,'玉简和导图上下排列');assert(Math.abs(a.x-b.x)<2,'两栏对齐');
   }
   if(process.argv.includes('--shots')&&label==='desktop'){await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.screenshot({path:path.join(out,'region-'+(subject||'法考')+'.png')});}
-  await page.evaluate(()=>go('settings'));await reveal(page,'#scenePanelWidth');await range(page,'#scenePanelWidth',40);await range(page,'#scenePanelHeight',40);await fits(page);
+  await page.evaluate(()=>go('settings'));await page.waitForSelector('.fx-settings');await fits(page);
   await page.locator('#view details').evaluateAll(nodes=>nodes.forEach(n=>n.open=true));
   assert(await page.locator('.fx-settings-list').evaluate(el=>el.scrollWidth<=el.clientWidth+2),'最窄尺寸展开设置不应横向溢出');
   await page.evaluate(()=>go('train'));await page.waitForSelector('.fx-region-work');await fits(page);
-  assert.deepEqual(errors,[]);await page.close();console.log((subject||'法考')+' '+label+'：六组设置、输入保留、尺寸保存/恢复、上下分区与固定滚动通过');
+  assert.deepEqual(errors,[]);await page.close();console.log((subject||'法考')+' '+label+'：六组设置、输入保留、固定尺寸/旧偏好兼容、上下分区与固定滚动通过');
  }
 }catch(e){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure-'+(subject||'法考')+'.png')}).catch(()=>{});}throw e;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exit(1);});

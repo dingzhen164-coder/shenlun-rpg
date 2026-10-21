@@ -10,6 +10,7 @@
 不改写用户题库；首次错误及复练都留记录，首次正确率与复练正确率分开。
 资料分析由来源文件+共用材料归组，先抽整组再连续出题，新题/知识点/套卷/复习均不拆组；旧运行快照保留。
 """
+import copy
 import random
 import re
 import uuid
@@ -388,9 +389,11 @@ def summary(g):
     # 只读续做目录，帮助新界面识别套卷/知识点已答完但尚未结束的复盘；不暴露答案。
     active_runs = [{'board': r['board'], 'mode': r['mode'], 'phase': r.get('phase', 'answer'),
                     'total': len(r.get('questions', [])), 'answered': len(r.get('results', []))}
-                   for r in data['runs'].values()]
+                   for r in data['runs'].values() if not r.get('slot')]
     return {'boards': result, 'count': count(g), 'order': order(g), 'active_runs': active_runs,
-            'groups': [dict(x, rank=rank(g, x['correct'], x['total']), label=label(x['board'])) for x in data['groups'][-20:][::-1]],
+            'groups': [dict({k: v for k, v in x.items() if k != 'review'}, group=i,
+                            rank=rank(g, x['correct'], x['total']), label=label(x['board']))
+                       for i, x in list(enumerate(data['groups']))[-20:][::-1]],
             'streak_need': max(1, int(g.rules.num('回炉连续判对'))),
             'bonus': g.rules.xp('实战通关'), 'tower': tower(g), 'sets': sets(g)}
 
@@ -515,6 +518,8 @@ def finish(g, run, keep=False):
              'first_count': sum(bool(r.get('first')) for r in run['results']),
              'rank': rank(g, sum(r['ok'] for r in run['results']), len(run['results']))}
     state(g)['groups'].append(group)
+    run['group_index'] = len(state(g)['groups']) - 1
+    archive(g, run)
     if keep:
         run['settled'] = group
     else:
@@ -561,8 +566,52 @@ def add_question(g, body):
     return {'id': ident, 'board': board, 'file': path.name, 'key': board + '::' + ident, 'pending': bool(q and q['pending'])}
 
 
+def archive(g, run):
+    """只存本组已答题的原题/作答/讲解；重开复盘不发题目或通关奖。"""
+    index = run.get('group_index')
+    groups = state(g)['groups']
+    if isinstance(index, int) and 0 <= index < len(groups):
+        groups[index]['review'] = copy.deepcopy({k: run[k] for k in
+            ('questions', 'results', 'explain', 'chat', 'rpos') if k in run})
+
+
+def reopen(g, index):
+    data = state(g)
+    if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(data['groups']):
+        raise BankError('这份练习记录不存在')
+    group = data['groups'][index]
+    saved = copy.deepcopy(group.get('review'))
+    if not saved:
+        # 旧组只有编号：从原题快照及同日作答历史恢复，重名题不猜板块。
+        questions, results = [], []
+        for ident in group.get('ids', []):
+            matches = [r for r in data['records'].values() if r['question']['id'] == ident
+                       and r['question']['board'] in group.get('boards', [group['board']])]
+            if len(matches) != 1:
+                raise BankError('旧记录缺少完整题目快照，暂时无法还原本组；原成绩仍保留')
+            rec = matches[0]
+            attempts = [r for r in rec['history'] if r.get('date') == group['date'] and r.get('mode') == group['mode']]
+            prior = sum(ident in x.get('ids', []) and x['date'] == group['date'] and x['mode'] == group['mode']
+                        and rec['question']['board'] in x.get('boards', [x['board']]) for x in data['groups'][:index])
+            if prior >= len(attempts):
+                raise BankError('旧记录的作答历史不完整，原成绩仍保留')
+            questions.append(copy.deepcopy(rec['question']))
+            results.append(copy.deepcopy(attempts[prior]))
+        saved = dict(questions=questions, results=results)
+    if not saved.get('results') or len(saved['questions']) != len(saved['results']):
+        raise BankError('这份练习记录尚无完整的逐题作答')
+    slot = '历史:%d' % index
+    run = dict(saved, board=group['board'], slot=slot, token=uuid.uuid4().hex,
+               mode='review', phase='review', exam=True, pos=0, group_index=index,
+               settled={k: v for k, v in group.items() if k != 'review'})
+    run['rpos'] = min(max(0, int(run.get('rpos', 0))), len(run['results']) - 1)
+    data['runs'][slot] = run
+    return run
+
+
 def close(g, run):
-    state(g)['runs'].pop(run['board'], None)
+    archive(g, run)
+    state(g)['runs'].pop(run.get('slot', run['board']), None)
 
 
 def ensure_templates(paths):

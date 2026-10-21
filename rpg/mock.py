@@ -6,6 +6,8 @@
 - 各模块得分没录时估算：按答对题数折到总分（每道题同分；录了总分就按总分等比例分）；
 - 导入一份模考试卷（拆分 PDF 或导入那一季）时，给演武 · 历练记记一笔 120 分钟（每季只记一次）。
 """
+import datetime as dt
+
 from . import vault
 
 # 六大模块 ← 拆分出来的 13 个板块文件
@@ -25,6 +27,25 @@ FIELDS = ("score", "avg", "top", "beat", "rank", "people")
 
 class MockError(Exception):
     pass
+
+
+def exam_date(value):
+    """考试日共用唯一ISO字段；旧空日期不猜测，不因图表读取改存档。"""
+    if not value:
+        return ''
+    try:
+        value = str(value)
+        parsed = dt.date.fromisoformat(value)
+        if parsed.isoformat() != value:
+            raise ValueError()
+        return value
+    except (TypeError, ValueError):
+        raise MockError('考试日期请填写有效的年月日')
+
+
+def chronological_key(record):
+    # 无日期旧成绩先按原季序保留；同日按原季序稳定排列。
+    return (record.get('date') or '', record['season'])
 
 
 def _num(v, lo=None, hi=None, integer=False):
@@ -180,6 +201,7 @@ def summary(g):
                         "ok": ok_all, "total": total_q, "acc": ok_all / total_q,
                         "minutes": sum(mins) if mins else None, "modules": mods,
                         "imported": str(n) in g.state.get("mock_practice", []), "review": review})
+    seasons.sort(key=chronological_key)
     scored = [s for s in seasons if s["score"] is not None]
     mean = lambda xs: round(sum(xs) / len(xs), 1) if xs else None
     overall = {
@@ -208,6 +230,7 @@ def save(g, body):
     n = _num(body.get("season"), 1, 999, integer=True)
     if not n:
         raise MockError("先选是第几季")
+    date = exam_date(body.get("date"))
     data = g.state.setdefault("mocks", {})
     rec = data.setdefault(str(n), {})
     had_score = rec.get("score") is not None or _boss_score(g, n) is not None or _credited(g, n)
@@ -221,7 +244,7 @@ def save(g, body):
     rec["people"] = _num(body.get("people"), 1, None, integer=True)
     if rec["rank"] and rec["people"] and rec["rank"] > rec["people"]:
         raise MockError("排名不能大于总人数")
-    rec["date"] = str(body.get("date") or rec.get("date") or g.t)[:10]
+    rec["date"] = date or rec.get("date") or g.t
     rec["minutes"] = {m: v for m in MODULE_NAMES
                       if (v := _num((body.get("minutes") or {}).get(m), 0, 300)) is not None}
     rep = body.get("report")
@@ -265,7 +288,7 @@ def _facts(g, season):
     cur = next((s for s in d["seasons"] if s["season"] == season), None)
     if not cur:
         raise MockError("没有第%d季的模考复盘" % season)
-    prev = [s for s in d["seasons"] if s["season"] < season]
+    prev = d["seasons"][:d["seasons"].index(cur)]
     wrong = {}
     sd = next((x for n, x in vault.seasons(g.paths) if n == season), None)
     if sd:

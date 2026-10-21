@@ -33,6 +33,7 @@ jobs:
         run: |
           node tests/ui_politics.cjs
           node tests/ui_updates362.cjs
+          node tests/ui_updates363.cjs
       - name: Sect and mentor quick regressions
         run: |
           node tests/test_guide.cjs
@@ -42,13 +43,26 @@ jobs:
           node tests/ui_characters.cjs
           node tests/ui_characters_assets.cjs
       - name: Scene panels, trial hall, contest and map/shelf regressions
+        shell: python
         run: |
-          node tests/ui_scene_panels.cjs --subject=行测
-          node tests/ui_scene_panels.cjs --subject=申论
-          node tests/ui_trial_hall.cjs --shots
-          node tests/ui_contest_scene.cjs --subject=行测 --shots
-          node tests/ui_layout335.cjs --subject=行测 --shots
-          node tests/ui_layout335.cjs --subject=申论
+          import subprocess
+          commands = [
+              ['node', 'tests/ui_scene_panels.cjs', '--subject=行测'],
+              ['node', 'tests/ui_scene_panels.cjs', '--subject=申论'],
+              ['node', 'tests/ui_trial_hall.cjs', '--shots'],
+              ['node', 'tests/ui_contest_scene.cjs', '--subject=行测', '--shots'],
+              ['node', 'tests/ui_layout335.cjs', '--subject=行测', '--shots'],
+              ['node', 'tests/ui_layout335.cjs', '--subject=申论'],
+          ]
+          for command in commands:
+              print('Running ' + ' '.join(command), flush=True)
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(result.stdout, flush=True)
+              if result.returncode:
+                  # 失败原因同时进入Checks注释，下载日志不可用时仍能定位。
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Scene UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Task board, reading viewport and built-in art
         run: |
           node tests/ui_task_board.cjs --subject=行测

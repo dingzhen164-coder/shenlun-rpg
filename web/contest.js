@@ -24,7 +24,7 @@
 
   // ---------------------------------------------------------------- 折线图（一条 y 轴；悬停十字线 + 提示）
   function lineChart(id, { xs, series, yMin, yMax, unit = "", ticks = 5 }) {
-    const W = 760, H = 260, L = 40, R = 16, T = 14, B = 30;
+    const W = 760, H = 280, L = 55, R = 55, T = 14, B = 52;
     const iw = W - L - R, ih = H - T - B;
     const x = (i) => L + (xs.length <= 1 ? iw / 2 : (i * iw) / (xs.length - 1));
     const y = (v) => T + ih - ((v - yMin) / (yMax - yMin)) * ih;
@@ -32,7 +32,12 @@
       const v = yMin + ((yMax - yMin) * k) / ticks;
       return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="cg"/><text x="${L - 6}" y="${y(v) + 4}" class="cy">${Math.round(v)}${unit}</text>`;
     }).join("");
-    const xl = xs.map((t, i) => (xs.length > 12 && i % 2 && i !== xs.length - 1 ? "" : `<text x="${x(i)}" y="${H - 8}" class="cx">${esc(t)}</text>`)).join("");
+    const labelStep=Math.max(1,Math.ceil(xs.length/5));
+    const xl = xs.map((t,i)=>{
+      if(i%labelStep&&i!==xs.length-1||i!==xs.length-1&&xs.length-1-i<labelStep*.6)return '';
+      const [season,date]=t.split('（');
+      return `<text x="${x(i)}" y="${H-27}" class="cx"><tspan x="${x(i)}">${esc(season)}</tspan><tspan x="${x(i)}" dy="18">${esc(date?'（'+date:'')}</tspan></text>`;
+    }).join('');
     const lines = series.map((s) => {
       const pts = s.values.map((v, i) => (v == null ? null : [x(i), y(v)]));
       let d = "", pen = false;
@@ -118,7 +123,7 @@
       ${scoreInfo}
       <div class="row mk-row">
         <label>哪一季 <select id="mkSeason">${opts}</select></label>
-        <label>考试日期 <input type="date" id="mkDate" value="${esc(s.date || "")}"></label>
+        <label>实际考试日期 <input type="date" id="mkDate" value="${esc(s.date || DASH?.today || "")}"></label>
         <label>我的分数 <input type="number" step="0.01" min="0" max="100" data-score-source="${scoreSource}" id="mkScore" value="${v("score")}" placeholder="如 68.5"></label>
         <label>大比平均分 <input type="number" step="0.1" id="mkAvg" value="${v("avg")}" placeholder="如 53.7"></label>
         <label>最高分 <input type="number" step="0.1" id="mkTop" value="${v("top")}" placeholder="如 91.4"></label>
@@ -230,7 +235,7 @@
         ${kpi("最近排名", lr ? `${lr.rank}<small>/${lr.people || "?"}</small>` : "—", lr ? `第 ${lr.season} 季` : "")}
         ${kpi("平均正确率", o.mean_acc == null ? "—" : Math.round(o.mean_acc) + "%", "按复盘对错")}
       </div></div>`;
-    const xs = ss.map((s) => "第" + s.season + "季");
+    const xs = ss.map((s) => "第" + s.season + "季" + (s.date ? "（" + s.date.replace(/-/g,".") + "）" : "（日期待补）"));
     const vals = ss.flatMap((s) => [s.score, s.avg, s.top]).filter((v) => v != null);
     const lo = vals.length ? Math.max(0, Math.floor(Math.min(...vals) / 10) * 10 - 10) : 0;
     const scoreChart = lineChart("chScore", {
