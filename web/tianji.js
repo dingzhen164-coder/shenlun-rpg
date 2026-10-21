@@ -233,12 +233,15 @@
     NEWS = Math.max(0, Math.min(NEWS, d.news.length - 1));
     const n = d.news[NEWS], read = pr.read.includes(NEWS);
     let lastGroup = null;
-    const toc = d.news.map((x, i) => {
+    const chapter=CUR.kind==='topic'?(d.outline||[]).find(x=>x.items.includes(NEWS)):null;
+    const entries=CUR.kind==='topic'&&d.outline?.length?d.outline.map(x=>({...d.news[x.items[0]],title:x.title,group:x.group,items:x.items})):d.news.map((x,i)=>({...x,items:[i]}));
+    const toc = entries.map((x, j) => {
+      const i=x.items[0],done=x.items.every(k=>pr.read.includes(k));
       const g = x.group && x.group !== lastGroup ? `<div class="tj-toc-g">${esc(x.group)}</div>` : "";
       lastGroup = x.group;
-      return `${g}<a data-news="${i}" class="${i === NEWS ? "on" : ""} ${pr.read.includes(i) ? "done" : ""}">
-        <span class="tj-toc-n">${pr.read.includes(i) ? "✓" : CUR.kind === "month" ? x.no : i + 1}</span>
-        <span>${x.stars ? `<em class="tj-star">${"★".repeat(x.stars)}</em>` : ""}${esc(x.title)}</span></a>`;
+      return `${g}<a data-news="${i}" class="${x.items.includes(NEWS) ? "on" : ""} ${done ? "done" : ""}">
+        <span class="tj-toc-n">${done ? "✓" : CUR.kind === "month" ? x.no : j + 1}</span>
+        <span>${x.stars ? `<em class="tj-star">${"★".repeat(x.stars)}</em>` : ""}${esc(x.title)}${x.items.length>1?`<small class="tj-chapter-count">${x.items.length} 段原文</small>`:""}</span></a>`;
     }).join("");
     const qs = n.qs.map((k) => d.questions[k]).filter(Boolean);
     const leftTabs = `<div class="tj-ltabs"><a data-left="toc" class="${LEFT === "toc" ? "on" : ""}">📑 目录</a><a data-left="ask" class="${LEFT === "ask" ? "on" : ""}">🧙 问师傅</a></div>`;
@@ -247,7 +250,7 @@
       <article class="card tj-news">
         <div class="tj-news-head">${n.stars ? `<span class="tj-star big">${"★".repeat(n.stars)}</span>` : ""}${n.tag && n.tag !== n.group ? `<span class="tag">${esc(n.tag)}</span>` : ""}
           ${n.group ? `<span class="tag">${esc(n.group)}</span>` : ""}<span class="faint small">第 ${NEWS + 1} / ${d.news.length} 条</span></div>
-        <h2>${esc(CUR.kind === "month" ? n.title : (qs[0] ? "原文速递 · 第 " + qs[0].no + " 题" : n.title))}</h2>
+        <h2>${esc(chapter?.title||n.title)}</h2>${chapter&&chapter.items.length>1?`<div class="tj-chapter-parts" role="group" aria-label="本节原文">${chapter.items.map((i,k)=>`<button class="${i===NEWS?'primary':'ghost'} small" data-news="${i}">原文 ${k+1}${pr.read.includes(i)?' · 已读':''}</button>`).join('')}</div>`:""}
         ${CUR.kind === "topic" && qs[0] ? `<div class="tj-news-q">${esc(qs[0].stem)}</div>` : ""}
         <div class="tj-news-body">${highlight(n.paras, answersOf(NEWS))}</div>
         <div class="faint small tj-key-tip"><mark class="tj-key">标红</mark> 的是消化清单要挖的空</div>

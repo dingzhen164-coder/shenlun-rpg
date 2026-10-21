@@ -54,8 +54,16 @@ def main():
                 import json
                 return json.dumps({'meaning': '本段讨论生产地区的发展支持。', 'role': '主产区限定政策对象。',
                                    'compare': '主销区改变了支持对象，不能替换本段原文。', 'plain': '让主要生产的地方发展产业。',
-                                   'evidence': '在主产区布局产能'}, ensure_ascii=False)
+                                   'evidence': '在主产区布局产能', 'example': '产粮多的地方需要厂房把粮食加工为食品，销售多的地方不一定生产粮食。', 'background': '加工厂靠近原料，可降低运输损耗；这解释政策机制，不代表原文列明全部原因。'}, ensure_ascii=False)
             politics.ai.chat = fake_explain
+            topic = dict(news, id='old-topic', kind='topic', title='自编两会专题', category='两会·政府报告',
+                         news=[{'no':i+1, 'title':'习近平强调，到2035年建成健康中国是我们作出的一项战略决策',
+                                'group':'两会讲话', 'paras':['建设健康中国，自编原文第%d段。'%i], 'qs':[]} for i in range(3)], cloze=[])
+            politics.atomic_json(pp.train / '天机简报/专题时政/old-topic.json', topic)
+            from tests.test_tianji import make_pdf
+            make_pdf(pp.train/'自编补充.pdf', [[(1,'一、自编经济会议'),(1,'在主产区布局产能，支持主产区发展产业。'),
+                     (1,'配套练习'),(1,'1.（多选）自编政策对象包括哪些？'),(1,'A.主产区'),(1,'B.生产区'),
+                     (1,'C.销售区'),(1,'D.其他'),(1,'参考答案'),(1,'1.【答案】AB。解析：自编选项的说明。')]])
             print('UI-POLITICS ' + str(pp.train), flush=True)
         if '--skillbook-fixture' in sys.argv:
             # 藏经阁·心法：只有一个板块（行测 论证逻辑 / 申论 归纳概括）预先放了自编的三个文件，其余板块都是空的；不读真实资料。

@@ -22,6 +22,7 @@ import re
 import shutil
 import time
 from pathlib import Path
+from . import political_outline
 
 DIR = "天机简报"
 KINDS = {"month": "月半时政", "topic": "专题时政"}
@@ -86,8 +87,8 @@ def paragraphs(doc):
     out = []
     for _, x0, t, pno in rows:
         indent = x0 - left > 12
-        starts = re.match(r"^(\d+\.|[①-⑳]|[A-D][\.．]|【)", t) or SECTION.search(t)
-        closed = out and (re.fullmatch(r"【[^】]+】", out[-1][1].strip()) or SECTION.search(out[-1][1]))
+        starts = re.match(r"^(\d+\.|[①-⑳]|[A-D][\.．]|【)", t) or SECTION.search(t) or political_outline.heading(clean(t))
+        closed = out and (re.fullmatch(r"【[^】]+】", out[-1][1].strip()) or SECTION.search(out[-1][1]) or political_outline.heading(out[-1][1]))
         if out and not indent and not starts and not closed:
             out[-1][1] += t
         else:
@@ -400,14 +401,14 @@ def parse_pdf(path):
         if q.get("news") is not None:
             news[q["news"]]["qs"].append(i)
     if info["kind"] == "topic":
-        for n in news:
-            q = qs[n["qs"][0]] if n["qs"] else None
-            if q:
-                n["title"] = re.sub(r"^\d{4}年\d{1,2}月(\d{1,2}日)?，?", "", q["stem"])[:30]
+        for index, n in enumerate(news):
+            n['title'] = political_outline.title_of(n, index)
         overview = overview or "共 %d 道母题 · %d 条消化清单" % (len(qs), len(cloze))
     info.update(overview=overview, groups=groups, news=news, cloze=cloze, questions=qs, pages=doc.page_count)
     if not qs and not news:
         raise TianjiError("PDF 里没拆出新闻和题目，可能不是小黑月半时政的版式")
+    info['outline'] = political_outline.outline(info)
+    doc.close()
     return info
 
 
@@ -451,7 +452,10 @@ def load(paths, kind, iid):
     if not f.is_file():
         raise TianjiError("这一期不见了（可能在另一台电脑上删了）")
     try:
-        return json.loads(f.read_text(encoding="utf-8"))
+        data = json.loads(f.read_text(encoding="utf-8"))
+        if kind == 'topic':
+            data['outline'] = political_outline.outline(data)
+        return data
     except ValueError:
         raise TianjiError("这一期的文件坏了：%s" % f.name)
 
