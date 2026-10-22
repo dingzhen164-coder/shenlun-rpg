@@ -30,10 +30,16 @@ jobs:
           npm install --no-save playwright jsdom
           npx playwright install --with-deps chromium
       - name: Political atlas and contextual word annotations (fake AI)
+        shell: python
         run: |
-          node tests/ui_politics.cjs
-          node tests/ui_updates362.cjs
-          node tests/ui_updates363.cjs
+          import subprocess
+          for command in [['node','tests/ui_politics.cjs'], ['node','tests/ui_updates362.cjs'], ['node','tests/ui_updates363.cjs']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Review UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Scene dynamics and mentor regressions
         shell: python
         run: |
