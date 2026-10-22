@@ -20,14 +20,14 @@ async function setTime(p,mode){await p.evaluate(m=>{localStorage.setItem('scene-
   for(const view of ['dwelling','train','skeleton','notes','settings',...(subject==='申论'?[]:['bank','contest'])]){
    await p.evaluate(v=>go(v),view);if(view==='bank'||view==='contest')await p.locator(view==='bank'?'.th-landscape':'.cs-landscape').waitFor();else await p.waitForFunction(()=>document.body.classList.contains('has-page-art'));
    assert.equal(await p.evaluate(()=>document.documentElement.dataset.sceneTime),mode);const filter=await p.locator(view==='bank'?'.th-landscape':view==='contest'?'.cs-landscape':'#bgLayer').evaluate(e=>getComputedStyle(e).filter);
-   assert.equal(mode==='night'?filter.includes('brightness'):filter==='none',true,view+' '+theme+' '+mode+' '+filter);
+   const native=mode==='night'&&!!subject;assert.equal(native?filter==='none':mode==='night'?filter.includes('brightness'):filter==='none',true,view+' '+theme+' '+mode+' '+filter);if(native)assert.equal(await p.evaluate(()=>document.body.dataset.sceneRelight),'native');
    assert.equal(await p.locator('#view').evaluate(e=>getComputedStyle(e).filter),'none');assert.equal(await p.locator('#studyHud').evaluate(e=>getComputedStyle(e).filter),'none');
    assert.equal(await p.evaluate(()=>scrollY>0||document.documentElement.scrollWidth>innerWidth+2||document.documentElement.scrollHeight>innerHeight+2),false);
   }
  }}
  await p.evaluate(()=>go('dwelling'));
  // 页面返回时布局在下一帧建立洞府页签，先等对应背景就绪，再验证昼夜切换本身不重建页面。
- await p.waitForFunction(()=>document.querySelector('.fx-tab[aria-selected="true"]')&&getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('/dwelling-growth.webp'));const before=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage);await p.evaluate(()=>{window.__view=document.querySelector('#view').firstElementChild;window.__requests=0;const raw=fetch;window.fetch=(...a)=>{__requests++;return raw(...a);};});
+ await p.waitForFunction(()=>document.querySelector('.fx-tab[aria-selected="true"]')&&getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('/dwelling-growth'));const before=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage);await p.evaluate(()=>{window.__view=document.querySelector('#view').firstElementChild;window.__requests=0;const raw=fetch;window.fetch=(...a)=>{__requests++;return raw(...a);};});
  await p.evaluate(()=>{document.documentElement.dataset.scenePhase='dusk';document.documentElement.dataset.sceneTime='day';});await p.waitForFunction(()=>getComputedStyle(document.querySelector('#bgLayer')).filter.includes('sepia'),null,{timeout:5000}).catch(()=>{});const dusk=await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).filter);assert(dusk.includes('sepia'));
  await setTime(p,'night');assert.equal(await p.locator('#bgLayer').evaluate(e=>getComputedStyle(e).backgroundImage),before);assert(await p.evaluate(()=>__view===document.querySelector('#view').firstElementChild));assert.equal(await p.evaluate(()=>__requests),0);
  if(process.argv.includes('--shots')&&size==='desktop'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-night.png')});await setTime(p,'day');await p.screenshot({path:path.join(out,(subject||'法考')+'-day.png')});}

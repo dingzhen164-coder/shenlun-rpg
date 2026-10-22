@@ -35,3 +35,9 @@ html[data-scene-time="night"] .portal-landscape.portal-day{display:none}
 html[data-scene-time="night"] .portal-landscape.portal-night{display:block}
 
 html[data-scene-phase="night"] .trial-hall .th-stele,html[data-scene-phase="night"] .trial-hall .th-world-title p,html[data-scene-phase="night"] .trial-hall .th-world-title>span{color:var(--ds-scene-night-ink);text-shadow:0 1px 4px var(--ds-scene-night-shadow)}
+
+/* 专用夜景已经画入真实月光与灯火，不再叠加调色；法考/用户单图保留兼容回退。 */
+html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-landscape { background-image: var(--trial-night-art); filter: none; }
+body[data-trial-night="true"] .th-landscape:before { display: none; }
+html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-tower-art,
+html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-gate-stage>img { filter: drop-shadow(0 12px 12px var(--ds-sign-shadow)); }

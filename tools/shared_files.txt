@@ -626,3 +626,9 @@ shared rpg/political_outline.py
 # 3.6.2 通用答题字号控件；各科解惑数据边界按各自模块实现。
 shared web/reading_tools.js
 shared web/reading_tools.css
+
+# 3.6.4 四季轮换共享，独立夜景/御剑素材属于各自主题。
+shared tests/test_scene_fx.cjs
+diverged tests/ui_scene364.cjs
+diverged web/assets/beauty/fx/*
+diverged web/assets/beauty/NIGHT364.md

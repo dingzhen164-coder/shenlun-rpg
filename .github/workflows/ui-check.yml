@@ -34,10 +34,23 @@ jobs:
           node tests/ui_politics.cjs
           node tests/ui_updates362.cjs
           node tests/ui_updates363.cjs
-      - name: Sect and mentor quick regressions
+      - name: Scene dynamics and mentor regressions
+        shell: python
         run: |
-          node tests/test_guide.cjs
-          node tests/test_scene_portal.cjs
+          import subprocess
+          for command in [
+              ['node', 'tests/test_guide.cjs'],
+              ['node', 'tests/test_scene_portal.cjs'],
+              ['node', 'tests/test_scene_fx.cjs'],
+              ['node', 'tests/ui_scene364.cjs', '--subject=行测'],
+              ['node', 'tests/ui_scene364.cjs', '--subject=申论'],
+          ]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Scene dynamics regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Character encounters and independent dialogue (fake AI)
         run: |
           node tests/ui_characters.cjs

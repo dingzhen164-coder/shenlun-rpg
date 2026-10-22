@@ -52,3 +52,14 @@ html:not([data-scene-time="night"]) .portal-rays { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .portal-world .portal-landscape, .portal-rays i, .portal-mist { animation: none; } }
 
 .portal-world.portal-guantu .portal-mist { display: none; }
+
+/* 3.6.4 云雾分远近层缓行，底图始终不位移；装饰位于入口和HUD之下。 */
+.portal-fx { opacity: .92; }
+.portal-mist.m1 { height: 20%; opacity: .45; animation-duration: 76s; }
+.portal-mist.m2 { bottom: 18%; height: 14%; opacity: .32; animation-duration: 105s; }
+.portal-mist.m3 { top: 14%; left: -18%; width: 56%; height: 8%; opacity: .2; animation: portal-mist-r 92s ease-in-out infinite alternate-reverse; }
+html[data-scene-time="night"] .portal-mist { opacity: .14; }
+html[data-scene-time="night"] .portal-cloud { opacity: .2; }
+.portal-atmosphere[data-fx-room="indoor"] .portal-rays { opacity: .2; }
+html[data-scene-time="night"] .portal-atmosphere[data-fx-room="indoor"] .portal-rays { opacity: 0; }
+.portal-editor-tools [data-scene-interval][hidden] { display: none; }
