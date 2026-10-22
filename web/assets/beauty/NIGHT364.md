@@ -12,3 +12,5 @@
 > Create ONE beautifully painted small game sprite of a distant Chinese xianxia traveler flying on a straight elegant silver sword, full body side view facing right, clearly standing on sword, flowing ivory and desaturated teal robes, long dark hair and silk ribbons trailing to LEFT, delicate gold details, confident calm posture, refined realistic hand-painted fantasy miniature, strong readable silhouette at tiny 60px size, wide composition 3:2. Isolated with transparent background, no scenery, no clouds, no particles, no stars, no text, no frame. Entire sword, hair and clothes comfortably inside bounds. No large magical glow.
 
 格式：24张房间/分区夜景1536宽；云台1536×1024，演武场1536×864；塔/门768×1152 RGBA；御剑360×240 RGBA。背景每张<=350KiB，人物约26KiB。仅缩放/转换压缩，没有程序调色或抠背景。各页别名见builtin-art.json；已有申论首页夜图保留。唯一清单素材约10.51MiB，上限12MiB；法考仍10MiB。
+
+3.6.5起御剑人物已用SEASONS365.md中的三色小Q版替换，历史写实人物提示词留作来源记录，旧sprite不再随包。

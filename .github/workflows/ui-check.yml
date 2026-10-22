@@ -44,6 +44,7 @@ jobs:
               ['node', 'tests/test_scene_fx.cjs'],
               ['node', 'tests/ui_scene364.cjs', '--subject=行测'],
               ['node', 'tests/ui_scene364.cjs', '--subject=申论'],
+              ['node', 'tests/ui_updates365.cjs'],
           ]:
               result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
               print(' '.join(command) + '\n' + result.stdout, flush=True)

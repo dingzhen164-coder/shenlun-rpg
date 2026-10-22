@@ -38,7 +38,15 @@
     "beauty/page/contest-night.webp": "beauty/contest/arena-night.webp",
     "beauty/trial/landscape-night.webp": "beauty/trial/landscape-night.webp",
     "beauty/trial/tower-night.webp": "beauty/trial/tower-night.webp",
-    "beauty/trial/gate-night.webp": "beauty/trial/gate-night.webp"
+    "beauty/trial/gate-night.webp": "beauty/trial/gate-night.webp",
+    "beauty/home/xingce-spring-day.webp": "beauty/scenes/xingce/home-spring-day.webp",
+    "beauty/home/xingce-spring-night.webp": "beauty/scenes/xingce/home-spring-night.webp",
+    "beauty/home/xingce-summer-day.webp": "beauty/scenes/xingce/home-summer-day.webp",
+    "beauty/home/xingce-summer-night.webp": "beauty/scenes/xingce/home-summer-night.webp",
+    "beauty/home/xingce-autumn-day.webp": "beauty/scenes/xingce/home-autumn-day.webp",
+    "beauty/home/xingce-autumn-night.webp": "beauty/scenes/xingce/home-autumn-night.webp",
+    "beauty/home/xingce-winter-day.webp": "beauty/scenes/xingce/home-winter-day.webp",
+    "beauty/home/xingce-winter-night.webp": "beauty/scenes/xingce/home-winter-night.webp"
   },
   "申论": {
     "beauty/page/dwelling-growth.webp": "beauty/scenes/shenlun/dwelling-growth.webp",

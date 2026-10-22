@@ -1,4 +1,5 @@
-"""3.0.6模考悟道：成绩超出录入时预估分，登记一次可手动领取的阶段奖励。
+"""3.6.5模考悟道：行测以录分前高峰分差登记机缘/即时扣进度，其余科目沿预估分奖励。
+新记录增加model/best/gap/stage_line/penalty字段；新录分才结算，旧账本不追罚。
 state.mock_rewards={schema:1,legacy_corrected:bool,records:{考试键:{name,date,score,baseline,status,...}}}。
 API在原存档锁内调用；旧直接补经验记录保留，另记负向修正，匹配该次成绩生成待领取奖励。
 """
@@ -6,6 +7,7 @@ import datetime as dt
 import hashlib
 import math
 import re
+from . import themes
 
 SCHEMA = 1
 MODEL = 'stage-manual-v2'
@@ -58,12 +60,79 @@ def migrate(g):
     return [dict(kind='xp', v=-removed, msg='撤回旧模考悟道 %s，新的阶段奖励请手动领取' % removed)]
 
 
+def policy(g):
+    """行测高分维持规则，程序与考情同源；规则缺项沿默认。"""
+    keep = max(0, float(g.rules.num('模考悟道.维持分差')))
+    normal = max(keep, float(g.rules.num('模考悟道.正常分差')))
+    collapse = max(normal + 1, float(g.rules.num('模考悟道.入魔分差')))
+    rates = g.rules.nums('模考悟道.退步扣除比例') or [.1, .2, .4, .6, .8]
+    rates = sorted(min(1, max(0, float(r))) for r in rates[:20])
+    step = (collapse - normal) / len(rates)
+    return dict(keep=keep, normal=normal, collapse=collapse,
+                tiers=[dict(lower=round(normal+i*step, 4), upper=round(normal+(i+1)*step, 4), rate=r)
+                       for i, r in enumerate(rates)])
+
+
+def prior_best(g, name):
+    """排除本场，历次已编辑的成绩单优先于旧boss快照；飞升成绩不参与。"""
+    mocks = g.state.get('mocks', {})
+    scores = []
+    seen = set()
+    for entry in g.state.get('boss', []):
+        if entry.get('kind', '大比') != '大比' or entry.get('name') == name:
+            continue
+        label = entry.get('name', '')
+        m = re.fullmatch(r'第(\d+)季', label)
+        value = mocks.get(m.group(1), {}).get('score') if m else None
+        if value is None:
+            value = entry.get('score')
+        if m:
+            seen.add(m.group(1))
+        if isinstance(value, (int, float)) and math.isfinite(value):
+            scores.append(value)
+    for n, entry in mocks.items():
+        if n in seen or '第%s季' % n == name:
+            continue
+        value = entry.get('score')
+        if isinstance(value, (int, float)) and math.isfinite(value):
+            scores.append(value)
+    return max(scores) if scores else None
+
+
+def stage_progress(g):
+    """已踏入小境界的起点与未固化进度；清空进度不回收已突破境界。"""
+    line = themes.sub_stage(min(g.claimed(), int(math.floor(g.raw_score()+1e-9))), g.theme)[2]
+    base = min(g.state['xp'], int(math.ceil(g.xp_at(line))))
+    return line, base, max(0, int(g.state['xp']-base))
+
+
 def offer(g, name, score, baseline):
     migrate(g)
     data = ledger(g)['records']
     key = exam_key(name)
     if key in data:
         return []
+    if getattr(g, 'subject', '法考') == '行测':
+        best, rules = prior_best(g, name), policy(g)
+        line, base, progress = stage_progress(g)
+        gap = round(best-score, 4) if best is not None else 0
+        pending = score > line and (best is None or gap <= rules['keep'])
+        record = dict(name=name, date=g.t, score=score, baseline=round(baseline, 2), best=best,
+                      gap=gap, stage_line=line, model='best-score-v1', status='pending' if pending else 'neutral')
+        data[key] = record
+        if best is not None and gap > rules['normal']:
+            rate = 1 if gap >= rules['collapse'] else next(t['rate'] for t in reversed(rules['tiers']) if gap >= t['lower'])
+            loss = min(progress, int(math.ceil(progress*rate)))
+            g.state['xp'] = max(base, g.state['xp']-loss)
+            label = '走火入魔' if rate == 1 else '道心失守'
+            note = '%s：大比「%s」较此前最高%s分低%g分，本次扣除当前小境界进度%s%%（%s修为）' % (label, name, best, gap, round(rate*100), loss)
+            g.state['events'].append(dict(t=dt.datetime.now().isoformat(timespec='seconds'), d=g.t,
+                                         type='insight', board='', item='', ok=False, xp=-loss,
+                                         reward_model='best-score-penalty-v1', exam_key=key, note=note))
+            record.update(status='penalized', penalty=loss, penalty_rate=rate, progress_before=progress,
+                          progress_after=progress-loss, realm=g.realm_info()['name'], settled_at=g.t)
+            return [dict(kind='xp', v=-loss, msg=note)]
+        return [dict(kind='info', msg='大比保持高峰且胜过当前境界分数线，已获得待领取悟道机缘')] if pending else []
     pending = score > baseline
     data[key] = dict(name=name, date=g.t, score=score, baseline=round(baseline, 2),
                      status='pending' if pending else 'ineligible')
@@ -89,7 +158,7 @@ def amount(g):
 def view(g):
     preview = amount(g)
     return [dict(r, key=key, preview=preview if r['status'] == 'pending' else None)
-            for key, r in reversed(list(ledger(g)['records'].items())) if r['status'] in ('pending', 'claimed')]
+            for key, r in reversed(list(ledger(g)['records'].items())) if r['status'] in ('pending', 'claimed', 'penalized')]
 
 
 def claim(g, key):

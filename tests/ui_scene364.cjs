@@ -10,7 +10,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   await p.addInitScript(()=>{
    window.__fx={clear:0,sword:0,meteor:0,detached:0};const proto=CanvasRenderingContext2D.prototype;
    const clear=proto.clearRect;proto.clearRect=function(...a){if(this.canvas.classList.contains('portal-fx')){__fx.clear++;if(!this.canvas.isConnected)__fx.detached++;}return clear.apply(this,a);};
-   const draw=proto.drawImage;proto.drawImage=function(...a){if(this.canvas.classList.contains('portal-fx')&&a[0]?.src?.includes('sword-traveler'))__fx.sword++;return draw.apply(this,a);};
+   const draw=proto.drawImage;proto.drawImage=function(...a){if(this.canvas.classList.contains('portal-fx')&&a[0]?.src?.includes('sword-chibi-'))__fx.sword++;return draw.apply(this,a);};
    const stop=CanvasGradient.prototype.addColorStop;CanvasGradient.prototype.addColorStop=function(...a){if(a[1]==='#f4ead7')__fx.meteor++;return stop.apply(this,a);};
   });
   await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());

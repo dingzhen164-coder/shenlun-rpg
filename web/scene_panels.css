@@ -35,3 +35,9 @@
 .fixed-app .fx-region-detail>.study-region-heading{display:none}
 .fixed-app .scene-panel.fx-region-detail .fx-region-work{height:100%;align-items:stretch;gap:var(--ds-sp-12)}
 html:not(.in-notes) body.has-page-art .scene-panel.fx-region-detail .fx-region-work>.fx-frame{height:100%;max-height:100%}
+
+/* 3.6.5 四峰内容居中留景；玉简/灵脉图仍上下排列，各自内部滚动。 */
+.fixed-app .scene-panel.fx-region-detail.fx-scenic-peak{width:min(84%,900px);height:auto;max-height:88%;padding:var(--ds-sp-12);gap:var(--ds-sp-8);margin:auto!important;align-self:center}
+.fixed-app .scene-panel.fx-scenic-peak .fx-region-work{min-height:0;height:auto;flex:0 1 auto;grid-template-rows:repeat(var(--region-rows,2),minmax(0,auto));align-items:start}
+html:not(.in-notes) body.has-page-art .scene-panel.fx-region-detail.fx-scenic-peak .fx-region-work>.fx-frame{height:auto;max-height:100%}
+@media(orientation:portrait){.fixed-app .scene-panel.fx-region-detail.fx-scenic-peak{width:92%}}

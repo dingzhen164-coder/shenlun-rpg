@@ -1281,6 +1281,8 @@ class Game:
         e["extra"] = f"刚记录了{self.T('boss')}成绩：{name} {score} 分"
         ev.append(e)
         ev += mock_rewards.offer(self, name, score, baseline)
+        if self.subject == "行测" and not self.realm_info()["ready"]:
+            ev = [e for e in ev if e.get("kind") != "ready"]  # 扣回进度后不发过时突破提醒
         # 突破丹：成绩达到下一道渡劫线，奖励对应的突破丹（最多存 3 颗）
         nxt = next((g for g in self.gates() if g not in self.state["gates"]), None)
         item = self.th["gate_items"].get(nxt) if nxt else None
@@ -1744,7 +1746,8 @@ class Game:
             "mock_rewards": mock_rewards.view(self),
             "scene_layouts": self.state.get("scene_layouts", {}),
             "mock_reward_rule": {"foundation": max(1,int(self.rules.num("模考悟道.筑基分母"))),
-                                 "advanced": max(1,int(self.rules.num("模考悟道.金丹及以后分母")))},
+                                 "advanced": max(1,int(self.rules.num("模考悟道.金丹及以后分母"))),
+                                 "performance": mock_rewards.policy(self) if self.subject == "行测" else None},
             "streak": {"days": run, "bonus": bonus}, "dao": {"value": dao, "label": self.dao_label(dao)},
             "ideal": self.ideal(), "lap": self.state["lap"],
             "batch": {"index": (cur + 1) if cur is not None else None,

@@ -28,8 +28,8 @@ class BuiltinArtTest(unittest.TestCase):
             for _name, cid in art.PEERS.get(subject, []):
                 self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
             self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
-        # 公考3.6.4新增28张独立夜景；保留1536宽度与灯火细节，总清单限12MiB。
-        self.assertLess(sum(p.stat().st_size for p in unique), (12 if '行测' in expected else 10) * 1024 * 1024)
+        # 公考夜景及四季8图保留1536宽度和细节，总清单限16MiB。
+        self.assertLess(sum(p.stat().st_size for p in unique), (16 if '行测' in expected else 10) * 1024 * 1024)
         if '申论' in expected:
             people = {k: v for k, v in raw['申论'].items() if k.startswith('beauty/portrait/')}
             self.assertEqual(len(people), 9)
@@ -86,8 +86,16 @@ class BuiltinArtTest(unittest.TestCase):
             with Image.open(p) as im:
                 self.assertGreaterEqual(max(im.size), 1152)
             self.assertLessEqual(p.stat().st_size, 350 * 1024)
-        with Image.open(assets / 'beauty/fx/sword-traveler.webp') as im:
-            self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
+        for color in ('jade', 'vermilion', 'indigo'):
+            with Image.open(assets / ('beauty/fx/sword-chibi-%s.webp' % color)) as im:
+                self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
+        panoramas = [art.builtin_asset('行测', 'beauty/home/xingce-%s-%s.webp' % (season, time))
+                     for season in ('spring', 'summer', 'autumn', 'winter') for time in ('day', 'night')]
+        self.assertEqual(len(set(p.read_bytes() for p in panoramas)), 8)
+        for p in panoramas:
+            with Image.open(p) as im:
+                self.assertEqual(im.size, (1536, 864))
+            self.assertLessEqual(p.stat().st_size, 350 * 1024)
 
 
 if __name__ == '__main__':

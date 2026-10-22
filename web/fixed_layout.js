@@ -189,7 +189,9 @@
     const work=make('div','fx-region-work');host.append(work);panels.forEach(p=>{frame(p,p.matches('.yj-hall')?'[data-yjadd]':'');work.append(p);});
     work.style.setProperty('--region-rows',Math.max(1,panels.length));
     if(panels.length>1)tabs(host,panels.map(p=>({panel:p,label:title(p)})),'region:'+themeKey());
-    host.classList.add('fx-region-detail');return true;
+    host.classList.add('fx-region-detail');
+    if(window.SUBJECT0==='行测'&&['辨言峰','明理峰','演数峰','观星峰'].includes(window.STUDY_REGIONS?.title()))host.classList.add('fx-scenic-peak');
+    return true;
   }
   function themeKey(){return document.body.classList.contains('guantu')?'office':document.body.classList.contains('xuanhuan')?'mage':'peaks';}
   function notes(root) {
