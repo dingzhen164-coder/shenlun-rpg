@@ -32,6 +32,8 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert.equal(await page.locator('.skb-tome.none').count(),view.length-1,'空板块的书是灰的');
   assert.match(await page.locator('.skb-zj-card').textContent(),/总诀/);
   if(subject==='行测')assert((await page.locator('.skb-tome').first().evaluate(e=>getComputedStyle(e).animationName)).includes('tome-float'),'有浮动动画');
+  // 内容先渲染，场景容器由后续RAF建立；确认容器可见后再测量，不放宽铺满断言。
+  await page.locator('#view .scene-panel').waitFor();
   const wide=await page.evaluate(()=>{const r=document.querySelector('#view .scene-panel').getBoundingClientRect();return r.width/innerWidth;});
   assert(wide>0.9,'藏经阁铺满宽度 '+wide);
   // 1 有内容的板块：看、改、保存即生效
