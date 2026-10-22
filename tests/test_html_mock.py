@@ -59,6 +59,20 @@ class HtmlMockTest(unittest.TestCase):
         self.assertIn('训练/题库/图片/HTML/',str(blocks))
         self.assertIn('训练/题库/图片/HTML/',str(material))
 
+    def test_bmp_images_are_accepted_and_converted(self):
+        """粉笔导出页常带 .bmp 图：以前被当作“缺少图片”整包拒绝（3.5.9修复）。"""
+        import struct
+        row=b'\x00\x00\xff\x00'                                   # 1像素24位 + 行对齐到4字节
+        bmp=b'BM'+struct.pack('<IHHI',54+len(row),0,0,54)+struct.pack('<IiiHHIIiiII',40,1,1,1,24,0,len(row),2835,2835,0,0)+row
+        self.assertEqual(html_mock._image_type(bmp),'.bmp')
+        self.assertEqual(html_mock._image_type(b'BMxxxx'),'', 'BM开头但不是位图头，不当作图片')
+        text=fixture().replace('./自编_files/图.png','./自编_files/图.bmp')
+        b=dict(name='自编第39季.html',data=base64.b64encode(text.encode()).decode(),resources=dict(name='自编_files.zip',data=zip_data({'自编_files/图.bmp':bmp,'自编_files/自编_files/图.bmp':bmp})))
+        r=html_mock.import_file(self.p,b);self.assertEqual((r['ready'],r['images'],r['missing_images']),(10,1,0))
+        html_mock.import_file(self.p,dict(b,commit=True,digest=r['digest']))
+        stored=[f for f in self.p.train.rglob('图片/HTML/*') if f.is_file()];self.assertEqual(len(stored),1)
+        self.assertIn(stored[0].suffix,('.png','.bmp'))
+
     def test_missing_resources_reject_commit_and_no_external_fetch(self):
         b=body();b.pop('resources');r=html_mock.import_file(self.p,b);self.assertEqual(r['missing_images'],1)
         old=self.snapshot()
