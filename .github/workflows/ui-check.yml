@@ -59,9 +59,16 @@ jobs:
                   print('::error title=Scene dynamics regression::' + message, flush=True)
                   raise SystemExit(result.returncode)
       - name: Character encounters and independent dialogue (fake AI)
+        shell: python
         run: |
-          node tests/ui_characters.cjs
-          node tests/ui_characters_assets.cjs
+          import subprocess
+          for command in [['node', 'tests/ui_characters.cjs'], ['node', 'tests/ui_characters_assets.cjs']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Browser UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Scene panels, trial hall, contest and map/shelf regressions
         shell: python
         run: |
@@ -171,15 +178,49 @@ jobs:
                   print('::error title=Learning UI regression::' + message, flush=True)
                   raise SystemExit(result.returncode)
       - name: Real article interactions and screenshots
-        run: node tests/ui_articles.cjs
-      - name: Real shenlun exam interactions and screenshots
-        run: node tests/ui_shenlun.cjs
-      - name: Shared brand and two subject screenshots
-        run: node tests/ui_brand.cjs
-      - name: Layout check (both subjects, desktop/tablet × light/dark; screenshots only on problems)
+        shell: python
         run: |
-          node tests/ui_layout_check.cjs --subject=申论
-          node tests/ui_layout_check.cjs --subject=行测
+          import subprocess
+          for command in [['node', 'tests/ui_articles.cjs']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Browser UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
+      - name: Real shenlun exam interactions and screenshots
+        shell: python
+        run: |
+          import subprocess
+          for command in [['node', 'tests/ui_shenlun.cjs']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Browser UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
+      - name: Shared brand and two subject screenshots
+        shell: python
+        run: |
+          import subprocess
+          for command in [['node', 'tests/ui_brand.cjs']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Browser UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
+      - name: Layout check (both subjects, desktop/tablet × light/dark; screenshots only on problems)
+        shell: python
+        run: |
+          import subprocess
+          for command in [['node', 'tests/ui_layout_check.cjs', '--subject=申论'], ['node', 'tests/ui_layout_check.cjs', '--subject=行测']]:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Browser UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
