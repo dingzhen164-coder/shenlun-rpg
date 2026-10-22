@@ -67,7 +67,11 @@ jobs:
         run: python -m unittest discover -s tests
 
       - name: Fetch verified political atlas content
-        run: python tools/fetch_atlas_seed.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --dir rpg/data
+          python tools/fetch_atlas_seed.py
 
       - name: Build exe
         run: >
@@ -152,7 +156,11 @@ jobs:
         run: pip install pyinstaller pywebview segno pymupdf pillow pyobjc-framework-Vision certifi
 
       - name: Fetch verified political atlas content
-        run: python tools/fetch_atlas_seed.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --dir rpg/data
+          python tools/fetch_atlas_seed.py
 
       - name: Build app
         run: >
