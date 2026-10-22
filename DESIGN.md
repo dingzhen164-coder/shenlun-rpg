@@ -1,5 +1,7 @@
 ## 3.6.6：高清扩绘全景与学习蜡烛（2026-10-22）
 
+正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.6 。源aac8bb006bda83d01285811920b4ebf4f7bf74f2，三端39749669288、完整UI39749664461同SHA通过；PR #57 merge c688a53e7c6832ddaae830e8ac3ebb26a42c152f，main同树复用验证资源，无二次构建。Release/latest/tag/三包与SHA256SUMS核验完成。本地522项单元（3项平台跳过）、两科80页布局、六种2倍像素密度高清显示及蜡烛/阅读/复盘回归通过；509条共享规则一致，法考dev48a5c42仅迁公共代码，正式仍3.5.10。
+
 - 旧四季资源1536×864在高DPI设备明显放大；横屏contain与blur补边暴露上下空区。八张同构图imagegen扩绘为4:3，逐张4列×2行局部重绘细节后按坐标合成3840×2880，低频色调对齐与边缘融合，WebP quality96；每块原生输出均大于最终目标区域，不以单纯插值冒充新细节。来源/提示词/摘要见SEASONS366.md。预算每张12MiB、清单总128MiB；其余夜景仍沿350KiB约束。独立hd路径避免旧缓存。
 - scene_portal可选framing=extended在主页和预览同时标data-framing，仅行测新全景启用cover并隐藏模糊fill；原稳定xingce-v3与保存键、坐标沿用。申论/法考无此配置沿原取景。八张背景均通过真实浏览器高DPI电脑与平板横竖屏的实际解码尺寸、四边几何及地点入口检查。
 - study_lamp为shared内存凭据模块，start/touch/stop绑定已解析vault与subject，最多256条、真实交互180秒过期；秒数按monotonic扣预算，每次上限90，重复领取不会超过实际经过时间。API只交原Game.add_seconds(review)，不改变存档结构/奖励规则。无库返回可读错误。
