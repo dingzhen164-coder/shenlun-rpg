@@ -98,7 +98,7 @@
     const [other,maps]=await Promise.all([CARDS.hubHtml({id:'chang-other',label:'其他玉简',deck:'常识判断'}),MINDMAP.hubHtml(['常识判断'])]);
     return `${wxHead('常识判断','知万物 · 通古今','万象峰')}<div class="wx-categories">${common.map(c=>`<button class="wx-category" data-wx-category="${c.id}"><span class="wx-category-icon">${icon(c.id)}</span><div class="wx-category-copy"><h3 class="wx-title">${c.name}</h3><small class="wx-motto">${c.hint}</small></div><span class="wx-type-rule" aria-hidden="true"></span><span class="wx-entry-link">玉简 · 灵脉 <svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6h25m-5-5 5 5-5 5"/></svg></span></button>`).join('')}</div>${other?'<button class="ghost wx-other" data-wx-category="other">其他玉简（保留未归入四类的资料） →</button>':''}${maps}`;
   }
-  async function back(){
+  async function back(){window.STUDY_LAMP?.reader(null);
     if(category)category='';else if(branch==='atlas')branch='politics';else if(branch)branch='';else return go('home');
     await renderTrain();window.STUDY_HUD?.refresh();
   }

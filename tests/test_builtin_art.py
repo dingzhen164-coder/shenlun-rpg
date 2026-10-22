@@ -28,8 +28,8 @@ class BuiltinArtTest(unittest.TestCase):
             for _name, cid in art.PEERS.get(subject, []):
                 self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
             self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
-        # 公考夜景及四季8图保留1536宽度和细节，总清单限16MiB。
-        self.assertLess(sum(p.stat().st_size for p in unique), (16 if '行测' in expected else 10) * 1024 * 1024)
+        # 公考高清扩绘全景不再按350KiB压缩；独立夜景仍保留原预算。
+        self.assertLess(sum(p.stat().st_size for p in unique), (128 if '行测' in expected else 10) * 1024 * 1024)
         if '申论' in expected:
             people = {k: v for k, v in raw['申论'].items() if k.startswith('beauty/portrait/')}
             self.assertEqual(len(people), 9)
@@ -94,8 +94,9 @@ class BuiltinArtTest(unittest.TestCase):
         self.assertEqual(len(set(p.read_bytes() for p in panoramas)), 8)
         for p in panoramas:
             with Image.open(p) as im:
-                self.assertEqual(im.size, (1536, 864))
-            self.assertLessEqual(p.stat().st_size, 350 * 1024)
+                self.assertEqual(im.size, (3840, 2880))
+            self.assertIn('/hd/', p.as_posix())
+            self.assertLessEqual(p.stat().st_size, 12 * 1024 * 1024)
 
 
 if __name__ == '__main__':

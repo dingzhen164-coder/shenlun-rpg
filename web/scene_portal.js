@@ -74,7 +74,7 @@
   }
   function stageHtml(layout, device, editing=false) {
     const geo=geometry(device);
-    const stage=`<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}" data-map-height="${geo.height}" data-map-top="${geo.top}" data-map-span="${geo.span}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${landscapeHtml()}${config.places.map(p=>{
+    const stage=`<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}"${config.framing==='extended'?' data-framing="extended"':''} data-map-height="${geo.height}" data-map-top="${geo.top}" data-map-span="${geo.span}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${landscapeHtml()}${config.places.map(p=>{
       const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span class="portal-ic" aria-hidden="true">${PLACE_ICON[p.id]||'◆'}</span>${signHtml(placeName(p,layout))}</button>`;
     }).join('')}</div>`;
     return editing?`<div class="portal-preview-frame" style="aspect-ratio:${geo.width}/${geo.height};--preview-width:${geo.width}px;--preview-height:${geo.height}px">${stage}</div>`:stage;
