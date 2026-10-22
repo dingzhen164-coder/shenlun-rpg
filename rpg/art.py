@@ -126,6 +126,8 @@ def slots(subject):
         out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image", ()))
         out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image", ()))
         out.append(("子地图背景", name + "-夜晚", "beauty/page/train-%s-night.webp" % key, None, "image", ()))
+        if subject == '行测':
+            out.append(("子地图背景", name + "-黄昏", "beauty/page/train-%s-dusk.webp" % key, None, "image", ()))
     place0 = PLACES.get(subject, PLACES["行测"])[0]
     for key, label in DWELLING_TABS.get(subject, []):
         n = "%s-%s" % (place0, label)
@@ -198,6 +200,7 @@ README = """美术文件夹说明
 
 首页全景/      白天、夜晚                         （地图首页的全景图）
 子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚   （每个子页面背后的背景；不放就用程序默认的淡透全景）
+               行测五峰另认<峰名>-黄昏，如万象峰-黄昏.webp；黄昏使用独立美术，不重复套滤镜。
                洞府还可以每个页签单独一张：洞府-<页签名>、洞府-<页签名>-白天、洞府-<页签名>-夜晚（行测页签：修为与突破、十二经、修行记录、储物袋、修行日志）
 人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼     （引导人物半身立绘；行测、法考的眨眼图只含眼部，位置由程序固定）
                申论每个人单独一套：<姓名>-<表情>，例如 周静宜-平静.png（九位人物见 rpg/art.py）。纯色底（洋红/绿）的图会自动去底。

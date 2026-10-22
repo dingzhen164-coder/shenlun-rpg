@@ -990,3 +990,11 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - **录分奖励只发一次**：`state.mock_boss_credited` 记下领过录分奖励的季；删除后重新录分不再重复记大比、发奖。重新导入（`mock.on_import`）或录分（`mock.save`/`set_score`）会让这一季重新出现。
 - **检查直接更新成绩**（`mock_imports.sync_score`）：点「检查」算出分数后，直接更新这一季总分，不用再到「03 成绩单」重输。来源优先级：自己录的/识图 > HTML 报告分 > 参考估分；更高优先级的已录成绩不覆盖，同级或更低的按最新结果更新；只改总分和来源（`mock.set_score`），成绩单其他字段不动；第一次有分才记大比（与录入一致）。没有成绩可更新时检查保持只读（不写存档、不生成备份）。返回 `score_sync: {action: recorded|updated|same|kept|none, score, source}`。
 - **测试**：`tests/test_mock_imports.py`（新增 `MockRecordsSyncTest`：删除同步与恢复、第133季不误伤、不重复发奖、重导后重新出现、旧批次、检查各种优先级）；`tests/ui_mock_imports.cjs`（删除后季消失、恢复还原并保留草稿、检查自动记入并优先保留手录）。
+
+## 3.6.8背景美术开发批次（2026-10-22，未发布）
+
+- 用户先功能后美术，明确选择接受更高耗时/额度的原生分块4K路线。第2、9条使用23张3840×2880：五峰day/dusk/night十五张、主页四季day/night八张。完整构图只作布局/低频色调参考，最终每张由8个足尺寸原生块缩小合成，无AI超分；来源尺寸/坐标/哈希在web/assets/beauty/scenes/xingce/hd/368/provenance.json，工具为tools/art368_pack.cjs。
+- 场景时钟手动模式增加dusk；resolve仍返回ph=dusk、img=day，保持主页二值图片接口。BeautyArt优先看scenePhase选择-dusk，专用昏/夜景sceneRelight=native避免二次滤镜；缺图沿旧中性/昼夜单图和程序光照回退。用户全局覆盖仍优先于内置分区图。
+- art.slots仅行测五峰增加<峰名>-黄昏文件槽，-day与中性别名共用高清白天图。新hd/368路径防旧缓存，保留xingce-v3存储键/坐标/入口ID，不迁移存档。清理16张不再引用的旧随包图，旧观星昼夜仍供天机台；历史原图可从737ce912恢复。
+- 四季保留主色但混合不同花木、常绿/阔叶、水岸/林下植物与裸岩等；五峰固定书阁、棋台、机械、松亭和观测仪身份。详细提示词及来源登记见ART368.md与REGISTRY.md。
+- 只同步6个共用文件到法考，不复制行测美术。相关素材/时钟/浏览器与高DPI布局验收，512共享严格一致；不改正式版本/发布请求，不运行完整CI、三端构建或合main。正式公考仍3.6.7、法考仍3.5.10。

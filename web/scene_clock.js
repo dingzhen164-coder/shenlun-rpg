@@ -6,9 +6,9 @@
   const root=document.documentElement;
   const mode=()=>{try{return localStorage.getItem('scene-time')||'auto';}catch(_){return 'auto';}};
   function phase(d=new Date()){const h=d.getHours()+d.getMinutes()/60;return h>=5.5&&h<8?'dawn':h>=8&&h<17?'day':h>=17&&h<19.5?'dusk':'night';}
-  function resolve(){const m=mode(),ph=m==='theme'?(root.dataset.theme==='dark'?'night':'day'):m==='day'||m==='night'?m:phase();return {ph,img:ph==='night'?'night':'day'};}
+  function resolve(){const m=mode(),ph=m==='theme'?(root.dataset.theme==='dark'?'night':'day'):['day','dusk','night'].includes(m)?m:phase();return {ph,img:ph==='night'?'night':'day'};}
   function apply(){const r=resolve();if(root.dataset.sceneTime!==r.img)root.dataset.sceneTime=r.img;if(root.dataset.scenePhase!==r.ph)root.dataset.scenePhase=r.ph;return r;}
-  function settingsHtml(){return `<label>场景时间<select data-scene-time>${[['auto','自动（跟随时钟）'],['day','一直白天'],['night','一直夜晚'],['theme','跟随亮暗主题']].map(([v,t])=>`<option value="${v}" ${mode()===v?'selected':''}>${t}</option>`).join('')}</select></label>`;}
+  function settingsHtml(){return `<label>场景时间<select data-scene-time>${[['auto','自动（跟随时钟）'],['day','一直白天'],['dusk','一直黄昏'],['night','一直夜晚'],['theme','跟随亮暗主题']].map(([v,t])=>`<option value="${v}" ${mode()===v?'selected':''}>${t}</option>`).join('')}</select></label>`;}
   document.addEventListener('change',e=>{const t=e.target.closest?.('select[data-scene-time]');if(!t)return;try{localStorage.setItem('scene-time',t.value);}catch(_){}apply();});
   new MutationObserver(()=>{if(mode()==='theme')apply();}).observe(root,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)apply();});

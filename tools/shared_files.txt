@@ -9,6 +9,10 @@ shared tests/study_clock_fixture.py
 shared tests/test_study_clock.py
 diverged tests/test_repairs368.py
 diverged tests/ui_repairs368.cjs
+diverged tests/test_art368.cjs
+diverged tests/test_art368.py
+diverged tests/ui_art368.cjs
+diverged tools/art368_pack.cjs
 shared rpg/scene_layout.py
 diverged tests/test_updates363.py
 diverged tests/ui_updates363.cjs

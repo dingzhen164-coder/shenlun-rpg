@@ -41,3 +41,6 @@
 
 | art366-seasons | beauty/scenes/xingce/hd/home-{spring,summer,autumn,winter}-{day,night}.webp（8张） | 青衡宗四季昼夜全景 | OpenAI imagegen，参照项目自有昼夜图分别绘制 | 生成服务条款，项目内使用 | 2026-10-22 | 3840×2880扩绘与逐块新细节，替换旧图；提示词/来源/摘要见SEASONS366.md |
 | art365-chibi | beauty/fx/sword-chibi-{jade,vermilion,indigo}.webp（3张） | 小型Q版御剑行旅 | OpenAI imagegen原创虚构人物 | 同上 | 2026-10-22 | 透明WebP，替换art364-sword旧写实人物，后者不再随包 |
+
+| art368-peaks | beauty/scenes/xingce/hd/368/train-{chang,yan,li,shu,zi}-{day,dusk,night}.webp（15张） | 行测五峰高清昼/昏/夜 | OpenAI imagegen，参考项目自有场景，完整构图后逐原生块重绘 | 生成服务条款，项目内使用；无第三方参考图 | 2026-10-22 | 每张3840×2880，8个原生块；来源ID/原生尺寸/坐标/SHA256见hd/368/provenance.json及根目录ART368.md；旧观星图保留供天机台 |
+| art368-seasons | beauty/scenes/xingce/hd/368/home-{spring,summer,autumn,winter}-{day,night}.webp（8张） | 行测宗丰富四季昼夜全景，替换art366八图 | 同上，保留现有固定地标与季节主调，增加混合植物/景物层次 | 同上 | 2026-10-22 | 原生分块3840×2880，无AI超分；项目当前使用本组，art366为可从Git恢复的历史记录；详细提示词要点见ART368.md |
