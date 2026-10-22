@@ -8,7 +8,9 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
  for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['landscape',{width:1180,height:820}]]){
   const p=await browser.newPage({viewport});active=p;const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>{
-   window.__fx={clear:0,sword:0,meteor:0,detached:0};const proto=CanvasRenderingContext2D.prototype;
+   window.__fx={clear:0,sword:0,meteor:0,detached:0};window.__images=[];
+   const NativeImage=window.Image;window.Image=class extends NativeImage{constructor(...args){super(...args);__images.push(this);}};
+   const proto=CanvasRenderingContext2D.prototype;
    const clear=proto.clearRect;proto.clearRect=function(...a){if(this.canvas.classList.contains('portal-fx')){__fx.clear++;if(!this.canvas.isConnected)__fx.detached++;}return clear.apply(this,a);};
    const draw=proto.drawImage;proto.drawImage=function(...a){if(this.canvas.classList.contains('portal-fx')&&a[0]?.src?.includes('sword-chibi-'))__fx.sword++;return draw.apply(this,a);};
    const stop=CanvasGradient.prototype.addColorStop;CanvasGradient.prototype.addColorStop=function(...a){if(a[1]==='#f4ead7')__fx.meteor++;return stop.apply(this,a);};
@@ -29,7 +31,13 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await p.waitForTimeout(100);const hidden=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(120);assert.equal(await p.evaluate(()=>__fx.clear),hidden);
   await p.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await p.waitForFunction(n=>__fx.clear>n,hidden);
   if(subject==='行测'&&label==='desktop'){
-   await p.clock.install();await p.clock.runFor(22500);assert((await p.evaluate(()=>__fx.sword))>0,'御剑贴图实际进入画布');assert((await p.evaluate(()=>__fx.meteor))>0,'夜空实际绘制流星');await p.clock.resume();
+   // 等实际动画图片解码，再在同一虚拟时钟下重新启动RAF；不混用安装前后的时间戳。
+   await p.waitForFunction(()=>{const imgs=__images.filter(i=>i.src.includes('sword-chibi-'));return imgs.length===3&&imgs.every(i=>i.complete&&i.naturalWidth>0);});
+   await p.evaluate(async()=>{await Promise.all(__images.filter(i=>i.src.includes('sword-chibi-')).map(i=>i.decode()));document.documentElement.dataset.motion='reduced';});
+   await p.waitForFunction(()=>document.querySelector('.portal-atmosphere').dataset.fxRunning==='false');
+   await p.clock.install();await p.evaluate(()=>document.documentElement.dataset.motion='full');await p.clock.runFor(22500);
+   assert((await p.evaluate(()=>__fx.sword))>0,'御剑贴图实际进入画布 '+JSON.stringify(await p.evaluate(()=>__fx)));
+   assert((await p.evaluate(()=>__fx.meteor))>0,'夜空实际绘制流星');await p.clock.resume();
   }
   assert(await p.evaluate(()=>__homeNode===document.querySelector('.portal-stage')));
   assert.deepEqual(await p.evaluate(()=>[...document.querySelectorAll('[data-portal-go]')].map(e=>[e.dataset.portalGo,e.style.cssText])),await p.evaluate(()=>__positions));

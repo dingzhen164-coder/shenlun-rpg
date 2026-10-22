@@ -97,57 +97,79 @@ jobs:
                       print('::error title=Reading and art regression::' + message, flush=True)
                       raise SystemExit(result.returncode)
       - name: Training workspace, scene clock and folded entry
+        shell: python
         run: |
-          node tests/ui_training339.cjs --subject=行测
-          node tests/ui_daylight339.cjs --subject=行测
-          node tests/ui_training339.cjs --subject=申论
-          node tests/ui_daylight339.cjs --subject=申论
-          node tests/ui_mock_html.cjs
-          node tests/ui_mock_details.cjs
-          node tests/ui_mock_imports.cjs
-          node tests/ui_fixes359.cjs
-          node tests/ui_zoom359.cjs
-          node tests/ui_fixes359.cjs --subject=申论
-          node tests/ui_zoom359.cjs --subject=申论
-          node tests/ui_tablet_shell.cjs --subject=行测
-          node tests/ui_tablet_shell.cjs --subject=申论
-          node tests/ui_skillbook.cjs --subject=行测
-          node tests/ui_skillbook.cjs --subject=申论
-          node tests/ui_tutor_format.cjs --subject=行测
-          node tests/ui_tutor_format.cjs --subject=申论
+          import subprocess
+          commands = [
+              ['node', 'tests/ui_training339.cjs', '--subject=行测'],
+              ['node', 'tests/ui_daylight339.cjs', '--subject=行测'],
+              ['node', 'tests/ui_training339.cjs', '--subject=申论'],
+              ['node', 'tests/ui_daylight339.cjs', '--subject=申论'],
+              ['node', 'tests/ui_mock_html.cjs'],
+              ['node', 'tests/ui_mock_details.cjs'],
+              ['node', 'tests/ui_mock_imports.cjs'],
+              ['node', 'tests/ui_fixes359.cjs'],
+              ['node', 'tests/ui_zoom359.cjs'],
+              ['node', 'tests/ui_fixes359.cjs', '--subject=申论'],
+              ['node', 'tests/ui_zoom359.cjs', '--subject=申论'],
+              ['node', 'tests/ui_tablet_shell.cjs', '--subject=行测'],
+              ['node', 'tests/ui_tablet_shell.cjs', '--subject=申论'],
+              ['node', 'tests/ui_skillbook.cjs', '--subject=行测'],
+              ['node', 'tests/ui_skillbook.cjs', '--subject=申论'],
+              ['node', 'tests/ui_tutor_format.cjs', '--subject=行测'],
+              ['node', 'tests/ui_tutor_format.cjs', '--subject=申论'],
+          ]
+          for command in commands:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Learning UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Narrative and learning contracts
+        shell: python
         run: |
-          node tests/test_narrative_ink.cjs
-          node tests/test_journey_dom.cjs --subject=申论
-          node tests/test_journey_dom.cjs --subject=行测
-          node tests/ui_map_navigation.cjs --subject=申论
-          node tests/ui_map_navigation.cjs --subject=行测
-          node tests/ui_back_button.cjs --subject=申论
-          node tests/ui_back_button.cjs --subject=行测
-          node tests/test_pen_guard.cjs
-          node tests/ui_pen_draw.cjs --subject=申论
-          node tests/ui_pen_draw.cjs --subject=行测
-          node tests/ui_status_navigation.cjs --subject=申论
-          node tests/ui_study_regions.cjs --subject=申论
-          node tests/ui_status_navigation.cjs --subject=行测
-          node tests/ui_study_regions.cjs --subject=行测
-          node tests/ui_fixed_layout.cjs --subject=申论
-          node tests/ui_fixed_layout.cjs --subject=行测
-          node tests/ui_grouped_rewards.cjs --subject=申论
-          node tests/ui_grouped_rewards.cjs --subject=行测
-          node tests/ui_compact_review.cjs --subject=申论
-          node tests/ui_compact_review.cjs --subject=行测
-          node tests/ui_mac_update.cjs --subject=申论
-          node tests/ui_mac_update.cjs --subject=行测
-          node tests/ui_workspace_309.cjs --subject=行测
-          node tests/ui_workspace_309.cjs --subject=申论
-          node tests/ui_reader_310.cjs --subject=行测
-          node tests/ui_reader_310.cjs --subject=申论
-          node tests/ui_images_311.cjs
-          node tests/ui_narrative.cjs --subject=申论
-          node tests/ui_narrative.cjs --subject=行测
-          node tests/ui_world.cjs --subject=申论
-          node tests/ui_world.cjs --subject=行测
+          import subprocess
+          commands = [
+              ['node', 'tests/test_narrative_ink.cjs'],
+              ['node', 'tests/test_journey_dom.cjs', '--subject=申论'],
+              ['node', 'tests/test_journey_dom.cjs', '--subject=行测'],
+              ['node', 'tests/ui_map_navigation.cjs', '--subject=申论'],
+              ['node', 'tests/ui_map_navigation.cjs', '--subject=行测'],
+              ['node', 'tests/ui_back_button.cjs', '--subject=申论'],
+              ['node', 'tests/ui_back_button.cjs', '--subject=行测'],
+              ['node', 'tests/test_pen_guard.cjs'],
+              ['node', 'tests/ui_pen_draw.cjs', '--subject=申论'],
+              ['node', 'tests/ui_pen_draw.cjs', '--subject=行测'],
+              ['node', 'tests/ui_status_navigation.cjs', '--subject=申论'],
+              ['node', 'tests/ui_study_regions.cjs', '--subject=申论'],
+              ['node', 'tests/ui_status_navigation.cjs', '--subject=行测'],
+              ['node', 'tests/ui_study_regions.cjs', '--subject=行测'],
+              ['node', 'tests/ui_fixed_layout.cjs', '--subject=申论'],
+              ['node', 'tests/ui_fixed_layout.cjs', '--subject=行测'],
+              ['node', 'tests/ui_grouped_rewards.cjs', '--subject=申论'],
+              ['node', 'tests/ui_grouped_rewards.cjs', '--subject=行测'],
+              ['node', 'tests/ui_compact_review.cjs', '--subject=申论'],
+              ['node', 'tests/ui_compact_review.cjs', '--subject=行测'],
+              ['node', 'tests/ui_mac_update.cjs', '--subject=申论'],
+              ['node', 'tests/ui_mac_update.cjs', '--subject=行测'],
+              ['node', 'tests/ui_workspace_309.cjs', '--subject=行测'],
+              ['node', 'tests/ui_workspace_309.cjs', '--subject=申论'],
+              ['node', 'tests/ui_reader_310.cjs', '--subject=行测'],
+              ['node', 'tests/ui_reader_310.cjs', '--subject=申论'],
+              ['node', 'tests/ui_images_311.cjs'],
+              ['node', 'tests/ui_narrative.cjs', '--subject=申论'],
+              ['node', 'tests/ui_narrative.cjs', '--subject=行测'],
+              ['node', 'tests/ui_world.cjs', '--subject=申论'],
+              ['node', 'tests/ui_world.cjs', '--subject=行测'],
+          ]
+          for command in commands:
+              result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(' '.join(command) + '\n' + result.stdout, flush=True)
+              if result.returncode:
+                  message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Learning UI regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Real article interactions and screenshots
         run: node tests/ui_articles.cjs
       - name: Real shenlun exam interactions and screenshots

@@ -5,7 +5,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(log))
 const out=path.resolve('ui-artifacts/updates365');fs.mkdirSync(out,{recursive:true});
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});p=await browser.newPage({viewport:{width:1280,height:860}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
- await p.addInitScript(()=>{window.__fleet={colors:[],count:0,max:0,heights:[],ys:[],frames:0};const proto=CanvasRenderingContext2D.prototype,c=proto.clearRect,d=proto.drawImage;
+ await p.addInitScript(()=>{window.__images=[];const NativeImage=window.Image;window.Image=class extends NativeImage{constructor(...args){super(...args);__images.push(this);}};window.__fleet={colors:[],count:0,max:0,heights:[],ys:[],frames:0};const proto=CanvasRenderingContext2D.prototype,c=proto.clearRect,d=proto.drawImage;
   proto.clearRect=function(...a){if(this.canvas.classList.contains('portal-fx')){__fleet.max=Math.max(__fleet.max,__fleet.count);__fleet.count=0;__fleet.frames++;}return c.apply(this,a);};
   proto.drawImage=function(...a){if(this.canvas.classList.contains('portal-fx')&&a[0]?.src?.includes('sword-chibi-')){__fleet.count++;if(!__fleet.colors.includes(a[0].src))__fleet.colors.push(a[0].src);__fleet.heights.push(a[4]);__fleet.ys.push(this.getTransform().f);}return d.apply(this,a);};
  });
@@ -24,7 +24,10 @@ const out=path.resolve('ui-artifacts/updates365');fs.mkdirSync(out,{recursive:tr
  const selected=await p.evaluate(()=>document.documentElement.dataset.sceneSeason);assert.notEqual(selected,'winter');assert.match(await p.locator('.portal-night').getAttribute('src'),new RegExp(selected+'-night'));assert(await p.evaluate(()=>__stable===document.querySelector('.portal-stage')));
  await p.evaluate(()=>{localStorage.setItem('scene-season','off');SCENE_FX.apply();});const month=await p.evaluate(()=>SCENE_FX.season());assert.match(await p.locator('.portal-night').getAttribute('src'),new RegExp(month+'-night'));
  await p.evaluate(()=>{localStorage.setItem('scene-season','autumn');SCENE_FX.apply();window.__fleet={colors:[],count:0,max:0,heights:[],ys:[],frames:0};});
- await p.clock.install();await p.clock.runFor(18000);await p.clock.resume();const fleet=await p.evaluate(()=>__fleet);
+ await p.waitForFunction(()=>{const imgs=__images.filter(i=>i.src.includes('sword-chibi-'));return imgs.length===3&&imgs.every(i=>i.complete&&i.naturalWidth>0);});
+ await p.evaluate(async()=>{await Promise.all(__images.filter(i=>i.src.includes('sword-chibi-')).map(i=>i.decode()));document.documentElement.dataset.motion='reduced';});
+ await p.waitForFunction(()=>document.querySelector('.portal-atmosphere').dataset.fxRunning==='false');
+ await p.clock.install();await p.evaluate(()=>document.documentElement.dataset.motion='full');await p.clock.runFor(18000);await p.clock.resume();const fleet=await p.evaluate(()=>__fleet);
  assert.equal(fleet.colors.length,3,'三种配色实际绘制');assert(fleet.max>=2&&fleet.max<=4,'同时多人且有数量上限');assert(Math.max(...fleet.heights)<=26&&Math.min(...fleet.heights)>=18,'人物明显缩小');assert(Math.max(...fleet.ys)-Math.min(...fleet.ys)>100,'飞行有显著升降');await p.screenshot({path:path.join(out,'chibi-fleet-night.png')});
  await p.evaluate(async()=>{for(const board of ['逻辑填空','论证逻辑','数量关系','资料分析']){await api('/api/cards/add',{deck:board+'::自编玉简',type:'问答',front:'自编条件',back:'核对条件'});await api('/api/mindmap/create',{board,name:'自编灵脉图'});}});
  for(const viewport of [{width:1280,height:860},{width:800,height:1280},{width:1180,height:820}])for(const theme of ['light','dark']){
