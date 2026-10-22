@@ -84,13 +84,18 @@ jobs:
                   print('::error title=Scene UI regression::' + message, flush=True)
                   raise SystemExit(result.returncode)
       - name: Task board, reading viewport and built-in art
+        shell: python
         run: |
-          node tests/ui_task_board.cjs --subject=行测
-          node tests/ui_layout337.cjs --subject=行测
-          node tests/ui_art338.cjs --subject=行测
-          node tests/ui_task_board.cjs --subject=申论
-          node tests/ui_layout337.cjs --subject=申论
-          node tests/ui_art338.cjs --subject=申论
+          import subprocess
+          for subject in ['行测', '申论']:
+              for script in ['ui_task_board.cjs', 'ui_layout337.cjs', 'ui_art338.cjs']:
+                  command = ['node', 'tests/' + script, '--subject=' + subject]
+                  result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                  print(' '.join(command) + '\n' + result.stdout, flush=True)
+                  if result.returncode:
+                      message = (' '.join(command) + '\n' + result.stdout[-10000:]).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                      print('::error title=Reading and art regression::' + message, flush=True)
+                      raise SystemExit(result.returncode)
       - name: Training workspace, scene clock and folded entry
         run: |
           node tests/ui_training339.cjs --subject=行测
