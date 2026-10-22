@@ -7,7 +7,9 @@
    快捷键：Ctrl+Z 撤销，Ctrl+Y 或 Ctrl+Shift+Z 重做，Esc 关闭。 */
 (function () {
   const COLORS = ['#e53935', '#1e63d6', '#222222', '#2e9d57'];
-  const st = { on: false, tool: 'pen', color: COLORS[0], width: 3, strokes: [], redo: [], cur: null, key: '' };
+  const st = { on: false, tool: 'pen', color: COLORS[0], width: 3, strokes: [], redo: [], cur: null, key: '', pointer: null, pointerType: '', finger: false };
+  let lastPen = -Infinity, frame = 0;
+  function schedulePaint(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;paint();});}
   const PREFIX = 'xrpg-draw:', INDEX = 'xrpg-draw-index', KEEP = 300;
 
   // ---------------------------------------------------------------- 按题存笔记
@@ -73,6 +75,7 @@
       ${COLORS.map((c) => `<button data-c="${c}" class="dot" style="--c:${c}" title="颜色"></button>`).join('')}
       <button data-w="3" class="thin" title="细">细</button><button data-w="6" class="thick" title="粗">粗</button>
       <button data-d="eraser" title="橡皮擦">🧽</button>
+      <button data-d="finger" title="默认仅手写笔或鼠标；明确开启才允许手指书写" aria-pressed="false">手指书写：关</button>
       <button data-d="undo" title="撤销（Ctrl+Z）">↶</button>
       <button data-d="redo" title="重做（Ctrl+Y）">↷</button>
       <button data-d="clear" title="清除屏幕上的笔记（这道题的，和左边材料上的；可以撤销）">🗑</button>`;
@@ -88,6 +91,7 @@
       else if (b.dataset.d === 'close') return close();
       else if (b.dataset.d === 'pen') st.tool = 'pen';
       else if (b.dataset.d === 'eraser') st.tool = 'eraser';
+      else if (b.dataset.d === 'finger') { st.finger = !st.finger; b.textContent = '手指书写：' + (st.finger ? '开' : '关'); b.setAttribute('aria-pressed', String(st.finger)); }
       else if (b.dataset.d === 'undo') undo();
       else if (b.dataset.d === 'redo') redo();
       else if (b.dataset.d === 'clear') { if (visible(st.strokes).length) { st.redo = []; st.strokes.push({ clear: true }); paint(); save(); } }
@@ -100,6 +104,7 @@
     canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', up);
+    canvas.addEventListener('lostpointercapture', up);
     window.addEventListener('resize', () => st.on && resize());
   }
 
@@ -159,35 +164,42 @@
 
   let guard = null;
   function beginStroke(e) {
+    st.pointer = e.pointerId; st.pointerType = e.pointerType;
     const erase = st.tool === 'eraser' || e.button === 5;          // 手写笔的橡皮头也算橡皮
     st.cur = { erase, color: st.color, width: erase ? 22 : st.width, pts: [[e.clientX, e.clientY]], mat: !!st.mkey && inMat(e.clientX, e.clientY) };
   }
   function down(e) {
-    if (e.button && e.button !== 0) return;
+    if (e.pointerType === 'pen') lastPen = performance.now();
+    if (e.pointerType === 'touch' && (!st.finger || st.pointerType === 'pen' || performance.now() - lastPen < 1200)) { e.preventDefault(); return; }
+    if (e.button && e.button !== 5) return;
+    if (st.cur && e.pointerType !== 'pen' && st.pointerType === 'pen') return;
     if (guard) { const had = !!st.cur; if (had) up(); guard.down(had); }   // 上一笔没收尾：先收掉，新一笔照常写
     try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* 指针已失效也要照常记这一笔 */ }
-    const erase = st.tool === 'eraser' || e.button === 5;          // 手写笔的橡皮头也算橡皮
-    st.cur = { erase, color: st.color, width: erase ? 22 : st.width, pts: [[e.clientX, e.clientY]], mat: !!st.mkey && inMat(e.clientX, e.clientY) };
+    beginStroke(e);
     paint();
     if (guard) guard.idle(() => up());
     e.preventDefault();
   }
   function move(e) {
+    if (e.pointerType === 'pen') lastPen = performance.now();
     if (guard && guard.missedDown(e, !!st.cur)) { try { canvas.setPointerCapture(e.pointerId); } catch (_) {} beginStroke(e); }   // 落笔事件被吞：笔压着在动，补一笔
+    if (!st.cur || e.pointerId !== st.pointer || e.pointerType !== st.pointerType) return;
     if (st.cur && guard && guard.lifted(e, true)) { up(); return; }
     if (!st.cur) return;
     const evs = (e.getCoalescedEvents?.().length ? e.getCoalescedEvents() : [e]);
     for (const x of evs) st.cur.pts.push([x.clientX, x.clientY]);
-    paint();
+    schedulePaint();
     if (guard) guard.idle(() => up());
     e.preventDefault();
   }
   function up(e) {
+    if (e && (e.pointerId !== st.pointer || e.pointerType !== st.pointerType)) return;
     if (e && guard && guard.lateUp(e)) return;     // 上一笔晚到的抬笔，不是这一笔的
     if (!st.cur) return;
     if (guard) guard.idle();
     st.strokes.push(st.cur);
     st.cur = null;
+    st.pointer = null; st.pointerType = '';
     st.redo = [];
     paint();
     syncBar();
@@ -210,6 +222,7 @@
     btn.classList.add('on');
   }
   function close() {
+    if (st.cur) up();
     if (st.on) save();                  // 关掉不清：存起来，下次打开这道题还在
     st.on = false;
     st.strokes = []; st.redo = [];

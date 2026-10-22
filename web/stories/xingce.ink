@@ -4,7 +4,7 @@ VAR tower = false
 VAR boss = false
 -> END
 === prologue_start ===
-青衡宗山门重开。沈清禾在竹下等你，将一卷竹简放在石案上。
+行测宗山门重开。沈清禾在竹下等你，将一卷竹简放在石案上。
 先明理，再举例，最后以真题验之。你愿从何处开始？
 + [我想先梳理方法] # choice:understand
   -> prologue_understand

@@ -54,3 +54,6 @@ html:not([data-theme="dark"]) .portal-landscape.portal-night{display:none}
 /* 3.6.6扩绘全景有真实上下景物：铺满工作区，停用旧模糊补边；编辑预览同规则。 */
 .portal-stage[data-framing="extended"]>.portal-landscape{object-fit:cover}
 .portal-stage[data-framing="extended"]>.portal-landscape-fill{display:none}
+/* 五峰单字图标：书法家Yuji片冈的毛笔手写字形，仅内置五个繁体字，离线加载。 */
+@font-face{font-family:PeakCalligraphy;src:url('assets/beauty/fonts/peak-calligraphy.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+.portal-ic .portal-calligraphy{font-family:PeakCalligraphy,serif;font-weight:400;font-style:normal;font-synthesis:none;font-size:1.4em;line-height:1;display:inline-block}

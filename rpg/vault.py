@@ -252,6 +252,19 @@ def parse_seconds(value):
     return seconds if 0<=seconds<=86400 else None
 
 
+def parse_accuracy(value):
+    """原资料正确率，以百分数保存；无明确百分号或超出0—100不猜测。"""
+    text = str(value or '').replace('％', '%').replace('．', '.')
+    text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+    match = re.search(r'正确率\s*[:：]?\s*\*{0,2}\s*(\d+(?:\.\d+)?)\s*%', text)
+    if not match:
+        match = re.fullmatch(r'\s*\*{0,2}\s*(\d+(?:\.\d+)?)\s*%\*{0,2}\s*', text)
+    if not match:
+        return None
+    rate = float(match.group(1))
+    return rate if 0 <= rate <= 100 else None
+
+
 def parse_board_file(path):
     """返回题目列表（dict），带缓存（按修改时间 + 大小；Windows 上连着写两次可能落在同一个时间刻度里）"""
     try:
@@ -286,6 +299,10 @@ def parse_board_file(path):
             continue
         if ln.strip() == "---":
             cur = None
+            continue
+        if re.match(r'^>\s*(?:原题|全站|全网|本题)?正确率[:：]', ln):
+            rate = parse_accuracy(ln)
+            if rate is not None: cur['source_accuracy'] = rate
             continue
         if ln.startswith(NOTE):
             in_note = True

@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from rpg import api, cards, config, engine, mindmap, paths, store
+import study_clock_fixture
 
 
 class MindmapDocumentTest(unittest.TestCase):
@@ -92,6 +93,7 @@ class MindmapDocumentTest(unittest.TestCase):
         self.assertIsNone(mindmap.reading(self.p, token))
         mindmap.end_reading(token)
         self.assertIsNone(mindmap.reading(self.p, token))
+    @study_clock_fixture.elapsed_heartbeats
     def test_api_reader_and_card_view_use_review_category(self):
         self.create()
         day = dt.date(2026,10,14)

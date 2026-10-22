@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from rpg import api, cards, paths, tianji
+import study_clock_fixture
 
 try:
     import pymupdf as fitz
@@ -116,6 +117,7 @@ class TianjiTest(unittest.TestCase):
         self.assertIn("1200万人以上", d["news"][0]["paras"][0])
         self.assertEqual([p["a"] for p in d["cloze"][0]["parts"] if "a" in p], ["5%", "1200"])
 
+    @study_clock_fixture.elapsed_heartbeats
     def test_import_progress_cards(self):
         data = "data:application/pdf;base64," + base64.b64encode(self.month.read_bytes()).decode()
         r = api.tj_import({"data": data})

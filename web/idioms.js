@@ -16,7 +16,7 @@
           ? `<div class="id-cmp-short"><span class="id-k">${s.tutor && !s.edited ? "🧙 师傅辨析" : "辨析"}</span>${esc(s.compare).replace(/\n/g, "<br>")}</div>`
           : `<details class="id-cmp"><summary><span class="id-k">辨析</span>（本题解析里讲第 ${s.blank} 空的那段）</summary><div>${esc(s.compare).replace(/\n/g, "<br>")}</div></details>`) : ""}
         <div class="id-foot"><button class="ghost small id-jump" data-idkey="${esc(s.key)}" data-idq="${esc(s.id)}" data-idboard="${esc(s.board)}">↗ ${esc(s.id)}</button>
-          <span class="faint small">${esc(s.paper || "")}${s.blanks > 1 ? ` · 第 ${s.blank} 空` : ""} · 正确选项 ${esc(s.answer)}「${esc(s.option_text)}」 · 收于 ${esc(s.date)}</span></div>
+          <span class="faint small">${esc(s.paper || "")}${s.blanks > 1 ? ` · 第 ${s.blank} 空` : ""} · 收录选项 ${esc(s.option || s.answer)}「${esc(s.option_text)}」 · 正确答案 ${esc(s.answer || '未提供')} · 收于 ${esc(s.date)}</span></div>
       </div>`).join("");
     if (EDIT === e.word) return editCard(e);
     const d = e.detail, o = d?.origin || {};
@@ -48,7 +48,7 @@
         <button class="primary" id="idGo">查</button>
         <button class="ghost" id="idFill" title="把以前做过的逻辑填空题（作答记录里有的）一次收进来">⟳ 收录以前做过的逻辑填空</button></div>
       <div class="id-letters">${LETTERS.map((L) => `<a class="${d.letters[L] ? "" : "off"}" data-idletter="${L}">${L}<small>${d.letters[L] || ""}</small></a>`).join("")}</div>
-      <p class="small muted" style="margin:6px 0 0">共 ${d.total} 个词条。逻辑填空交卷或点师傅解惑后，正确选项里的成语自动收进来（二字、三字词和普通短语不收），同时写进 训练/${esc(d.file)}。</p></div>`;
+      <p class="small muted" style="margin:6px 0 0">共 ${d.total} 个词条。逻辑填空交卷收录正确选项成语；点师傅解惑收录全部选项成语（二字、三字词和普通短语不收），同时写进 训练/${esc(d.file)}。</p></div>`;
     if (!list.length) {
       return bar + `<p class="muted lib-tip">${Q ? "没有查到这个词。" : "还没有词条：去修炼殿做一组逻辑填空（板块试炼、知识点试炼、整套试炼都行），交卷后自动收录；或者点上面的「收录以前做过的逻辑填空」。"}</p>`;
     }

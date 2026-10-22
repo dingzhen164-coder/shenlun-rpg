@@ -20,7 +20,7 @@ from .paths import DEFAULTS_DIR
 
 DEFAULT_ROOT = DEFAULTS_DIR / '人物' / '行测'
 CHAT_LOCK = threading.Lock()
-SCENES = {'home': '青衡宗', 'train': '问道群峰', 'peak-chang': '万象峰',
+SCENES = {'home': '行测宗', 'train': '问道群峰', 'peak-chang': '万象峰',
           'peak-yan': '辨言峰', 'peak-li': '明理峰', 'peak-shu': '演数峰',
           'peak-zi': '观星峰', 'bank': '试炼塔', 'contest': '宗门大比',
           'skeleton': '藏经阁', 'tianji': '天机台'}
@@ -269,7 +269,7 @@ def prepare_chat(g, body):
         for board in p['boards']:
             if board in g.boards:
                 knowledge += [board + '：' + it['name'] for it in g.final_items(board)][:20]
-    system = ('你正在扮演青衡宗游戏人物，与玩家自然交流；这是AI生成的游戏对话，不是现实本人发言。'
+    system = ('你正在扮演行测宗游戏人物，与玩家自然交流；这是AI生成的游戏对话，不是现实本人发言。'
               '人物性格是可编辑的游戏设定，不能将虚构背景当作真人经历。只使用有依据的现实信息。'
               '保持简体中文、自然口吻；允许闲聊，不要每句催学习；玩家遇到真实困难先关心。'
               '口头禅偶尔使用，不机械复读。知识不确定就说明，不虚构原题、成绩或资料。'

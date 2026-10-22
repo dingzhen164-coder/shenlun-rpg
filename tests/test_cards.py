@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from rpg import api, cards, config, engine, paths, store
 
@@ -234,10 +235,14 @@ class CardsApiTest(unittest.TestCase):
         self.assertEqual(r["card"]["front"], "“不刊之论”的刊？")
         self.assertEqual(r["intervals"]["1"] if "1" in r["intervals"] else r["intervals"][1], "1分钟")
         cards.LAST_ANSWER["t"] = 0
-        self.assertFalse(api.heartbeat({"seconds": 30, "cards": True})["studying"])      # 没温简不算
+        with patch('rpg.study_clock._now',return_value=1000):
+            self.assertFalse(api.heartbeat({"seconds": 30, "cards": True})["studying"])      # 没温简不算
         r = api.cards_answer({"deck": "言语", "key": r["card"]["key"], "rating": 4, "secs": 8})
         self.assertTrue(r["done"])
-        hb = api.heartbeat({"seconds": 60, "cards": True})
+        with patch('rpg.study_clock._now',return_value=1060):
+            hb = api.heartbeat({"seconds": 60, "cards": True})
+            repeat = api.heartbeat({"seconds": 60, "cards": True})
+            self.assertEqual(repeat['minutes'],hb['minutes'])
         self.assertTrue(hb["studying"])
         self.assertEqual(hb["minutes"], 1)
         r = api.cards_undo({"deck": "言语"})

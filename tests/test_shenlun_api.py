@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fake_grade_ai import FakeAI  # noqa: E402
 from rpg import ai, api, paths, shenlun  # noqa: E402
+import study_clock_fixture
 from test_shenlun import DOC, GOOD, HALF, RUBRIC, fake_ai  # noqa: E402
 
 
@@ -128,6 +129,7 @@ class ShenlunApiTest(unittest.TestCase):
                 api.shenlun_draft({"file": "../x.txt", "prefix": "a", "no": 1})
 
     # ------------------------------------------------------------ 作答计时（服务端校验）
+    @study_clock_fixture.elapsed_heartbeats
     def test_answering_time_needs_recent_typing(self):
         api.heartbeat({"seconds": 30, "answering": "归纳概括"})
         self.assertEqual(self.state()["seconds"].get(self.state()["created"], 0) if False else sum(self.state()["seconds"].values()), 0)   # 没敲过键盘 → 不计时

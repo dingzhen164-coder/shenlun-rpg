@@ -18,5 +18,10 @@ body{background:var(--bg);color:var(--text)}.sidebar{background:var(--panel2);bo
 .atlas-reading-tools>.tabs{display:flex;gap:6px;margin:0;padding:0;border:0;min-width:0}
 .atlas-reading-tools button{min-height:38px;padding:7px 12px;white-space:nowrap}.atlas-status-inline{margin-left:auto;max-width:150px}.atlas-status-inline .status{min-height:36px;width:auto;max-width:150px;padding:5px 8px}
 .detail-grid{display:block}.detail-grid>div>.panel:first-child{margin-top:0}.panel{padding:18px}.original{max-width:64em;line-height:1.95}.original .source-heading:first-child{margin-top:0}.reading{line-height:1.9}
+/* 配套题使用独立段落和较大字号，覆盖原PDF文字的紧凑排版。 */
+.question .qtext{font-size:var(--ds-fs-18);line-height:1.95;white-space:normal;overflow-wrap:anywhere;word-break:normal}
+.question .atlas-qline{white-space:pre-wrap;margin-bottom:.55em}
+.question .feedback{font-size:var(--ds-fs-16);line-height:1.85;white-space:pre-wrap}
+.question .answer-options button{min-width:48px;min-height:44px;font-size:var(--ds-fs-18)}
 .atlas-related{margin-top:18px;border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel)}.atlas-related summary{padding:10px 16px;color:var(--muted);font-size:var(--ds-fs-12);cursor:pointer}.atlas-related aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px}.atlas-related .panel{padding:14px}
 @media(max-width:1100px){.main{padding:0 14px 20px}.atlas-reading-tools{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}.atlas-toolbar{padding-left:6px;padding-right:6px;gap:4px}.atlas-toolbar .nav{gap:3px}.atlas-toolbar .nav button{padding-left:11px;padding-right:11px}.map-top{margin-bottom:14px}.panel{padding:16px}.source-columns{padding:12px 6px}}
