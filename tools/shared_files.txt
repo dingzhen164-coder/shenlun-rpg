@@ -632,3 +632,8 @@ shared tests/test_scene_fx.cjs
 diverged tests/ui_scene364.cjs
 diverged web/assets/beauty/fx/*
 diverged web/assets/beauty/NIGHT364.md
+
+# 3.6.5 行测高峰奖惩与季节美术；通用渲染保持可选参数。
+diverged tests/test_updates365.py
+diverged tests/ui_updates365.cjs
+diverged web/assets/beauty/SEASONS365.md

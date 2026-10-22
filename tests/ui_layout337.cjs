@@ -33,7 +33,12 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.evaluate(async region=>{STUDY_REGIONS.select(region);await go('train');},region);await p.locator('.fx-region-work').waitFor();
   assert.equal(await p.locator('[data-study-regions-back]').count(),0);assert(await p.locator('.subpage-place').innerText().then(s=>s.includes(subject==='行测'?'辨言峰':board)));
   const geometry=await p.evaluate(()=>{const a=document.querySelector('.fx-region-work').getBoundingClientRect(),v=document.querySelector('#view').getBoundingClientRect(),h=document.querySelector('#studyHud').getBoundingClientRect(),cards=[...document.querySelectorAll('.fx-region-work>.card')].map(e=>({height:e.clientHeight,scroll:e.scrollHeight}));return {top:a.top,bottom:a.bottom,viewBottom:v.bottom,hudBottom:h.bottom,cards};});
-  assert(Math.abs(geometry.bottom-geometry.viewBottom)<20&&Math.abs(geometry.top-geometry.hudBottom)<24,'资料用满顶栏下工作区 '+JSON.stringify(geometry));assert(geometry.cards.every(c=>c.height>100));
+  if(subject==='行测'){
+   const panel=await p.locator('.fx-scenic-peak').boundingBox();
+   assert(panel.width<viewport.width*.95&&panel.height<viewport.height*.8,'四峰选择页收拢、留出山景 '+JSON.stringify(panel));
+   assert(geometry.top>geometry.hudBottom+24&&geometry.bottom<geometry.viewBottom-24,'四峰上下留景 '+JSON.stringify(geometry));
+  }else assert(Math.abs(geometry.bottom-geometry.viewBottom)<20&&Math.abs(geometry.top-geometry.hudBottom)<24,'资料用满顶栏下工作区 '+JSON.stringify(geometry));
+  assert(geometry.cards.every(c=>c.height>100));
   if(process.argv.includes('--shots')&&size==='tablet'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-region.png')});}
   // 两峰请求乱序时，温简范围也必须跟随当前页面，不能被旧全局scope覆盖。
   const secondBoard=subject==='行测'?'数量关系':await p.evaluate(()=>DASH.tree[1].board),secondRegion=subject==='行测'?'shu':'board-1';
@@ -45,6 +50,9 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.locator('button[data-yjgo=""]').click();await p.locator('#yjShow').waitFor();assert((await p.locator('.yj-stage').textContent()).includes('自编第二分区'),'当前峰温简不得串到旧峰');await p.locator('#yjBack').click();await p.locator('.yj-stage').waitFor({state:'detached'});
   await p.evaluate(async r=>{STUDY_REGIONS.select(r);await go('train');},region);
   await p.locator('[data-ln]').first().click();await p.locator('#lnCanvas svg>g').first().waitFor();assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),'split');assert(await p.locator('#lnMarkdown').isVisible());assert.equal(await p.locator('#lnFile,#lnLayout').count(),0);assert.equal(await p.locator('.yj-top>.ln-reading-tabs').count(),1,'阅读工具并入图名同一栏');assert(await p.locator('.yj-top').evaluate(e=>{const a=e.getBoundingClientRect(),b=e.querySelector('.ln-reading-tabs').getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom+1;}));
+  const reader=await p.locator('.ln-stage').boundingBox();
+  const hudBottom=await p.locator('#studyHud').evaluate(e=>e.getBoundingClientRect().bottom);
+  assert(reader.width>=viewport.width-2&&Math.abs(reader.y-hudBottom)<2&&Math.abs(reader.y+reader.height-viewport.height)<2,'实际阅读器用满顶栏下工作区 '+JSON.stringify(reader));
   await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop=850);const canvas=await p.locator('#lnCanvas').boundingBox();await p.mouse.move(canvas.x+canvas.width*.5,canvas.y+canvas.height*.5);await p.mouse.wheel(0,-350);
   await p.waitForFunction(()=>Object.keys(localStorage).some(k=>k.startsWith('mindmap-reading-v1:')&&JSON.parse(localStorage[k]).top>100));
   await p.waitForTimeout(230);const saved=await position(p),matrix=await graph(p);assert(saved.view&&saved.top>100);
@@ -53,6 +61,6 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),'split');assert(Math.abs(await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop)-saved.top)<2,'重开恢复文档位置');assert.equal(await graph(p),matrix,'重开恢复导图位置与缩放');
   await p.reload();await p.waitForFunction(()=>!!window.DASH_REF?.());await p.evaluate(async board=>MINDMAP.open(board,'自编阅读导图',false),board);await p.locator('#lnCanvas svg>g').first().waitFor();await p.waitForTimeout(200);assert(Math.abs(await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop)-saved.top)<2,'刷新应用也保留阅读位置');assert.equal(await graph(p),matrix);
   if(process.argv.includes('--shots')&&size==='tablet'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-split.png')});}
-  assert.deepEqual(errors,[]);await p.close();console.log((subject||'法考')+' '+size+'：地图保留、后台心跳、慢请求竞态、满高研习、双栏及阅读位置恢复通过');
+  assert.deepEqual(errors,[]);await p.close();console.log((subject||'法考')+' '+size+'：地图保留、后台心跳、慢请求竞态、选择页布局、全屏阅读、双栏及阅读位置恢复通过');
  }
 }catch(e){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure-'+(subject||'法考')+'.png')}).catch(()=>{});}throw e;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exit(1);});

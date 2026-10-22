@@ -1,4 +1,4 @@
-/* 3.6.4 首页装饰：多景深四季、御剑与流星，只管外观。
+/* 3.6.5 首页装饰：多景深四季、御剑与流星，只管外观。
  * localStorage scene-season=auto|random|四季|off；scene-season-minutes=15|30|60|120|240；
  * scene-season-cycle-v1={season,at,minutes}。刷新不重抽，离开/隐藏/减少动画停止RAF。
  * scene_clock.js统一时钟；申论室内仅微尘，御剑贴图只用于青衡宗。 */
@@ -32,13 +32,13 @@
     const random=LS('scene-season','auto')==='random';
     document.querySelectorAll('[data-scene-interval]').forEach(el=>{el.hidden=!random;});
     document.querySelectorAll('[data-scene-season-status]').forEach(el=>{
-      const text=random?`当前：${names[current.se]} · 每${minutes()}分钟随机轮换（不会连续重复）`:'只影响场景装饰；减少动画时停止飘落、御剑与流星。';
+      const text=random?`当前：${names[current.se]} · 每${minutes()}分钟随机轮换（不会连续重复）`:'四季全景与装饰同步变化；关闭仅停季节粒子，背景按月份选图。减少动画时停止飘落、御剑与流星。';
       if(el.textContent!==text)el.textContent=text;
     });
   }
   function apply(){
     current=resolve();SCENE_CLOCK.apply();if(root.dataset.sceneSeason!==current.se)root.dataset.sceneSeason=current.se;
-    settingsState();controllers.forEach(c=>c.sync());clearTimeout(timer);
+    settingsState();window.SCENE_PORTAL?.refreshArt?.();controllers.forEach(c=>c.sync());clearTimeout(timer);
     timer=setTimeout(apply,Math.max(200,Math.min(60000,current.next?current.next-Date.now():60000)));
   }
   const palette={spring:['#f6c3d1','#fff1e8','#e4a5bb'],summer:['#e0f3a4','#f4d997'],autumn:['#d8a04a','#bb6a38','#e6c781'],winter:['#eef5ff','#bdd5e8']};
@@ -52,9 +52,9 @@
     const rays=document.createElement('div');rays.className='portal-rays';rays.innerHTML='<i></i><i></i><i></i>';atm.insertBefore(rays,cv);
     ['m1','m2','m3'].forEach(c=>{const m=document.createElement('i');m.className='portal-mist '+c;atm.insertBefore(m,cv);});
     const ctx=cv.getContext('2d');if(!ctx)return;
-    const traveler=swords?new Image():null;if(traveler)traveler.src='assets/beauty/fx/sword-traveler.webp';
-    let W=1,H=1,key='',parts=[],stars=[],dust=[],flight=null,meteor=null,birds=[],elapsed=0,raf=0,last=0;
-    let nextFlight=rnd(7000,14000),nextMeteor=rnd(9000,18000),nextBird=rnd(9000,18000);
+    const travelers=swords?['jade','vermilion','indigo'].map(name=>{const img=new Image();img.src='assets/beauty/fx/sword-chibi-'+name+'.webp';return img;}):[];
+    let W=1,H=1,key='',parts=[],stars=[],dust=[],flights=[],meteor=null,birds=[],elapsed=0,raf=0,last=0;
+    let nextFlight=rnd(1200,2500),nextMeteor=rnd(9000,18000),nextBird=rnd(9000,18000);
     const state=()=>({...current,ph:root.dataset.scenePhase||current.ph,img:root.dataset.sceneTime||current.img});
     function seed(){
       const r=state();key=r.se+r.img;const count=r.se==='winter'?70:r.se==='summer'?32:38;
@@ -94,13 +94,30 @@
         const x=meteor.x-k*meteor.span,y=meteor.y+k*H*.14,tail=meteor.span*.28,a=Math.sin(k*Math.PI),g=ctx.createLinearGradient(x,y,x+tail,y-tail*.42);
         g.addColorStop(0,'#f4ead7');g.addColorStop(.25,'#b6d7ee');g.addColorStop(1,'rgba(182,215,238,0)');ctx.globalAlpha=a*.85;ctx.strokeStyle=g;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+tail,y-tail*.42);ctx.stroke();glow(x,y,5,'#f6edda',a*.7);
       }}
-      // 小幅弧线、衣袂贴图和剑气；只在青衡宗出现，始终不接收指针。
-      if(swords&&traveler?.complete&&traveler.naturalWidth&&!flight&&t>nextFlight){flight={start:t,duration:rnd(14000,21000),y:rnd(H*.13,H*.3),dir:Math.random()<.5?1:-1,size:rnd(38,58)};nextFlight=t+rnd(43000,76000);}
-      if(flight){const k=(t-flight.start)/flight.duration;if(k>1)flight=null;else{
-        const x=flight.dir===1?-90+(W+180)*k:W+90-(W+180)*k,y=flight.y-Math.sin(k*Math.PI)*H*.045;
-        ctx.save();ctx.translate(x,y);ctx.scale(flight.dir,1);ctx.globalAlpha=Math.min(1,k*8,(1-k)*8)*.78;
-        const trail=ctx.createLinearGradient(-85,0,-8,0);trail.addColorStop(0,'rgba(190,225,232,0)');trail.addColorStop(1,'rgba(190,225,232,.4)');ctx.strokeStyle=trail;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-85,9);ctx.quadraticCurveTo(-45,14,-5,5);ctx.stroke();ctx.drawImage(traveler,-flight.size*.6,-flight.size*.65,flight.size*1.6,flight.size);ctx.restore();
-      }}
+      // 小型Q版行旅：三种配色、最多四人，不同高差与控制点的曲线，位于入口下方。
+      if(swords&&t>nextFlight){
+        const available=travelers.filter(img=>img.complete&&img.naturalWidth);
+        if(available.length){
+          const count=Math.min(4-flights.length,flights.length?1:3);
+          for(let i=0;i<count;i++){
+            const dir=Math.random()<.5?1:-1,y0=rnd(H*.13,H*.58);
+            let y1=rnd(H*.12,H*.64);if(Math.abs(y1-y0)<H*.12)y1=y0>H*.4?H*.16:H*.58;
+            flights.push({start:t+i*rnd(220,600),duration:rnd(10000,16000),dir,y0,y1,
+              cy0:rnd(H*.08,H*.65),cy1:rnd(H*.08,H*.65),size:rnd(18,26),img:available[(flights.length+i)%available.length]});
+          }
+        }nextFlight=t+rnd(4500,7500);
+      }
+      flights=flights.filter(f=>t<f.start+f.duration);
+      flights.forEach(f=>{
+        const k=(t-f.start)/f.duration;if(k<0)return;const q=1-k;
+        const x=f.dir===1?-55+(W+110)*k:W+55-(W+110)*k;
+        const y=q*q*q*f.y0+3*q*q*k*f.cy0+3*q*k*k*f.cy1+k*k*k*f.y1;
+        const dy=3*q*q*(f.cy0-f.y0)+6*q*k*(f.cy1-f.cy0)+3*k*k*(f.y1-f.cy1);
+        ctx.save();ctx.translate(x,y);ctx.scale(f.dir,1);ctx.rotate(Math.max(-.35,Math.min(.35,Math.atan2(dy,W+110)*.5)));
+        ctx.globalAlpha=Math.min(1,k*9,(1-k)*9)*.9;
+        const trail=ctx.createLinearGradient(-32,0,0,0);trail.addColorStop(0,'rgba(190,225,232,0)');trail.addColorStop(1,'rgba(190,225,232,.35)');ctx.strokeStyle=trail;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(-32,6);ctx.quadraticCurveTo(-18,9,0,4);ctx.stroke();
+        const width=f.size*f.img.naturalWidth/f.img.naturalHeight;ctx.drawImage(f.img,-width*.5,-f.size*.65,width,f.size);ctx.restore();
+      });
       if(!indoor&&r.img!=='night'&&t>nextBird){birds=[0,1,2].map(i=>({x:-30-i*24,y:rnd(H*.12,H*.18),p:i*1.3,s:3+i*.5}));nextBird=t+rnd(32000,54000);}
       birds=birds.filter(b=>b.x<W+30);birds.forEach(b=>{b.x+=dt*.035;const f=Math.sin(t/210+b.p)*b.s;ctx.globalAlpha=.45;ctx.strokeStyle='#5b6d6d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(b.x-b.s,b.y-f);ctx.quadraticCurveTo(b.x-b.s/2,b.y-1,b.x,b.y);ctx.quadraticCurveTo(b.x+b.s/2,b.y-1,b.x+b.s,b.y-f);ctx.stroke();});
     }

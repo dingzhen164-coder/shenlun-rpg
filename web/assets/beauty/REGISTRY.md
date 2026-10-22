@@ -38,3 +38,6 @@
 | art364-night-sl | beauty/scenes/shenlun/*-night.webp（新增12张，不含已有home-night） | 办公室三页/五类学习区/档案/手账/设置/中心 | 同上 | 同上 | 2026-10-22 | 现实政务环境，无修仙元素 |
 | art364-night-world | beauty/trial/{landscape,tower,gate}-night.webp、beauty/contest/arena-night.webp | 云台、塔、石门、演武场夜景（4张） | OpenAI imagegen参照项目自有场景 | 同上 | 2026-10-22 | 塔/门保留透明通道，灯火直接入画 |
 | art364-sword | beauty/fx/sword-traveler.webp | 青衡宗主页小型御剑行旅 | OpenAI imagegen原创虚构人物 | 同上 | 2026-10-22 | 360×240透明WebP，运行时弧线与尾迹为项目代码 |
+
+| art365-seasons | beauty/scenes/xingce/home-{spring,summer,autumn,winter}-{day,night}.webp（8张） | 青衡宗四季昼夜全景 | OpenAI imagegen，参照项目自有昼夜图分别绘制 | 生成服务条款，项目内使用 | 2026-10-22 | 同构图春花夏绿秋叶冬雪，提示词见SEASONS365.md |
+| art365-chibi | beauty/fx/sword-chibi-{jade,vermilion,indigo}.webp（3张） | 小型Q版御剑行旅 | OpenAI imagegen原创虚构人物 | 同上 | 2026-10-22 | 透明WebP，替换art364-sword旧写实人物，后者不再随包 |

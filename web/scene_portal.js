@@ -45,11 +45,27 @@
     if(document.documentElement.dataset)document.documentElement.dataset.motion=motionOff()?'reduced':document.hidden?'paused':'full';
   }
   // 3.4白天/夜晚两张全景：亮色主题显示白天、暗色主题显示夜晚（纯CSS切换，不显示的那张懒加载）；单图场景保持原样。
+  function sceneImages() {
+    const se=document.documentElement.dataset?.sceneSeason;
+    return config?.seasons?.[se]||config?.seasons?.[window.SCENE_FX?.season()]||config?.images;
+  }
+  function refreshArt() {
+    if(!config)return;
+    const images=sceneImages();if(!images)return;
+    document.querySelectorAll('.portal-stage').forEach(stage=>{
+      for(const time of ['day','night']){
+        const img=stage.querySelector('.portal-'+time),src=images[time];
+        if(img&&img.getAttribute('src')!==src)img.setAttribute('src',src);
+        stage.querySelector('.portal-landscape-fill')?.style.setProperty('--portal-fill-'+time,`url("${src}")`);
+      }
+    });
+  }
   function landscapeHtml() {
     const alt = esc(config.title) + '全景';
-    const fill=`<div class="portal-landscape-fill" aria-hidden="true" style="--portal-fill-day:url(&quot;${esc(config.images?.day||config.image)}&quot;);--portal-fill-night:url(&quot;${esc(config.images?.night||config.image)}&quot;)"></div>`;
-    if (!config.images) return fill+`<img class="portal-landscape" src="${esc(config.image)}" alt="${alt}">`;
-    return fill+`<img class="portal-landscape portal-day" src="${esc(config.images.day)}" alt="${alt}"><img class="portal-landscape portal-night" src="${esc(config.images.night)}" alt="" aria-hidden="true" loading="lazy">`;
+    const images=sceneImages();
+    const fill=`<div class="portal-landscape-fill" aria-hidden="true" style="--portal-fill-day:url(&quot;${esc(images?.day||config.image)}&quot;);--portal-fill-night:url(&quot;${esc(images?.night||config.image)}&quot;)"></div>`;
+    if (!images) return fill+`<img class="portal-landscape" src="${esc(config.image)}" alt="${alt}">`;
+    return fill+`<img class="portal-landscape portal-day" src="${esc(images.day)}" alt="${alt}"><img class="portal-landscape portal-night" src="${esc(images.night)}" alt="" aria-hidden="true" loading="lazy">`;
   }
   function geometry(device) {
     const current=device===profile(),width=current?window.innerWidth:device==='desktop'?1280:800,height=current?window.innerHeight:device==='desktop'?860:1280;
@@ -146,5 +162,6 @@
     }else if(edit&&document.querySelector('[data-portal-preview]'))redrawEditor();
   });
   document.addEventListener('visibilitychange',syncMotion);
-  window.SCENE_PORTAL={configure,homeHtml,settingsHtml,mount,normalize,profile,title};
+  window.SCENE_PORTAL={configure,homeHtml,settingsHtml,mount,normalize,profile,title,refreshArt};
+  if(typeof MutationObserver!=='undefined')new MutationObserver(refreshArt).observe(document.documentElement,{attributes:true,attributeFilter:['data-scene-season','data-scene-time']});
 })();
