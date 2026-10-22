@@ -33,3 +33,8 @@
 | art338-scenes | beauty/scenes/<主题>/*.webp | 三科个人空间、研习分区与普通页面背景 | 本项目原创提示词，经 OpenAI imagegen 生成 | 生成服务条款；未用第三方图 | 2026-10-17 | 提示词见各主题 README；深色复用同图加遮罩，减少体积 |
 | art338-shenlun | beauty/characters/shenlun/sl-*-calm.webp | 九位既有申论人物，每人一张 | 本项目原创设定，经 OpenAI imagegen 生成并透明化 | 生成服务条款；原创虚构人物 | 2026-10-17 | 姓名/岗位沿用职务履历，不扩展自由偶遇阵容；法考包不含本组图 |
 | art338-peers | beauty/characters/{xingce,fakao}/*-calm.webp | 陆衡/苏苓、莉娅/诺亚既有支线单张立绘 | OpenAI imagegen 原创生成 | 生成服务条款 | 2026-10-17 | 详见各人物目录README；按科目分发，不新增人物 |
+
+| art364-night-xc | beauty/scenes/xingce/*-night.webp（12张） | 洞府五页/五峰/设置/群峰独立夜景 | OpenAI imagegen，参照项目自有白天图逐场景重绘 | 生成服务条款，项目内使用 | 2026-10-22 | 提示词及清单见NIGHT364.md，不是调色图 |
+| art364-night-sl | beauty/scenes/shenlun/*-night.webp（新增12张，不含已有home-night） | 办公室三页/五类学习区/档案/手账/设置/中心 | 同上 | 同上 | 2026-10-22 | 现实政务环境，无修仙元素 |
+| art364-night-world | beauty/trial/{landscape,tower,gate}-night.webp、beauty/contest/arena-night.webp | 云台、塔、石门、演武场夜景（4张） | OpenAI imagegen参照项目自有场景 | 同上 | 2026-10-22 | 塔/门保留透明通道，灯火直接入画 |
+| art364-sword | beauty/fx/sword-traveler.webp | 青衡宗主页小型御剑行旅 | OpenAI imagegen原创虚构人物 | 同上 | 2026-10-22 | 360×240透明WebP，运行时弧线与尾迹为项目代码 |

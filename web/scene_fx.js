@@ -1,138 +1,137 @@
-/* 3.2.3 场景动态层（行测青衡宗等全景首页）：按真实时钟切换时段、季节飘落物、光点与飞鸟。
- * 只改外观，不碰学习数据。设置在 设置→地点排布 页顶部（场景时间、季节效果），存 localStorage：
- *   scene-time = auto(默认，跟随时钟) | day | night | theme(跟随亮暗主题，旧行为)
- *   scene-season = auto(默认，按月份) | spring | summer | autumn | winter | off
- * 时段（auto）：5:30—8:00 清晨、8:00—17:00 白天、17:00—19:30 黄昏、其余夜晚；清晨/黄昏在白天（清晨）或夜晚图（黄昏偏白天图）上叠暖色。
- * 减少动画（data-motion=reduced）、页面隐藏、系统减少动画时不画粒子，只留静态时段色。 */
+/* 3.6.4 首页装饰：多景深四季、御剑与流星，只管外观。
+ * localStorage scene-season=auto|random|四季|off；scene-season-minutes=15|30|60|120|240；
+ * scene-season-cycle-v1={season,at,minutes}。刷新不重抽，离开/隐藏/减少动画停止RAF。
+ * scene_clock.js统一时钟；申论室内仅微尘，御剑贴图只用于青衡宗。 */
 (() => {
   'use strict';
-  const LS = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
-  const SET = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 只管本次 */ } };
-  const root = document.documentElement;
-
-  const phase=d=>SCENE_CLOCK.phase(d);
-  function season(d = new Date()) {
-    const m = d.getMonth() + 1;
-    return m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
+  const root=document.documentElement, memory=new Map(), controllers=new Set();
+  const LS=(k,d)=>{try{return localStorage.getItem(k)||memory.get(k)||d;}catch(_){return memory.get(k)||d;}};
+  const SET=(k,v)=>{memory.set(k,v);try{localStorage.setItem(k,v);}catch(_){/* 本次有效 */}};
+  const seasons=['spring','summer','autumn','winter'], intervals=[15,30,60,120,240];
+  const names={spring:'春 · 花雨',summer:'夏 · 流萤',autumn:'秋 · 金叶',winter:'冬 · 瑞雪',off:'关闭'};
+  const rnd=(a,b)=>a+Math.random()*(b-a), tau=Math.PI*2, phase=d=>SCENE_CLOCK.phase(d);
+  function season(d=new Date()){const m=d.getMonth()+1;return m>=3&&m<=5?'spring':m>=6&&m<=8?'summer':m>=9&&m<=11?'autumn':'winter';}
+  const minutes=()=>{const n=Number(LS('scene-season-minutes','60'));return intervals.includes(n)?n:60;};
+  function cycle(now){
+    const m=minutes(), duration=m*60000;let s;
+    try{s=JSON.parse(LS('scene-season-cycle-v1','null'));}catch(_){}
+    if(!s||!seasons.includes(s.season)||!Number.isFinite(s.at)||s.at>now||s.minutes!==m){
+      s={season:s&&seasons.includes(s.season)?s.season:seasons[Math.floor(rnd(0,4))],at:now,minutes:m};SET('scene-season-cycle-v1',JSON.stringify(s));
+    }else if(now-s.at>=duration){
+      // 离开多个周期也只补当前状态，不逐次补播，不连续重复。
+      const pool=seasons.filter(x=>x!==s.season);
+      s={season:pool[Math.floor(rnd(0,3))],at:s.at+Math.floor((now-s.at)/duration)*duration,minutes:m};SET('scene-season-cycle-v1',JSON.stringify(s));
+    }return s;
   }
-  function resolve() {
-    const {ph,img}=SCENE_CLOCK.resolve();
-    const sm = LS('scene-season', 'auto');
-    const se = sm === 'off' ? 'off' : sm === 'auto' ? season() : sm;
-    return { ph, img, se };
+  function resolve(d=new Date()){
+    const {ph,img}=SCENE_CLOCK.resolve(),mode=LS('scene-season','auto'),s=mode==='random'?cycle(d.getTime()):null;
+    return {ph,img,se:s?s.season:mode==='off'?'off':seasons.includes(mode)?mode:season(d),next:s?s.at+s.minutes*60000:null};
   }
-  function apply() {
-    const r = resolve();
-    SCENE_CLOCK.apply();
-    if (root.dataset.sceneTime !== r.img) root.dataset.sceneTime = r.img;
-    if (root.dataset.scenePhase !== r.ph) root.dataset.scenePhase = r.ph;
-    if (root.dataset.sceneSeason !== r.se) root.dataset.sceneSeason = r.se;
+  let current,timer;
+  function settingsState(){
+    const random=LS('scene-season','auto')==='random';
+    document.querySelectorAll('[data-scene-interval]').forEach(el=>{el.hidden=!random;});
+    document.querySelectorAll('[data-scene-season-status]').forEach(el=>{
+      const text=random?`当前：${names[current.se]} · 每${minutes()}分钟随机轮换（不会连续重复）`:'只影响场景装饰；减少动画时停止飘落、御剑与流星。';
+      if(el.textContent!==text)el.textContent=text;
+    });
   }
-
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  const KINDS = {
-    spring: { n: 26, color: ['#f6c9d3', '#fbe1e6', '#ffffff'], make: (w, h) => ({ x: rnd(0, w), y: rnd(-h * .2, h), r: rnd(4, 8), vx: rnd(.2, .7), vy: rnd(.35, .8), a: rnd(0, 6.28), va: rnd(-.03, .03), shape: 'petal' }) },
-    summer: { n: 22, color: ['#d9f27a', '#f8f0a0'], make: (w, h) => ({ x: rnd(0, w), y: rnd(h * .35, h), r: rnd(1.6, 3), vx: rnd(-.15, .15), vy: rnd(-.12, .12), a: rnd(0, 6.28), va: rnd(.01, .03), shape: 'glow', fire: true }) },
-    autumn: { n: 22, color: ['#d98a3d', '#c4642b', '#e8b24f'], make: (w, h) => ({ x: rnd(0, w), y: rnd(-h * .2, h), r: rnd(6, 10), vx: rnd(-.3, .5), vy: rnd(.4, .9), a: rnd(0, 6.28), va: rnd(-.05, .05), shape: 'leaf' }) },
-    winter: { n: 50, color: ['#ffffff', '#e7f1fb'], make: (w, h) => ({ x: rnd(0, w), y: rnd(-h * .2, h), r: rnd(1.8, 3.8), vx: rnd(-.25, .25), vy: rnd(.35, .9), a: rnd(0, 6.28), va: rnd(.01, .04), shape: 'dot' }) },
-  };
-  const MOTE = '#f3d98b';
-
-  function mount(atm) {
-    if (atm.dataset.fx) return; atm.dataset.fx = '1';
-    const cv = document.createElement('canvas'); cv.className = 'portal-fx'; cv.setAttribute('aria-hidden', 'true'); atm.appendChild(cv);
-    const tint = document.createElement('i'); tint.className = 'portal-tint'; atm.insertBefore(tint, atm.firstChild);
-    const rays = document.createElement('div'); rays.className = 'portal-rays'; rays.innerHTML = '<i></i><i></i><i></i>'; atm.insertBefore(rays, tint.nextSibling);
-    ['m1', 'm2'].forEach((c) => { const m = document.createElement('i'); m.className = 'portal-mist ' + c; atm.insertBefore(m, cv); });
-    const ctx = cv.getContext('2d'); if (!ctx) return;
-    const indoor = !atm.parentElement?.querySelector('.portal-night');   // 单图室内场景（申论政务大厅）：不飘樱叶雪、不放飞鸟，只留灵光点
-    let W = 0, H = 0, parts = [], motes = [], birds = [], stars = [], shoot = null, nextShoot = Date.now() + rnd(12000, 30000), key = '', raf = 0, last = 0, nextBird = Date.now() + rnd(6000, 14000);
-    const still = () => root.dataset.motion === 'reduced' || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function size() {
-      const r = atm.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1);
-      W = Math.max(1, r.width); H = Math.max(1, r.height);
-      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    function seed() {
-      const r = resolve(); key = r.se + r.ph;
-      const k = indoor ? null : KINDS[r.se];
-      parts = k ? Array.from({ length: Math.round(k.n * (W < 700 ? .6 : 1)) }, () => Object.assign(k.make(W, H), { c: k.color[Math.floor(Math.random() * k.color.length)] })) : [];
-      // 夏季萤火夜里才明显：白天减半
-      if (r.se === 'summer' && r.ph !== 'night' && r.ph !== 'dusk') parts = parts.slice(0, 6);
-      stars = r.ph === 'night' ? Array.from({ length: 34 }, () => ({ x: rnd(0, W), y: rnd(0, H * .38), r: rnd(.5, 1.3), p: rnd(0, 6.28), s: rnd(.0006, .0018) })) : [];
-      motes = Array.from({ length: r.ph === 'night' ? 26 : 14 }, () => ({ x: rnd(0, W), y: rnd(H * .2, H), r: rnd(.8, 2.2), vy: -rnd(.08, .3), vx: rnd(-.08, .08), p: rnd(0, 6.28) }));
-    }
-    function draw(dt, t) {
-      ctx.clearRect(0, 0, W, H);
-      const r = resolve();
-      parts.forEach((p) => {
-        p.x += p.vx * dt * .06; p.y += p.vy * dt * .06; p.a += p.va * dt * .06;
-        if (p.fire) { p.vx += rnd(-.01, .01); p.vy += rnd(-.01, .01); p.vx *= .98; p.vy *= .98; }
-        if (p.y > H + 12 && !p.fire) { p.y = -10; p.x = rnd(0, W); } if (p.x > W + 12) p.x = -10; if (p.x < -12) p.x = W + 10;
-        if (p.fire) { if (p.y < H * .3) p.vy += .02; if (p.y > H) p.vy -= .02; }
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c;
-        if (p.shape === 'petal') { ctx.globalAlpha = .85; ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * .55, 0, 0, 6.28); ctx.fill(); }
-        else if (p.shape === 'leaf') { ctx.globalAlpha = .85; ctx.beginPath(); ctx.moveTo(-p.r, 0); ctx.quadraticCurveTo(0, -p.r * .8, p.r, 0); ctx.quadraticCurveTo(0, p.r * .8, -p.r, 0); ctx.fill(); }
-        else if (p.shape === 'glow') { const g = .35 + .65 * Math.abs(Math.sin(t / 700 + p.a * 3)); const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, p.r * 4); gr.addColorStop(0, p.c); gr.addColorStop(1, 'rgba(217,242,122,0)'); ctx.globalAlpha = g * (r.ph === 'night' ? 1 : .5); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, p.r * 4, 0, 6.28); ctx.fill(); }
-        else { ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, 6.28); ctx.fill(); }
-        ctx.restore();
-      });
-      // 夜空：星点闪烁，偶尔划过流星
-      stars.forEach((s) => { ctx.globalAlpha = .25 + .55 * Math.abs(Math.sin(t * s.s * 6 + s.p)); ctx.fillStyle = '#fff8e0'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); });
-      if (r.ph === 'night' && !shoot && Date.now() > nextShoot) { shoot = { x: rnd(W * .3, W * .9), y: rnd(0, H * .2), t0: t }; nextShoot = Date.now() + rnd(18000, 40000); }
-      if (shoot) { const k = (t - shoot.t0) / 800; if (k > 1) shoot = null; else { const x1 = shoot.x - k * 220, y1 = shoot.y + k * 90; const g = ctx.createLinearGradient(x1, y1, x1 + 70, y1 - 28); g.addColorStop(0, 'rgba(255,248,224,0.9)'); g.addColorStop(1, 'rgba(255,248,224,0)'); ctx.globalAlpha = 1 - k; ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + 70, y1 - 28); ctx.stroke(); } }
-      ctx.globalAlpha = 1;
-      // 金色灵光点：缓慢上浮并呼吸
-      motes.forEach((m) => {
-        m.x += m.vx * dt * .06 + Math.sin(t / 2000 + m.p) * .1; m.y += m.vy * dt * .06; if (m.y < -6) { m.y = H + 6; m.x = rnd(0, W); }
-        const a = (.35 + .4 * Math.sin(t / 900 + m.p)) * (r.ph === 'night' ? 1 : .55);
-        ctx.globalAlpha = Math.max(0, a); const gr = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r * 5); gr.addColorStop(0, MOTE); gr.addColorStop(1, 'rgba(243,217,139,0)');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 5, 0, 6.28); ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-      // 飞鸟：白天偶尔掠过（几何小V）
-      if (!indoor && r.ph !== 'night' && Date.now() > nextBird) { birds.push({ x: -20, y: rnd(H * .12, H * .4), v: rnd(.07, .12), s: rnd(5, 8), ph: rnd(0, 6) }); nextBird = Date.now() + rnd(14000, 30000); }
-      birds = birds.filter((b) => b.x < W + 30);
-      birds.forEach((b) => {
-        b.x += b.v * dt; const f = Math.sin(t / 130 + b.ph) * b.s * .5;
-        ctx.strokeStyle = r.ph === 'dusk' ? '#4a2f3c' : '#3a4a45'; ctx.globalAlpha = .75; ctx.lineWidth = 1.4; ctx.beginPath();
-        ctx.moveTo(b.x - b.s, b.y - f); ctx.quadraticCurveTo(b.x - b.s / 3, b.y - b.s * .5 + f, b.x, b.y); ctx.quadraticCurveTo(b.x + b.s / 3, b.y - b.s * .5 + f, b.x + b.s, b.y - f); ctx.stroke();
-      }); ctx.globalAlpha = 1;
-    }
-    function loop(ts) {
-      if (!atm.isConnected) { cancelAnimationFrame(raf);resize.disconnect();return; }
-      raf = requestAnimationFrame(loop);
-      if (still()) { if (last) { ctx.clearRect(0, 0, W, H); last = 0; } return; }
-      if (ts - last < 33) return;            // 约30帧
-      const dt = last ? Math.min(100, ts - last) : 16; last = ts;
-      const r = resolve(); if (key !== r.se + r.ph) seed();
-      draw(dt, ts);
-    }
-    size(); seed(); raf = requestAnimationFrame(loop);
-    const resize=new ResizeObserver(()=>{if(!atm.isConnected){resize.disconnect();cancelAnimationFrame(raf);return;}size();seed();});resize.observe(atm);
+  function apply(){
+    current=resolve();SCENE_CLOCK.apply();if(root.dataset.sceneSeason!==current.se)root.dataset.sceneSeason=current.se;
+    settingsState();controllers.forEach(c=>c.sync());clearTimeout(timer);
+    timer=setTimeout(apply,Math.max(200,Math.min(60000,current.next?current.next-Date.now():60000)));
   }
-  function scan() { apply(); document.querySelectorAll('.portal-atmosphere').forEach(mount); }
-
-  apply();
-  setInterval(apply, 60000);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', apply);
-  new MutationObserver(() => { if (root.dataset.theme && LS('scene-time', 'auto') === 'theme') apply(); }).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-  const start = () => { scan(); new MutationObserver(scan).observe(document.getElementById('view') || document.body, { childList: true, subtree: true }); };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-
-  // 设置页控件（scene_portal 设置卡里的 data-scene-fx 区域由 app 渲染后，这里监听变化）
-  document.addEventListener('change', (e) => {
-    const t = e.target.closest?.('[data-scene-time],[data-scene-season]'); if (!t) return;
-    if (t.hasAttribute('data-scene-time')) SET('scene-time', t.value); else SET('scene-season', t.value);
-    apply();
+  const palette={spring:['#f6c3d1','#fff1e8','#e4a5bb'],summer:['#e0f3a4','#f4d997'],autumn:['#d8a04a','#bb6a38','#e6c781'],winter:['#eef5ff','#bdd5e8']};
+  const media=matchMedia('(prefers-reduced-motion: reduce)');
+  const still=()=>['reduced','paused'].includes(root.dataset.motion)||document.hidden||media.matches;
+  function mount(atm){
+    if(atm.dataset.fx)return;atm.dataset.fx='1';
+    const indoor=!!atm.closest('.portal-guantu'),swords=!!atm.closest('.portal-xingce');atm.dataset.fxRoom=indoor?'indoor':'outdoor';
+    const cv=document.createElement('canvas');cv.className='portal-fx';cv.setAttribute('aria-hidden','true');atm.appendChild(cv);
+    const tint=document.createElement('i');tint.className='portal-tint';atm.prepend(tint);
+    const rays=document.createElement('div');rays.className='portal-rays';rays.innerHTML='<i></i><i></i><i></i>';atm.insertBefore(rays,cv);
+    ['m1','m2','m3'].forEach(c=>{const m=document.createElement('i');m.className='portal-mist '+c;atm.insertBefore(m,cv);});
+    const ctx=cv.getContext('2d');if(!ctx)return;
+    const traveler=swords?new Image():null;if(traveler)traveler.src='assets/beauty/fx/sword-traveler.webp';
+    let W=1,H=1,key='',parts=[],stars=[],dust=[],flight=null,meteor=null,birds=[],elapsed=0,raf=0,last=0;
+    let nextFlight=rnd(7000,14000),nextMeteor=rnd(9000,18000),nextBird=rnd(9000,18000);
+    const state=()=>({...current,ph:root.dataset.scenePhase||current.ph,img:root.dataset.sceneTime||current.img});
+    function seed(){
+      const r=state();key=r.se+r.img;const count=r.se==='winter'?70:r.se==='summer'?32:38;
+      parts=!indoor&&palette[r.se]?Array.from({length:Math.round(count*Math.min(1,W/1000))},()=>{
+        const depth=rnd(.25,1);return {x:rnd(0,W),y:rnd(-H*.15,H),depth,r:(r.se==='winter'?3:7)*depth,a:rnd(0,tau),spin:rnd(-.0007,.0007),p:rnd(0,tau),c:palette[r.se][Math.floor(rnd(0,palette[r.se].length))]};
+      }):[];
+      stars=!indoor&&r.img==='night'?Array.from({length:42},()=>({x:rnd(0,W),y:rnd(0,H*.32),r:rnd(.45,1.2),p:rnd(0,tau)})):[];
+      dust=Array.from({length:indoor?12:18},()=>({x:rnd(0,W),y:rnd(H*.2,H),r:rnd(.5,1.6),p:rnd(0,tau)}));if(r.img!=='night')meteor=null;
+    }
+    function size(){const b=atm.getBoundingClientRect(),dpr=Math.min(1.5,window.devicePixelRatio||1);W=Math.max(1,b.width);H=Math.max(1,b.height);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);seed();}
+    function glow(x,y,r,color,alpha){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'rgba(255,255,255,0)');ctx.globalAlpha=alpha;ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}
+    function particle(p,dt,t,r){
+      const summer=r.se==='summer',winter=r.se==='winter';
+      p.x+=(summer?Math.sin(t/1800+p.p)*.007:.008+p.depth*.014+Math.sin(t/5000+p.p)*.008)*dt;
+      p.y+=(summer?Math.sin(t/2700+p.p)*.006:.012+p.depth*.023)*dt;p.a+=p.spin*dt;
+      if(p.y>H+15){p.y=-15;p.x=rnd(0,W);}if(p.x>W+15)p.x=-15;if(p.x<-15)p.x=W+15;
+      if(summer){
+        if(p.y<H*.35)p.y+=dt*.015;const a=(.2+.6*Math.pow((1+Math.sin(t/1200+p.p))/2,2))*(r.img==='night'?1:.3);
+        glow(p.x,p.y,5+p.depth*7,p.c,a*.55);ctx.globalAlpha=a;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,.65+p.depth,0,tau);ctx.fill();return;
+      }
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.scale(1,.35+.65*Math.abs(Math.sin(t/1600+p.p)));ctx.globalAlpha=.35+p.depth*.48;ctx.fillStyle=p.c;const s=p.r;
+      if(winter){
+        if(p.depth>.75){ctx.strokeStyle=p.c;ctx.lineWidth=.65;for(let i=0;i<3;i++){ctx.rotate(Math.PI/3);ctx.beginPath();ctx.moveTo(-s,0);ctx.lineTo(s,0);ctx.stroke();}}
+        else{ctx.beginPath();ctx.arc(0,0,s*.65,0,tau);ctx.fill();}
+      }else if(r.se==='spring'){
+        ctx.beginPath();ctx.moveTo(-s,0);ctx.bezierCurveTo(-s,-s*.8,s*.3,-s*.75,s,0);ctx.bezierCurveTo(s*.35,s*.4,-s*.15,s*.85,-s,0);ctx.fill();
+        ctx.strokeStyle='#fff6ed';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(-s*.7,0);ctx.quadraticCurveTo(0,-s*.2,s*.7,0);ctx.stroke();
+      }else{
+        ctx.beginPath();ctx.moveTo(-s,0);ctx.lineTo(-s*.45,-s*.3);ctx.lineTo(-s*.3,-s*.75);ctx.lineTo(0,-s*.5);ctx.lineTo(s*.25,-s*.8);ctx.lineTo(s*.45,-s*.3);ctx.lineTo(s,0);ctx.quadraticCurveTo(s*.3,s*.65,-s,0);ctx.fill();
+        ctx.strokeStyle='#926336';ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(-s,0);ctx.lineTo(s*.7,0);ctx.moveTo(0,0);ctx.lineTo(s*.25,-s*.55);ctx.moveTo(-s*.3,0);ctx.lineTo(-s*.3,-s*.4);ctx.stroke();
+      }ctx.restore();
+    }
+    function sky(dt,t,r){
+      stars.forEach(s=>{ctx.globalAlpha=.18+.5*(1+Math.sin(t/1900+s.p))/2;ctx.fillStyle='#e5edf5';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,tau);ctx.fill();});
+      if(!indoor&&r.img==='night'&&!meteor&&t>nextMeteor){meteor={x:rnd(W*.35,W*.9),y:rnd(H*.02,H*.12),start:t,duration:rnd(1400,2200),span:rnd(W*.17,W*.3)};nextMeteor=t+rnd(26000,58000);}
+      if(meteor){const k=(t-meteor.start)/meteor.duration;if(k>1)meteor=null;else{
+        const x=meteor.x-k*meteor.span,y=meteor.y+k*H*.14,tail=meteor.span*.28,a=Math.sin(k*Math.PI),g=ctx.createLinearGradient(x,y,x+tail,y-tail*.42);
+        g.addColorStop(0,'#f4ead7');g.addColorStop(.25,'#b6d7ee');g.addColorStop(1,'rgba(182,215,238,0)');ctx.globalAlpha=a*.85;ctx.strokeStyle=g;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+tail,y-tail*.42);ctx.stroke();glow(x,y,5,'#f6edda',a*.7);
+      }}
+      // 小幅弧线、衣袂贴图和剑气；只在青衡宗出现，始终不接收指针。
+      if(swords&&traveler?.complete&&traveler.naturalWidth&&!flight&&t>nextFlight){flight={start:t,duration:rnd(14000,21000),y:rnd(H*.13,H*.3),dir:Math.random()<.5?1:-1,size:rnd(38,58)};nextFlight=t+rnd(43000,76000);}
+      if(flight){const k=(t-flight.start)/flight.duration;if(k>1)flight=null;else{
+        const x=flight.dir===1?-90+(W+180)*k:W+90-(W+180)*k,y=flight.y-Math.sin(k*Math.PI)*H*.045;
+        ctx.save();ctx.translate(x,y);ctx.scale(flight.dir,1);ctx.globalAlpha=Math.min(1,k*8,(1-k)*8)*.78;
+        const trail=ctx.createLinearGradient(-85,0,-8,0);trail.addColorStop(0,'rgba(190,225,232,0)');trail.addColorStop(1,'rgba(190,225,232,.4)');ctx.strokeStyle=trail;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-85,9);ctx.quadraticCurveTo(-45,14,-5,5);ctx.stroke();ctx.drawImage(traveler,-flight.size*.6,-flight.size*.65,flight.size*1.6,flight.size);ctx.restore();
+      }}
+      if(!indoor&&r.img!=='night'&&t>nextBird){birds=[0,1,2].map(i=>({x:-30-i*24,y:rnd(H*.12,H*.18),p:i*1.3,s:3+i*.5}));nextBird=t+rnd(32000,54000);}
+      birds=birds.filter(b=>b.x<W+30);birds.forEach(b=>{b.x+=dt*.035;const f=Math.sin(t/210+b.p)*b.s;ctx.globalAlpha=.45;ctx.strokeStyle='#5b6d6d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(b.x-b.s,b.y-f);ctx.quadraticCurveTo(b.x-b.s/2,b.y-1,b.x,b.y);ctx.quadraticCurveTo(b.x+b.s/2,b.y-1,b.x+b.s,b.y-f);ctx.stroke();});
+    }
+    function draw(dt,t){
+      const r=state();if(key!==r.se+r.img)seed();ctx.clearRect(0,0,W,H);if(!indoor)sky(dt,t,r);
+      dust.forEach(p=>{p.y-=dt*.005;p.x+=Math.sin(t/4000+p.p)*dt*.003;if(p.y<0)p.y=H;glow(p.x,p.y,p.r*3,'#e6ce94',(.13+.13*Math.sin(t/2200+p.p))*(r.img==='night'?1:.55));});
+      parts.forEach(p=>particle(p,dt,t,r));ctx.globalAlpha=1;
+    }
+    function loop(ts){raf=0;if(!atm.isConnected){dispose();return;}if(still()){last=0;return;}raf=requestAnimationFrame(loop);if(last&&ts-last<33.3)return;const dt=last?Math.min(80,ts-last):16;last=ts;elapsed+=dt;draw(dt,elapsed);}
+    function sync(){
+      if(!atm.isConnected){dispose();return;}
+      if(still()){cancelAnimationFrame(raf);raf=0;last=0;ctx.clearRect(0,0,W,H);atm.dataset.fxRunning='false';}
+      else{atm.dataset.fxRunning='true';if(!raf)raf=requestAnimationFrame(loop);}
+    }
+    function dispose(){cancelAnimationFrame(raf);resize.disconnect();controllers.delete(controller);}
+    const controller={sync,dispose,node:atm},resize=new ResizeObserver(()=>{if(!atm.isConnected)dispose();else size();});resize.observe(atm);controllers.add(controller);size();sync();
+  }
+  function scan(){controllers.forEach(c=>{if(!c.node.isConnected)c.dispose();});document.querySelectorAll('.portal-atmosphere').forEach(mount);settingsState();}
+  document.addEventListener('change',e=>{
+    const t=e.target.closest?.('select[data-scene-time],select[data-scene-season],select[data-scene-minutes]');if(!t)return;
+    if(t.hasAttribute('data-scene-time'))SET('scene-time',t.value);else if(t.hasAttribute('data-scene-season'))SET('scene-season',t.value);else if(intervals.includes(Number(t.value)))SET('scene-season-minutes',t.value);apply();
   });
-  window.SCENE_FX = {
-    phase, season, resolve, apply,
-    settingsHtml() {
-      const comp = (window.BeautyCompanion ? `<p>${BeautyCompanion.settingsHtml()}</p>` : '') + (window.BeautySway ? `<p>${BeautySway.settingsHtml()}</p>` : '');
-      const o = (k, cur, list) => list.map(([v, n]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${n}</option>`).join('');
-      return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${o('t', LS('scene-time', 'auto'), [['auto', '自动（跟随时钟）'], ['day', '一直白天'], ['night', '一直夜晚'], ['theme', '跟随亮暗主题']])}</select></label>` +
-        `<label>季节效果<select data-scene-season>${o('s', LS('scene-season', 'auto'), [['auto', '自动（按月份）'], ['spring', '春·落樱'], ['summer', '夏·萤火'], ['autumn', '秋·落叶'], ['winter', '冬·飘雪'], ['off', '关闭']])}</select></label></div>` + comp;
-    },
-  };
+  document.addEventListener('visibilitychange',apply);window.addEventListener('pageshow',apply);window.addEventListener('storage',apply);media.addEventListener?.('change',()=>controllers.forEach(c=>c.sync()));
+  new MutationObserver(()=>{if(LS('scene-time','auto')==='theme')apply();else controllers.forEach(c=>c.sync());}).observe(root,{attributes:true,attributeFilter:['data-theme','data-motion']});
+  const start=()=>{scan();new MutationObserver(scan).observe(document.getElementById('view')||document.body,{childList:true,subtree:true});};
+  apply();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+  window.SCENE_FX={phase,season,resolve,apply,settingsHtml(){
+    const opts=(cur,list)=>list.map(([v,n])=>`<option value="${v}" ${cur===v?'selected':''}>${n}</option>`).join('');
+    const comp=(window.BeautyCompanion?`<p>${BeautyCompanion.settingsHtml()}</p>`:'')+(window.BeautySway?`<p>${BeautySway.settingsHtml()}</p>`:'');
+    return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${opts(LS('scene-time','auto'),[['auto','自动（跟随时钟）'],['day','一直白天'],['night','一直夜晚'],['theme','跟随亮暗主题']])}</select></label>`+
+      `<label>季节效果<select data-scene-season>${opts(LS('scene-season','auto'),[['auto','自动（按月份）'],['random','随机轮换'],...seasons.map(s=>[s,names[s]]),['off','关闭']])}</select></label>`+
+      `<label data-scene-interval ${LS('scene-season','auto')==='random'?'':'hidden'}>轮换间隔<select data-scene-minutes>${opts(String(minutes()),intervals.map(m=>[String(m),m<60?`${m}分钟`:`${m/60}小时`]))}</select></label></div><p class="small muted" data-scene-season-status></p>`+comp;
+  }};
 })();
