@@ -139,6 +139,7 @@ async function go(view) {
   if (window.MINDMAP && MINDMAP.isOpen() && (await MINDMAP.close()) === false) return;
   if(ticket!==navigationTicket)return;
   VIEW = view;
+  window.STUDY_LAMP?.context(view);
   if (view === "train" || view === "bank") HALL = view === "bank" ? "shizhan" : "xiulian";
   if (window.DRAW) setTimeout(() => DRAW.refresh(), 0);
   return render();
@@ -210,7 +211,7 @@ function configurePortal() {
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
-  SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},seasons:Object.fromEntries(['spring','summer','autumn','winter'].map(se=>[se,Object.fromEntries(['day','night'].map(t=>[t,'assets/beauty/scenes/xingce/home-'+se+'-'+t+'.webp']))])),layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},framing:'extended',seasons:Object.fromEntries(['spring','summer','autumn','winter'].map(se=>[se,Object.fromEntries(['day','night'].map(t=>[t,'assets/beauty/scenes/xingce/hd/home-'+se+'-'+t+'.webp']))])),layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
     else{if(p.region)window.STUDY_REGIONS?.select(p.region);go(p.view);}
   });
@@ -1564,10 +1565,11 @@ let lastActive = Date.now();
 let T_TYPE = "";
 ["mousemove", "keydown", "click", "scroll", "input"].forEach((ev) => addEventListener(ev, () => (lastActive = Date.now()), { passive: true }));
 function studyingNow() {
-  return !window.MINDMAP?.isOpen() && !window.CARDS?.isOpen() && VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
+  return window.STUDY_LAMP?.allows()!==false && !window.MINDMAP?.isOpen() && !window.CARDS?.isOpen() && VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
     && (T.busy || Date.now() - lastActive < 120000);
 }
 // 在 🪶 手札里写字也算复习：按秒累计“1 分钟内写过字”的时间，心跳时连同本子编号一起报（服务器核对这本最近真的存过笔迹）
+let studySec=0,studySid=null,lampSec=0,lampToken="";
 let noteSec = 0;
 let cardSec = 0;   // 温简也算复习：按秒累计正在温简的时间（web/cards.js 的 active：在温、看得见、2 分钟内有操作）
 let mapSec=0, mapToken="", cardBoard="";
@@ -1575,6 +1577,9 @@ let tjSec = 0;     // 🔮 天机简报：开着一期、2 分钟内动过（web
 let tjMode = "";
 let slSec = 0;     // 申论作答：在作答页敲过键盘（web/shenlun.js 的 active）
 setInterval(() => {
+  if(window.STUDY_LAMP?.allows()===false)return;
+  if(studyingNow()){studySec+=1;studySid=T.session;}
+  if(window.STUDY_LAMP?.active()&&!automaticStudyOn()){lampSec+=1;lampToken=STUDY_LAMP.token();}
   if (window.SHENLUN && SHENLUN.active()) slSec += 1;
   if (window.NOTES && NOTES.writingId()) noteSec += 1;
   if (window.CARDS && CARDS.active()) {cardSec += 1;cardBoard=CARDS.board();}
@@ -1582,28 +1587,39 @@ setInterval(() => {
   const tj = window.TIANJI ? TIANJI.active() : "";
   if (tj) { tjSec += 1; tjMode = tj; }
 }, 1000);
+function automaticStudyOn(){return !!window.MINDMAP?.active() || studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
+}
 function updateStudyDot() {
-  const on = !!window.MINDMAP?.active() || studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
+  const on=window.STUDY_LAMP?.allows()!==false&&(automaticStudyOn()||!!window.STUDY_LAMP?.wanted());
   const lamp=$("#todayPill");if(!lamp){window.STUDY_HUD?.ensure();return;}
   if(lamp.classList.contains("on")!==on)lamp.classList.toggle("on",on);
-  lamp.title = on ? "正在计时：修炼中" : "未计时：只有做功课时才算修炼时间";
+  lamp.title=on?'正在计时 · 点击关闭':'未计时 · 点击点亮';
+  lamp.setAttribute('aria-pressed',String(on));
+  lamp.setAttribute('aria-label',on?'关闭学习蜡烛，暂停学习计时':'点亮学习蜡烛，开始学习计时');
 }
+window.STUDY_LAMP?.configure({autoOn:automaticStudyOn,update:updateStudyDot,board:()=>VIEW==='tianji'?'政治理论':''});
+window.finishLampReading=async token=>{
+  const sec=token===lampToken?Math.min(90,lampSec):0;if(token===lampToken){lampSec=0;lampToken='';}if(!sec)return;
+  try{const r=await api('/api/heartbeat',{seconds:sec,lamp:token});if(DASH){Object.assign(DASH,{xp:r.xp,realm:r.realm,study_status:r.study_status});DASH.minutes.today=r.minutes;updatePill();}handleEvents(r.events);}catch(_){}
+};
 let beatCount = 0;
 setInterval(async () => {
   updateStudyDot();
-  const on = studyingNow();
+  const on = studySec>0;
   beatCount += 1;
-  if (!on && !noteSec && !cardSec && !mapSec && !tjSec && !slSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
+  if (!on && !noteSec && !cardSec && !mapSec && !tjSec && !slSec && !lampSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
   try {
     const nid = !on && window.NOTES ? NOTES.writingId() || (noteSec ? NOTES.lastId() : "") : "";
     const carding = !on && !nid && cardSec > 0;
     const mapping = !on && !nid && !carding && mapSec>0;
     const tj = !on && !nid && !carding && !mapping && tjSec > 0 ? tjMode : "";
     const sl = !on && !nid && !carding && !mapping && !tj && slSec > 0 && window.SHENLUN ? SHENLUN.board() || "作答" : "";
-    const sec = on ? BEAT : Math.min(BEAT, nid ? noteSec : carding ? cardSec : mapping ? mapSec : tj ? tjSec : slSec);
+    const lamp=!on&&!nid&&!carding&&!mapping&&!tj&&!sl&&lampSec>0?lampToken:'';
+    const sec = Math.min(BEAT,on?studySec:nid?noteSec:carding?cardSec:mapping?mapSec:tj?tjSec:sl?slSec:lampSec);
+    const sid=studySid;studySec=0;studySid=null;lampSec=0;lampToken='';
     noteSec = 0; cardSec = 0; mapSec = 0; tjSec = 0; slSec = 0;
     if (nid && sec) await NOTES.save();          // 先把刚写的存上，服务器才认得“最近写过”
-    const r = await api("/api/heartbeat", { seconds: sec, session: on ? T.session : null, notes: nid || null,
+    const r = await api("/api/heartbeat", { seconds: sec, session: on ? sid : null, lamp:lamp||null, notes: nid || null,
       cards: carding || null, cards_board: carding ? cardBoard : null, mindmap: mapping ? mapToken : null, tianji: tj || null, answering: sl || null });
     if (DASH) { Object.assign(DASH, {xp:r.xp, realm:r.realm, study_status:r.study_status, today:r.today}); DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
     handleEvents(r.events);

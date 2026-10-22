@@ -162,7 +162,7 @@
     const s = document.getElementById("yjStage");
     if (s) s.remove();
     document.documentElement.classList.remove("yj-on");
-    MODE = ""; R = null; FL = null; updateStudyDot();
+    MODE = ""; R = null; FL = null; window.STUDY_LAMP?.reader(null); updateStudyDot();
     if (typeof VIEW !== "undefined" && VIEW === "train") renderTrain();
     else if (typeof VIEW !== "undefined" && VIEW === "skeleton") window.render();      // 藏经阁：刻了 / 导入了，数字跟着变
   }
@@ -216,6 +216,8 @@
     if (r.events && window.handleEvents) handleEvents(r.events);
     Object.assign(R, { card: r.card, intervals: r.intervals, counts: r.counts, shown: false, t0: Date.now(), ask: [], asking: false });
     lastActive = Date.now();
+    window.STUDY_LAMP?.reader(R.card?{key:'cards-review:'+String(R.deck||''),board:R.deck||''}:null);
+    updateStudyDot();
     const s = stage();
     const cnt = (c) => `<span class="yj-cnt"><i class="new">${c.new}</i> + <i class="learn">${c.learn}</i> + <i class="due">${c.review}</i></span>`;
     if (window.DRAW && DRAW.state.on) DRAW.close();          // 换卡前把这张卡上的草稿存好收起
@@ -364,7 +366,7 @@
     FL.i = Math.max(0, Math.min(FL.i, FL.keys.length - 1));
     let c;
     try { c = await api("/api/cards/info", { key: FL.keys[FL.i] }); } catch (e) { showError(e); return; }
-    FL.card = c; FL.shown = false; lastActive = Date.now(); updateStudyDot();
+    FL.card = c; FL.shown = false; lastActive = Date.now(); window.STUDY_LAMP?.reader({key:'cards-flip:'+String(FL.deck||''),board:FL.deck||''}); updateStudyDot();
     const f = faces(c);
     const kind = ["new", "learn", "due", "learn"][c.state] || "new";
     s.innerHTML = head(title, `<span class="yj-cnt">${FL.i + 1} / ${FL.keys.length}</span>` + go) + `

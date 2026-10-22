@@ -18,6 +18,7 @@
 
   async function load() { DATA = await api("/api/articles"); }
   async function mount(el) {
+    if(!CUR)window.STUDY_LAMP?.reader(null);
     ROOT = el;
     if (CUR) return reader();
     try { await load(); } catch (e) { showError(e); DATA = { items: [], sources: [], categories: [], job: {} }; }
@@ -137,7 +138,7 @@
     if (!(await NOTES.leaveArticle())) return;
     try { CUR = await api("/api/articles/get", { id }); act(); reader(); window.scrollTo(0, 0); } catch (e) { showError(e); }
   }
-  async function close() { if (!(await NOTES.leaveArticle())) return false; readerVer++; CUR = null; JDING = false; if (ROOT && ROOT.isConnected) await mount(ROOT); return true; }
+  async function close() { if (!(await NOTES.leaveArticle())) return false; readerVer++; CUR = null; window.STUDY_LAMP?.reader(null); JDING = false; if (ROOT && ROOT.isConnected) await mount(ROOT); return true; }
   function jdHtml(jd) {
     if (!jd) return `<div class="muted small">让 AI 把这篇文章提炼成：主旨、观点、论证脉络、可背的金句、可用素材、适合练的题型。金句保证是原文里真有的句子。结果会存下来，不重复花钱。</div>
       <button class="primary" id="arJd" ${JDING ? "disabled" : ""}>${JDING ? "精读中…" : "🔍 一键精读"}</button>`;
@@ -155,6 +156,7 @@
   async function reader() {
     if (!(await NOTES.leaveArticle())) return;
     const a = CUR, version = ++readerVer;
+    if(a&&VIEW==='tianji'&&ROOT?.isConnected)window.STUDY_LAMP?.reader({key:'article:'+a.id,board:''});
     if (!a || !ROOT?.isConnected) return;
     ROOT.innerHTML = `<div class="ar-read">
       <div class="card ar-rhead"><button class="ghost" id="arBack">← 返回文章列表</button><span class="spacer"></span>

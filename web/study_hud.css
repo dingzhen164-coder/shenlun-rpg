@@ -93,3 +93,7 @@ body>#studyHud.subpage-heading{display:none!important}
 #studyHud .bank-head .rh-stats{flex-wrap:nowrap;font-size:var(--ds-fs-13)}
 #studyHud .bank-head>.rh-bar{display:none}
 #studyHud .bank-head>b{font-size:var(--ds-fs-14)}
+
+/* 蜡烛可直接点按和键盘开关，保持原计时节点及布局。 */
+#todayPill[role="button"]{cursor:pointer;touch-action:manipulation}
+#todayPill[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}

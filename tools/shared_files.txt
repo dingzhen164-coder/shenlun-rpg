@@ -637,3 +637,11 @@ diverged web/assets/beauty/NIGHT364.md
 diverged tests/test_updates365.py
 diverged tests/ui_updates365.cjs
 diverged web/assets/beauty/SEASONS365.md
+
+# 3.6.6 公考高清全景专项；美术与法考独立
+diverged tests/ui_panorama366.cjs
+diverged web/assets/beauty/SEASONS366.md
+shared rpg/study_lamp.py
+shared web/study_lamp.js
+shared tests/test_study_lamp.py
+diverged tests/ui_study_lamp366.cjs

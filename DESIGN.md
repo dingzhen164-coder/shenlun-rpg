@@ -1,4 +1,14 @@
+## 3.6.6：高清扩绘全景与学习蜡烛（2026-10-22）
+
+- 旧四季资源1536×864在高DPI设备明显放大；横屏contain与blur补边暴露上下空区。八张同构图imagegen扩绘为4:3，逐张4列×2行局部重绘细节后按坐标合成3840×2880，低频色调对齐与边缘融合，WebP quality96；每块原生输出均大于最终目标区域，不以单纯插值冒充新细节。来源/提示词/摘要见SEASONS366.md。预算每张12MiB、清单总128MiB；其余夜景仍沿350KiB约束。独立hd路径避免旧缓存。
+- scene_portal可选framing=extended在主页和预览同时标data-framing，仅行测新全景启用cover并隐藏模糊fill；原稳定xingce-v3与保存键、坐标沿用。申论/法考无此配置沿原取景。八张背景均通过真实浏览器高DPI电脑与平板横竖屏的实际解码尺寸、四边几何及地点入口检查。
+- study_lamp为shared内存凭据模块，start/touch/stop绑定已解析vault与subject，最多256条、真实交互180秒过期；秒数按monotonic扣预算，每次上限90，重复领取不会超过实际经过时间。API只交原Game.add_seconds(review)，不改变存档结构/奖励规则。无库返回可读错误。
+- shared study_lamp.js管理当前页面manual override（三态）与reading key；页面切换/新材料恢复自动，同文档重绘保持手动暂停。顶栏原todayPill委托click/Enter/Space并加aria-pressed，不替换节点。万象峰iframe正文/练习、卡片/只读导图、天机台期刊/文章在打开时reader，关闭清除；iframe真实操作转父交互。前台且120秒内操作才激活，隐藏flush/stop、异步token按generation作废；touch仅由实际操作触发，不自动续挂机。
+- app每秒按实际状态累加studySec，手动关闭阻止所有来源累计；lampSec只在无原自动来源时增加，心跳仍按单一来源优先，避免重计。关闭/离页flush未满心跳的手动秒数。原自动阅读/练习与经验由后端原路径处理，普通面板只在明确手动点亮时计时。法考同步通用实现，保持八科/主题/独立版本。
+
 ## 3.6.5：高峰奖惩、四峰留景与四季全景（2026-10-22）
+
+正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.5 。源d88f8ea1abcfacdad5fb8160020d98f73fdc004d，三端39732454050、完整UI39732453553同SHA全部成功；PR #56以merge合main（59e95729c6999d50c5290588ba3a5f43a22e8bd2），main复用验证资源，无二次打包。Release/latest/标签/三包和SHA256SUMS核验完成。本地518项单元完成（3项平台跳过），两科完整80页布局与新专项通过；506条共享规则一致，法考dev 463739f仅迁公共代码，正式版不变。
 
 - 用户明确本批四条统一开发发布。行测`mock_rewards.offer`在首次新录分时计算`prior_best`：取此前大比boss与mocks最高分，当前场排除、飞升排除、已编辑mocks优先于旧boss快照；以录分前已有成绩为基准，不按季号或日期重算历史。新账本保持schema1，增加model=best-score-v1、best/gap/stage_line；旧pending/claimed/historical不追罚、已领不回收。
 - `gap=此前最高分-本次分数`：新高峰/差<=2且本次高于已踏入小境界起始分数线，登记原手动单次悟道；原炼气/筑基1/6/金丹及后1/12金额算法保持。差<=5且未获奖励时neutral；5<差<6扣10%，6<=差<7扣20%，7<=差<8扣40%，8<=差<9扣60%，9<=差<10扣80%，>=10清空当前未固化进度。基础录分奖励保留。维持/正常/入魔阈值与比例列表均在规则.md；`policy`提供统一显示数据，阈值间按列表长度等分，比例单调截到0..1。

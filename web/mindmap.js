@@ -195,6 +195,7 @@
       const zoom=(direction)=>{if(!mm||viewMode==='document')return;direction>0?mm.view.enlarge():mm.view.narrow();queuePosition();};
       document.getElementById('lnZoomIn').onclick=()=>zoom(1);
       document.getElementById('lnZoomOut').onclick=()=>zoom(-1);
+      window.STUDY_LAMP?.reader(CUR?.reading_token?{key:'mindmap:'+CUR.reading_token,board:CUR.board}:null);
       updateStudyDot();return;
     }
     mm.on("data_change", queueSave);
@@ -320,7 +321,7 @@
   }
   async function finishReading() {
     const token=CUR?.reading_token;if(!token)return;
-    CUR.reading_token='';updateStudyDot();
+    CUR.reading_token='';window.STUDY_LAMP?.reader(null);updateStudyDot();
     await window.finishMindmapReading?.(token);
     await api('/api/mindmap/stop',{token}).catch(()=>{});
   }
