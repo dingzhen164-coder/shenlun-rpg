@@ -1,3 +1,8 @@
+## 3.6.7：模考 HTML 导入支持 BMP（2026-10-22）
+
+- `html_mock._image_type`增加BMP文件头和DIB头大小识别，避免把资源ZIP内的公式/图形误判为缺图。`_bmp_to_png`仅在Pillow可用时转PNG；标准库源码版保留原BMP，不新增强制依赖。内容SHA256仍根据实际保存的字节计算。
+- 原预览只读、缺图拒绝提交、路径边界、复盘笔记保留与重复导入幂等继续有效；不变更存档或题库数据格式。回归覆盖有/无Pillow、像素内容、预览不写盘和重复导入笔记保留，完整浏览器导入继续使用自编试题。
+
 ## 3.6.6：高清扩绘全景与学习蜡烛（2026-10-22）
 
 正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.6 。源aac8bb006bda83d01285811920b4ebf4f7bf74f2，三端39749669288、完整UI39749664461同SHA通过；PR #57 merge c688a53e7c6832ddaae830e8ac3ebb26a42c152f，main同树复用验证资源，无二次构建。Release/latest/tag/三包与SHA256SUMS核验完成。本地522项单元（3项平台跳过）、两科80页布局、六种2倍像素密度高清显示及蜡烛/阅读/复盘回归通过；509条共享规则一致，法考dev48a5c42仅迁公共代码，正式仍3.5.10。
@@ -157,7 +162,7 @@ main仅publish：tools/publish_validated.py要求双亲merge，main整树等于�
 
 ## 3.3.9追加：粉笔HTML导入与分组录入（2026-10-18，未发布）
 
-- 行测新增`rpg/html_mock.py`和POST `/api/import/html`，请求`{name,data(base64),resources?:{name,data},season?,commit?,digest?}`。支持单HTML、HTML加_files资源ZIP、含一份HTML的完整ZIP。标准库HTMLParser解析已保存DOM，不运行/导入script/style，不访问外链；ZIP不解压到磁盘，仅按安全相对路径读取资源，32MB单文件/64MB展开总量/2500条目、节点与深度上限、拒绝路径穿越/链接/加密。仅接收有签名的PNG/JPEG/GIF/WebP，图片按内容SHA256落训练/题库/图片/HTML，原子写入且不覆盖已有图片。
+- 行测新增`rpg/html_mock.py`和POST `/api/import/html`，请求`{name,data(base64),resources?:{name,data},season?,commit?,digest?}`。支持单HTML、HTML加_files资源ZIP、含一份HTML的完整ZIP。标准库HTMLParser解析已保存DOM，不运行/导入script/style，不访问外链；ZIP不解压到磁盘，仅按安全相对路径读取资源，32MB单文件/64MB展开总量/2500条目、节点与深度上限、拒绝路径穿越/链接/加密。仅接收有签名的PNG/JPEG/GIF/WebP/BMP（BMP自3.6.7支持），图片按内容SHA256落训练/题库/图片/HTML，原子写入且不覆盖已有图片。
 - 先检查后导入，文件+资源+季号摘要绑定确认；答题卡题号不全、结构/答案/图片缺失时拒绝写入，不把缺图题混入正常题库。提取原题/选项/答案/解析/知识点及原答题对错，材料按HTML材料容器题号组复制，资料仍同材料整套连续出。板块优先HTML答题卡章节，判断35题仅在图形/类比/材料结构吻合时复用原mock.FIXED；无法确定时不猜题入库。正文转程序自有文本/图片格式，原HTML不在应用中展示或执行。
 - 编号沿用粉笔N季-xxx，同ID已有题保持原数据和作答；缺图片不提交，已有复盘/用户笔记不覆盖。训练内只补缺失板块文件，中途IO失败后可重试；训练外旧复盘只读优先。复盘和题库均写训练目录，不改原上传文件。120分钟沿用mock.on_import按季幂等，不自动把HTML报告分数变成录分/奖励；成绩仍由用户核对保存。
 - PDF与HTML统一到宗门大比“录入→01试卷导入”，PDF复用原上传/拆分/补导入及组件入口，HTML先检查。藏经阁保留TXT/PDF练习册与题库维护，原模考位置改指向新入口。录入页01试卷导入、02答题卡与对错、03成绩单默认收起，成绩截图与模块用时继续按需展开；保存按钮只在成绩单展开时显示。开合/返回场景不销毁草稿，导入刷新目录时恢复脏表单，显式战绩编辑直达展开的成绩单。
