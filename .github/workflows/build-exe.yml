@@ -70,7 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --dir rpg/data
+          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --output rpg/data/political_atlas.json
           python tools/fetch_atlas_seed.py
 
       - name: Build exe
@@ -159,7 +159,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --dir rpg/data
+          gh release download political-atlas-20261020 --repo "${{ github.repository }}" --pattern political-atlas.json --output rpg/data/political_atlas.json
           python tools/fetch_atlas_seed.py
 
       - name: Build app
