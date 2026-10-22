@@ -1,5 +1,7 @@
 ## 3.6.5：高峰奖惩、四峰留景与四季全景（2026-10-22）
 
+正式发布：https://github.com/dingzhen164-coder/shenlun-rpg/releases/tag/v3.6.5 。源d88f8ea1abcfacdad5fb8160020d98f73fdc004d，三端39732454050、完整UI39732453553同SHA全部成功；PR #56以merge合main（59e95729c6999d50c5290588ba3a5f43a22e8bd2），main复用验证资源，无二次打包。Release/latest/标签/三包和SHA256SUMS核验完成。本地518项单元完成（3项平台跳过），两科完整80页布局与新专项通过；506条共享规则一致，法考dev 463739f仅迁公共代码，正式版不变。
+
 - 用户明确本批四条统一开发发布。行测`mock_rewards.offer`在首次新录分时计算`prior_best`：取此前大比boss与mocks最高分，当前场排除、飞升排除、已编辑mocks优先于旧boss快照；以录分前已有成绩为基准，不按季号或日期重算历史。新账本保持schema1，增加model=best-score-v1、best/gap/stage_line；旧pending/claimed/historical不追罚、已领不回收。
 - `gap=此前最高分-本次分数`：新高峰/差<=2且本次高于已踏入小境界起始分数线，登记原手动单次悟道；原炼气/筑基1/6/金丹及后1/12金额算法保持。差<=5且未获奖励时neutral；5<差<6扣10%，6<=差<7扣20%，7<=差<8扣40%，8<=差<9扣60%，9<=差<10扣80%，>=10清空当前未固化进度。基础录分奖励保留。维持/正常/入魔阈值与比例列表均在规则.md；`policy`提供统一显示数据，阈值间按列表长度等分，比例单调截到0..1。
 - `stage_progress`由min(claimed,floor(raw_score))取已踏入小境界起点，累计XP底座ceil(xp_at(start))，仅扣其上进度（含待突破溢出），零头向上取整、不穿越底座。claimed/gates不改，保留境界；结算写入penalized记录的原进度/比例/实际扣除/结算日，追加负insight事件并标best-score-penalty-v1、exam_key，保留原学习记录。旧迁移只辨无reward_model旧正悟道，不重结新账；API原锁内与成绩一起保存，重复录分/改日期不会再结算。申论/法考subject守卫走原逻辑。
