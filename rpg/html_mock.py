@@ -1,6 +1,6 @@
 """粉笔已保存HTML/ZIP模考导入（仅行测），由/api/import/html调用。
 HTMLParser只读取已渲染节点，不执行脚本、不访问外链。支持主HTML+资源ZIP或整包ZIP。
-预览不写盘；缺图/结构不完整拒绝提交。图片仅接收有签名的PNG/JPEG/GIF/WebP。
+预览不写盘；缺图/结构不完整拒绝提交。图片仅接收有签名的PNG/JPEG/GIF/WebP/BMP。
 题号沿用粉笔N季-xxx；复盘/解析/原作答保留，已有季复盘不覆盖；重复不追加题/计时。
 """
 import base64
@@ -125,7 +125,23 @@ def _image_type(data):
     if data.startswith(b'\xff\xd8\xff'): return '.jpg'
     if data.startswith((b'GIF87a', b'GIF89a')): return '.gif'
     if data[:4] == b'RIFF' and data[8:12] == b'WEBP': return '.webp'
+    # 粉笔导出的页面里常有 .bmp 图（公式、图形题），文件头 "BM" + DIB头大小。
+    if data[:2] == b'BM' and len(data) > 30 and int.from_bytes(data[14:18], 'little') in (12, 40, 52, 56, 64, 108, 124): return '.bmp'
     return ''
+
+
+def _bmp_to_png(data):
+    """BMP 体积大、部分环节只认常见格式：有 Pillow 就转成 PNG，没有就原样保留 .bmp（浏览器可直接显示）。"""
+    try:
+        from PIL import Image
+        import io
+        with Image.open(io.BytesIO(data)) as im:
+            out = io.BytesIO()
+            im.convert('RGBA' if 'A' in im.getbands() else 'RGB').save(out, 'PNG', optimize=True)
+        png = out.getvalue()
+        return (png, '.png') if png.startswith(b'\x89PNG\r\n\x1a\n') else (data, '.bmp')
+    except Exception:
+        return data, '.bmp'
 
 
 def extract(body):
@@ -183,6 +199,7 @@ def extract(body):
             if not ext:
                 missing.add(ref[:200] or '无图片地址')
                 return '【缺少图片】'
+            if ext == '.bmp': payload, ext = _bmp_to_png(payload)
             rel = '训练/题库/图片/HTML/'+hashlib.sha256(payload).hexdigest()+ext
             images[rel] = payload
             return '![[%s]]' % rel
