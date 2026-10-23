@@ -19,6 +19,14 @@
   /* 阴影三级与通用遮罩 */
   --ds-shadow-1: 0 4px 10px #0004; --ds-shadow-2: var(--shadow); --ds-shadow-3: 0 20px 80px #0006;
   --ds-shade-30: #0003; --ds-glint: #fff3;
+  /* 万象峰实体期刊封面保持纸张/红头文书色；阅读区使用随明暗变化的语义色。 */
+  --ds-journal-paper: #fbf6ea; --ds-journal-ink: #2a1d14; --ds-journal-red: #c4161c;
+  --ds-journal-shadow: #3c1e0a38; --ds-journal-shadow-hover: #3c1e0a52; --ds-journal-red-shadow: #c4161c26;
+  --ds-journal-deep-red: #8a1c14; --ds-journal-caption: #b0806a; --ds-journal-white-paper: #fffdf8;
+  --ds-journal-document-ink: #222; --ds-journal-rule: #00000006; --ds-journal-seal: #d62a1e;
+  --ds-journal-number: #444; --ds-journal-title: #1a1a1a; --ds-journal-print: #0000001f;
+  --ds-journal-track: #0000001a; --ds-journal-progress: #6b5a48; --ds-journal-gold: #c9a227;
+  --ds-journal-blank: #c8a02826; --ds-journal-forgot: #c83c321a;
   /* 试炼塔高清画面的延展色与题签对比色。 */
   --ds-trial-sky: #8eb0cb; --ds-trial-horizon: #e3ded0; --ds-trial-ground: #6c776b;
   --ds-trial-night-sky: #142d43; --ds-trial-night-horizon: #334350; --ds-trial-night-ground: #1e302e;

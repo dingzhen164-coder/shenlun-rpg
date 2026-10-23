@@ -1,0 +1,186 @@
+/* ------------------------------------------------------------ 🔮 万象时政（web/tianji.js） */
+.wxj-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.wxj-head h2 { margin: 0 0 4px; font-family: var(--display); letter-spacing: .15em; }
+.wxj-tabs, .wxj-itabs { display: inline-flex; border: 1px solid var(--line); border-radius: var(--ds-r-12); overflow: hidden; }
+.wxj-tabs a, .wxj-itabs a { padding: 7px 16px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+.wxj-tabs a small, .wxj-itabs a small { margin-left: 6px; font-size: var(--ds-fs-11); color: var(--faint); }
+.wxj-tabs a.on, .wxj-itabs a.on { background: var(--accent); color: var(--ds-on-accent); }
+.wxj-tabs a.on small, .wxj-itabs a.on small { color: color-mix(in srgb, var(--ds-on-accent) 80%, transparent); }
+.wxj-hub { position: relative; }
+.wxj-drop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; font-size: var(--ds-fs-26); font-family: var(--display); letter-spacing: .3em;
+  color: var(--ds-on-accent); background: var(--ds-scrim); border: 4px dashed color-mix(in srgb, var(--ds-on-accent) 80%, transparent); pointer-events: none; }
+.wxj-drop[hidden] { display: none; }
+.wxj-year { margin: 22px 0 6px; }
+.wxj-year h3 { font-family: var(--display); letter-spacing: .12em; margin: 0 0 12px; }
+.wxj-year h3 small { color: var(--faint); font-size: var(--ds-fs-13); letter-spacing: 0; margin-left: 6px; }
+.wxj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 220px)); gap: 20px; }
+.wxj-cover { position: relative; display: flex; flex-direction: column; aspect-ratio: 3 / 4; border-radius: var(--ds-r-6); overflow: hidden; cursor: pointer; text-decoration: none;
+  box-shadow: 0 8px 22px var(--ds-journal-shadow), 0 1px 0 color-mix(in srgb, var(--ds-on-accent) 40%, transparent) inset; transition: transform .35s ease, box-shadow .35s ease;
+  animation: wxjFloat 6s ease-in-out infinite; animation-delay: calc(var(--d, 0s) * -1); }
+.wxj-cover:hover { transform: translateY(-8px) rotate(-.6deg); box-shadow: 0 18px 36px var(--ds-journal-shadow-hover); animation-play-state: paused; }
+.wxj-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--ds-on-accent) 55%, transparent) 50%, transparent 65%);
+  transform: translateX(-120%); pointer-events: none; }
+.wxj-cover:hover::after { transform: translateX(120%); transition: transform .9s ease; }
+@keyframes wxjFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+/* 求是杂志风：米白底、大红刊名、期号、日出插画、封面要目 */
+.wxj-qs { background: var(--ds-journal-paper); color: var(--ds-journal-ink); padding: 12px 12px 10px; }
+.wxj-qs-top { display: flex; align-items: flex-end; gap: 8px; border-bottom: 2px solid var(--ds-journal-red); padding-bottom: 4px; }
+.wxj-qs-name { font-family: "STXingkai", "华文行楷", "STKaiti", "KaiTi", "楷体", serif; color: var(--ds-journal-red); font-size: var(--ds-fs-26); white-space: nowrap; flex: none; line-height: 1; letter-spacing: 2px;
+  text-shadow: 0 1px 0 var(--ds-journal-red-shadow); }
+.wxj-qs-meta { display: flex; flex-direction: column; font-size: var(--ds-fs-10); color: var(--ds-journal-deep-red); line-height: 1.25; margin-left: auto; text-align: right; }
+.wxj-qs-meta span:nth-child(2) { font-weight: 700; font-size: var(--ds-fs-12); }
+.wxj-qs-meta small { font-size: var(--ds-fs-10); letter-spacing: 1px; color: var(--ds-journal-caption); }
+.wxj-qs-sub { font-size: var(--ds-fs-11); color: var(--ds-journal-deep-red); margin: 4px 0 6px; letter-spacing: .2em; }
+.wxj-qs-art { width: 100%; height: 30%; flex: none; border-radius: var(--ds-r-3); display: block; }
+.wxj-rays { animation: wxjSpin 40s linear infinite; }
+.wxj-sun { animation: wxjGlow 4s ease-in-out infinite; transform-origin: 100px 78px; }
+.wxj-cloud.c1 { animation: wxjDrift 18s linear infinite; }
+.wxj-cloud.c2 { animation: wxjDrift 26s linear infinite reverse; }
+.wxj-dove { animation: wxjFly 9s linear infinite; }
+.wxj-dove.d2 { animation-duration: 12s; animation-delay: -5s; }
+.wxj-flag-cloth { animation: wxjWave 1.8s ease-in-out infinite; transform-origin: 0 7px; }
+@keyframes wxjSpin { to { transform: rotate(360deg); } }
+@keyframes wxjGlow { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.06); filter: brightness(1.12); } }
+@keyframes wxjDrift { 0% { transform: translateX(-60px); } 100% { transform: translateX(220px); } }
+@keyframes wxjFly { 0% { transform: translate(-20px, 50px) scale(.9); } 50% { transform: translate(100px, 18px) scale(1); } 100% { transform: translate(220px, 36px) scale(.9); } }
+@keyframes wxjWave { 0%, 100% { transform: skewY(0) scaleX(1); } 50% { transform: skewY(-6deg) scaleX(.94); } }
+.wxj-qs-lines { list-style: none; margin: 8px 0 0; padding: 0; font-size: var(--ds-fs-11); line-height: 1.5; flex: 1; min-height: 0; overflow: hidden; }
+.wxj-qs-lines li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "Songti SC", "STSong", "SimSun", serif; }
+.wxj-qs-lines li::before { content: "■ "; color: var(--ds-journal-red); font-size: var(--ds-fs-10); vertical-align: 2px; }
+.wxj-qs-lines li:first-child { font-weight: 700; color: var(--ds-journal-red); font-size: var(--ds-fs-12); }
+/* 红头文件风：白纸、红色文头、文号、红线五角星、公章 */
+.wxj-hd { background: var(--ds-journal-white-paper); color: var(--ds-journal-document-ink); padding: 18px 14px 10px; align-items: center; text-align: center;
+  background-image: repeating-linear-gradient(0deg, transparent 0 23px, var(--ds-journal-rule) 23px 24px); }
+.wxj-hd-org { font-family: "STZhongsong", "华文中宋", "Songti SC", "STSong", "SimSun", serif; font-weight: 900; color: var(--ds-journal-seal); font-size: var(--ds-fs-18); letter-spacing: 1px; white-space: nowrap;
+  line-height: 1.15; transform: scaleY(1.15); }
+.wxj-hd-no { font-size: var(--ds-fs-10); color: var(--ds-journal-number); margin: 8px 0 4px; font-family: "FangSong", "STFangsong", serif; }
+.wxj-hd-rule { display: flex; align-items: center; width: 100%; gap: 4px; color: var(--ds-journal-seal); }
+.wxj-hd-rule i { flex: 1; height: 2px; background: var(--ds-journal-seal); }
+.wxj-hd-rule b { font-size: var(--ds-fs-13); }
+.wxj-hd-title { margin: 10px 4px 8px; flex: none; font-family: "STZhongsong", "Songti SC", "SimSun", serif; font-weight: 700; font-size: var(--ds-fs-13); line-height: 1.45; color: var(--ds-journal-title);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wxj-hd-text { width: 88%; display: flex; flex-direction: column; gap: 7px; align-items: flex-start; flex: 1; }
+.wxj-hd-text i { height: 3px; border-radius: var(--ds-r-2); background: var(--ds-journal-print); }
+.wxj-hd-seal { position: absolute; right: 10px; bottom: 40px; width: 56px; height: 56px; opacity: .8; mix-blend-mode: multiply;
+  animation: wxjStamp 7s ease-in-out infinite; animation-delay: calc(var(--d, 0s) * -1); }
+.wxj-cover:hover .wxj-hd-seal { animation: wxjStampHit .5s cubic-bezier(.3,1.6,.6,1) both; }
+@keyframes wxjStamp { 0%, 82%, 100% { transform: rotate(-12deg) scale(1); opacity: .8; } 88% { transform: rotate(-12deg) scale(1.35); opacity: .2; } 94% { transform: rotate(-12deg) scale(.96); opacity: .9; } }
+@keyframes wxjStampHit { 0% { transform: rotate(-12deg) scale(1.8); opacity: 0; } 100% { transform: rotate(-12deg) scale(1); opacity: .85; } }
+.wxj-hd-cat { position: absolute; left: 12px; bottom: 46px; font-size: var(--ds-fs-10); color: var(--ds-journal-seal); border: 1px solid var(--ds-journal-seal); border-radius: var(--ds-r-3); padding: 0 4px; }
+.wxj-prog { position: relative; z-index: 1; margin-top: 8px; width: 100%; font-size: var(--ds-fs-10); color: var(--ds-journal-progress); }
+.wxj-prog-bar { height: 4px; border-radius: var(--ds-r-2); background: var(--ds-journal-track); overflow: hidden; }
+.wxj-prog-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--ds-journal-gold), var(--ds-journal-red)); }
+.wxj-prog-t { display: flex; justify-content: space-between; margin-top: 3px; }
+.wxj-empty { background: transparent; border: 2px dashed var(--line); box-shadow: none; align-items: center; justify-content: center; gap: 8px; color: var(--faint);
+  text-align: center; animation: none; font-size: var(--ds-fs-12); }
+.wxj-empty b { font-family: var(--display); font-size: var(--ds-fs-18); color: var(--muted); }
+.wxj-empty:hover { border-color: var(--accent); color: var(--accent); transform: none; box-shadow: none; }
+.wxj-blank { text-align: center; padding: 34px 20px; margin-top: 18px; }
+.wxj-blank-ico { font-size: var(--ds-fs-26); }
+/* 一期 */
+.wxj-ihead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wxj-ihead.month { border-top: 4px solid var(--ds-journal-red); }
+.wxj-ihead.topic { border-top: 4px solid var(--ds-journal-seal); }
+.wxj-ititle { display: flex; flex-direction: column; min-width: 0; }
+.wxj-ititle b { font-family: var(--display); font-size: var(--ds-fs-18); letter-spacing: .06em; }
+.wxj-ititle small { font-size: var(--ds-fs-12); }
+.wxj-itabs { width: 100%; justify-content: stretch; }
+.wxj-itabs a { flex: 1; text-align: center; }
+.wxj-ibody { margin-top: 14px; }
+.wxj-read { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; align-items: start; }
+.wxj-toc { position: sticky; top: 120px; max-height: calc(100vh - 140px); overflow-y: auto; padding: 8px; }
+.wxj-toc a { display: flex; gap: 8px; padding: 7px 8px; border-radius: var(--ds-r-8); cursor: pointer; font-size: var(--ds-fs-13); color: var(--muted); line-height: 1.4; }
+.wxj-toc a:hover { background: var(--panel2); }
+.wxj-toc a.on { background: var(--panel2); color: var(--text); box-shadow: inset 3px 0 0 var(--red); }
+.wxj-toc a.done .wxj-toc-n { background: var(--green); color: var(--ds-on-accent); }
+.wxj-toc-n { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--panel2); font-size: var(--ds-fs-11); }
+.wxj-toc-g { font-size: var(--ds-fs-12); color: var(--red); margin: 10px 6px 4px; font-weight: 700; }
+.wxj-star { color: var(--ds-journal-seal); font-style: normal; font-size: var(--ds-fs-11); margin-right: 3px; }
+.wxj-star.big { font-size: var(--ds-fs-16); }
+.wxj-news h2 { font-family: "STZhongsong", "Songti SC", "SimSun", var(--display); margin: 8px 0 12px; line-height: 1.4; }
+.wxj-news-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wxj-news-q { padding: 10px 12px; border-radius: var(--ds-r-10); background: var(--panel2); font-size: var(--ds-fs-14); margin-bottom: 12px; }
+.wxj-news-body p { text-indent: 2em; line-height: 1.95; margin: 0 0 10px; font-size: var(--ds-fs-16); }
+mark.wxj-key { background: none; color: var(--red); font-weight: 700; border-bottom: 2px solid color-mix(in srgb, var(--red) 45%, transparent); padding: 0 1px; }
+.wxj-key-tip { margin: 6px 0 10px; }
+.wxj-news-foot { gap: 8px; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 12px; }
+.wxj-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wxj-bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.wxj-bar label input, .wxj-ihead select { width: auto; }
+.wxj-cl { margin-top: 10px; line-height: 2.2; font-size: var(--ds-fs-16); }
+.wxj-cl-h { font-weight: 700; font-family: var(--display); margin-bottom: 4px; }
+.wxj-cl-n { display: inline-grid; place-items: center; min-width: 26px; height: 22px; border-radius: var(--ds-r-12); background: var(--panel2); font-size: var(--ds-fs-12); margin-right: 6px; }
+.wxj-cl-g { font-family: var(--display); color: var(--red); margin: 18px 0 6px; letter-spacing: .1em; }
+.wxj-b { display: inline-block; min-width: var(--w, 3em); padding: 0 6px; margin: 0 2px; border: none; border-bottom: 2px solid var(--muted); border-radius: 0;
+  background: transparent; font: inherit; font-weight: 700; line-height: 1.5; cursor: pointer; vertical-align: baseline; transition: background .2s; }
+.wxj-b.hid { color: transparent; background: color-mix(in srgb, var(--gold) 14%, transparent); border-radius: var(--ds-r-4) var(--ds-r-4) 0 0; }
+.wxj-b.hid:hover { background: color-mix(in srgb, var(--gold) 26%, transparent); }
+.wxj-b.ok { color: var(--green); border-bottom-color: var(--green); }
+.wxj-b.no { color: var(--red); border-bottom-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.wxj-b.nil { color: var(--faint); font-weight: 400; font-size: var(--ds-fs-13); cursor: default; border-bottom-style: dashed; }
+.wxj-b.demo { min-width: 0; cursor: default; }
+.wxj-q { margin-top: 12px; }
+.wxj-q-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.wxj-q-n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--red); color: var(--ds-on-accent); font-weight: 700; font-size: var(--ds-fs-13); }
+.wxj-q.is-ok .wxj-q-n { background: var(--green); }
+.wxj-q-stem { font-size: var(--ds-fs-16); line-height: 1.8; }
+.wxj-q-stmts { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--line); line-height: 1.8; font-size: var(--ds-fs-16); }
+.wxj-opts { display: grid; gap: 8px; margin-top: 10px; }
+.wxj-opt { display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 9px 12px; border-radius: var(--ds-r-10); background: var(--panel2); border: 1px solid var(--line); font: inherit; line-height: 1.6; }
+.wxj-opt b { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 1px solid var(--line); font-size: var(--ds-fs-13); }
+.wxj-opt:not([disabled]):hover { border-color: var(--accent); }
+.wxj-opt.right { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--panel)); }
+.wxj-opt.right b { background: var(--green); color: var(--ds-on-accent); border-color: var(--green); }
+.wxj-opt.wrong { border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--panel)); }
+.wxj-opt.wrong b { background: var(--red); color: var(--ds-on-accent); border-color: var(--red); }
+.wxj-opt.dim { opacity: .6; }
+.wxj-opt[disabled] { cursor: default; color: var(--text); }
+.wxj-ana { margin-top: 12px; border-radius: var(--ds-r-10); padding: 10px 12px; background: var(--panel2); }
+.wxj-ana-h { display: flex; gap: 12px; align-items: center; font-weight: 700; flex-wrap: wrap; }
+.wxj-ana.ok .wxj-ana-h { color: var(--green); }
+.wxj-ana.no .wxj-ana-h { color: var(--red); }
+.wxj-ana-h a { font-weight: 400; font-size: var(--ds-fs-13); color: var(--accent2); cursor: pointer; }
+.wxj-ana-b { margin-top: 6px; line-height: 1.8; font-size: var(--ds-fs-14); color: var(--muted); }
+.wxj-sum { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; padding: 26px; }
+.wxj-ring { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--c) var(--p), var(--panel2) 0); }
+.wxj-ring > div { width: 118px; height: 118px; border-radius: 50%; background: var(--panel); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.wxj-ring b { font-size: var(--ds-fs-26); font-family: var(--display); }
+.wxj-ring small { font-size: var(--ds-fs-11); color: var(--faint); }
+.wxj-sum2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.wxj-sum-q { display: block; padding: 6px 0; border-bottom: 1px dashed var(--line); cursor: pointer; font-size: var(--ds-fs-14); color: var(--text); }
+.wxj-forgot { display: flex; flex-wrap: wrap; gap: 8px; }
+.wxj-forgot span { padding: 2px 10px; border-radius: var(--ds-r-12); background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); font-size: var(--ds-fs-14); }
+@media (max-width: 820px) {
+  .wxj-read { grid-template-columns: 1fr; }
+  .wxj-toc { position: static; max-height: 220px; }
+  .wxj-sum2 { grid-template-columns: 1fr; }
+  .wxj-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+}
+html.no-cmix .wxj-b.hid { background: var(--ds-journal-blank); }
+html.no-cmix .wxj-b.no, html.no-cmix .wxj-forgot span { background: var(--ds-journal-forgot); }
+/* 万象时政研读页左栏：目录 / 问师傅 切换 */
+.wxj-read.asking { grid-template-columns: 340px minmax(0, 1fr); }
+.wxj-ltabs { display: flex; border: 1px solid var(--line); border-radius: var(--ds-r-10); overflow: hidden; margin-bottom: 8px; flex: none; }
+.wxj-toc .wxj-ltabs a { flex: 1; justify-content: center; padding: 6px 4px; border-radius: 0; font-size: var(--ds-fs-13); box-shadow: none; }
+.wxj-toc .wxj-ltabs a.on { background: var(--accent); color: var(--ds-on-accent); }
+.wxj-read.asking .wxj-toc { display: flex; flex-direction: column; height: max(380px, calc(100vh - 240px)); overflow: hidden; }
+.wxj-ask { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; }
+.wxj-ask-for { font-size: var(--ds-fs-12); color: var(--muted); }
+.wxj-ask-mem { align-self: stretch; }
+.wxj-ask-msgs { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
+.wxj-am { border-radius: var(--ds-r-10); padding: 8px 10px; font-size: var(--ds-fs-14); line-height: 1.7; }
+.wxj-am.me { align-self: flex-end; max-width: 90%; background: color-mix(in srgb, var(--accent) 16%, var(--panel)); }
+.wxj-am.me small { display: block; font-size: var(--ds-fs-10); color: var(--faint); }
+.wxj-am.ai { background: var(--panel2); }
+.wxj-am.ai p { margin: 4px 0; }
+.wxj-ask-empty { padding: 8px 2px; }
+.wxj-ask-in { display: flex; gap: 6px; align-items: flex-end; flex: none; }
+.wxj-ask-in textarea { flex: 1; min-width: 0; resize: none; font: inherit; font-size: var(--ds-fs-14); }
+@media (max-width: 820px) {
+  .wxj-read.asking { grid-template-columns: 1fr; }
+  .wxj-read.asking .wxj-toc { height: 62vh; max-height: none; overflow: hidden; }
+}
+html.no-cmix .wxj-am.me { background: var(--panel2); }
+
+.wxj-chapter-count{display:block;margin-top:4px;color:var(--muted);font-size:var(--ds-fs-11)}
+.wxj-chapter-parts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}

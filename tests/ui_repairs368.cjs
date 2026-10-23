@@ -18,7 +18,7 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
  assert.match(await page.locator('.study-hud-meter.xp').textContent(),/123 \/ 456/);
  fs.mkdirSync('ui-artifacts/repairs368',{recursive:true});await page.screenshot({path:'ui-artifacts/repairs368/home-tablet.png'});
  await page.evaluate(()=>{STUDY_REGIONS.select('chang');return go('train');});await page.locator('[data-wx-branch="politics"]').click();await page.locator('[data-wx-exam="2026-10-guokao"]').click();
- const f=page.frameLocator('.wx-atlas-frame');await f.locator('.map').waitFor();await f.locator('[data-go="practice"]').click();
+ const f=page.frameLocator('.wx-atlas-frame');await f.locator('#nav [data-go="sprint"]').click();await f.locator('.sprint-index').waitFor();await f.locator('[data-go="practice"]').click();
  assert.equal(await f.locator('.question .atlas-qline').count(),3,'保留原题两段题干与同行选项，不再强拆选项');
  assert(await f.locator('.qtext').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=18));
  assert(await f.locator('.qtext').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'长题文不横向溢出');

@@ -1,6 +1,6 @@
 """考试时政地图PDF增量导入，politics.register调用；不调用AI、不改旧材料与进度。
 
-优先复用天机台版式解析，普通文字PDF按明确资料标题切分并提取题目/答案；
+优先使用万象峰独立版式解析，普通文字PDF按明确资料标题切分并提取题目/答案；
 不能明确归属的题目放在整份讲义配套练习，不猜测挂到某次会议。
 原PDF按内容摘要存训练/时政知识地图/原文，新增数据仅原子写对应考试的补充.json。
 """
@@ -11,7 +11,7 @@ import statistics
 from functools import lru_cache
 from pathlib import Path
 
-from . import politics, political_outline, tianji
+from . import politics, political_outline, wanxiang_journal
 
 Q = re.compile(r'^(\d+)[.．、]\s*(?:【[^】]+】)?(?:[（(](单选|多选|不定项)[)）])?(.*)')
 OPTION = re.compile(r'^([A-D])[.．、)）]\s*(.*)')
@@ -37,8 +37,8 @@ def _rows(doc):
     for page in doc:
         for block in page.get_text('dict')['blocks']:
             for line in block.get('lines', []):
-                text = tianji.clean(''.join(s['text'] for s in line['spans']))
-                if not text or text in tianji.NOISE or re.fullmatch(r'\d{1,3}', text):
+                text = wanxiang_journal.clean(''.join(s['text'] for s in line['spans']))
+                if not text or text in wanxiang_journal.NOISE or re.fullmatch(r'\d{1,3}', text):
                     continue
                 size = max((s['size'] for s in line['spans']), default=11)
                 rows.append((text, size, line['bbox'][0]))
@@ -56,7 +56,7 @@ def _rows(doc):
 
 
 def _known(path):
-    data = tianji.parse_pdf(path)
+    data = wanxiang_journal.parse_pdf(path)
     units = []
     for i, n in enumerate(data['news']):
         if not n.get('paras'):
@@ -64,7 +64,7 @@ def _known(path):
         title = n.get('heading') or n['title']
         units.append({'title': title, 'original': '\n\n'.join(n['paras']),
                       'event_key': n.get('group') or title,
-                      'source_title': n.get('group') or title, 'refs': [i]})
+                      'source_title': n.get('group') or title, 'refs': [i], 'cloze': [c for c in data.get('cloze', []) if c.get('news') == i]})
     questions = []
     for q in data['questions']:
         owner = next((i for i, u in enumerate(units) if q.get('news') in u['refs']), None)
@@ -86,7 +86,7 @@ def _layout_text(doc, questions, rows=None):
         if not expected:
             continue
         for i, row in enumerate(rows):
-            start = Q.match(tianji.clean(row))
+            start = Q.match(wanxiang_journal.clean(row))
             if not start or not norm(start.group(3)) or not expected.startswith(norm(start.group(3))):
                 continue
             parts = [row]
@@ -109,7 +109,7 @@ def _layout_rows(doc):
         for block in page.get_text('dict', sort=True)['blocks']:
             for line in block.get('lines', []):
                 text = ''.join(s['text'] for s in line['spans']).strip()
-                if text and text not in tianji.NOISE and not re.fullmatch(r'\d{1,3}', text):
+                if text and text not in wanxiang_journal.NOISE and not re.fullmatch(r'\d{1,3}', text):
                     rows.append(text)
     return rows
 
@@ -234,13 +234,17 @@ def import_pdf(pp, body):
                 raise politics.PoliticsError('这份PDF没有可提取文字，请先做文字识别（OCR）再导入')
             try:
                 units, questions = _known(path)
-            except tianji.TianjiError:
+            except wanxiang_journal.JournalError:
                 units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
             _layout_text(doc, questions)
     except (RuntimeError, ValueError) as error:
         if isinstance(error, politics.PoliticsError):
             raise
         raise politics.PoliticsError('PDF无法读取，请确认文件完整且未加密')
+    if not units and questions and body.get('mode') == 'practice':
+        units = [{'title': Path(str(body.get('name') or '冲刺刷题')).stem, 'original': '', 'practice_only': True}]
+        for q in questions:
+            q['owner'] = 0
     if not units:
         raise politics.PoliticsError('没有找到讲义正文，未加入地图；请导入包含正文的资料')
     if any(q['owner'] is None for q in questions):
@@ -257,10 +261,11 @@ def import_pdf(pp, body):
         extra = politics.read_json(file, {'materials': [], 'questions': [], 'imports': []})
         if file_hash in extra.get('imports', []):
             return {'added': 0, 'questions': 0, 'duplicate': True, 'counts': politics.source_counts(data)}
-        known = {politics.digest(re.sub(r'\s+', '', m['original'])): m for m in data['materials']}
+        known = {politics.digest(re.sub(r'\s+', '', m['original'])): m for m in data['materials'] if not m.get('practice_only')}
         ids, added = {}, 0
         for i,u in enumerate(units):
-            key = politics.digest(re.sub(r'\s+', '', u['original']))
+            key = (politics.digest(['practice', file_hash, u['title']]) if u.get('practice_only')
+                   else politics.digest(re.sub(r'\s+', '', u['original'])))
             if key in known:
                 ids[i] = known[key]
                 continue
@@ -273,7 +278,7 @@ def import_pdf(pp, body):
                  'chapter': chapter, 'kind': kind, 'event_key': u.get('event_key') or u['title'], 'tags': [route],
                  'why': '研读原文，理解政策表述', 'how': [], 'trap': '', 'questions': [],
                  'understanding': {'context': '这份材料来自你导入的PDF，可直接研读原文并选词解释批注。', 'actions': [], 'distinctions': [], 'recall': []},
-                 'pdf': path.relative_to(pp.vault).as_posix()}
+                 'pdf': path.relative_to(pp.vault).as_posix(), 'practice_only': bool(u.get('practice_only')), 'cloze': u.get('cloze', [])}
             extra['materials'].append(m)
             known[key] = m
             ids[i] = m

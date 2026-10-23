@@ -1,9 +1,10 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>时政知识地图</title><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="atlas.css"><link rel="stylesheet" href="atlas_theme.css"><link rel="stylesheet" href="word_notes.css"><script src="tablet_shell.js"></script></head><body>
 <header class="atlas-toolbar">
   <button id="atlasBack" type="button" aria-label="返回政治理论" title="返回政治理论"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7M7 12h14"/></svg></button>
-  <nav class="nav" id="nav" aria-label="时政学习导航"><button data-go="overview">知识总览</button><button data-go="materials">讲义索引</button><button data-go="practice">配套练习</button><button data-go="progress">学习进度</button></nav>
+  <nav class="nav" id="nav" aria-label="时政学习导航"><button data-go="month">月半时政</button><button data-go="topic">专题时政</button><button data-go="sprint">冲刺学习</button><button data-go="practice">冲刺刷题</button></nav>
   <button id="atlasSearch" type="button" aria-label="搜索资料" title="搜索资料" aria-expanded="false" aria-controls="atlasSearchBar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg></button>
 </header>
 <div class="shell"><main class="main"><div class="atlas-search-bar" id="atlasSearchBar" hidden><input id="search" type="search" placeholder="搜索主题、原文、日期或题目…" aria-label="搜索知识地图"></div><div id="app"></div></main></div>
 <div hidden aria-hidden="true"><div id="sideTopics"></div><span id="progressCount"></span><span id="progressBar"></span></div><div id="toast" class="toast" hidden role="status"></div>
-<script src="word_notes.js"></script><script src="atlas.js"></script></body></html>
+<link rel="stylesheet" href="wanxiang_journal.css"><link rel="stylesheet" href="wanxiang_learning.css">
+<script src="word_notes.js"></script><script src="wanxiang_journal.js"></script><script src="atlas.js"></script></body></html>
