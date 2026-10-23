@@ -349,7 +349,7 @@ def parse_fenbi(lines):
         stem, opts, problems = split_options("\n".join(q["lines"] + q["tail"]), scrambled=True)
         problems.append("粉笔 OCR 文字顺序可能错乱，对照原卷核对")
         out.append({"num": i, "group": 0, "stem": stem, "options": opts, "answer": q["answer"],
-                    "board": guess_board(q["section"], stem, opts), "problems": problems})
+                    "board": guess_board(q["section"], stem, opts), "source_accuracy": vault.parse_accuracy('\n'.join(q['lines'] + q['tail'])), "problems": problems})
     return out
 
 
@@ -468,6 +468,9 @@ def parse_review(season_dir):
             if ln.strip() == "---":
                 cur = None
                 continue
+            if re.match(r'^>\s*(?:原题|全站|全网|本题)?正确率[:：]', ln):
+                cur['source_accuracy'] = vault.parse_accuracy(ln)
+                continue
             if ln.startswith("> [!note]"):
                 in_note = True
             if in_note:
@@ -519,17 +522,20 @@ def parse_opts(s):
 
 
 def bank_block(q):
-    return ("## 题目 %s\n### 知识点\n%s\n### 题干\n%s\n### 选项\n%s\n### 答案\n%s\n### 解析\n%s\n\n"
+    block = ("## 题目 %s\n### 知识点\n%s\n### 题干\n%s\n### 选项\n%s\n### 答案\n%s\n### 解析\n%s\n\n"
             % (q["id"], q["topic"] or UNSORTED, q["stem"], "\n".join("%s. %s" % (k, q["options"][k]) for k in "ABCD"),
                q["answer"] if re.fullmatch(r"[A-D]", q["answer"] or "") else TODO, TODO))
+    rate = q.get('source_accuracy')
+    return block + ('### 原题正确率\n%g%%\n\n' % rate if rate is not None else '')
 
 
 def fix_block(q):
     """待修文件里的一道题：比题库多 板块 / 来源 / 检查 三节，改好后清空“检查”再在网页上重新导入"""
-    return ("## 题目 %s\n### 板块\n%s\n### 知识点\n%s\n### 来源\n%s\n### 题干\n%s\n### 选项\n%s\n### 答案\n%s\n### 检查\n%s\n\n"
+    block = ("## 题目 %s\n### 板块\n%s\n### 知识点\n%s\n### 来源\n%s\n### 题干\n%s\n### 选项\n%s\n### 答案\n%s\n### 检查\n%s\n\n"
             % (q["id"], q["board"] or UNSORTED, q["topic"] or UNSORTED, q["source"], q["stem"],
                "\n".join("%s. %s" % (k, q["options"].get(k, "")) for k in "ABCD"), q["answer"] or TODO,
                "\n".join("⚠ " + p for p in q["problems"])))
+    return block + ('### 原题正确率\n%g%%\n\n' % q['source_accuracy'] if q.get('source_accuracy') is not None else '')
 
 
 def existing(bank):
@@ -1009,7 +1015,7 @@ def _fix_import(paths, body, dry):
             continue
         qs.append({"id": b["id"], "board": board, "topic": fl.get("知识点", "").strip() or UNSORTED,
                    "source": fl.get("来源", "").strip(), "stem": fl["题干"].strip(), "options": opts,
-                   "answer": ans if re.fullmatch(r"[A-D]", ans) else "", "problems": [], "block": b})
+                   "answer": ans if re.fullmatch(r"[A-D]", ans) else "", "source_accuracy":vault.parse_accuracy(fl.get('原题正确率')), "problems": [], "block": b})
     ready, fix, dup = _route(paths, qs, dry)
     keep += [q["block"] for q in fix]
     if not dry:

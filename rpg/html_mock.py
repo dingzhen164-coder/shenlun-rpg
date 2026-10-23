@@ -253,6 +253,7 @@ def extract(body):
         answer = answer.text().strip() if answer else ''
         time_node = node.one(cls='answer-time')
         seconds = vault.parse_seconds(time_node.text()) if time_node else None
+        source_accuracy = vault.parse_accuracy(node.text())
         analysis_node = node.one('app-result-common')
         analysis = '\n\n'.join(plain(n) for n in analysis_node.walk('app-format-html')) if analysis_node else ''
         topic_node = node.one('app-solution-keypoint')
@@ -272,7 +273,7 @@ def extract(body):
         if board not in importer.BOARDS: problems.append('板块未识别')
         questions.append(dict(num=number,id='粉笔%d季-%03d' % (season,number),board=board,module=module,topic=topic,
             stem=(material[1]+'\n\n' if material[1] else '')+stem,question=stem,material=material[1],material_nums=material[0],
-            options=options,answer=answer,analysis=analysis,mine=mine,seconds=seconds,source='粉笔第%d季模考' % season,problems=problems))
+            options=options,answer=answer,analysis=analysis,mine=mine,seconds=seconds,source_accuracy=source_accuracy,source='粉笔第%d季模考' % season,problems=problems))
     # 与原mock.FIXED共用粉笔35题判断分布，仅在图形/类比/材料结构吻合时采用。
     from . import mock
     judgments = [q for q in questions if q['module'] == '判断推理']
@@ -355,11 +356,14 @@ def _import_file(paths, body):
                     groups.add(group)
                     lines.append('## 材料（第%d-%d题）\n%s\n---\n' % (min(group),max(group),q['material']))
                 icon = '✅' if q['mine'] and q['mine'] == q['answer'] else '❌' if q['mine'] else '⚪'
+                metadata = (' 用时：**%d秒**\n> ' % q['seconds']) if q['seconds'] is not None else ' '
+                if q.get('source_accuracy') is not None:
+                    metadata += '原题正确率：**%g%%**\n> ' % q['source_accuracy']
                 lines.append('### %d. %s\n%s\n%s\n> [!check]- 答案\n> 正确答案：**%s**　我的答案：**%s**\n>%s[!note] 复盘\n%s\n---\n' % (
                     q['num'],icon,q['question'],'\n'.join('- **%s.** %s' % (k,q['options'][k]) for k in 'ABCD'),q['answer'],q['mine'] or '?',
-                    (' 用时：**%d秒**\n> ' % q['seconds']) if q['seconds'] is not None else ' ',
+                    metadata,
                     '\n'.join('> '+line for line in q['analysis'].splitlines())))
             importer._write(folder/('%02d-%s.md' % (importer.BOARDS.index(board)+1,board)),''.join(lines))
-    report['html_meta'] = dict(question_seconds={str(q['num']):q['seconds'] for q in qs if q['seconds'] is not None},known_numbers=[q['num'] for q in qs],reported_score=result['reported_score'])
+    report['html_meta'] = dict(question_seconds={str(q['num']):q['seconds'] for q in qs if q['seconds'] is not None},question_accuracy={str(q['num']):q['source_accuracy'] for q in qs if q.get('source_accuracy') is not None},known_numbers=[q['num'] for q in qs],reported_score=result['reported_score'])
     report['review_preserved'] = bool(prior)
     return report

@@ -1,10 +1,10 @@
-"""青衡宗剧情：api.dashboard 传入已计算的面板；POST /api/sect/story 记录阅读。
+"""行测宗剧情：api.dashboard 传入已计算的面板；POST /api/sect/story 记录阅读。
 存档 sect_story={schema:1,unlocked:[章节id],read:[章节id]}，只写现有原子存档，
 不改经验/成绩/任务；章节由实际学习记录解锁，旧存档自动补字段，申论不启用。
 """
 CHAPTERS = (
     {'id': 'arrival', 'title': '初入山门', 'condition': '入宗即可阅读', 'lines': [
-        '青衡宗坐落在群山之间。昔日门人以辨理、推演、识势立道，五脉典籍曾汇成一部《万象经》。后来典籍散失，宗门渐渐沉寂。',
+        '行测宗坐落在群山之间。昔日门人以辨理、推演、识势立道，五脉典籍曾汇成一部《万象经》。后来典籍散失，宗门渐渐沉寂。',
         '山门前，沈清禾将一卷竹简交到你手中：“徒儿，入我宗门，无须争一时之快。先明理，再举例，最后用实战验之。”',
         '你将在五脉修行，登试炼塔、照见心魔、参加宗门会试。设置中的考试日期，便是你的仙门大选之日。已有的学习记录，也都算作这段修行。']},
     {'id': 'five_paths', 'title': '五脉寻道', 'condition': '完成一项功课或已有有效学习记录', 'lines': [
@@ -55,7 +55,7 @@ def view(g, dashboard):
              'read': [c['id'] for c in CHAPTERS if c['id'] in set(clean('read'))]}
     g.state['sect_story'] = saved
     chapters = [dict(c, unlocked=c['id'] in unlocked, read=c['id'] in saved['read']) for c in CHAPTERS]
-    return {'name': '青衡宗', 'chapters': chapters, 'remaining': remaining,
+    return {'name': '行测宗', 'chapters': chapters, 'remaining': remaining,
             'unread': sum(c['unlocked'] and not c['read'] for c in chapters)}
 
 

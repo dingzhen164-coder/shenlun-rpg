@@ -397,6 +397,7 @@ class Persona:
 
 class Lines:
     """台词库：lines.pick("开场·落后", 称呼="小岸", 落后天数=3)"""
+    _RECENT = {}  # open_game每次重读台词库；在进程内保留最近一句，避免跨请求重复。
 
     RETIRED = ("为师没教过你吗？先读解析，不懂再问",)      # 已撤下的台词：用户的台词库副本里还留着也不再抽到
 
@@ -404,6 +405,9 @@ class Lines:
         # 自己的台词库里没有的场景（程序新加的），用默认台词库里的
         self.sec = mdconf.sections(fallback)
         self.sec.update({k: v for k, v in mdconf.sections(text).items() if v})
+        # 旧库已有两句复盘台词时也补齐新语录，不改写用户文件或丢失自定义句子。
+        scene = '试炼·复盘错题'
+        self.sec[scene] = list(dict.fromkeys((self.sec.get(scene) or []) + mdconf.sections(fallback).get(scene, [])))
         for k, v in list(self.sec.items()):
             self.sec[k] = [x for x in v if not any(r in x for r in self.RETIRED)]
 
@@ -411,7 +415,12 @@ class Lines:
         opts = self.sec.get(scene) or []
         if not opts:
             return ""
-        s = random.choice(opts)
+        key = (scene, tuple(opts))
+        choices = [x for x in opts if x != self._RECENT.get(key)] or opts
+        s = random.choice(choices)
+        if len(self._RECENT) >= 256 and key not in self._RECENT:
+            self._RECENT.pop(next(iter(self._RECENT)))
+        self._RECENT[key] = s
         for k, v in vals.items():
             s = s.replace("{" + k + "}", str(v))
         return re.sub(r"\{[^{}]{1,6}\}", "", s)  # 没提供的占位符直接去掉

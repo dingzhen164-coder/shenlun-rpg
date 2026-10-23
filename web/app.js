@@ -187,7 +187,7 @@ function applyTheme() {
   document.title = (DASH.app_name || "公考模拟器") + " · " + (DASH.subject || "");
   configurePortal();
   document.querySelectorAll('#nav a[data-view="log"]').forEach((a) => (a.hidden = !isSL()));
-  document.querySelectorAll("#nav a").forEach(a=>{const label=a.dataset.view==="home"?(isSL()?"🏛 政务大厅":"🏯 青衡宗"):a.dataset.view==="dwelling"?W("nav.home"):W("nav."+a.dataset.view);if(a.textContent!==label)a.textContent=label;});
+  document.querySelectorAll("#nav a").forEach(a=>{const label=a.dataset.view==="home"?(isSL()?"🏛 政务大厅":"🏯 行测宗"):a.dataset.view==="dwelling"?W("nav.home"):W("nav."+a.dataset.view);if(a.textContent!==label)a.textContent=label;});
   if(isSL())window.SL_UI?.chrome();
   window.SL_CURSOR?.sync();
   window.XC_CURSOR?.sync();
@@ -211,7 +211,7 @@ function configurePortal() {
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
     {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
-  SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'青衡宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},framing:'extended',seasons:Object.fromEntries(['spring','summer','autumn','winter'].map(se=>[se,Object.fromEntries(['day','night'].map(t=>[t,'assets/beauty/scenes/xingce/hd/home-'+se+'-'+t+'.webp']))])),layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
+  SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'行测宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},framing:'extended',seasons:Object.fromEntries(['spring','summer','autumn','winter'].map(se=>[se,Object.fromEntries(['day','night'].map(t=>[t,'assets/beauty/scenes/xingce/hd/368/home-'+se+'-'+t+'.webp']))])),layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
     else{if(p.region)window.STUDY_REGIONS?.select(p.region);go(p.view);}
   });

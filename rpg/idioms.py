@@ -1,4 +1,4 @@
-"""藏经阁·成语实词录：逻辑填空做完一组，就把每道题正确选项里的成语 / 实词收成词条，按首字拼音首字母排。
+"""藏经阁·成语实词录：交卷收正确选项成语，师傅解惑成功收全部选项成语，按首字拼音首字母排。
 
 一个词条（正确选项里的一个词，几个空就几个词条）里有：
 - 释义：从解析里摘“X项“词”指 / 形容 / 比喻 / 意为……”那一句；
@@ -230,12 +230,14 @@ def _ai_split(raw, k):
     return out
 
 
-def entries_of(q, words=None):
+def entries_of(q, words=None, all_options=False):
     """一道逻辑填空题 → [(词, 词条出处)]。words：分词用的词典（见 vocab）"""
     ans = (q.get('answer') or '').strip().upper()
     opts = q.get('options') or {}
-    if ans not in opts:
+    if not opts or (not all_options and ans not in opts):
         return []
+    selected = sorted(opts) if all_options else [ans]
+    anchor = ans if ans in opts else selected[0]
     split = {k: split_words(v) for k, v in opts.items()}
     if all(len(v) == 1 for v in split.values()):     # 选项没分词：按题干里的空数切（没有横线时，长到不像一个词才切）
         k = blanks(q.get('stem'))
@@ -246,26 +248,26 @@ def entries_of(q, words=None):
             if got:
                 split = got
                 break
-    right = split[ans]
+    right = split[anchor]
     n = len(right)
     if not n or any(len(v) != n for v in split.values()):   # 各选项的词数对不齐（写法不统一）：整个选项当一个词条
-        n, right = 1, [opts[ans].strip()]
+        n, right = 1, [opts[anchor].strip()]
         split = {k: [v.strip()] for k, v in opts.items()}
     ana = _analysis(q)
     out = []
-    for i, w in enumerate(right):
+    for option, i, w in ((option, i, w) for option in selected for i, w in enumerate(split[option])):
         if not is_word(w):
             continue
         others = []
         for k in sorted(split):
-            if k == ans:
+            if k == option:
                 continue
             o = split[k][i]
             if o != w and o not in [x['word'] for x in others]:
                 others.append({'word': o, 'option': k, 'meaning': define(ana, o)})
         out.append((w, {'key': q['key'], 'id': q['id'], 'board': q['board'], 'source': q.get('source', ''),
                         'paper': (q.get('papers') or [q.get('paper') or ''])[0],
-                        'blank': i + 1, 'blanks': n, 'answer': ans, 'option_text': opts[ans],
+                        'blank': i + 1, 'blanks': n, 'answer': ans, 'option': option, 'option_text': opts[option],
                         'meaning': define(ana, w), 'others': others,
                         'compare': _blank_paragraph(ana, i, n, [w] + [x['word'] for x in others])[:900]}))
     return out
@@ -275,7 +277,7 @@ def data(g):
     return g.state.setdefault('idioms', {})
 
 
-def harvest(g, questions):
+def harvest(g, questions, all_options=False):
     """收录一批题（一组做完时调用）。返回新收的词（已有词条又考到的不算新词，但会挂上新出处）"""
     if g.state.get('idioms_ver') != VERSION and data(g):
         migrate(g)
@@ -288,7 +290,7 @@ def harvest(g, questions):
             continue
         if words is None:
             words = vocab(g) | IDIOM_WORDS
-        for w, src in entries_of(q, words):
+        for w, src in entries_of(q, words, all_options=all_options):
             if w in deleted(g):
                 continue
             e = book.get(w)
@@ -392,12 +394,12 @@ def clean_non_idioms(g):
 
 
 def from_explanation(g,q,text):
-    """逻辑填空解惑成功立即收正确选项成语，不增AI请求/奖励，手改释义优先。"""
+    """解惑成功立即收全部选项成语，不增AI请求/奖励，手改释义和主动删除优先。"""
     if getattr(g,'subject','行测')!='行测' or not is_fill(q) or not isinstance(q.get('options'),dict):return []
     source=dict(q,analysis=_analysis(q)+'\n'+text)
-    harvest(g,[source])
+    harvest(g,[source],all_options=True)
     touched=[]
-    for w,src in entries_of(source,vocab(g)|IDIOM_WORDS):
+    for w,src in entries_of(source,vocab(g)|IDIOM_WORDS,all_options=True):
         entry=data(g).get(w)
         if not entry:continue  # 尊重用户主动删除。
         saved=next((x for x in entry['sources'] if x['key']==src['key'] and x['blank']==src['blank']),None)
@@ -405,7 +407,8 @@ def from_explanation(g,q,text):
             saved['compare']=_blank_paragraph(text,src['blank']-1,src['blanks'],[w]+[x['word'] for x in src['others']])[:900]
             saved['tutor']=True
             if not saved.get('meaning'):saved['meaning']=define(text,w)
-        sync_card(g,w);touched.append(w)
+        if w not in touched:
+            sync_card(g,w);touched.append(w)
     if touched:write_file(g)
     return touched
 
@@ -596,7 +599,7 @@ def write_file(g):
         return
     d = listing(g)
     out = ['# 成语实词录', '',
-           '> 逻辑填空交卷或师傅解惑后，正确选项里的成语自动收进来，按首字拼音首字母排（程序生成，整份重写；自己的笔记请记在别处）。',
+           '> 逻辑填空交卷收录正确选项成语；师傅解惑收录全部选项成语，按首字拼音首字母排（程序生成，整份重写；自己的笔记请记在别处）。',
            '> 共 %d 个词条。' % d['total'], '']
     cur = None
     for e in d['entries']:
@@ -620,8 +623,8 @@ def write_file(g):
                                                        for o in s['others']))
             if s['compare']:
                 out.append('- **%s**：' % ('辨析（🧙 师傅）' if s.get('tutor') and not s.get('edited') else '辨析') + s['compare'].replace('\n', ' '))
-            out.append('- **真题**：%s%s · 第 %d 空 · 正确选项 %s「%s」 · 收于 %s' % (
-                link, ('（%s）' % s['paper']) if s['paper'] else '', s['blank'], s['answer'], s['option_text'], s['date']))
+            out.append('- **真题**：%s%s · 第 %d 空 · 收录选项 %s「%s」 · 正确答案 %s · 收于 %s' % (
+                link, ('（%s）' % s['paper']) if s['paper'] else '', s['blank'], s.get('option',s['answer']), s['option_text'], s['answer'] or '未提供', s['date']))
             out.append('')
     try:
         (g.paths.train / FILE).write_text('\n'.join(out).rstrip('\n') + '\n', encoding='utf-8', newline='\n')

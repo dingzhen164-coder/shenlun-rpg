@@ -1,4 +1,4 @@
-"""独立解惑的数据边界与折叠：自编题和假AI；不读取用户数据、不发送解析/作答/skill/历史。"""
+"""独立解惑的数据边界与折叠：仅题面与本地skill，不发送标准答案/解析/作答/历史。"""
 import copy
 import datetime as dt
 import os
@@ -26,31 +26,34 @@ class IndependentReviewTests(unittest.TestCase):
         self.q={'board':'类比推理','id':'自编1','stem':'自编题干：甲与乙的关系？','options':{'A':'选项甲','B':'选项乙'},'answer':'A','analysis':'原解析_CANARY','tutor':'旧讲解_CANARY','topic':'标签_CANARY'}
 
     def test_single_wire_payload_ignores_existing_explanations_and_attempt(self):
-        with patch.object(trainer,'_tutor_material',side_effect=AssertionError('不应检索额外资料')),patch.object(trainer.ai,'chat',return_value='自编讲解') as chat,patch.object(trainer.idioms,'from_explanation'):
+        with patch.object(trainer,'_tutor_material',return_value=('自编心法_LOCAL',['SKILL.md'])) as material,patch.object(trainer.ai,'chat',return_value='自编讲解') as chat,patch.object(trainer.idioms,'from_explanation'):
             trainer._explain(self.g,self.q,{'answer':'作答_CANARY'})
         payload=str(chat.call_args.args[0])
-        for text in ('自编题干','选项甲','选项乙','正确答案：A'):
+        material.assert_called_once_with(self.g, '类比推理')
+        for text in ('自编题干','选项甲','选项乙','自编心法_LOCAL','禁止搜索正确答案'):
             self.assertIn(text,payload)
-        for text in ('原解析_CANARY','旧讲解_CANARY','作答_CANARY','标签_CANARY'):
+        for text in ('原解析_CANARY','旧讲解_CANARY','作答_CANARY','标签_CANARY','正确答案：A'):
             self.assertNotIn(text,payload)
         p=self.g.persona
         a=prompts.bank_explain(p,self.q,'作答_CANARY','资料_CANARY','skill_CANARY')
         changed=dict(self.q,analysis='另一解析',tutor='另一旧讲解')
-        self.assertEqual(a,prompts.bank_explain(p,changed,'另一作答','另一资料','另一skill'))
+        self.assertEqual(a,prompts.bank_explain(p,changed,'另一作答','资料_CANARY','skill_CANARY'))
+        self.assertIn('资料_CANARY',str(a))
 
     def test_group_wire_payload_does_not_include_members_attempts_or_references(self):
         items=[{'label':'第1题','stem':'自编条件与选项A.甲 B.乙','answer':'A','mine':'组作答_CANARY','analysis':'组解析_CANARY'}]
-        with patch.object(trainer,'_tutor_material',side_effect=AssertionError('不应检索额外资料')),patch.object(trainer.ai,'chat',return_value='自编整组讲解') as chat:
+        with patch.object(trainer,'_tutor_material',return_value=('自编组心法',['SKILL.md'])),patch.object(trainer.ai,'chat',return_value='自编整组讲解') as chat:
             trainer._explain_group(self.g,'一拖五','自编共用材料',items)
         payload=str(chat.call_args.args[0]);self.assertIn('自编共用材料',payload)
-        self.assertIn('正确答案：A',payload);self.assertNotIn('组作答_CANARY',payload);self.assertNotIn('组解析_CANARY',payload)
+        self.assertIn('自编组心法',payload);self.assertNotIn('正确答案：A',payload);self.assertNotIn('组作答_CANARY',payload);self.assertNotIn('组解析_CANARY',payload)
 
     def test_wrong_question_explain_button_ignores_discussion_history(self):
         session={'discuss':{'board':'类比推理','question':'自编题干及A甲B乙','answer':'A','mine':'错题作答_CANARY','reference':'错题解析_CANARY','previous':'前次_CANARY','history':[{'role':'assistant','content':'历史_CANARY'}]}}
-        with patch.object(trainer.ai,'available',return_value=True),patch.object(trainer,'_skill_digest',side_effect=AssertionError('不应读取')),patch.object(trainer.ai,'chat',return_value='自编解释') as chat:
+        with patch.object(trainer.ai,'available',return_value=True),patch.object(trainer,'_skill_digest',return_value='自编错题心法'),patch.object(trainer.ai,'chat',return_value='自编解释') as chat:
             result=trainer._discuss_ask(self.g,session,'请独立讲解',independent=True)
         payload=str(chat.call_args.args[0]);self.assertIn('自编题干及A甲B乙',payload)
         self.assertNotIn('_CANARY',payload)
+        self.assertIn('自编错题心法',payload)
         self.assertEqual(result[0]['fold'],'🧙 师傅解惑')
         self.assertEqual(session['discuss']['history'][-1]['content'],'自编解释')
 

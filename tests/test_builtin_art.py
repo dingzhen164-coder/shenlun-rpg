@@ -28,7 +28,7 @@ class BuiltinArtTest(unittest.TestCase):
             for _name, cid in art.PEERS.get(subject, []):
                 self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
             self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
-        # 公考高清扩绘全景不再按350KiB压缩；独立夜景仍保留原预算。
+        # 高清全景/五峰独立夜景不按350KiB压缩；其余旧图保留原预算。
         self.assertLess(sum(p.stat().st_size for p in unique), (128 if '行测' in expected else 10) * 1024 * 1024)
         if '申论' in expected:
             people = {k: v for k, v in raw['申论'].items() if k.startswith('beauty/portrait/')}
@@ -70,7 +70,7 @@ class BuiltinArtTest(unittest.TestCase):
             for view in art.VIEWS:
                 unique.add(assets / manifest['beauty/page/%s-night.webp' % view])
             for key, dest in manifest.items():
-                if key.startswith('beauty/page/') and not key.endswith('-night.webp'):
+                if key.startswith('beauty/page/') and not key.endswith(('-night.webp', '-day.webp', '-dusk.webp')):
                     night = manifest[key[:-5] + '-night.webp']
                     self.assertNotEqual(night, dest)
                     unique.add(assets / night)
@@ -81,11 +81,11 @@ class BuiltinArtTest(unittest.TestCase):
             if kind != 'landscape':
                 with Image.open(p) as im:
                     self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
-        self.assertEqual(len(unique), 28)
+        self.assertEqual(len(unique), 29)  # 天机台仍沿原观星图，五峰新版为独立资源。
         for p in unique:
             with Image.open(p) as im:
                 self.assertGreaterEqual(max(im.size), 1152)
-            self.assertLessEqual(p.stat().st_size, 350 * 1024)
+            self.assertLessEqual(p.stat().st_size, (12 * 1024 * 1024) if '/hd/368/train-' in p.as_posix() else 350 * 1024)
         for color in ('jade', 'vermilion', 'indigo'):
             with Image.open(assets / ('beauty/fx/sword-chibi-%s.webp' % color)) as im:
                 self.assertEqual(im.getchannel('A').getextrema(), (0, 255))

@@ -85,7 +85,7 @@ def _parse(path, board):
         ident = h.group(1).strip()
         body = text[h.end():heads[i + 1].start() if i + 1 < len(heads) else len(text)]
         fields = {}
-        parts = list(re.finditer(r'^###\s+(知识点|试卷|模块|题号|题干|选项|答案|解析)\s*$', body, re.M))
+        parts = list(re.finditer(r'^###\s+(知识点|试卷|模块|题号|题干|选项|答案|解析|原题正确率)\s*$', body, re.M))
         for j, p in enumerate(parts):
             name = p.group(1)
             if name in fields:
@@ -116,6 +116,7 @@ def _parse(path, board):
                           'papers': [x.strip() for x in fields.get('试卷', '').splitlines() if x.strip()],
                           'nums': [int(x) for x in fields.get('题号', '').split() if x.isdigit()]})
         questions[-1]['paper'] = (questions[-1]['papers'] or [''])[0]
+        questions[-1]['source_accuracy'] = vault.parse_accuracy(fields.get('原题正确率'))
     for line in text.splitlines():
         if re.match(r'^##\s+题目(?:\s|$)', line) and not re.match(r'^##\s+题目\s+\S', line):
             errors.append('题目标题需要编号，例如：## 题目 001')
@@ -559,6 +560,10 @@ def add_question(g, body):
     ident = '%s%s-%02d' % (SELF_PREFIX, day, n)
     block = ('\n## 题目 %s\n### 知识点\n%s\n### 题干\n%s\n### 选项\n%s\n### 答案\n%s\n### 解析\n%s\n'
              % (ident, topic, stem, '\n'.join('%s. %s' % (k, v) for k, v in opts.items()), answer, analysis))
+    raw_rate = body.get('source_accuracy')
+    rate = vault.parse_accuracy('%s%%' % raw_rate if isinstance(raw_rate,(int,float)) and not isinstance(raw_rate,bool) else raw_rate)
+    if rate is not None:
+        block += '### 原题正确率\n%g%%\n' % rate
     path = folder / (board + '真题.md')
     with path.open('a', encoding='utf-8', newline='\n') as f:
         f.write(block)

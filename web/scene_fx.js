@@ -147,7 +147,7 @@
   window.SCENE_FX={phase,season,resolve,apply,settingsHtml(){
     const opts=(cur,list)=>list.map(([v,n])=>`<option value="${v}" ${cur===v?'selected':''}>${n}</option>`).join('');
     const comp=(window.BeautyCompanion?`<p>${BeautyCompanion.settingsHtml()}</p>`:'')+(window.BeautySway?`<p>${BeautySway.settingsHtml()}</p>`:'');
-    return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${opts(LS('scene-time','auto'),[['auto','自动（跟随时钟）'],['day','一直白天'],['night','一直夜晚'],['theme','跟随亮暗主题']])}</select></label>`+
+    return `<div class="portal-editor-tools"><label>场景时间<select data-scene-time>${opts(LS('scene-time','auto'),[['auto','自动（跟随时钟）'],['day','一直白天'],['dusk','一直黄昏'],['night','一直夜晚'],['theme','跟随亮暗主题']])}</select></label>`+
       `<label>季节效果<select data-scene-season>${opts(LS('scene-season','auto'),[['auto','自动（按月份）'],['random','随机轮换'],...seasons.map(s=>[s,names[s]]),['off','关闭']])}</select></label>`+
       `<label data-scene-interval ${LS('scene-season','auto')==='random'?'':'hidden'}>轮换间隔<select data-scene-minutes>${opts(String(minutes()),intervals.map(m=>[String(m),m<60?`${m}分钟`:`${m/60}小时`]))}</select></label></div><p class="small muted" data-scene-season-status></p>`+comp;
   }};

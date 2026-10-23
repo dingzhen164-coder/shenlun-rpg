@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from rpg import ai, api, engine, paths, skeleton, trainer  # noqa: E402
+import study_clock_fixture
 
 SKELETON = """---
 板块: 论证逻辑
@@ -647,6 +648,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(r2["input"]["mode"], "text")
         self.assertEqual(self.state()["xp"], 0)
 
+    @study_clock_fixture.elapsed_heartbeats
     def test_time_counts_only_while_studying(self):
         (self.vault / "训练/骨架").mkdir(parents=True, exist_ok=True)
         (self.vault / "训练/骨架/论证逻辑.md").write_text(SKELETON.replace("状态: 草稿", "状态: 已定稿"), encoding="utf-8")
@@ -662,6 +664,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(api.heartbeat({"seconds": 60, "session": s["session"]})["minutes"], 3)   # 刚做完看解析也算
         self.assertFalse(api.heartbeat({"seconds": 60, "session": "不存在"})["studying"])
 
+    @study_clock_fixture.elapsed_heartbeats
     def test_notes_writing_counts_as_review(self):
         """手札：1 分钟内真的写过字（存过有变化的笔迹）才算复习时间；只开着本子、或停笔太久不算"""
         from rpg import notes
@@ -678,6 +681,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(r["minutes"], 1)
         self.assertFalse(api.heartbeat({"seconds": 60, "notes": "不存在的本子"})["studying"])
 
+    @study_clock_fixture.elapsed_heartbeats
     def test_mock_review(self):
         """宗门大比 · 大比复盘：按板块逐题复盘一季模考，师傅解惑写进复盘笔记，时间记进“复习”"""
         sd = self.vault / "FB模考试卷复盘/板块复盘/第36季"

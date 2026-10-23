@@ -17,7 +17,8 @@ class Idioms359Test(unittest.TestCase):
         before={k:copy.deepcopy(self.g.state[k]) for k in ('xp','seconds','boss')}
         with patch.object(trainer.ai,'chat',return_value='第一空，“方兴未艾”形容事物正在兴起。第二空关注语境。') as chat:
             trainer._explain(self.g,self.q,{'answer':'B'})
-        self.assertEqual(chat.call_count,1);self.assertEqual(set(idioms.data(self.g)),{'方兴未艾'})
+        self.assertEqual(chat.call_count,1);self.assertEqual(set(idioms.data(self.g)),{'方兴未艾','如火如荼','蒸蒸日上','崭露头角'})
+        self.assertEqual(len(self.g.state['idiom_cards']),4)
         entry=idioms.data(self.g)['方兴未艾'];self.assertTrue(entry['sources'][0]['tutor'])
         self.assertIn('方兴未艾',self.g.state['idiom_cards'])
         idioms.edit(self.g,'方兴未艾',{'sources':{'0':{'meaning':'自己的释义','compare':'自己的辨析'}}})

@@ -642,7 +642,8 @@ def _discuss_ask(g, s, text, independent=False):
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
-        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}, 'answer':d.get('answer','')})
+        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}},
+                    digest=_skill_digest(g,d['board']),skill=_skill_name(g,d['board']))
                     if independent else prompts.discuss(peak_tutors.persona(g,d['board']),d,_skill_digest(g,d['board']),text))
         r = ai.chat(messages, temperature=0.6, max_tokens=1500)
     except ai.AIError as e:
@@ -663,6 +664,11 @@ def _discuss_action(g, s, act):
         msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + reply
         generated = next((m['text'] for m in reply if m.get('fold') == '🧙 师傅解惑'), None)
         if s["type"] == "wrong" and generated is not None:  # 不以历史长度判断成功，历史截到10条后也要保存最新讲解
+            d=s['discuss']
+            if d['board']=='逻辑填空':
+                opts={m.group(2):m.group(3).strip() for m in (OPT_LINE.match(ln) for ln in d.get('question','').splitlines()) if m}
+                idioms.from_explanation(g,dict(board=d['board'],topic='逻辑填空',stem=d.get('question',''),options=opts,
+                    answer=d.get('answer',''),analysis='',key=s['key'],id=s['key']),generated)
             where = vault.save_tutor_note(g.paths, s["key"], generated, g.t)
             if where:
                 msgs.append(_msg("sys", "📌 已存入复盘解析：%s 第 %s 题（再问一次会换成新的）" % (where, s["key"].split("|")[2])))
@@ -1107,6 +1113,8 @@ def _bank_q(g, q):
     mat, stem = split_stem(q["board"], q["stem"])
     opts = _fill_opts(g, q["board"], stem, q["options"])
     blocks = _bank_blocks(g, q["board"], stem + "\n\n" + "\n".join("%s. %s" % (k, v) for k, v in opts.items()), question=True)
+    if q.get('source_accuracy') is not None:
+        blocks.append({'t':'text','v':'原题正确率：%g%%' % q['source_accuracy']})
     return blocks, (_bank_blocks(g, q["board"], mat, question=True) if mat else [])
 
 
@@ -1427,7 +1435,7 @@ def _review_action(g, s, run, act):
         where = question_bank.save_tutor_to_bank(g.paths, qs[i], text, g.t)
         note = ('📌 已写进 训练/题库/%s 这道题的解析末尾（原解析保留；再问一次会换成新的）' % where if where
                 else '📌 题库里没找到这道题（可能改过编号），讲解存在 训练/题库/师傅解惑.md')
-        note += '\n本次仅依据题干、选项和正确答案独立讲解。'
+        note += _skill_note(skill, used)
         return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
     elif act == 'exam_close':
         group = run['settled']
@@ -1447,16 +1455,18 @@ GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整�
 def _explain_group(g, board, material, items):
     """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, board)
-    used = []
+    digest, used = _tutor_material(g, board)
     try:
-        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items), temperature=0.5, max_tokens=2800)
+        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest=digest, skill=skill), temperature=0.5, max_tokens=2800)
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
 
 
 def _skill_note(skill, used):
-    return "\n本次仅依据共用材料、题干、选项和正确答案独立讲解。"
+    files = [x for x in used if '（未读入：' not in x]
+    return ("\n本次仅依据题干/材料、选项和本板块skill独立讲解，不搜索答案、不查网页。\n已读心法：" + '、'.join(files)
+            if files else "\n本次仅依据题干/材料与选项独立讲解，不搜索答案、不查网页；藏经阁尚无可读的本板块skill心法。")
 
 
 def _bank_group_explain(g, s, run, i, mat):
@@ -1489,9 +1499,9 @@ def _bank_group_explain(g, s, run, i, mat):
 def _explain(g, q, r):
     """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, q['board'])
-    used = []
+    digest, used = _tutor_material(g, q['board'])
     try:
-        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q), temperature=0.5, max_tokens=1800)
+        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, digest=digest, skill=skill), temperature=0.5, max_tokens=2400)
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     idioms.from_explanation(g,q,text)
@@ -1598,8 +1608,10 @@ def _mreview_load(g, s, src):
     qs = [dict(q, season=s["season"], source=src, dir=str(d), key="%s|%s|%s" % (s["season"], src, q["num"]))
           for q in vault.parse_board_file(vault.board_file(d, src))]
     times=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_seconds') or {}
+    rates=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_accuracy') or {}
     for q in qs:
         if q.get('seconds') is None and str(q['num']) in times:q['seconds']=times[str(q['num'])]
+        if q.get('source_accuracy') is None and str(q['num']) in rates:q['source_accuracy']=rates[str(q['num'])]
     picked = [q for q in qs if q["icon"] != "✅"] if s["only_wrong"] else qs
     s["all_correct"] = s["only_wrong"] and not picked
     s.update(source=src, board=_time_board(g, src), boards=boards, qs=picked or qs, rpos=0, explain={}, chat={},
@@ -1648,6 +1660,8 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
         qkey="mock:" + q["key"]))
     duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
+    if q.get('source_accuracy') is not None:
+        duration += '\n原题正确率：%g%%' % q['source_accuracy']
     if q["analysis"]:
         msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s" % (q["mine"] or "没做", q["correct"] or "?", duration)))
         msgs.append(_msg("sys", "", vault.render_blocks(g.paths, {"body":q["analysis"], "dir":q["dir"]}),fold="复盘解析"))
@@ -1726,7 +1740,7 @@ def _mreview_action(g, s, act):
         where = vault.save_tutor_note(g.paths, q["key"], text, g.t)
         note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
                 else "📌 没找到这道题的复盘文件，讲解没存下来")
-        note += '\n本次仅依据题干、选项和正确答案独立讲解。'
+        note += _skill_note(skill, used)
         return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
     elif act in ("mr_pause", "bank_pause"):
         mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]

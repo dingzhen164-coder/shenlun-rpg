@@ -18,7 +18,9 @@ const out=path.resolve('ui-artifacts/panorama366');
    assert.deepEqual(await p.locator('[data-portal-go]').evaluateAll(es=>es.filter(e=>{const r=e.getBoundingClientRect();return r.left<0||r.top<0||r.right>innerWidth+1||r.bottom>innerHeight+1;}).map(e=>e.dataset.portalGo)),[],'两侧地点入口完整');
    if(time==='day'&&['retina','tablet-landscape'].includes(name)&&season==='autumn'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,name+'.png')});}
   }
-  await p.evaluate(()=>go('settings'));await p.locator('[data-fx-group="navigation"]>summary').click();await p.locator('[data-portal-preview] .portal-stage').waitFor();assert.equal(await p.locator('[data-portal-preview] .portal-day').evaluate(e=>getComputedStyle(e).objectFit),'cover','编辑预览规则一致');assert.equal(await p.locator('[data-portal-preview] .portal-stage').getAttribute('data-framing'),'extended');
+  await p.evaluate(()=>go('settings'));await p.locator('[data-fx-group="navigation"]>summary').click();
+  // 时段/季节应用可能原位重建预览；等待当前已连接且解码完成的图，不读取刚被替换的旧节点。
+  await p.waitForFunction(()=>{const s=document.querySelector('[data-portal-preview] .portal-stage'),i=s?.querySelector('img.portal-day');return i?.isConnected&&i.complete&&i.naturalWidth===3840&&getComputedStyle(i).objectFit==='cover'&&s.dataset.framing==='extended';});
   assert.deepEqual(errors,[]);await context.close();console.log(name+'：2倍像素密度/高清解码/四边铺满/无模糊补边/地点与预览通过');
  }
  console.log('PANORAMA366-OK');

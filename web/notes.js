@@ -460,6 +460,8 @@
         return;
       }
       if (e.button > 0 && e.button !== 5) return;
+      // 笔落下优先于掌心触发的翻页手势，不让掌心占着drag吞掉新笔画。
+      if (e.pointerType === 'pen') drag = null;
       overlapAt = 0;
       if (cur) { finish(); overlapAt = performance.now(); }   // 上一笔没收尾（抬笔事件丢了或晚到）：先收掉，新的一笔照常写
       stopFling();
@@ -471,6 +473,7 @@
     };
     c.onpointermove = (e) => {
       if (e.pointerType === "pen") lastPen = Date.now();
+      if (e.pointerType === 'pen' && (e.buttons & 1) && e.pressure > 0) drag = null;
       if (e.pointerType === "pen" && !cur && !drag && (e.buttons & 1) && e.pressure > 0) {
         // 落笔事件被浏览器吞了（笔压着在动却没有在写）：从这一点补一笔，不让快速连写的下一画丢掉
         stopFling(); pid = e.pointerId; inking = true; startAt = performance.now();
