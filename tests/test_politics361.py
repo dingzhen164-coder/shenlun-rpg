@@ -24,6 +24,9 @@ def tearDownModule():
 
 class Revision361Tests(unittest.TestCase):
     def setUp(self):
+        search = patch('rpg.politics.policy_search.search', return_value={'status': 'unavailable', 'sources': []})
+        search.start()
+        self.addCleanup(search.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.vault = Path(self.tmp.name)
@@ -91,8 +94,8 @@ class Revision361Tests(unittest.TestCase):
             self.assertEqual(politics.explain(self.pp,src,body)['note'],old)
             chat.assert_not_called()
             upgraded=politics.explain(self.pp,src,dict(body,refresh=True))
-            self.assertEqual(upgraded['note']['version'],2)
-            self.assertEqual(upgraded['note']['explanation']['example'],'自编通俗解释')
+            self.assertEqual(upgraded['note']['version'],3)
+            self.assertEqual(upgraded['note']['explanation']['meaning'],'自编通俗解释')
             self.assertTrue(politics.explain(self.pp,src,dict(body,refresh=True))['cached'])
             self.assertEqual(chat.call_count,1)
 

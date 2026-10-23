@@ -8,6 +8,7 @@ import base64
 import hashlib
 import re
 import statistics
+from functools import lru_cache
 from pathlib import Path
 
 from . import politics, political_outline, tianji
@@ -70,6 +71,74 @@ def _known(path):
         text = q['stem'] + '\n' + '\n'.join(q.get('stmts', [])) + '\n' + '\n'.join(k+'.'+v for k,v in sorted(q['opts'].items()))
         questions.append({'text': text.strip(), 'answer': q.get('answer', ''), 'analysis': q.get('analysis', ''), 'owner': owner})
     return units, questions
+
+
+def _layout_text(doc, questions, rows=None):
+    """按PDF真实行序恢复可确认的题面；匹配失败保留既有题文，不猜换行。
+
+    与语义解析分开，保留同行选项、题干续行及跨页续行。只补layout_text，不改判分文本。
+    """
+    if rows is None:
+        rows = _layout_rows(doc)
+    norm = lambda s: re.sub(r'[\W_]+', '', s)
+    for q in questions:
+        expected = norm(q['text'])
+        if not expected:
+            continue
+        for i, row in enumerate(rows):
+            start = Q.match(tianji.clean(row))
+            if not start or not norm(start.group(3)) or not expected.startswith(norm(start.group(3))):
+                continue
+            parts = [row]
+            got = norm(start.group(3))
+            for following in rows[i+1:i+100]:
+                if got == expected:
+                    break
+                got += norm(following)
+                if not expected.startswith(got):
+                    break
+                parts.append(following)
+            if got == expected:
+                q['layout_text'] = '\n'.join(parts)
+                break
+
+
+def _layout_rows(doc):
+    rows = []
+    for page in doc:
+        for block in page.get_text('dict', sort=True)['blocks']:
+            for line in block.get('lines', []):
+                text = ''.join(s['text'] for s in line['spans']).strip()
+                if text and text not in tianji.NOISE and not re.fullmatch(r'\d{1,3}', text):
+                    rows.append(text)
+    return rows
+
+
+@lru_cache(maxsize=8)
+def _saved_layout(file, stamp, size):
+    import fitz
+    with fitz.open(file) as doc:
+        return _layout_rows(doc)
+
+
+def restore_layout(pp, questions, imports):
+    """旧导入只在返回数据中补原始行；不改题目ID、进度和补充.json，也不重导原文。"""
+    missing = [q for q in questions if not q.get('layout_text')]
+    for ident in imports:
+        if not missing:
+            break
+        if not isinstance(ident, str) or not re.fullmatch(r'[0-9a-f]{64}', ident):
+            continue
+        file = pp.train/'时政知识地图/原文'/(ident+'.pdf')
+        if file.is_symlink() or not file.is_file():
+            continue
+        try:
+            stat = file.stat()
+            rows = _saved_layout(str(file), stat.st_mtime_ns, stat.st_size)
+            _layout_text(None, missing, rows=rows)
+        except (ImportError, OSError, RuntimeError, ValueError):
+            continue
+        missing = [q for q in missing if not q.get('layout_text')]
 
 
 def _generic(doc, name):
@@ -167,6 +236,7 @@ def import_pdf(pp, body):
                 units, questions = _known(path)
             except tianji.TianjiError:
                 units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
+            _layout_text(doc, questions)
     except (RuntimeError, ValueError) as error:
         if isinstance(error, politics.PoliticsError):
             raise
@@ -219,7 +289,8 @@ def import_pdf(pp, body):
             # 同正文不重复建材料：题目关联用旁表补充，不改内置资料文件。
             stored = next((x for x in extra['materials'] if x['id'] == m['id']), None)
             links = stored['questions'] if stored else extra.setdefault('links', {}).setdefault(m['id'], [])
-            extra['questions'].append({'id': next_id, 'material': m['id'], 'text': q['text'], 'answer': q['answer'], 'analysis': q.get('analysis', ''), 'tags': m['tags']})
+            extra['questions'].append({'id': next_id, 'material': m['id'], 'text': q['text'], 'answer': q['answer'], 'analysis': q.get('analysis', ''), 'tags': m['tags'],
+                                       'layout_text': q.get('layout_text', ''), 'pdf': path.relative_to(pp.vault).as_posix()})
             links.append(next_id)
             next_id += 1
             added_q += 1

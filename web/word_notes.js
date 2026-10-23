@@ -5,7 +5,6 @@
   'use strict';
   let cleanup=()=>{};
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const labels={meaning:'本段意思',role:'这个词的作用',compare:'相近表述辨析',plain:'用自己的话理解',evidence:'原文依据'};
   function mount(root,source){
     cleanup();if(!root)return;
     let alive=true,notes={},chosen=null,loading=null,notesReady,loadError=null;
@@ -31,8 +30,10 @@
       place(pop,anchor.rect);
     }
     function showNote(anchor,note){
-      const x=note.explanation,short=t=>esc(note.version===2?(t||''):(String(t||'').length>130?String(t).slice(0,128)+'…':t||''));
-      show(anchor,`<section class="wn-core"><h4>先弄懂概念</h4><p>${short(x.meaning)}</p><h4>放回这句话</h4><p>${short(x.role)}</p><p class="wn-memory">${short(x.plain)}</p></section><details class="wn-detail"><summary>举个例子</summary><section><p>${esc(x.example||'这是旧版批注，可使用下方按钮更新为带通俗例子的解释。')}</p></section></details><details class="wn-detail"><summary>为什么这样说 · 易混辨析</summary><section><h4>背景与原因</h4><p>${esc(x.background||x.role)}</p><h4>相近表述有什么不同</h4><p>${esc(x.compare)}</p><h4>原文依据</h4><p>${esc(x.evidence)}</p></section>${note.version===2?'':`<section><h4>原批注全文</h4>${Object.entries(labels).map(([k,label])=>`<p><b>${label}</b>：${esc(x[k])}</p>`).join('')}</section>`}</details>${note.version===2?'':'<button type="button" class="wn-upgrade">更新为通俗解释（调用一次 API）</button>'}`);
+      const x=note.explanation,modern=note.version>=3;
+      const concept=modern?[x.meaning]:[x.meaning,x.role,x.example,x.plain].filter(Boolean);
+      const research=note.research,sources=(research?.sources||[]).filter(s=>/^https:\/\//.test(s.url));
+      show(anchor,`<section class="wn-core"><h4>通俗解释</h4>${concept.map(t=>`<p>${esc(t)}</p>`).join('')}</section><details class="wn-detail"><summary>背景与原因</summary><section><p>${esc(x.background||x.role||'旧批注尚未单独分析背景，可更新为通俗解释。')}</p>${sources.length?`<h4>联网参考 · 检索摘要</h4>${sources.map(s=>`<p><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></p>`).join('')}`:research&&research.status!=='not_requested'?'<p class="wn-hint">本次未取得可核对的联网资料，以上依据原文与一般机制解释。</p>':''}<h4>相近表述有什么不同</h4><p>${esc(x.compare)}</p><h4>原文依据</h4><p>${esc(x.evidence)}</p></section></details>${modern?'':'<button type="button" class="wn-upgrade">更新为通俗解释（调用一次 API）</button>'}`);
       const upgrade=pop.querySelector('.wn-upgrade');if(upgrade)upgrade.onclick=()=>explain(anchor,true);
       pop.querySelectorAll('details').forEach(el=>el.addEventListener('toggle',()=>{if(!pop.hidden)place(pop,anchor.rect);},{once:false}));
     }

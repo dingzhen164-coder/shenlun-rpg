@@ -1,0 +1,135 @@
+{
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [4, 2],
+  "base": "/workspace/generated_images/exec-e797dd3e-35a9-40b4-9963-cb942d963a54.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-0.png",
+      "path": "/workspace/generated_images/exec-cad1876c-9416-401d-af66-178677960ccf.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a616afefead8d24649bd210046b1384615cca8d5d24ab716cec45253505d4842"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-1.png",
+      "path": "/workspace/generated_images/exec-0dcb1721-d690-4d24-9751-8649acadb217.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "0231daadbb7b39af90787c39341bd40ecd0f57465b73e8cfd7e805fc28d6cc25"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-2.png",
+      "path": "/workspace/generated_images/exec-cd439d24-6d69-4f7a-8071-309199d10872.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a4cd00c137c471864e63aa01be74350d023d1808d8ed8a813fde943c5ea20d3e"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-3.png",
+      "path": "/workspace/generated_images/exec-15b1576b-110b-4682-ae16-61e9b5d05a87.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c2685912397c9a8dd28d0bf97ce8d35cbdd84c2a135dcdf074f1b2c25b3b4b38"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-4.png",
+      "path": "/workspace/generated_images/exec-c31e3686-b1ea-4c97-9096-9910402bc7c3.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "08fb23ffbcace3c14b6c4dba7eaf7f0b2bec3caeeb3a2f223a3c504a4eb363f7"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-5.png",
+      "path": "/workspace/generated_images/exec-d06493e2-4532-489e-8d45-f99a20d8779e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "922ba34c5236792529233b59a695fdff679086a237f88e249e3910f4a3e91ad4"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-6.png",
+      "path": "/workspace/generated_images/exec-1fa9a26d-a700-4364-9aa1-957f788d2a55.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f05b3492e6f10073b1b68ea96230552c51a232d09db13c0e419c4de366bca610"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art369-work/ref-7.png",
+      "path": "/workspace/generated_images/exec-cb277386-1f68-4a5c-8b3a-befb60ecef46.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dfbd4f352402c6e825f9a66743360500618a5cff8ebae1bfd8e50fc6720d4167"
+    }
+  ],
+  "output": "web/assets/beauty/trial/hd/369/hall-day.webp",
+  "sha256": "cd0640d647c05130b0f09241c0054c88f02763a13211bceec825784ccb189279",
+  "bytes": 3639424,
+  "actual": [
+    3840,
+    2880
+  ]
+}
