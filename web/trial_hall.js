@@ -121,7 +121,11 @@
       // 题字以实际建筑图片为坐标，避开object-fit在电脑/平板产生的留白。
       host.querySelectorAll('.th-gate-stage,.th-tower-stage').forEach(stage=>{const img=stage.querySelector('img'),r=stage.parentElement.getBoundingClientRect(),aspect=img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:2/3,width=Math.min(r.width,r.height*aspect);stage.style.width=width+'px';stage.style.height=width/aspect+'px';});
       const r=root.getBoundingClientRect();
-      const painting=host.querySelector('.th-painting');if(painting){const bounds=painting.parentElement.getBoundingClientRect(),w=Math.min(bounds.width,bounds.height*4/3);painting.style.width=w+'px';painting.style.height=w*3/4+'px';}
+      const painting=host.querySelector('.th-painting');if(painting){const bounds=painting.parentElement.getBoundingClientRect(),contain=Math.min(bounds.width,bounds.height*4/3),
+        // 横向铺满：把4:3塔景放大到贴住左右两边，只裁掉底部多出的石阶；塔尖到两座山门一定留在画面内（保留上方78%）。
+        // 竖屏等本来就比4:3窄的窗口仍整幅显示；超宽屏幕放大到保留78%为止，剩下的缝由同图模糊延伸补上。
+        w=Math.max(contain,Math.min(bounds.width,bounds.height/(0.78*0.75)));
+      painting.style.width=w+'px';painting.style.height=w*3/4+'px';painting.classList.toggle('th-fill',w*3/4>bounds.height+1);const side=w<bounds.width-1&&w*3/4>=bounds.height-1;painting.classList.toggle('th-gap',side);painting.parentElement.classList.toggle('th-side-gap',side);}
       for(const [k,v]of Object.entries({width:r.width,height:r.height,left:r.left,top:r.top}))if(dialog.style.getPropertyValue('--th-'+k)!==v+'px')dialog.style.setProperty('--th-'+k,v+'px');
       dialog.classList.toggle('th-compact',r.height<520);
     }

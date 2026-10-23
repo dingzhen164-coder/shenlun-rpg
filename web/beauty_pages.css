@@ -17,6 +17,9 @@ body.has-page-art .study-region-heading > div, body.has-page-art .study-region-h
 html:not(.in-notes) body.has-page-art .fx-panel { background: transparent; border-color: transparent; box-shadow: none; }
 
 /* 统一时段只处理背景/建筑图片，绝不在内容父容器施加滤镜。 */
+body.has-page-art[data-scene-art="peak"]:not(.portal-home) #bgLayer::after{opacity:0!important}
+/* 没有遮罩托底后，五峰页文字改用更实的同色光晕，亮处的小字也看得清。 */
+body[data-scene-art="peak"] .wx-heading,body[data-scene-art="peak"] .wx-gate,body[data-scene-art="peak"] .wx-category,body[data-scene-art="peak"] .study-region-heading{text-shadow:0 1px 3px var(--panel),0 0 6px var(--panel),0 0 16px var(--panel),0 0 30px var(--panel)}
 body:not(.portal-home)[data-scene-relight="synthetic"] #bgLayer{filter:var(--ds-scene-filter)}
 body:not(.portal-home)[data-scene-relight="synthetic"] #bgLayer:before{content:"";position:absolute;inset:0;background:var(--ds-scene-tint);pointer-events:none}
 html[data-scene-phase] body:not(.portal-home) .trial-hall .th-landscape,

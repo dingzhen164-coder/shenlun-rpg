@@ -127,7 +127,15 @@
 
 .th-painted{background:linear-gradient(180deg,var(--ds-trial-sky),var(--ds-trial-horizon) 56%,var(--ds-trial-ground))}
 .th-panorama-wash{position:absolute;inset:0;background:linear-gradient(180deg,color-mix(in srgb,var(--ds-paper) 38%,transparent),transparent 35%,color-mix(in srgb,var(--ds-paper-ink) 35%,transparent))}
-.th-painting{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%;aspect-ratio:4/3;container-type:inline-size}
+.th-painting{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;aspect-ratio:4/3;container-type:inline-size}
+.th-painting.th-fill{top:0;transform:translateX(-50%)}
+.th-painting.th-fill .th-panorama{mask-image:none}
+.th-painting.th-fill.th-gap .th-panorama{mask-image:linear-gradient(90deg,transparent,var(--ds-mask-opaque) 5%,var(--ds-mask-opaque) 95%,transparent)}
+/* 画面两侧若还有缝（超宽屏），用同一张图的模糊延伸补满，不留空白条。 */
+.th-painted.th-side-gap::before{content:"";position:absolute;inset:-4%;background:url('assets/beauty/trial/hd/369/hall-day.webp') center top/cover no-repeat;filter:blur(20px);pointer-events:none}
+[data-theme=dark] .th-painted.th-side-gap::before{filter:blur(20px) brightness(.65) saturate(.8)}
+html[data-scene-time=night] .th-painted.th-side-gap::before{filter:blur(20px) brightness(.6) saturate(.75)}
+html[data-scene-time=day] .th-painted.th-side-gap::before{filter:blur(20px)}
 .th-panorama{display:block;width:100%;height:100%;object-fit:contain;mask-image:linear-gradient(180deg,transparent,var(--ds-mask-opaque) 7%,var(--ds-mask-opaque) 93%,transparent)}
 .trial-hall .th-painted-gate{position:absolute;top:55.8%;width:26%;height:16%;min-height:44px;padding:var(--ds-sp-4);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:var(--ds-sp-4);background:transparent;border:0;border-radius:var(--ds-r-4);box-shadow:none;color:var(--ds-trial-letter);text-shadow:0 2px 5px var(--ds-trial-letter-shadow),0 0 12px var(--ds-trial-letter-shadow);font-family:var(--display);box-sizing:border-box}
 .th-painted-sets{left:9.5%}.th-painted-blocks{right:9.5%}

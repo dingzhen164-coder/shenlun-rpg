@@ -43,6 +43,8 @@
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
     b.dataset.sceneRelight=(hit?/(?:-night|-dusk)\.webp$/.test(hit):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
+    // 五峰自己的昼/昏/夜画面按原图显示：不再叠整页遮罩（遮罩会把浅色洗白、深色压成灰黑）。
+    if(hit&&peakScene)b.dataset.sceneArt='peak';else delete b.dataset.sceneArt;
     b.dataset.sceneRoom=['dwelling','skeleton','notes','settings'].includes(view)||b.classList.contains('guantu')?'indoor':'outdoor';
     // 原建筑节点原位换图，不重建练习卷宗；缺夜图或旧用户建筑覆盖仍沿兼容光照。
     const trialNight=document.documentElement.dataset.sceneTime==='night'&&['tower','gate','landscape'].every(k=>has(`beauty/trial/${k}-night.webp`)&&!custom.has(`beauty/trial/${k}.png`));
