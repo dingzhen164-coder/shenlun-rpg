@@ -94,7 +94,7 @@ class Revision361Tests(unittest.TestCase):
             self.assertEqual(politics.explain(self.pp,src,body)['note'],old)
             chat.assert_not_called()
             upgraded=politics.explain(self.pp,src,dict(body,refresh=True))
-            self.assertEqual(upgraded['note']['version'],3)
+            self.assertEqual(upgraded['note']['version'],politics.NOTE_VERSION)
             self.assertEqual(upgraded['note']['explanation']['meaning'],'自编通俗解释')
             self.assertTrue(politics.explain(self.pp,src,dict(body,refresh=True))['cached'])
             self.assertEqual(chat.call_count,1)

@@ -121,7 +121,7 @@
       // 题字以实际建筑图片为坐标，避开object-fit在电脑/平板产生的留白。
       host.querySelectorAll('.th-gate-stage,.th-tower-stage').forEach(stage=>{const img=stage.querySelector('img'),r=stage.parentElement.getBoundingClientRect(),aspect=img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:2/3,width=Math.min(r.width,r.height*aspect);stage.style.width=width+'px';stage.style.height=width/aspect+'px';});
       const r=root.getBoundingClientRect();
-      const painting=host.querySelector('.th-painting');if(painting){const w=Math.min(r.width,r.height*4/3);painting.style.width=w+'px';painting.style.height=w*3/4+'px';}
+      const painting=host.querySelector('.th-painting');if(painting){const bounds=painting.parentElement.getBoundingClientRect(),w=Math.min(bounds.width,bounds.height*4/3);painting.style.width=w+'px';painting.style.height=w*3/4+'px';}
       for(const [k,v]of Object.entries({width:r.width,height:r.height,left:r.left,top:r.top}))if(dialog.style.getPropertyValue('--th-'+k)!==v+'px')dialog.style.setProperty('--th-'+k,v+'px');
       dialog.classList.toggle('th-compact',r.height<520);
     }

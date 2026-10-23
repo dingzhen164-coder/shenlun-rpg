@@ -44,4 +44,6 @@
 | art365-chibi | beauty/fx/sword-chibi-{jade,vermilion,indigo}.webp（3张） | 小型Q版御剑行旅 | OpenAI imagegen原创虚构人物 | 同上 | 2026-10-22 | 透明WebP，替换art364-sword旧写实人物，后者不再随包 |
 
 | art368-peaks | beauty/scenes/xingce/hd/368/train-{chang,yan,li,shu,zi}-{day,dusk,night}.webp（15张） | 行测五峰高清昼/昏/夜 | OpenAI imagegen，参考项目自有场景，完整构图后逐原生块重绘 | 生成服务条款，项目内使用；无第三方参考图 | 2026-10-22 | 每张3840×2880，8个原生块；来源ID/原生尺寸/坐标/SHA256见hd/368/provenance.json及根目录ART368.md；旧观星图保留供天机台 |
+| art3610-selection | beauty/trial/hd/3610/selection.webp | 套卷/板块选择殿堂背景 | OpenAI imagegen原创构图，各8块原生重绘合成 | 生成服务条款，项目内使用；无第三方参考图 | 2026-10-23 | 3840×2880；相邻provenance及根目录ART3610.md；不用于法考 |
+| art3610-loading | beauty/loading/3610/{dawn,night}.webp | 晨云/夜湖启动加载背景 | OpenAI imagegen原创构图，每幅8块原生重绘合成 | 生成服务条款，项目内使用；无第三方参考图 | 2026-10-23 | 各3840×2880；相邻provenance及根目录ART3610.md；电脑/平板中央安全区 |
 | art368-seasons | beauty/scenes/xingce/hd/368/home-{spring,summer,autumn,winter}-{day,night}.webp（8张） | 行测宗丰富四季昼夜全景，替换art366八图 | 同上，保留现有固定地标与季节主调，增加混合植物/景物层次 | 同上 | 2026-10-22 | 原生分块3840×2880，无AI超分；项目当前使用本组，art366为可从Git恢复的历史记录；详细提示词要点见ART368.md |

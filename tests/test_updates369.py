@@ -85,7 +85,7 @@ class Annotation369Tests(unittest.TestCase):
         with patch('rpg.politics.ai.available', return_value=True), patch('rpg.politics.policy_search.search', return_value=research) as search, patch('rpg.politics.ai.chat', return_value=json.dumps(self.answer)) as chat:
             result = politics.explain(self.pp, self.src, self.body)
             self.assertEqual(result['note']['research'], research)
-            self.assertEqual(result['note']['version'], 3)
+            self.assertEqual(result['note']['version'], politics.NOTE_VERSION)
             request = json.loads(chat.call_args[0][0][1]['content'])
             self.assertEqual(request['background_research'], research)
             self.assertTrue(politics.explain(self.pp, self.src, self.body)['cached'])

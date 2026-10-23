@@ -51,7 +51,7 @@ class PoliticsTests(unittest.TestCase):
             chat.assert_not_called()
 
     def test_invalid_answers_not_saved(self):
-        for answer in ['not json', json.dumps({'meaning': '不完整'}), json.dumps(dict(self.answer, evidence='捏造依据'))]:
+        for answer in ['not json', json.dumps({'meaning': '不完整'}), json.dumps(dict(self.answer, compare=[]))]:
             with patch('rpg.politics.ai.available', return_value=True), patch('rpg.politics.ai.chat', return_value=answer):
                 with self.assertRaises(politics.PoliticsError):
                     politics.explain(self.pp, self.src, self.body)

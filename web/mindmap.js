@@ -67,6 +67,37 @@
   }
   function queuePosition(){clearTimeout(readingTimer);readingTimer=setTimeout(savePosition,180);}
 
+  // 各峰与资料库共用：双指仅按中心点平移，指距变化不缩放；单指仍交给原插件。
+  function touchPan(inst,canvas){
+    let last=null,active=false;
+    canvas.style.touchAction='none';
+    const center=e=>({x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2});
+    function handle(e){
+      if(e.touches.length>=2){
+        if(!active){
+          // 结束第一根手指可能已启动的鼠标/节点拖动，避免双指平移改变节点结构。
+          canvas.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
+          if(inst.touchEvent){inst.touchEvent.touchesNum=0;inst.touchEvent.singleTouchstartEvent=null;inst.touchEvent.touchStartScaleView=null;inst.touchEvent.clickNum=0;}
+          active=true;last=center(e);
+        }else if(e.type==='touchmove'){
+          const next=center(e);inst.view.translateXY(next.x-last.x,next.y-last.y);last=next;
+        }else last=center(e);
+      }
+      if(active){
+        if(e.cancelable)e.preventDefault();e.stopImmediatePropagation();
+        // 松开一根后也不交回单指拖动，等全部离开，避免跳变和误点击。
+        if(!e.touches.length||e.type==='touchcancel'){active=false;last=null;}
+      }
+    }
+    for(const name of ['touchstart','touchmove','touchend','touchcancel'])canvas.addEventListener(name,handle,{capture:true,passive:false});
+    canvas.addEventListener('wheel',e=>{
+      // 电脑触控板双指与滚轮同样平移；拦截Ctrl+wheel，避免库/浏览器再次捏合缩放。
+      if(e.cancelable)e.preventDefault();e.stopImmediatePropagation();
+      const unit=e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1;
+      inst.view.translateXY(-e.deltaX*unit,-e.deltaY*unit);
+    },{capture:true,passive:false});
+  }
+
   // ---------------------------------------------------------------- 修炼殿：灵脉阵盘
   function disk(i) {
     // 中间一颗主节点，五条灵脉向外生长，末端的小节点一闪一闪
@@ -177,8 +208,10 @@
           second: { fillColor: color('--panel2'), color: color('--text'), borderColor: color('--line'), fontSize: 15 },
           general: { fillColor: color('--panel'), color: color('--text'), borderColor: color('--line') } }, data.theme?.config || {}),
         viewData: manage?(data.view||null):(position?.view||null),
-        mousewheelAction: "zoom", mousewheelZoomActionReverse: true,
+        disableTouchZoom: true,
+        mousewheelAction: "move", mousewheelZoomActionReverse: true,
       });
+      touchPan(mm,document.getElementById('lnCanvas'));
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
       if(!manage||!data.view){const inst=mm,cv=document.getElementById('lnCanvas'),current=CUR;let fitted=false;
         inst.on('node_tree_render_end',()=>{if(fitted)return;fitted=true;

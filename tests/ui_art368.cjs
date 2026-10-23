@@ -7,12 +7,13 @@ const ready=new Promise((resolve,reject)=>{let s='';const t=setTimeout(()=>rejec
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  fs.mkdirSync('ui-artifacts/art368',{recursive:true});
- for(const [name,width,height] of [['desktop',1440,960],['tablet-portrait',820,1180]]){
+ for(const [name,width,height] of [['desktop',1280,860],['tablet-portrait',800,1280],['tablet-landscape',1280,800]]){
   page=await browser.newPage({viewport:{width,height},deviceScaleFactor:2,hasTouch:true});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());
   await page.locator('#splash').waitFor({state:'hidden'});
-  for(const peak of name==='desktop'?['chang','yan','li','shu','zi']:['yan']){
+  await page.evaluate(()=>document.body.classList.add('has-bg')); // 重现旧全局背景压住新图
+  for(const peak of ['chang','yan','li','shu','zi']){
    await page.evaluate(async peak=>{await go('home');STUDY_REGIONS.select(peak);await go('train');},peak);
    await page.evaluate(()=>{window.__art368View=document.querySelector('#view').firstElementChild;});
    for(const time of ['day','dusk','night']){
