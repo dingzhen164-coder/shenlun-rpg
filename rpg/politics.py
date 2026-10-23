@@ -137,6 +137,21 @@ def progress(pp, exam=None):
     return read_json(exam_folder(pp, exam) / '进度.json', {'status': {}, 'attempts': {}})
 
 
+def digest_items(material):
+    """消化卡只取讲义自带挖空或既有回忆题，不用AI编造答案；ID按资料隔离。"""
+    items = []
+    for i, row in enumerate(material.get('cloze', [])):
+        for k, part in enumerate(row.get('parts', [])):
+            if not part.get('a'):
+                continue
+            question = ''.join(('____' if j == k else p.get('t', p.get('a', ''))) for j, p in enumerate(row['parts']))
+            items.append({'id': '%s:blank:%s:%s' % (material['id'], i, k), 'question': question, 'answer': part['a']})
+    for i, row in enumerate(material.get('understanding', {}).get('recall', [])):
+        if row.get('question') and row.get('answer'):
+            items.append({'id': '%s:recall:%s' % (material['id'], i), 'question': row['question'], 'answer': row['answer']})
+    return items
+
+
 def set_progress(pp, body):
     exam = exam_id(body.get("exam"))
     data = atlas(pp, exam)
@@ -147,6 +162,17 @@ def set_progress(pp, body):
             if not any(str(m['id']) == key for m in data['materials']) or body.get('value') not in ('new', 'review', 'done'):
                 raise PoliticsError('材料或学习状态无效')
             state['status'][key] = body['value']
+        elif body.get('field') == 'digest':
+            key = str(body.get('id'))
+            if not any(item['id'] == key for material in data['materials'] for item in digest_items(material)):
+                raise PoliticsError('消化条目不存在')
+            value = body.get('value')
+            if value not in ('remember', 'forgot', None):
+                raise PoliticsError('消化状态无效')
+            if value is None:
+                state.setdefault('digest', {}).pop(key, None)
+            else:
+                state.setdefault('digest', {})[key] = value
         elif body.get('field') == 'attempts':
             key = str(body.get('id'))
             if not any(str(q['id']) == key for q in data['questions']):
@@ -171,6 +197,18 @@ def set_progress(pp, body):
 
 def source(pp, body):
     """仅从服务端实际资料取原文，客户端不能用任意上下文污染批注缓存。"""
+    if body.get('source') == 'wanxiang_journal':
+        from . import wanxiang_journal
+        try:
+            data = wanxiang_journal.load(pp, body.get('kind'), body.get('id'))
+        except wanxiang_journal.JournalError as error:
+            raise PoliticsError(str(error))
+        idx = body.get('news')
+        if type(idx) is not int or not 0 <= idx < len(data['news']):
+            raise PoliticsError('时政条目不存在')
+        item = data['news'][idx]
+        return {'text': '\n'.join(item['paras']), 'title': item['title'], 'date': data.get('title', ''),
+                'id': ['wanxiang_journal', data['id'], body.get('kind'), idx], 'support': {}}
     if body.get('source') == 'atlas':
         exam = exam_id(body.get('exam'))
         data = atlas(pp, exam)
@@ -266,7 +304,10 @@ def register(api):
 
     def get_atlas(pp, body):
         exam = exam_id(body.get('exam'))
-        return {'data': atlas(pp, exam), 'progress': progress(pp, exam), 'exam': next(e for e in EXAMS if e['id'] == exam)}
+        data = atlas(pp, exam)
+        for material in data['materials']:
+            material['digest_items'] = digest_items(material)
+        return {'data': data, 'progress': progress(pp, exam), 'exam': next(e for e in EXAMS if e['id'] == exam)}
 
     api.ROUTES[('GET', '/api/politics/atlas')] = route(get_atlas)
     api.ROUTES[('POST', '/api/politics/atlas')] = route(get_atlas)

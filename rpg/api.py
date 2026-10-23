@@ -2234,4 +2234,6 @@ ROUTES[("POST", "/api/mindmap/local")] = mm_local
 
 from . import politics
 politics.register(__import__(__name__, fromlist=['ROUTES']))
+from . import wanxiang_journal
+wanxiang_journal.register(__import__(__name__, fromlist=['ROUTES']))
 LOCAL_ONLY.add('/api/mindmap/local')
