@@ -2,7 +2,7 @@
  * 开发工具依赖ImageMagick，不增加客户端依赖；输出含原生尺寸/哈希的来源清单。
  */
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),crypto=require('node:crypto');
-const work='/workspace/art369-work',W=3840,H=2880,pad=16;
+const work=process.env.ART_PACK_WORK||'/workspace/art369-work',W=3840,H=2880,pad=16;
 const run=args=>cp.execFileSync('convert',['-limit','thread','2',...args],{encoding:'utf8'});
 const dimensions=file=>cp.execFileSync('identify',['-format','%w %h',file],{encoding:'utf8'}).trim().split(' ').map(Number);
 const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -30,5 +30,5 @@ if(command==='prepare'){
  }
  fs.mkdirSync(path.dirname(input),{recursive:true});run([canvas,'-quality','94','-define','webp:method=6',input]);
  spec.method='native-portrait-tiles';spec.interpolated_upscale=false;spec.grid=[4,2];spec.output=input;spec.sha256=hash(input);spec.bytes=fs.statSync(input).size;spec.actual=dimensions(input);
- fs.writeFileSync(path.join(path.dirname(input),'provenance.json'),JSON.stringify(spec,null,2)+'\n');console.log(JSON.stringify({actual:spec.actual,bytes:spec.bytes,sha256:spec.sha256}));
+ fs.writeFileSync(input.replace(/\.webp$/,'.provenance.json'),JSON.stringify(spec,null,2)+'\n');console.log(JSON.stringify({actual:spec.actual,bytes:spec.bytes,sha256:spec.sha256}));
 }else throw Error('prepare 原图 | pack 输出webp 8个原生块');

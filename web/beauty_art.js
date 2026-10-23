@@ -38,7 +38,9 @@
     return Promise.all(urls.map(decode));
   }
   function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
-    if(hit&&!custom.has(hit)&&b.classList.contains('has-bg'))hit='';
+    // 五峰是独立地点，不再被旧全局背景压住；专门设置的峰/页背景仍优先。
+    const peakScene=view==='train'&&['万象峰','辨言峰','明理峰','演数峰','观星峰'].includes(regionName());
+    if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
     b.dataset.sceneRelight=(hit?/(?:-night|-dusk)\.webp$/.test(hit):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
     b.dataset.sceneRoom=['dwelling','skeleton','notes','settings'].includes(view)||b.classList.contains('guantu')?'indoor':'outdoor';

@@ -31,7 +31,7 @@ async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(do
     await p.locator('.mat-btn').click();await p.locator('.mat-pane').waitFor({state:'detached'});await p.locator('.mat-btn').click();await p.locator('.mat-pane').waitFor();
    }
    for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);await fits(p);assert(await p.locator('[data-act^=exam_pick]').first().isVisible());if(process.argv.includes('--shots')&&subject==='行测'&&theme==='light'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,subject+'-'+size+'-training.png')});}}
-   await p.locator('[data-act^=exam_pick]').first().click();await p.waitForFunction(()=>!T.busy&&T.battle.answered>=1);assert.equal(await p.locator('.subpage-nav .bank-head').count(),1);await fits(p);
+   await p.locator('[data-act^=exam_pick]').first().click();await p.waitForFunction(()=>!T.busy&&T.battle.answered>=1);await p.locator('.subpage-nav .bank-head').waitFor();assert.equal(await p.locator('.subpage-nav .bank-head').count(),1);await fits(p);
    if(subject==='行测'&&size==='desktop'){
     while(await p.evaluate(()=>T.battle.position)>1){const pos=await p.evaluate(()=>T.battle.position);await p.locator('[data-act=exam_prev]').click();await p.waitForFunction(n=>!T.busy&&T.battle.position===n,pos-1);}
     const materials=[];

@@ -19,6 +19,7 @@
 """
 import shutil
 import json
+import hashlib
 from functools import lru_cache
 from pathlib import Path
 
@@ -173,12 +174,42 @@ def known(subject):
     return {s[2] for s in slots(subject)}
 
 
+# 3.6.8之前“导出自带美术”的精确文件指纹（737ce912）；只忽略原样副本，绝不删除。
+# 后来编辑过、重新编码过或另选的用户图片仍是显式覆盖，不能按文件名一概迁移。
+_RETIRED_PEAKS = {
+    'chang': ((94368, '3bcd461210df13ee062fa5282be7b903357846b5a7958fa95c4823c6b7b923f2'), (316218, 'd0acf0eac29a995d236aed7a200125cabd8c8f8fe5c2f679afb73938d20ea6bb')),
+    'yan': ((95366, '9dd1b8f0b5b9c55310bda8acf41b74b6d8c1bcbe1e55fe913b9eddd0a5c677b7'), (333696, '5d639326f82818773a00497c60d116b366b6cde14ee2a0de8d6e78ba62038a58')),
+    'li': ((87426, 'a5390c3a1e4d184f19adbaa3316a7458e795feb64f35cd55eb6ceb6b11fe922e'), (316178, 'b4cb260faf16b71aa3c7240bfbc93a16db71d5e0ad6ed39df73a37c66322611e')),
+    'shu': ((105050, '0059dbc290805dab4dd6416caec7bad2c0ff4c6e0ce4423c7cdb5cc58a5160b7'), (339946, 'fae545ecb004c03e0334c498af52abd5de0f8a7c5d4cf3633093ec23d1eedb03')),
+    'zi': ((91724, '43c5db9b4ed285e27ada4a25489ae233613ef2169936d7d77b561beeef6a777f'), (316754, 'dca9b8a6fa8be4c8cc4db08d546279a41326e54d03a53d6283de1e71c85f2e07')),
+}
+
+
+@lru_cache(maxsize=128)
+def _file_hash(file, size, mtime_ns):
+    return hashlib.sha256(Path(file).read_bytes()).hexdigest()
+
+
+def _override(paths, subject, slot):
+    folder, stem, rel, _b, kind, aliases = slot
+    p = _find(paths, folder, stem, kind, aliases)
+    if p and subject == '行测':
+        for peak, versions in _RETIRED_PEAKS.items():
+            root = 'beauty/page/train-' + peak
+            if rel in (root+'.webp', root+'-day.webp', root+'-night.webp'):
+                size, digest = versions[1 if rel.endswith('-night.webp') else 0]
+                stat = p.stat()
+                if stat.st_size == size and _file_hash(str(p), size, stat.st_mtime_ns) == digest:
+                    return None
+    return p
+
+
 def lookup(paths, subject, asset_rel):
     if not paths or not paths.vault or not paths.train:
         return None
-    for folder, stem, rel, _b, kind, al in slots(subject):
-        if rel == asset_rel:
-            return _find(paths, folder, stem, kind, al)
+    for slot in slots(subject):
+        if slot[2] == asset_rel:
+            return _override(paths, subject, slot)
     return None
 
 
@@ -187,8 +218,9 @@ def files(paths, subject):
     if not paths or not paths.vault or not paths.train:
         return []
     out = []
-    for folder, stem, rel, _b, kind, al in slots(subject):
-        p = _find(paths, folder, stem, kind, al)
+    for slot in slots(subject):
+        rel = slot[2]
+        p = _override(paths, subject, slot)
         if p:
             out.append([rel, p.stat().st_mtime_ns])
     return out

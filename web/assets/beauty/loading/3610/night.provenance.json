@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-9b8fa6e6-51f3-4af3-94c2-b2af89094d62.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-4a8b5285-10c9-413f-aae3-223b7b450dd7.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a55902b4e9fb0abc142186bea7216ae3e109365d46dd3b3a1170d62f15846a65"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-cc5ff724-0402-443a-9451-ffc1676c606a.png",
+      "native": [
+        1035,
+        1519
+      ],
+      "sha256": "111dc8452026aaac83d71396d135a2b30704fa696fd0caaba21a0fdf49fe9c7a"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-9b23c6cc-b170-42cd-85d8-1cfed70a1554.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3cb481a3387bd338f3f7ecbe661b022857e7ce1753f5cd177df735f0cdcbd5ba"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-d594f4e8-d2cc-4b7b-acf5-adf9901ae9e8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c2a5e41bec828f5a42c78e33c0fe20e319c2b8dc9b1f4591df5c508af1230a9f"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-68f740cf-804d-4eec-a890-b8a5f72b5b7c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "8fd3723778db10ba90eaa59460cb3bc99dc8b8853bcd297ed4eaf6bddf822d29"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-60acff90-4154-4e05-af21-f0cea243176f.png",
+      "native": [
+        1035,
+        1519
+      ],
+      "sha256": "5fe09cbfc6ea52923f98e96572df9d821496387f124d6165ac724a51eae79bd4"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-97905a2b-f4bb-4317-b9b5-1edcc315fd29.png",
+      "native": [
+        1035,
+        1519
+      ],
+      "sha256": "50c971c7816dcc428d4fa9b402288bcde6d0b9651361fff090538d47758a59c3"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art3610-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-d1298b0b-7513-4a8c-8529-ad6ea72d2dc7.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a04a2ee3929aa990aacb23a8c5a615f55b74599a6bb62707b03cc2fe31c6bd7f"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/loading/3610/night.webp",
+  "sha256": "86e6f5e39094bf67eea0039cc56c83500f35190bbfcfc3d7eaa85efdf2c1f15e",
+  "bytes": 3240566,
+  "actual": [
+    3840,
+    2880
+  ]
+}
