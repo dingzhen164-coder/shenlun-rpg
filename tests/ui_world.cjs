@@ -27,9 +27,10 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  const before=await data();assert.equal(before.companions[0].read,true);assert.equal(before.journey.collection.length,0);
  assert.equal(await page.locator('#narrative-title').textContent(),before.companions[0].name);await page.locator('[data-narrative="back"]').click();
  assert.equal(await page.locator('#narrative-title').textContent(),await page.evaluate(()=>TASK_BOARD.names().title));
- await page.locator('[data-journey-claim="main:study"][data-journey-approach="practice"]').click();
+ const mainClaim=page.locator('[data-journey-claim="main:study"][data-journey-approach="practice"]');
+ await mainClaim.click();await mainClaim.waitFor({state:'detached'});   // 上一个任务命令未返回时界面会忽略新点击：等它处理完再领每日任务（慢runner曾因此超时）
  await page.locator('[data-journey-claim^="daily:"]').first().click();await page.locator('[data-journey-start^="daily:"]').click();
- await card();await open();await page.locator('[data-journey-deliver="main:study"]').click();
+ await card();await open();const deliver=page.locator('[data-journey-deliver="main:study"]');await deliver.click();await deliver.waitFor({state:'detached'});   // 等交付返回再读状态
  const first=await data();assert.equal(first.journey.collection.length,2);assert.equal(first.world_progress.stage,1);
  await page.locator('[data-journey-claim="main:review"]').click();await page.locator('[data-journey-start="main:review"]').click();
  const firstBoard=await page.evaluate(()=>DASH.tree[0].board);await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':firstBoard}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
