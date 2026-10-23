@@ -35,7 +35,13 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
   const painted=await page.locator('.th-panorama').count();
   await page.locator(painted?'.th-panorama':'.th-tower-art').evaluate(img=>img.decode());
-  if(painted){assert.equal(await page.locator('.th-panorama').evaluate(img=>img.naturalWidth),3840);assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const bounds=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1&&r.top>=s.top-1&&r.bottom<=s.bottom+1;});assert(bounds,'完整画框与建筑在横竖屏均不裁切');}
+  if(painted){assert.equal(await page.locator('.th-panorama').evaluate(img=>img.naturalWidth),3840);assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const fit=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect(),inside=b=>b.left>=s.left-1&&b.right<=s.right+1&&b.top>=s.top-1&&b.bottom<=s.bottom+1;
+   // 塔尖（画面上方）、左右山门与中央牌匾必须完整可见；横向要贴住或几乎贴住两侧，只允许裁掉底部多余石阶。
+   const gates=[...el.querySelectorAll('.th-painted-gate')].map(g=>g.getBoundingClientRect()),stele=el.closest('.trial-hall').querySelector('.th-stele')?.getBoundingClientRect();
+   return{cropped:el.classList.contains('th-fill'),sideGap:Math.max(r.left-s.left,s.right-r.right),topOk:r.top<=s.top+1,gates:gates.length===2&&gates.every(inside),stele:!stele||inside(stele),whole:inside(r),w:s.width,h:s.height};});
+  assert(fit.gates&&fit.stele,'山门与牌匾在横竖屏均完整可见');
+  if(fit.cropped){assert(fit.topOk,'裁切时塔尖一侧顶端对齐，不裁塔尖');assert(fit.sideGap<=Math.max(2,fit.w*0.07),'横向铺满：左右缝不超过7%宽度（超宽屏由模糊延伸补）');}
+  else assert(fit.whole,'竖屏等窄窗口仍整幅显示建筑');}
   else assert(await page.locator('.th-tower-art').evaluate(img=>img.naturalHeight>1000));
   assert.equal(await page.locator('dialog[open]').count(),0);await fits(page);
   if(painted){const gates=await page.locator('.th-painted-gate').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect(),p=e.parentElement.getBoundingClientRect();return {top:r.top,width:r.width,height:r.height,offset:(r.left+r.width/2-p.left)/p.width,weight:Number(getComputedStyle(e.querySelector('b')).fontWeight)};}));assert(Math.abs(gates[0].top-gates[1].top)<1&&Math.abs(gates[0].height-gates[1].height)<1&&Math.abs(gates[0].width-gates[1].width)<1,'左右双门热区同尺度同基线');assert(Math.abs(gates[0].offset+gates[1].offset-1)<.01);assert(gates.every(g=>g.height>=44&&g.weight>=600));}
