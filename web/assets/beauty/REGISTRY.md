@@ -4,6 +4,7 @@
 
 | 编号 | 路径（相对 web/assets） | 用途 | 来源 | 授权 | 日期 | 生成提示词/备注 |
 |---|---|---|---|---|---|---|
+| trial-hall-369 | beauty/trial/hd/369/hall-day.webp | 行测完整试炼塔与双门场景，电脑/平板横竖屏 | OpenAI imagegen原创构图与8个原生细绘块 | 生成服务条款 | 2026-10-23 | 3840×2880，3.47MiB；青绿云海、同光照塔门、无字匾额；不补全裁块边缘建筑，按原构图细绘后只缩小合成；提示词要求兼顾电脑/平板，实际采用完整contain画框保护主体，出处/原生尺寸/SHA256见同目录provenance.json |
 | xc-sect-day | sect/xc-sect-day.webp | 青衡宗白天全景 | Gemini 生成 | 以生成服务条款为准（用户确认） | 2026-10-15 | 见 sect/README.md |
 | xc-sect-night | sect/xc-sect-night.webp | 青衡宗夜晚全景 | Gemini 生成 | 同上 | 2026-10-15 | 见 sect/README.md |
 | xc-qinghe-* | guide/xc-qinghe-*.webp | 沈清禾半身立绘与眨眼叠层 | Gemini 生成 | 同上 | 2026-10-15 | 见 guide/README.md |

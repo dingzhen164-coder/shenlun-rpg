@@ -20,7 +20,7 @@ body{background:var(--bg);color:var(--text)}.sidebar{background:var(--panel2);bo
 .detail-grid{display:block}.detail-grid>div>.panel:first-child{margin-top:0}.panel{padding:18px}.original{max-width:64em;line-height:1.95}.original .source-heading:first-child{margin-top:0}.reading{line-height:1.9}
 /* 配套题使用独立段落和较大字号，覆盖原PDF文字的紧凑排版。 */
 .question .qtext{font-size:var(--ds-fs-18);line-height:1.95;white-space:normal;overflow-wrap:anywhere;word-break:normal}
-.question .atlas-qline{white-space:pre-wrap;margin-bottom:.55em}
+.question .atlas-qline{white-space:pre-wrap;margin-bottom:0;min-height:1.9em}
 .question .feedback{font-size:var(--ds-fs-16);line-height:1.85;white-space:pre-wrap}
 .question .answer-options button{min-width:48px;min-height:44px;font-size:var(--ds-fs-18)}
 .atlas-related{margin-top:18px;border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel)}.atlas-related summary{padding:10px 16px;color:var(--muted);font-size:var(--ds-fs-12);cursor:pointer}.atlas-related aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px}.atlas-related .panel{padding:14px}

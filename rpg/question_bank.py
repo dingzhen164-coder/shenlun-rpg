@@ -111,7 +111,7 @@ def _parse(path, board):
         questions.append({'key': board + '::' + ident, 'id': ident, 'board': board,
                           'topic': fields.get('知识点', ''), 'stem': fields.get('题干', ''),
                           'options': options, 'answer': '' if todo else answer, 'analysis': analysis,
-                          'source': str(path.name), 'pending': todo, 'module': fields.get('模块', ''),
+                          'source': str(path.name), 'source_title': fields.get('来源', '').strip(), 'pending': todo, 'module': fields.get('模块', ''),
                           # 同一道题可能出现在几张卷子里（联考各省卷共用题），试卷、题号一行一个、一一对应
                           'papers': [x.strip() for x in fields.get('试卷', '').splitlines() if x.strip()],
                           'nums': [int(x) for x in fields.get('题号', '').split() if x.isdigit()]})
@@ -205,7 +205,17 @@ def sets_of(q):
 
 
 POINT_PREFIX = '点:'
+BLOCK_PAPER_PREFIX = '卷块:'
 _HEAD = re.compile(r'[-－—（(/]')
+
+
+def block_papers_of(q):
+    """板块套卷来源：显式试卷、规范练习册套号，以及既有粉笔模考导入编号。"""
+    names = q.get('papers') or sets_of(q)
+    if names:
+        return list(dict.fromkeys(names))
+    match = re.fullmatch(r'粉笔(\d+)季-\d+', q.get('id', ''))
+    return ['粉笔第%s季模考' % match.group(1)] if match else []
 
 
 # 同一类考点在蒸馏数据里有好几种写法（削弱论证 / 论证削弱 / 削弱质疑 / 削弱型…），按板块归到固定的几类；
@@ -244,13 +254,16 @@ def topic_head(t, board=''):
 
 def is_set(slot):
     """不是单个板块的组：整套（套:…）或知识点（点:板块:大类）"""
-    return str(slot or '').startswith((SET_PREFIX, POINT_PREFIX))
+    return str(slot or '').startswith((SET_PREFIX, POINT_PREFIX, BLOCK_PAPER_PREFIX))
 
 
 def label(slot):
     """组名给人看：套:花生600题言语-03 → 花生600题言语 第03套；试卷名原样"""
     if not is_set(slot):
         return slot
+    if slot.startswith(BLOCK_PAPER_PREFIX):
+        board, _, paper = slot[len(BLOCK_PAPER_PREFIX):].partition(':')
+        return '%s · 来源：%s' % (board, paper)
     if slot.startswith(POINT_PREFIX):
         board, _, topic = slot[len(POINT_PREFIX):].partition(':')
         return '%s · %s' % (board, topic)
@@ -262,12 +275,14 @@ def label(slot):
 def _order(q, name=''):
     if q.get('papers'):
         names = sets_of(q)
-        i = names.index(name) if name in names else 0
+        i = names.index(name) if name in names else q['papers'].index(name) if name in q['papers'] else 0
         if i < len(q.get('nums', [])):
             return (0, q['nums'][i])
         n = re.findall(r'\d+', q['id'])
         return (PAPER_ORDER.get(q['board'], 9), int(n[-1]) if n else 0)
-    return (0, int(SET_ID.match(q['id']).group(3)))
+    match = SET_ID.match(q['id'])
+    nums = re.findall(r'\d+', q['id'])
+    return (0, int(match.group(3)) if match else int(nums[-1]) if nums else 0)
 
 
 def _set_questions(g, name):
@@ -379,7 +394,15 @@ def summary(g):
         repeats = [a for r in records for a in r['history'][1:]]
         wrong = [r for r in records if r.get('wrong')]
         run = next((r for r in data['runs'].values() if r['board'] == board), None)
-        result.append({'board': board, 'total': len(qs), 'pending': pending(g.paths, board), 'remaining': sum(q['key'] not in data['records'] for q in qs),
+        papers = {}
+        for q in qs:
+            for name in block_papers_of(q):
+                entry = papers.setdefault(name, {'name': name, 'total': 0, 'done': 0,
+                                                'slot': BLOCK_PAPER_PREFIX + board + ':' + name})
+                entry['total'] += 1
+                entry['done'] += q['key'] in data['records']
+        paper_list = [dict(p, active=p['slot'] in data['runs']) for p in papers.values()]
+        result.append({'board': board, 'papers': paper_list, 'total': len(qs), 'pending': pending(g.paths, board), 'remaining': sum(q['key'] not in data['records'] for q in qs),
                        'first_total': len(first), 'first_correct': sum(a['ok'] for a in first),
                        'review_total': len(repeats), 'review_correct': sum(a['ok'] for a in repeats),
                        'method_total': sum(a.get('method_ok') is not None for a in first),
@@ -401,6 +424,24 @@ def summary(g):
 
 def begin(g, board, mode):
     data = state(g)
+    if str(board).startswith(BLOCK_PAPER_PREFIX) and mode == 'new':
+        if board in data['runs']:
+            return data['runs'][board]
+        b, sep, name = board[len(BLOCK_PAPER_PREFIX):].partition(':')
+        if b not in boards(g) or not sep or not name:
+            raise BankError('板块或来源套卷无效')
+        qs, errors = read(g.paths, b)
+        qs = [q for q in qs if name in block_papers_of(q)]
+        if not qs:
+            raise BankError('该套卷没有可训练的本板块题目，请先导入并补齐答案')
+        if errors:
+            raise BankError('\n'.join(errors))
+        # 完整板块包含已做题，不按count裁短、不乱序；record及通关奖仍只奖励首次题。
+        qs = sorted(qs, key=lambda q: _order(q, name))
+        run = {'token': uuid.uuid4().hex, 'board': board, 'mode': 'new', 'questions': qs,
+               'pos': 0, 'results': [], 'phase': 'answer', 'source_paper': name, 'source_board': b}
+        data['runs'][board] = run
+        return run
     if str(board).startswith(POINT_PREFIX) and mode == 'new':
         # 知识点试炼：这个板块里这一类知识点还没做过的题，按题库顺序一组
         if board in data['runs']:

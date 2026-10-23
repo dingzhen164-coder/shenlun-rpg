@@ -19,7 +19,7 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
  fs.mkdirSync('ui-artifacts/repairs368',{recursive:true});await page.screenshot({path:'ui-artifacts/repairs368/home-tablet.png'});
  await page.evaluate(()=>{STUDY_REGIONS.select('chang');return go('train');});await page.locator('[data-wx-branch="politics"]').click();await page.locator('[data-wx-exam="2026-10-guokao"]').click();
  const f=page.frameLocator('.wx-atlas-frame');await f.locator('.map').waitFor();await f.locator('[data-go="practice"]').click();
- assert.equal(await f.locator('.question .atlas-qline').count(),6,'原题段落和四个选项独立成行');
+ assert.equal(await f.locator('.question .atlas-qline').count(),3,'保留原题两段题干与同行选项，不再强拆选项');
  assert(await f.locator('.qtext').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=18));
  assert(await f.locator('.qtext').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'长题文不横向溢出');
  await page.screenshot({path:'ui-artifacts/repairs368/questions-tablet.png'});
@@ -33,5 +33,5 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
   const out={strokes:card.pages[0].strokes, saves};view.destroy();root.remove();return out;
  });
  assert.equal(result.strokes.length,1,'只有Pencil产生一笔');assert.equal(result.saves,1);assert.equal(result.strokes[0].points.length,2);
- assert.deepEqual(errors,[]);console.log('REPAIRS368-UI-OK：五字真实离线字体、本境界进度、配套题六行/字号、Pencil防掌心');
+ assert.deepEqual(errors,[]);console.log('REPAIRS368-UI-OK：五字真实离线字体、本境界进度、配套题原行/字号、Pencil防掌心');
 }finally{await browser?.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

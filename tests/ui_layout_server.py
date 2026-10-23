@@ -56,6 +56,7 @@ def main():
                                    'compare': '主销区改变了支持对象，不能替换本段原文。', 'plain': '让主要生产的地方发展产业。',
                                    'evidence': '在主产区布局产能', 'example': '产粮多的地方需要厂房把粮食加工为食品，销售多的地方不一定生产粮食。', 'background': '加工厂靠近原料，可降低运输损耗；这解释政策机制，不代表原文列明全部原因。'}, ensure_ascii=False)
             politics.ai.chat = fake_explain
+            politics.policy_search.search = lambda *args: {'status': 'unavailable', 'sources': []}
             topic = dict(news, id='old-topic', kind='topic', title='自编两会专题', category='两会·政府报告',
                          news=[{'no':i+1, 'title':'习近平强调，到2035年建成健康中国是我们作出的一项战略决策',
                                 'group':'两会讲话', 'paras':['建设健康中国，自编原文第%d段。'%i], 'qs':[]} for i in range(3)], cloze=[])

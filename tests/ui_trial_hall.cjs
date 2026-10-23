@@ -30,18 +30,21 @@ async function enter(page,mode){if(await page.locator('.th-dialog[open]').count(
 async function choose(page,selector,index){await page.locator(selector).selectOption(String(index));}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
- for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}]]){
-  const page=await browser.newPage({viewport});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['tablet-landscape',{width:1280,height:800}]]){
+  const page=await browser.newPage({viewport,deviceScaleFactor:2});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
-  await page.locator('.th-tower-art').evaluate(img=>img.decode());assert(await page.locator('.th-tower-art').evaluate(img=>img.naturalHeight>1000));
+  const painted=await page.locator('.th-panorama').count();
+  await page.locator(painted?'.th-panorama':'.th-tower-art').evaluate(img=>img.decode());
+  if(painted){assert.equal(await page.locator('.th-panorama').evaluate(img=>img.naturalWidth),3840);assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const bounds=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1&&r.top>=s.top-1&&r.bottom<=s.bottom+1;});assert(bounds,'完整画框与建筑在横竖屏均不裁切');}
+  else assert(await page.locator('.th-tower-art').evaluate(img=>img.naturalHeight>1000));
   assert.equal(await page.locator('dialog[open]').count(),0);await fits(page);
-  await page.locator('.th-gate img').first().evaluate(img=>img.decode());
+  if(!painted)await page.locator('.th-gate img').first().evaluate(img=>img.decode());
   if(process.argv.includes('--shots')){fs.mkdirSync(out,{recursive:true});await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');await page.screenshot({path:path.join(out,label+'-scene.png')});}
   const noTraining=[];const track=req=>{if(/\/api\/session\/start/.test(req.url()))noTraining.push(req.url());};page.on('request',track);
   await page.locator('[data-th-enter=sets]').click();assert(await page.locator('.th-dialog').evaluate(d=>d.open));
   assert.equal(await page.locator('.th-dialog').evaluate(d=>getComputedStyle(d,'::backdrop').backgroundColor),'rgba(0, 0, 0, 0)');
   await page.keyboard.press('Escape');await page.locator('.th-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('dialog[open]').count(),0);assert(await page.locator('[data-th-enter=sets]').evaluate(b=>b===document.activeElement));
-  assert.equal(await page.locator('[data-th-motion]').count(),0);await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
+  assert.equal(await page.locator('[data-th-motion]').count(),0);await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator(painted?'.th-panorama':'.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
   await page.locator('[data-th-enter=blocks]').click();await page.locator('[data-th-close]').click();assert.equal(await page.locator('dialog[open]').count(),0);
   await page.locator('[data-th-enter=history]').click();await fits(page);await page.locator('[data-th-close]').click();assert.deepEqual(noTraining,[]);page.off('request',track);
   await page.locator('[data-th-enter=sets]').click();
@@ -64,6 +67,16 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.deepEqual(await page.evaluate(()=>({answered:T.battle.answered,position:T.battle.position})),before);await pause(page);
   // 套卷题数不受20题设置限制；此夹具一套跨两板块共6题。
   await enter(page,'sets');await page.locator('[data-th-paper="23"]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),6);await pause(page);
+  // 按套卷板块训练取同一套全部题，包含做过的题，来源始终可见；独立恢复与旧模式互不覆盖。
+  if(painted){
+  await enter(page,'blocks');await page.locator('.bankOrder').selectOption('paper');
+  const source=await page.locator('[data-th-block-paper]').first().locator('b').textContent();await page.locator('[data-th-block-paper]').first().click();
+  assert((await page.locator('.th-paper-source').textContent()).includes(source));assert.equal(await page.locator('#bankCount,[data-th-topic]').count(),0);await fits(page);
+  const expected=Number((await page.locator('[data-th-block-paper][aria-pressed=true] .th-choice-progress').textContent()).match(/\d+/)[0]);
+  await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),expected);assert((await page.locator('#view').textContent()).includes('来源：'+source));await pause(page);
+  assert.equal(await page.locator('.bankOrder').inputValue(),'paper');await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),expected);await pause(page);
+  await page.locator('.bankOrder').selectOption('seq');await page.locator('#bankCount').waitFor();await page.waitForFunction(()=>document.querySelector('.th-save-status')?.textContent.includes('已保存'));
+  }
   await enter(page,'blocks');await choose(page,'[data-th-topic]',0);
   // 回炉按整个板块，避免用户误以为只复习当前知识点。
   await page.locator('[data-th-board]').selectOption('0');assert.match(await page.locator('[data-th-review]').textContent(),/本板块/);
@@ -71,6 +84,6 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.evaluate(()=>{document.querySelector('#view').style.setProperty('--scene-panel-width','100%');document.querySelector('#view').style.setProperty('--scene-panel-height','310px');});await fits(page);
   await page.evaluate(()=>{document.querySelector('#view').style.removeProperty('--scene-panel-width');FIXED_LAYOUT.refresh();});
 
-  assert.deepEqual(errors,[]);await page.close();console.log(label+'：全高塔景/双门/透明卷宗/键盘返回/减弱动画、双模式/知识点、偏好保存、真实续做、套卷题数、板块错题和边界通过');
+  assert.deepEqual(errors,[]);await page.close();console.log(label+'：塔景与双入口、选择面板、偏好保存、续做、套卷/知识点/错题'+(painted?'、原生4K与整卷板块来源':'')+'及边界通过');
  }
 }catch(error){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure.png')}).catch(()=>{});}throw error;}finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

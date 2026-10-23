@@ -12,6 +12,9 @@ from tests.politics_fixture import atlas_data
 
 class PoliticsTests(unittest.TestCase):
     def setUp(self):
+        search = patch('rpg.politics.policy_search.search', return_value={'status': 'unavailable', 'sources': []})
+        search.start()
+        self.addCleanup(search.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.pp = paths.Paths(Path(self.tmp.name), '行测')
