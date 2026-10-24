@@ -197,16 +197,19 @@
     });
     return out;
   }
+  const HEADING_LIKE=/^(?:[一二三四五六七八九十百]+[、．.]|[（(](?:[一二三四五六七八九十百]+|\d+)[）)]|\d+[.．、]|《)/,isHeadingLike=b=>b.length<=64&&HEADING_LIKE.test(b)&&!/[。；！？]/.test(b);   // 标题样段落一律不加红
   function highlight(paras, ans) {
     let k = 0;
     return paras.map((p) => {
       let html = "", pos = 0;
+      const plain = isHeadingLike(p.trim());          // 标题样段落：仍按顺序消耗对应的空位，但不套红
+
       while (k < ans.length) {
         const { a, pre } = ans[k];
         let j = pre ? p.indexOf(pre + a, pos) : -1;          // 带上空前面的几个字找，免得标到前文里同样的词
         j = j >= 0 ? j + pre.length : p.indexOf(a, pos);
         if (j < 0) break;
-        html += esc(p.slice(pos, j)) + `<mark class="tj-key">${esc(a)}</mark>`;
+        html += esc(p.slice(pos, j)) + (plain ? esc(a) : `<mark class="tj-key">${esc(a)}</mark>`);
         pos = j + a.length; k++;
       }
       return `<p>${html + esc(p.slice(pos))}</p>`;

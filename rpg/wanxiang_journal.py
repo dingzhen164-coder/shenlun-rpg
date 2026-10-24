@@ -739,7 +739,7 @@ def ensure_legacy(g):
 def register(api):
     """万象峰专用接口，行测限定；与旧天机台接口和前端完全分离。"""
     import base64
-    from . import politics, politics_import, politics_digest, ai
+    from . import politics, politics_import, politics_digest, politics_manage, ai
 
     def run(fn, body):
         with api.open_game() as g:
@@ -814,6 +814,7 @@ def register(api):
         api.ROUTES[('POST','/api/wanxiang/journal/'+name)] = lambda b, fn=fn: run(fn,b)
     api.ROUTES[('POST','/api/wanxiang/journal/ask')] = ask
     api.ROUTES[('POST','/api/wanxiang/import')] = lambda b: run(import_pdf,b)
-    api.ROUTES[('POST','/api/wanxiang/digest/targets')] = lambda b: run(lambda g,b:politics_digest.targets(g),b)
+    api.ROUTES[('POST','/api/wanxiang/import/list')] = lambda b: run(lambda g,b:politics_manage.listing(g),b)
+    api.ROUTES[('POST','/api/wanxiang/import/delete')] = lambda b: run(lambda g,b:politics_manage.delete(g,b.get('ids')),b)
     api.ROUTES[('POST','/api/wanxiang/digest/get')] = lambda b: run(lambda g,b:politics_digest.get(g,b.get('target')),b)
     api.ROUTES[('POST','/api/wanxiang/digest/mark')] = lambda b: run(politics_digest.mark,b)

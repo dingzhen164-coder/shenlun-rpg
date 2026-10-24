@@ -60,7 +60,8 @@ class ScheduleRepairTests(unittest.TestCase):
 
 
 class RetiredArtTests(unittest.TestCase):
-    def test_only_exact_legacy_copy_falls_back_without_deleting(self):
+    def test_peak_files_in_art_folder_never_override_builtin_and_are_kept(self):
+        """3.7.4：五峰一律用内置新图。美术文件夹里的同名文件（原样旧导出、被改过的旧图）都不顶替，也不删除。"""
         with tempfile.TemporaryDirectory() as tmp:
             pp=paths.Paths(Path(tmp),'行测')
             f=art.art_dir(pp)/'子地图背景/观星峰.webp'
@@ -71,9 +72,11 @@ class RetiredArtTests(unittest.TestCase):
             self.assertIsNone(art.lookup(pp,'行测',rel))
             self.assertNotIn(rel,dict(art.files(pp,'行测')))
             self.assertIn(rel,dict(art.available(pp,'行测')))
-            self.assertEqual(f.read_bytes(),original.read_bytes())
             data=bytearray(f.read_bytes());data[-1]^=1;f.write_bytes(data)
-            self.assertEqual(art.lookup(pp,'行测',rel),f,'同尺寸但编辑过的图仍是用户覆盖')
+            self.assertIsNone(art.lookup(pp,'行测',rel),'改过的旧图同样不顶替内置新图')
+            self.assertTrue(f.is_file(),'文件不删除')
+            home=art.art_dir(pp)/'子地图背景/洞府.webp';home.write_bytes(b'own')
+            self.assertEqual(art.lookup(pp,'行测','beauty/page/dwelling.webp'),home,'其他页面的覆盖不变')
 
 
 class Art3610Tests(unittest.TestCase):

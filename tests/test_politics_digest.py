@@ -24,7 +24,7 @@ class DigestTests(unittest.TestCase):
         file=self.vault/name;make_pdf(file,[[(1,x) for x in lines]]);return file
 
     def send(self,file,target=None):
-        return self.upload('digest',file,target=target or self.target)
+        return self.upload('digest',file)     # 3.7.4：不选配套讲义，程序按上下文自动找出处
 
     def get(self,target=None):
         return api.ROUTES[('POST','/api/wanxiang/digest/get')]({'target':target or self.target})
@@ -38,24 +38,31 @@ class DigestTests(unittest.TestCase):
             source=g.paths.train/'时政知识地图/内容.json';before=source.read_bytes();xp=g.state['xp']
         with patch('rpg.politics.ai.chat',side_effect=AssertionError('不得猜答案')):
             result=self.send(file);data=self.get()
-        self.assertEqual((result['blanks'],result['ready'],result['pending']),(2,1,1))
-        self.assertEqual([p['a'] for p in data['items']],['主产区',None])
-        self.assertEqual(data['items'][1]['status'],'pending')
-        with self.assertRaises(api.ApiError):self.mark(data['items'][1])
+        # 第2段（自编未知政策）在任何讲义里都找不到出处：不导入、不猜，只在结果里告知。
+        self.assertEqual((result['rows'],result['unmatched'],result['blanks'],result['ready'],result['pending']),(2,1,1,1,0))
+        self.assertEqual([p['a'] for p in data['items']],['主产区'])
+        self.assertEqual(data['items'][0]['status'],'matched')
         self.assertEqual(source.read_bytes(),before)
         with api.open_game(save=False) as g:self.assertEqual(g.state['xp'],xp)
 
     def test_explicit_pdf_answers_take_priority_and_multiple_blanks(self):
-        file=self.pdf(['1.在____布局____。','参考答案','1.自编甲方、乙产业'])
+        file=self.pdf(['1.为了保障供给，在____布局____。','参考答案','1.自编甲方、乙产业'])
         self.send(file);data=self.get()
         self.assertEqual([p['a'] for p in data['items']],['自编甲方','乙产业'])
         self.assertTrue(all(p['status']=='provided' for p in data['items']))
 
-    def test_target_catalog_contains_materials_and_periodicals(self):
-        issue=self.upload('month',self.month)
-        entries=api.ROUTES[('POST','/api/wanxiang/digest/targets')]({})['targets']
-        self.assertIn(self.target,[e['target'] for e in entries])
-        self.assertIn({'source':'wanxiang_journal','kind':'month','id':issue['id']},[e['target'] for e in entries])
+    def test_import_needs_no_target_and_finds_the_periodical_source(self):
+        issue=self.upload('month',self.month);target={'source':'wanxiang_journal','kind':'month','id':issue['id']}
+        result=self.send(self.pdf(['1.平陆运河是广西境内沟通____流域西江与北部湾的运河，是西部陆海新通道骨干工程。']))
+        self.assertEqual((result['targets'],result['unmatched']),(1,0))
+        data=self.get(target);self.assertEqual([p['a'] for p in data['items']][-1:],['珠江'])
+        self.assertFalse(self.get()['documents'],'出处不在冲刺讲义里，不分到无关讲义')
+        self.assertNotIn(('POST','/api/wanxiang/digest/targets'),api.ROUTES,'手选讲义的目录接口已取消')
+
+    def test_not_found_source_is_reported_and_nothing_is_written(self):
+        with self.assertRaises(api.ApiError):self.send(self.pdf(['1.自编完全无关的文字________补充说明内容。']))
+        self.assertFalse(self.get()['documents'])
+        with api.open_game(save=False) as g:self.assertFalse((g.paths.train/'时政消化/原文').exists() and list((g.paths.train/'时政消化/原文').glob('*.pdf')))
 
     def test_titled_answer_section_is_not_mistaken_for_cover(self):
         self.send(self.pdf(['1.在____布局产能。','消化清单·答案与解析','1.自编答案']))
@@ -93,9 +100,8 @@ class DigestTests(unittest.TestCase):
     def test_target_and_exam_isolation_and_whole_pdf_bundle(self):
         self.upload('sprint-study',self.month,exam='2026-12-shengkao')
         with api.open_game(save=False) as g:
-            data=politics.atlas(g.paths,'2026-12-shengkao');m=data['materials'][0]
-            bundle={'source':'atlas','exam':'2026-12-shengkao','bundle':m['pdf'].split('/')[-1][:-4]}
-        self.send(self.pdf(['1.平陆运河是广西境内沟通____流域西江与北部湾的运河，是西部陆海新通道骨干工程。']),bundle)
+            data=politics.atlas(g.paths,'2026-12-shengkao');m=next(x for x in data['materials'] if '平陆运河' in x['original'])
+        self.send(self.pdf(['1.平陆运河是广西境内沟通____流域西江与北部湾的运河，是西部陆海新通道骨干工程。']))
         target={'source':'atlas','exam':'2026-12-shengkao','material':m['id']}
         self.assertTrue(self.get(target)['documents'])
         self.assertFalse(self.get()['documents'])
@@ -104,7 +110,7 @@ class DigestTests(unittest.TestCase):
     def test_periodical_target_keeps_old_embedded_pdf_cloze_and_import_priority(self):
         issue=self.upload('month',self.month);target={'source':'wanxiang_journal','kind':'month','id':issue['id']}
         old=self.get(target);self.assertTrue(old['counts']['ready'])
-        self.send(self.pdf(['1.平陆运河是广西境内沟通____流域西江与北部湾的运河，是西部陆海新通道骨干工程。']),target)
+        self.send(self.pdf(['1.平陆运河是广西境内沟通____流域西江与北部湾的运河，是西部陆海新通道骨干工程。']))
         data=self.get(target);self.assertEqual(data['counts']['blanks'],1)
         self.assertEqual(data['items'][0]['a'],'珠江');self.mark(data['items'][0],target=target)
         self.assertEqual(api.ROUTES[('POST','/api/wanxiang/journal/get')]({'kind':'month','id':issue['id']})['stat']['seen'],1)

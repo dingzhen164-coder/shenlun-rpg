@@ -87,9 +87,9 @@ function formatOriginal(text,emphasis=[]){
  };
  return sourceBlocks(text).map(b=>{
   const content=inline(b),level=sourceHeadingLevel(b);let cls='';
-  if(level){const tag=level===1?'h2':'h3';return `<${tag} class="source-heading source-main-heading" data-source-level="${level}">${esc(b)}</${tag}>`}
+  if(level){const tag=level===1?'h2':'h3';return `<${tag} class="source-heading source-main-heading" data-source-level="${level}">${esc(b)}</${tag}>`}   // 标题一律不加红
   if(/^【[^】]+】$/.test(b))cls='source-label';
-  else if(b.length<=64&&/^(?:[一二三四五六七八九十百]+[、．.]|[（(](?:[一二三四五六七八九十百]+|\d+)[）)]|\d+[.．、]|《)/.test(b)&&!/[。；！？]/.test(b))return `<h3 class="source-heading">${content}</h3>`;
+  else if(b.length<=64&&/^(?:[一二三四五六七八九十百]+[、．.]|[（(](?:[一二三四五六七八九十百]+|\d+)[）)]|\d+[.．、]|《)/.test(b)&&!/[。；！？]/.test(b))return `<h3 class="source-heading">${esc(b)}</h3>`;   // 标题一律不加红（content只用于正文）
   else if(/^(?:[（(]\d+[）)]|[①②③④⑤⑥⑦⑧⑨⑩]|第[一二三四五六七八九十]+[，、]|[一二三四五六七八九十]+是)/.test(b))cls='source-item';
   return `<p${cls?` class="${cls}"`:''}>${content}</p>`;
  }).join('');
@@ -100,7 +100,7 @@ function categoryView(){const c=cat(selected),ms=D.materials.filter(m=>m.tags.so
 function themeView(){const t=theme(selected),c=cat(t.category),ms=materialsFor(t.id);return crumb([`<button data-category="${c.id}">${c.name}</button>`,esc(t.name)])+head('TOPIC CONNECTIONS',t.name,t.question,`<button class="btn primary" data-practice-theme="${t.id}">练相关题目</button>`)+`<div class="topicintro" style="--c:${c.color};${routeStyle(c)}"><strong>理解提示 · 学习框架</strong><p>${t.meaning}</p><strong>做题时分清</strong><p>${t.pitfall}</p></div><div class="section-title"><h2>同一主题，不同出处</h2><button class="btn primary" data-practice-theme="${t.id}">练相关题目</button></div><div class="material-grid">${ms.map(card).join('')}</div>`}
 const sourceKinds=['重大会议','讲话','指导','文件'];
 function sprintDirectory(){
- const groups=sourceKinds.map((kind,i)=>{const items=D.materials.filter(m=>m.chapter===i&&!m.practice_only);return `<details class="sprint-group" open><summary>${kind}<small>${items.length}份</small></summary><div>${items.map(m=>`<button class="sprint-document titlebtn" data-material="${m.id}"><span>${esc(m.title)}</span><small>${statusLabel[state.status[m.id]||'new']} · ${m.questions.length}题</small></button>`).join('')||'<p class="hint">暂无资料，可在政治理论页统一导入。</p>'}</div></details>`;});
+ const groups=sourceKinds.map((kind,i)=>{const items=D.materials.filter(m=>m.chapter===i&&!m.practice_only);return `<details class="sprint-group" open><summary>${kind}<small>${items.length}份</small></summary><div>${items.map(m=>`<button class="sprint-document titlebtn" data-material="${m.id}"><span>${esc(m.title)}</span><small>共计${Array.from(String(m.original||'').replace(/\s/g,'')).length}字</small></button>`).join('')||'<p class="hint">暂无资料，可在政治理论页统一导入。</p>'}</div></details>`;});
  return `<aside class="sprint-index" aria-label="冲刺学习目录"><div class="sprint-index-label">研习目录</div>${D.materials.some(m=>!m.practice_only)?'':'<p class="empty">尚未加入冲刺学习资料，请返回政治理论页统一导入PDF。</p>'}${groups.join('')}</aside>`;
 }
 function sprintView(){

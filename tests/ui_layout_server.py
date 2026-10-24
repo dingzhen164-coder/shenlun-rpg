@@ -73,6 +73,8 @@ def main():
                 for i in range(1,4):
                     m=copy.deepcopy(data['materials'][0]);m.update(id='m'+str(i+1),title=['','自编讲话资料','自编指导资料','自编文件资料'][i],chapter=i,questions=[])
                     if i==1:m.update(original='😀支持甲方。\n\n😀支持甲方。',originalEmphasis=[])
+                    if i==2:    # 带两级标题且整段（含标题）都标红的讲义：检查标题不加红、正文标红保持
+                        text='二、自编标题\n（一）自编小标题\n'+m['original'];m.update(original=text,originalEmphasis=[[0,len(''.join(text.split()))]])
                     data['materials'].append(m)
                 politics.atomic_json(pp.train/'时政知识地图/内容.json',data)
                 make_pdf(pp.train/'自编消化清单.pdf',[[(1,'自编消化清单'),(1,'1.在________布局产能。'),(1,'2.自编未知政策提出________要求。')]])

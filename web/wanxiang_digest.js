@@ -6,7 +6,7 @@
  function html(data,journal=false){
   if(!data)return '<p class="sprint-digest-tip" role="status">正在读取消化清单…</p>';
   const counts=data.counts,onlyForgot=prefs.get(JSON.stringify(data.target))||false;
-  if(!counts.blanks)return '<div class="sprint-empty-digest">尚未导入消化清单。请回到政治理论页，在统一导入区选择“消化清单”，上传PDF并选择配套研读讲义。</div>';
+  if(!counts.blanks)return '<div class="sprint-empty-digest">尚未导入消化清单。请回到政治理论页，在统一导入区选择“消化清单”，上传PDF即可，程序会按上下文自动匹配到对应的讲义，不用自己选。</div>';
   const rows=data.paragraphs.filter(row=>!onlyForgot||row.parts.some(p=>p.id&&data.progress[p.id]==='forgot'));
   return `<section class="sprint-digest" aria-label="PDF消化清单"><div class="sprint-digest-meta"><span>配套：${esc(data.label)}</span><small>共${counts.blanks}空 · 已核对${counts.seen} · 待补全${counts.pending}</small><label><input type="checkbox" data-digest-filter ${onlyForgot?'checked':''}>只看没记住的</label></div><p class="sprint-digest-tip">空位按清单PDF保留。点空格核对＝记得，再点＝没记住。${counts.pending?'待补全项未找到唯一答案，不自动猜测。':''}</p>${rows.map(row=>`<article class="digest-pdf-row"><small class="sprint-digest-source">${esc(row.title)}</small><p class="sprint-cloze-paragraph">${row.parts.map(p=>{
     if(p.t!==undefined)return esc(p.t);
