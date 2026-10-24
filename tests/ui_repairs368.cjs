@@ -8,7 +8,7 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  page=await browser.newPage({viewport:{width:800,height:1280},hasTouch:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/api/politics/atlas',async route=>{const response=await route.fetch(),json=await response.json();json.data.questions[0].text='自编题干第一段。\n自编第二段。\nA.自编甲 B.自编乙 C.自编丙 D.自编丁';await route.fulfill({response,json});});
+ await page.route('**/api/politics/atlas',async route=>{const response=await route.fetch(),json=await response.json();json.data.questions[0].text='自编题干第一段。\n\n自编第二段。\nA.自编甲 B.自编乙 C.自编丙 D.自编丁';await route.fulfill({response,json});});
  await page.goto(base);await page.locator('.portal-world').waitFor();await page.locator('#splash').waitFor({state:'hidden'});
  assert.equal(await page.evaluate(()=>SCENE_PORTAL.title('home')),'行测宗');
  const mapping={'peak-chang':'政','peak-yan':'言','peak-li':'邏','peak-shu':'數','peak-zi':'資'};
@@ -18,8 +18,8 @@ const ready=new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=
  assert.match(await page.locator('.study-hud-meter.xp').textContent(),/123 \/ 456/);
  fs.mkdirSync('ui-artifacts/repairs368',{recursive:true});await page.screenshot({path:'ui-artifacts/repairs368/home-tablet.png'});
  await page.evaluate(()=>{STUDY_REGIONS.select('chang');return go('train');});await page.locator('[data-wx-branch="politics"]').click();await page.locator('[data-wx-exam="2026-10-guokao"]').click();
- const f=page.frameLocator('.wx-atlas-frame');await f.locator('#nav [data-go="sprint"]').click();await f.locator('.sprint-index').waitFor();await f.locator('[data-go="practice"]').click();
- assert.equal(await f.locator('.question .atlas-qline').count(),3,'保留原题两段题干与同行选项，不再强拆选项');
+ const f=page.frameLocator('.wx-atlas-frame');await f.locator('#nav [data-go="sprint"]').click();await f.locator('[data-material=m1]').click();await f.locator('[data-tab=questions]').click();
+ assert.equal(await f.locator('.question .wx-reflow-line').count(),6,'保留两个自然段和四个选项，按屏幕重排');
  assert(await f.locator('.qtext').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)>=18));
  assert(await f.locator('.qtext').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'长题文不横向溢出');
  await page.screenshot({path:'ui-artifacts/repairs368/questions-tablet.png'});

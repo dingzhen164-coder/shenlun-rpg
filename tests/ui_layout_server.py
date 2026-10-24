@@ -66,6 +66,22 @@ def main():
                      (1,'配套练习'),(1,'1.（多选）自编政策对象包括哪些？'),(1,'A.主产区'),(1,'B.生产区'),
                      (1,'C.销售区'),(1,'D.其他'),(1,'参考答案'),(1,'1.【答案】AB。解析：自编选项的说明。')]])
             print('UI-POLITICS ' + str(pp.train), flush=True)
+            if '--wanxiang373-fixture' in sys.argv:
+                # 本批界面只用自编长题、四类目录与零空场人物，仍是隔离临时库。
+                import copy
+                from rpg import characters
+                for i in range(1,4):
+                    m=copy.deepcopy(data['materials'][0]);m.update(id='m'+str(i+1),title=['','自编讲话资料','自编指导资料','自编文件资料'][i],chapter=i,questions=[])
+                    if i==1:m.update(original='😀支持甲方。\n\n😀支持甲方。',originalEmphasis=[])
+                    data['materials'].append(m)
+                politics.atomic_json(pp.train/'时政知识地图/内容.json',data)
+                make_pdf(pp.train/'自编消化清单.pdf',[[(1,'自编消化清单'),(1,'1.在________布局产能。'),(1,'2.自编未知政策提出________要求。')]])
+                news['questions']=[{'key':0,'no':1,'kind':'单选','stem':'自编题面应该连续显示，不应在半句\n中换行。'*5,'stmts':[],'opts':{'A':'自编甲方选项\n的续行','B':'自编乙方','C':'自编丙方','D':'自编丁方'},'answer':'A','analysis':'自编说明','news':0}]
+                news['news'][0]['qs']=[0]
+                politics.atomic_json(pp.train/'天机简报/月半时政/2026-10-上.json',news)
+                with api.open_game() as g:
+                    folder=characters.install(g)
+                    (folder/'规则.md').write_text('- 空场概率：0\n- 同场人数：2\n- 相遇间隔分钟：30\n',encoding='utf8')
         if '--skillbook-fixture' in sys.argv:
             # 藏经阁·心法：只有一个板块（行测 论证逻辑 / 申论 归纳概括）预先放了自编的三个文件，其余板块都是空的；不读真实资料。
             from rpg import skillbook

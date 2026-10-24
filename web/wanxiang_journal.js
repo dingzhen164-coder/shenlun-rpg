@@ -4,11 +4,11 @@
    - 📜 专题时政：按专题分类（两会·政府报告、经济、农业、外交、科技…），每份是一页会动的红头文件（红色文头、文号、红线五角星、盖章）。
    PDF 统一从万象峰「政治理论」首页导入，不依赖天机台的页面或接口。
    点开一期，四步学：
-   - 📖 研读：一条条新闻（专题是每道母题的原文速递），消化清单要考的字句标红；读完点「✓ 读完了」；
-   - ✍ 消化：消化清单的挖空，点一下揭开（算记得），再点一下标成没记住（红），没记住的可以一键刻成玉简（填空）；
+   - 📖 研读：一条条新闻（专题是每道母题的原文速递），支持重点标红/取消；读完点「✓ 读完了」；
+   - ✍ 消化：独立清单PDF空位优先，兼容旧PDF内清单；有答案点空核对，无唯一答案显示待补全，不随标红变化；
    - 📝 精卷：小黑金卷 / 母题，点选项就判，出答案和解析，能跳回原文；
    - 📊 小结：进度、错题、没记住的空。
-   计时：开着这一期、5 分钟内动过就算学习时间（研读 / 消化算复习，精卷算做题，都记在政治理论）。 */
+   计时：复用父页面学习蜡烛与服务端真实交互预算，不另起心跳。 */
 (function () {
   const W=k=>parent.W?parent.W(k):k;
   const showError=e=>parent.showError(e),toast=t=>parent.toast(t),handleEvents=e=>parent.handleEvents(e);
@@ -207,7 +207,7 @@
           ${n.group ? `<span class="tag">${esc(n.group)}</span>` : ""}<span class="faint small">第 ${NEWS + 1} / ${d.news.length} 条</span></div>
         <h2>${esc(chapter?.title||n.title)}</h2>${chapter&&chapter.items.length>1?`<div class="wxj-chapter-parts" role="group" aria-label="本节原文">${chapter.items.map((i,k)=>`<button class="${i===NEWS?'primary':'ghost'} small" data-news="${i}">原文 ${k+1}${pr.read.includes(i)?' · 已读':''}</button>`).join('')}</div>`:""}
         <div class="wxj-news-body">${highlight(n.paras, answersOf(NEWS))}</div>
-        <div class="faint small wxj-key-tip"><mark class="wxj-key">标红</mark> 的是消化清单要挖的空</div>
+        <div class="faint small wxj-key-tip"><mark class="wxj-key">标红</mark> 是研读重点；消化按导入清单的空位学习。</div>
         <div class="row wxj-news-foot">
           <button class="${read ? "ghost" : "primary"}" id="wxjRead">${read ? "↺ 标成没读" : "✓ 读完了"}</button>
           ${qs.length ? `<button class="ghost" id="wxjToQuiz">📝 本条 ${qs.length} 道题 →</button>` : ""}
@@ -263,33 +263,7 @@
     ROOT.querySelectorAll(".wxj-am.ai img").forEach((im) => (im.onclick = () => window.zoomImg && zoomImg(im.src)));
   }
 
-  function clozeHtml() {
-    const d = CUR.data, pr = CUR.progress, s = CUR.stat;
-    if (!d.cloze.length) return `<div class="card muted">这一期没有消化清单。</div>`;
-    const items = d.cloze.map((c, i) => {
-      const keys = c.parts.map((p, k) => (p.a ? `${i}-${k}` : null)).filter(Boolean);
-      if (ONLY_FORGOT && !keys.some((k) => pr.cloze[k] === 0)) return "";
-      const body = c.parts.map((p, k) => {
-        if (p.br) return "<br>";
-        if (p.t != null) return esc(p.t);
-        if (!p.a) return `<span class="wxj-b nil" title="没在讲义里找到这个空的答案">（见讲义）</span>`;
-        const key = `${i}-${k}`, st = pr.cloze[key];
-        const cls = st === 1 ? "ok" : st === 0 ? "no" : "hid";
-        return `<button class="wxj-b ${cls}" data-b="${key}" style="--w:${Math.max(2, [...p.a].length)}em">${esc(p.a)}</button>`;
-      }).join("");
-      let g = "";
-      if (CUR.kind === "topic" && c.title !== (d.cloze[i - 1] || {}).title) g = `<h3 class="wxj-cl-g">${esc(c.title)}</h3>`;
-      return `${g}<div class="card wxj-cl">${CUR.kind === "month" ? `<div class="wxj-cl-h">${c.no}. ${esc(c.title)}</div>` : `<span class="wxj-cl-n">${c.no}</span>`}<div class="wxj-cl-body">${body}</div></div>`;
-    }).join("");
-    const left = s.forgot - ((pr.carded || []).filter((k) => pr.cloze[k] === 0).length);
-    return `<div class="card wxj-bar">
-        <span>点空格揭开 = 记得 <b class="wxj-b ok demo">✓</b>；再点一下 = 没记住 <b class="wxj-b no demo">✗</b></span><span class="spacer"></span>
-        <span class="small muted">已过 ${s.seen}/${s.blanks} · 没记住 <b style="color:var(--red)">${s.forgot}</b></span>
-        <label class="small"><input type="checkbox" id="wxjOnlyNo" ${ONLY_FORGOT ? "checked" : ""}> 只看没记住的</label>
-        <button class="ghost small" id="wxjClozeReset" title="全部重新遮住，再过一遍">↺ 重练</button>
-        <button class="small ${left > 0 ? "primary" : "ghost"}" id="wxjCards" ${left > 0 ? "" : "disabled"} title="没记住的空做成填空玉简，放进 政治理论::万象时政 简匣">🀄 没记住的刻成${esc(W("yj"))}${left > 0 ? ` (${left})` : ""}</button></div>
-      ${items || '<div class="card muted">没有没记住的空 👍</div>'}`;
-  }
+  function clozeHtml() {return `<div class="card wxj-digest-paper">${WANXIANG_DIGEST.html(CUR.data.digest,true)}</div>`;}
 
   function quizHtml() {
     const d = CUR.data, pr = CUR.progress, s = CUR.stat;
@@ -304,7 +278,7 @@
       const opts = ["A", "B", "C", "D"].map((k) => {
         let cls = fresh&&draft.includes(k)?"selected":"";
         if (!fresh) cls = (q.answer||"").includes(k) ? "right" : (r.a||"").includes(k) ? "wrong" : "dim";
-        return `<button class="wxj-opt ${cls}" data-q="${q.key}" data-c="${k}" ${fresh&&q.answer ? "" : "disabled"} aria-pressed="${draft.includes(k)}"><b>${k}</b><span>${esc(q.opts[k] || "")}</span></button>`;
+        return `<button class="wxj-opt ${cls}" data-q="${q.key}" data-c="${k}" ${fresh&&q.answer ? "" : "disabled"} aria-pressed="${draft.includes(k)}"><b>${k}</b><span>${WANXIANG_TEXT.html(q.opts[k] || "")}</span></button>`;
       }).join("");
       const news = q.news != null ? d.news[q.news] : null;
       const ana = fresh ? "" : `<div class="wxj-ana ${r.ok ? "ok" : "no"}"><div class="wxj-ana-h">${r.ok ? "✓ 答对了" : `✗ 你选 ${r.a}，正确答案 ${q.answer || "（没找到）"}`}
@@ -312,8 +286,8 @@
         <details class="wxj-answer-analysis"><summary>题目解析</summary><div class="wxj-ana-b">${esc(q.analysis || "（没有解析）")}</div></details></div>`;
       return `${g}<div class="card wxj-q ${fresh ? "" : r.ok ? "is-ok" : "is-no"}" id="wxjq${q.key}">
         <div class="wxj-q-h"><span class="wxj-q-n">${q.no}</span><span class="tag">${esc(q.kind)}</span>${news && CUR.kind === "month" ? `<span class="faint small">${esc(news.title)}</span>` : ""}</div>
-        <div class="wxj-q-stem">${esc(q.stem)}</div>
-        ${q.stmts.length ? `<div class="wxj-q-stmts">${q.stmts.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : ""}
+        <div class="wxj-q-stem">${WANXIANG_TEXT.html(q.stem)}</div>
+        ${q.stmts.length ? `<div class="wxj-q-stmts">${q.stmts.map(x=>WANXIANG_TEXT.html(x)).join("")}</div>` : ""}
         <div class="wxj-opts">${opts}</div>${multi&&fresh?`<button class="primary" data-qsubmit="${q.key}" ${draft?"":"disabled"}>确认多选</button>`:""}${!q.answer?'<p class="muted">原文未提供参考答案，暂不判分。</p>':""}${ana}</div>`;
     }).join("");
     return `<div class="card wxj-bar"><span>点选项就判，判完看解析。</span><span class="spacer"></span>
@@ -326,8 +300,8 @@
     const d = CUR.data, pr = CUR.progress, s = CUR.stat;
     const ring = (frac, label, sub, color) => `<div class="wxj-ring" style="--p:${Math.round(frac * 360)}deg;--c:${color}"><div><b>${Math.round(frac * 100)}%</b><span>${label}</span><small>${sub}</small></div></div>`;
     const wrong = d.questions.filter((q) => pr.quiz[String(q.key)] && !pr.quiz[String(q.key)].ok);
-    const forgot = [];
-    d.cloze.forEach((c, i) => c.parts.forEach((p, k) => { if (p.a && pr.cloze[`${i}-${k}`] === 0) forgot.push(p.a); }));
+    const forgot = d.digest ? d.digest.items.filter(p => p.a && d.digest.progress[p.id] === 'forgot').map(p => p.a) : [];
+    if (!d.digest) d.cloze.forEach((c, i) => c.parts.forEach((p, k) => { if (p.a && pr.cloze[`${i}-${k}`] === 0) forgot.push(p.a); }));
     return `<div class="card wxj-sum">
         ${ring(s.news ? s.read / s.news : 1, "研读", `${s.read}/${s.news} 条`, "#3f9e8f")}
         ${ring(s.blanks ? s.seen / s.blanks : 1, "消化", `${s.seen}/${s.blanks} 空 · 忘 ${s.forgot}`, "#c9a227")}
@@ -359,7 +333,8 @@
   function bindIssue() {
     const v = ROOT, $$ = (s) => v.querySelectorAll(s), $1 = (s) => v.querySelector(s);
     window.WORD_NOTES?.close();
-    if(MODE==='read')window.WORD_NOTES?.mount($1('.wxj-news-body'),{source:'wanxiang_journal',kind:CUR.kind,id:CUR.id,news:NEWS});
+    if(MODE==='cloze'){const current=CUR;WANXIANG_DIGEST.bind(v.querySelector('.sprint-digest'),CUR.data.digest,async data=>{if(CUR!==current)return;const fresh=await api('/api/wanxiang/journal/get',{kind:current.kind,id:current.id});if(CUR===current){current.data=fresh.data;current.progress=fresh.progress;current.stat=fresh.stat;keepScroll(renderIssue);}});}
+    if(MODE==='read'){const current=CUR,index=NEWS;window.WORD_NOTES?.mount($1('.wxj-news-body'),{source:'wanxiang_journal',kind:CUR.kind,id:CUR.id,news:NEWS},{highlights:true,onChange:async reading=>{if(CUR!==current)return;current.data.reading[index]=reading;const fresh=await api('/api/wanxiang/journal/get',{kind:current.kind,id:current.id});if(CUR===current){current.data=fresh.data;current.stat=fresh.stat;}}});}
     $1("#wxjBack").onclick = close;
     $1("#wxjContents").onclick=()=>{TOC_OPEN=!TOC_OPEN;renderIssue();};
     $$("[data-mode]").forEach((a) => (a.onclick = () => { MODE = a.dataset.mode; store.set("mode", MODE); renderIssue(); window.scrollTo(0, 0); }));
