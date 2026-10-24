@@ -29,6 +29,15 @@ const ready=new Promise((resolve,reject)=>{let s='';const t=setTimeout(()=>rejec
     assert.deepEqual(info.size,[3840,2880]);assert(info.src.includes(`beauty/page/train-${peak}-${time}.webp`),'浏览器沿美术别名访问新版4K资源');
     assert.equal(info.phase,time);assert(info.same,'切时段不重建练习界面');assert(!info.overflow);
     if(time!=='day'){assert.equal(info.relight,'native','独立夜景/黄昏不重复调色');assert.equal(info.filter,'none');}
+    // 五峰按原图显示：整页遮罩为0（曾把浅色洗白、深色压灰），清晨（白天图+晨光相位）也不套滤镜。
+    const scrim=()=>page.evaluate(()=>getComputedStyle(document.querySelector('#bgLayer'),'::after').opacity);
+    assert.equal(await scrim(),'0','五峰背景不叠整页遮罩');
+    if(time==='day'){
+     await page.evaluate(()=>{document.documentElement.dataset.scenePhase='dawn';});await page.waitForTimeout(80);
+     const dawn=await page.evaluate(()=>({relight:document.body.dataset.sceneRelight,filter:getComputedStyle(document.querySelector('#bgLayer')).filter,tint:getComputedStyle(document.querySelector('#bgLayer'),'::before').backgroundImage}));
+     assert.equal(dawn.relight,'native','清晨五峰也按原图显示');assert.equal(dawn.filter,'none');assert.ok(!/gradient/.test(dawn.tint),'清晨不叠暖色渐变');
+     assert.equal(await scrim(),'0');
+    }
     if(peak==='yan')await page.screenshot({path:`ui-artifacts/art368/${name}-${time}.png`});
    }
   }

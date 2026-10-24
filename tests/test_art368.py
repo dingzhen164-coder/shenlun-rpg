@@ -44,7 +44,7 @@ class Art368Test(unittest.TestCase):
         self.assertEqual(len(hashes), 23, '三时段/四季不能复用同一成图')
         self.assertEqual(len(source_ids), 184, '23张各8个独立原生块')
 
-    def test_peak_aliases_and_dusk_override(self):
+    def test_peak_aliases_and_vault_files_never_override_peaks(self):
         manifest = art.builtin_map('行测')
         with tempfile.TemporaryDirectory() as tmp:
             vault = Path(tmp) / '库'
@@ -59,12 +59,20 @@ class Art368Test(unittest.TestCase):
                 for time in ('day', 'dusk', 'night'):
                     rel = 'beauty/page/train-%s-%s.webp' % (key, time)
                     self.assertEqual(manifest[rel], 'beauty/scenes/xingce/hd/368/train-%s-%s.webp' % (key, time))
-                own = folder / (name + '-黄昏.png')
-                own.write_bytes(b'own dusk fixture')
+                # 五峰固定用内置新图：美术文件夹里同名文件（含旧导出副本、改过的旧图）一律不顶替，也不删除。
                 rel = 'beauty/page/train-%s-dusk.webp' % key
-                self.assertEqual(art.lookup(p, '行测', rel), own)
+                for suffix in ('', '-白天', '-夜晚', '-黄昏'):
+                    own = folder / (name + suffix + '.png')
+                    own.write_bytes(b'old exported peak fixture')
+                for time in ('', '-day', '-night', '-dusk'):
+                    self.assertIsNone(art.lookup(p, '行测', 'beauty/page/train-%s%s.webp' % (key, time)), '五峰%s%s不读美术文件夹' % (key, time))
+                    self.assertIn('beauty/page/train-%s%s.webp' % (key, time), dict(art.available(p, '行测')))
+                    self.assertTrue(own.exists())
                 self.assertIsNone(art.lookup(p, '申论', rel))
-                self.assertIn(rel, dict(art.available(p, '行测')))
+            # 其他页面（如洞府）仍沿用美术文件夹覆盖。
+            home = folder / '洞府.png'
+            home.write_bytes(b'own home fixture')
+            self.assertEqual(art.lookup(p, '行测', 'beauty/page/dwelling.webp'), home)
 
     def test_overlap_weights_are_complementary(self):
         # 32px重叠含两端，分母31；避免半透明重复合成造成暗线。
