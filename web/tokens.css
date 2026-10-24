@@ -30,6 +30,7 @@
   /* 试炼塔高清画面的延展色与题签对比色。 */
   --ds-trial-sky: #8eb0cb; --ds-trial-horizon: #e3ded0; --ds-trial-ground: #6c776b;
   --ds-trial-night-sky: #142d43; --ds-trial-night-horizon: #334350; --ds-trial-night-ground: #1e302e;
+  --ds-trial-dawn-paper: #f8e7d3; --ds-trial-dawn-ink: #3a2620; --ds-trial-day-paper: #eef1e6; --ds-trial-day-ink: #1d2d38; --ds-trial-dusk-paper: #3c2834; --ds-trial-dusk-ink: #ffefcf;
   --ds-trial-letter: #fff4d2; --ds-trial-letter-shadow: #162b24; --ds-mask-opaque: #000;
   /* 材质（3.2.1）：纸纹贴图在assets/beauty/materials/，缺文件时只是少一层纹理；金边、玉面高光统一在此取值 */
   --ds-empty-art: url("assets/beauty/ui/empty-scroll.svg"); --ds-grain: url("assets/beauty/materials/paper-grain.svg"); --ds-gold-line: #d7b96a66; --ds-jade-hi: #ffffff40; --ds-press: translateY(1px) scale(.985);
