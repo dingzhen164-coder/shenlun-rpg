@@ -64,3 +64,14 @@ body{background:transparent}.atlas-toolbar{background:color-mix(in srgb,var(--pa
 .wxj-issue .wxj-cl{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding-left:0;padding-right:0}.wxj-issue .wxj-b{max-width:100%;min-width:min(var(--w,3em),100%);overflow-wrap:anywhere}
 .wxj-issue .wxj-q-stem,.wxj-issue .wxj-opt span,.question .wx-reflow-line{white-space:normal;overflow-wrap:anywhere;word-break:normal}.wx-reflow-line+.wx-reflow-line{margin-top:8px}.wxj-issue .wxj-q-stem{font-size:var(--ds-fs-18);line-height:1.9}
 @media(orientation:portrait){.sprint-workspace{grid-template-columns:156px minmax(0,1fr);gap:16px}.sprint-workspace .sprint-index{padding-right:8px}.sprint-document-title{font-size:var(--ds-fs-18)}.sprint-workspace .panel,.sprint-workspace .question{padding:12px}.wxj-issue .wxj-read,.wxj-issue .wxj-read.asking{grid-template-columns:156px minmax(0,1fr)}.wxj-issue .wxj-toc{display:block;position:sticky;top:70px;max-height:calc(100dvh - 86px)}.wxj-issue .wxj-read.asking .wxj-toc{height:calc(100dvh - 100px);max-height:none}}
+
+/* 3.7.4：研习目录再通透——整块底板几乎透出山景，只留金色细线框与局部淡纸面，参考天机台的目录层次。 */
+.sprint-workspace .sprint-index{background:color-mix(in srgb,var(--panel) 52%,transparent);backdrop-filter:blur(10px) saturate(1.1);border:1px solid color-mix(in srgb,var(--gold) 42%,transparent);border-radius:var(--ds-r-8);box-shadow:inset 0 0 0 4px color-mix(in srgb,var(--panel) 22%,transparent),inset 0 0 0 5px color-mix(in srgb,var(--gold) 22%,transparent)}
+.sprint-workspace .sprint-index,.sprint-workspace .sprint-index *{text-shadow:0 1px 2px color-mix(in srgb,var(--panel) 80%,transparent),0 0 10px color-mix(in srgb,var(--panel) 70%,transparent)}
+.sprint-workspace .sprint-group>summary{border-bottom:1px solid color-mix(in srgb,var(--gold) 38%,transparent);letter-spacing:.08em}
+.sprint-workspace .sprint-group>summary::marker{color:var(--gold)}
+.sprint-workspace .sprint-document{background:transparent;border-bottom:1px solid color-mix(in srgb,var(--line) 45%,transparent);border-radius:0;transition:background .15s ease,box-shadow .15s ease}
+.sprint-workspace .sprint-document:hover{background:color-mix(in srgb,var(--panel) 40%,transparent)}
+.sprint-workspace .sprint-document.current{background:color-mix(in srgb,var(--gold) 16%,transparent);box-shadow:inset 3px 0 0 var(--gold)}
+.sprint-workspace .sprint-index-label{color:color-mix(in srgb,var(--gold) 70%,var(--text));font-weight:700}
+.sprint-workspace .sprint-index .hint,.sprint-workspace .sprint-index .empty{color:var(--text);opacity:.82}

@@ -33,7 +33,8 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await card();await open();const deliver=page.locator('[data-journey-deliver="main:study"]');await deliver.click();await deliver.waitFor({state:'detached'});   // 等交付返回再读状态
  const first=await data();assert.equal(first.journey.collection.length,2);assert.equal(first.world_progress.stage,1);
  await page.locator('[data-journey-claim="main:review"]').click();await page.locator('[data-journey-start="main:review"]').click();
- const firstBoard=await page.evaluate(()=>DASH.tree[0].board);await page.locator('[data-study-region]').filter({hasText:subject==='行测'?'明理峰':firstBoard}).click();await page.locator('button[data-yjgo=""]').click();await card();await open();
+ const firstBoard=await page.evaluate(()=>DASH.tree[0].board);if(subject==='行测'){await page.locator('.portal-world').waitFor();await page.evaluate(()=>{STUDY_REGIONS.select('li');return go('train');});}else await page.locator('[data-study-region]').filter({hasText:firstBoard}).click();   // 行测五峰无选择页：叙事“去修炼”回到地图，从地图直接进明理峰
+ await page.locator('button[data-yjgo=""]').click();await card();await open();
  await page.locator('[data-journey-deliver="main:review"]').click();await page.locator('[data-journey-deliver^="daily:"]').click();
  const end=await data();assert.equal(end.world_progress.stage,2);assert.equal(end.journey.collection.length,6);
  assert.match(end.companions[0].feedback,/上次选择/);await bounds();
@@ -51,7 +52,7 @@ async function bounds(){assert.equal(await page.evaluate(()=>{const d=document.q
  await page.locator('[data-narrative="replay"]').click();await page.locator('[data-narrative="skip"]').click();
  assert.equal((await data()).journey.collection.length,6);
  if(process.argv.includes('--shot')){fs.mkdirSync('ui-artifacts/world',{recursive:true});await page.screenshot({path:'ui-artifacts/world/'+(subject||'mage')+'.png'});}
- assert.equal(await page.evaluate(()=>xcBack()),true);await page.evaluate(()=>go('train'));await page.waitForFunction(()=>VIEW==='train'&&!document.querySelector('.portal-atmosphere'));
+ assert.equal(await page.evaluate(()=>xcBack()),true);await page.evaluate(sub=>{if(sub==='行测')STUDY_REGIONS.select('yan');return go('train');},subject);await page.waitForFunction(()=>VIEW==='train'&&!document.querySelector('.portal-atmosphere'));
  assert.equal(await page.locator('.portal-atmosphere').count(),0);assert.equal(await page.locator('.narrative-dialog').count(),0);assert.deepEqual(errors,[]);
  console.log('3.0世界/同伴/真实学习循环检查通过：'+(subject||'法考'));
 }catch(e){if(page){fs.mkdirSync('ui-artifacts/world',{recursive:true});await page.screenshot({path:'ui-artifacts/world/failure-'+(subject||'mage')+'.png'}).catch(()=>{});}throw e;}

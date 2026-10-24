@@ -156,7 +156,14 @@ html[data-scene-time=day] .th-panorama{filter:none}
 .th-art-missing .th-painted-gate{background:var(--ds-paper);border:1px solid var(--ds-line);color:var(--ds-text);text-shadow:none}
 
 /* 修习卷宗：统一纸色、细金层次、大字号题签与宽松的套卷目录。 */
-.th-sect .th-dialog.scene-panel{--ds-text:var(--ds-trial-letter);--ds-muted:color-mix(in srgb,var(--ds-trial-letter) 82%,transparent);--ds-paper:var(--ds-trial-night-sky);--ds-plate-ink:var(--ds-trial-letter);--ds-accent:var(--ds-trial-letter);--ds-line:color-mix(in srgb,var(--ds-trial-letter) 25%,transparent);background:linear-gradient(color-mix(in srgb,var(--ds-trial-night-sky) 40%,transparent),color-mix(in srgb,var(--ds-trial-night-sky) 64%,transparent)),url('assets/beauty/trial/hd/3610/selection.webp') center/cover;border:1px solid var(--ds-gold-line);box-shadow:var(--ds-shadow-3);font-weight:600}
+.th-sect .th-dialog.scene-panel{--ds-text:var(--ds-trial-letter);--ds-muted:color-mix(in srgb,var(--ds-trial-letter) 82%,transparent);--ds-paper:var(--ds-trial-night-sky);--ds-plate-ink:var(--ds-trial-letter);--ds-accent:var(--ds-trial-letter);--ds-line:color-mix(in srgb,var(--ds-trial-letter) 25%,transparent);background:var(--ds-trial-night-sky);isolation:isolate;border:1px solid var(--ds-gold-line);box-shadow:var(--ds-shadow-3);font-weight:600}
+/* 3.7.4 选择面板随场景时间变色：背景图在::before上调色，罩层在::after上，字色与纸色整体互换（晨/午浅底深字，昏/夜深底浅字）。 */
+.th-sect .th-dialog.scene-panel::before,.th-sect .th-dialog.scene-panel::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+.th-sect .th-dialog.scene-panel::before{background:url('assets/beauty/trial/hd/3610/selection.webp') center/cover;filter:var(--th-img-filter,none)}
+.th-sect .th-dialog.scene-panel::after{background:linear-gradient(color-mix(in srgb,var(--ds-trial-night-sky) var(--th-wash-top,40%),transparent),color-mix(in srgb,var(--ds-trial-night-sky) var(--th-wash-bottom,64%),transparent))}
+:root[data-scene-phase="day"] .th-sect .th-dialog.scene-panel{--ds-trial-night-sky:var(--ds-trial-day-paper);--ds-trial-letter:var(--ds-trial-day-ink);--th-img-filter:brightness(1.5) saturate(1.1) contrast(.9);--th-wash-top:52%;--th-wash-bottom:74%}
+:root[data-scene-phase="dawn"] .th-sect .th-dialog.scene-panel{--ds-trial-night-sky:var(--ds-trial-dawn-paper);--ds-trial-letter:var(--ds-trial-dawn-ink);--th-img-filter:brightness(1.35) sepia(.4) hue-rotate(-18deg) saturate(1.3);--th-wash-top:52%;--th-wash-bottom:74%}
+:root[data-scene-phase="dusk"] .th-sect .th-dialog.scene-panel{--ds-trial-night-sky:var(--ds-trial-dusk-paper);--ds-trial-letter:var(--ds-trial-dusk-ink);--th-img-filter:brightness(.95) sepia(.55) hue-rotate(-32deg) saturate(1.6);--th-wash-top:36%;--th-wash-bottom:60%}
 .th-sect .th-dialog-head{padding:var(--ds-sp-20) var(--ds-sp-24);background:transparent;border-bottom:1px solid var(--ds-gold-line)}
 .th-sect .th-eyebrow{letter-spacing:.22em;font-size:var(--ds-fs-12);margin-bottom:var(--ds-sp-8)}
 .th-sect .th-dialog-head h2{font-weight:700;font-size:var(--ds-fs-26);letter-spacing:.18em}

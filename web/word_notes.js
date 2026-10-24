@@ -56,6 +56,8 @@
       while((node=walk.nextNode())){const len=node.textContent.length;if(a===null&&start<=offset+len)a=[node,start-offset];if(end<=offset+len){b=[node,end-offset];break;}offset+=len;}
       if(!a||!b)return null;const r=document.createRange();r.setStart(...a);r.setEnd(...b);return r;
     }
+    const HEADING_LIKE=/^(?:[一二三四五六七八九十百]+[、．.]|[（(](?:[一二三四五六七八九十百]+|\d+)[）)]|\d+[.．、]|《)/;
+    function isHeadingBlock(block){const t=block.textContent.trim();return block.matches('.source-heading,h1,h2,h3,h4')||(t.length>0&&t.length<=64&&HEADING_LIKE.test(t)&&!/[。；！？]/.test(t));}
     function paint(){
       let blockOffset=0;
       for(const block of blocks()){
@@ -66,7 +68,8 @@
           block.querySelectorAll('.source-emphasis,.wxj-key').forEach(el=>el.replaceWith(...el.childNodes));block.normalize();
           const chars=[...block.textContent],positions=[];let utf16=0;
           for(const c of chars){if(!(/\s/.test(c)))positions.push([utf16,utf16+c.length]);utf16+=c.length;}
-          for(const [a,b] of [...reading.ranges].reverse()){
+          const heading=isHeadingBlock(block);     // 标题一律不加红：照常累计偏移，但不给标题套重点
+          for(const [a,b] of heading?[]:[...reading.ranges].reverse()){
             const left=Math.max(a,blockOffset)-blockOffset,right=Math.min(b,blockOffset+positions.length)-blockOffset;
             if(left>=right)continue;
             const range=textRange(block,positions[left][0],positions[right-1][1]);if(!range)continue;

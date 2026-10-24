@@ -19,7 +19,8 @@ html:not(.in-notes) body.has-page-art .fx-panel { background: transparent; borde
 /* 统一时段只处理背景/建筑图片，绝不在内容父容器施加滤镜。 */
 body.has-page-art[data-scene-art="peak"]:not(.portal-home) #bgLayer::after{opacity:0!important}
 /* 没有遮罩托底后，五峰页文字改用更实的同色光晕，亮处的小字也看得清。 */
-body[data-scene-art="peak"] .wx-heading,body[data-scene-art="peak"] .wx-gate,body[data-scene-art="peak"] .wx-category,body[data-scene-art="peak"] .study-region-heading{text-shadow:0 1px 3px var(--panel),0 0 6px var(--panel),0 0 16px var(--panel),0 0 30px var(--panel)}
+body[data-scene-art="peak"] .wx-heading,body[data-scene-art="peak"] .wx-gate,body[data-scene-art="peak"] .wx-category,body[data-scene-art="peak"] .wx-atlas-entry,body[data-scene-art="peak"] .wx-exam-list,body[data-scene-art="peak"] .study-region-heading{text-shadow:0 1px 3px var(--panel),0 0 6px var(--panel),0 0 16px var(--panel),0 0 30px var(--panel)}
+body[data-scene-art="peak"] .wx-gate *,body[data-scene-art="peak"] .wx-category *,body[data-scene-art="peak"] .wx-atlas-entry *,body[data-scene-art="peak"] .wx-exam-list *{text-shadow:0 1px 3px var(--panel),0 0 6px var(--panel),0 0 16px var(--panel),0 0 30px var(--panel)}
 body:not(.portal-home)[data-scene-relight="synthetic"] #bgLayer{filter:var(--ds-scene-filter)}
 body:not(.portal-home)[data-scene-relight="synthetic"] #bgLayer:before{content:"";position:absolute;inset:0;background:var(--ds-scene-tint);pointer-events:none}
 html[data-scene-phase] body:not(.portal-home) .trial-hall .th-landscape,
@@ -44,3 +45,5 @@ html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-landscape {
 body[data-trial-night="true"] .th-landscape:before { display: none; }
 html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-tower-art,
 html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-gate-stage>img { filter: drop-shadow(0 12px 12px var(--ds-sign-shadow)); }
+/* 五峰页去掉整页遮罩后，列表条目自带一层淡淡的毛玻璃，亮山景上的小字也看得清。 */
+body[data-scene-art="peak"] .wx-workspace .wx-exam-list .wx-atlas-entry{background:color-mix(in srgb,var(--panel) 46%,transparent);backdrop-filter:blur(6px);border-radius:var(--ds-r-8);margin-bottom:12px}

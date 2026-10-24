@@ -42,7 +42,7 @@
     const peakScene=view==='train'&&['万象峰','辨言峰','明理峰','演数峰','观星峰'].includes(regionName());
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
-    b.dataset.sceneRelight=(hit?/(?:-night|-dusk)\.webp$/.test(hit):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
+    b.dataset.sceneRelight=(hit?(peakScene||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';   // 五峰有专用昼/昏/夜图，清晨也按原图显示，不再套晨光滤镜
     // 五峰自己的昼/昏/夜画面按原图显示：不再叠整页遮罩（遮罩会把浅色洗白、深色压成灰黑）。
     if(hit&&peakScene)b.dataset.sceneArt='peak';else delete b.dataset.sceneArt;
     b.dataset.sceneRoom=['dwelling','skeleton','notes','settings'].includes(view)||b.classList.contains('guantu')?'indoor':'outdoor';

@@ -76,8 +76,6 @@ html.in-sl-exam .sl-full-grid{height:calc(100dvh - var(--study-workspace-height,
 .study-region-copy small{font-size:var(--ds-fs-11);color:var(--muted)}
 .study-region-copy em{font-style:normal;font-size:var(--ds-fs-12);color:var(--gold);margin-top:8px}
 .study-regions-foot{margin:24px 0 0}
-.study-peak-art{display:block;width:100%;height:auto;color:var(--accent)}
-.peak-sun{fill:var(--gold);opacity:.25}.peak-far{fill:var(--accent2);opacity:.18}.peak-mountain{fill:var(--accent);opacity:.6}.peak-snow{fill:var(--panel);opacity:.8}.peak-shade{fill:var(--accent);opacity:.6}.peak-mist{fill:none;stroke:var(--panel);stroke-width:13;opacity:.6}.peak-path{fill:none;stroke:var(--gold);stroke-width:3;opacity:.8}.peak-pavilion{stroke:var(--text);stroke-width:2;fill:none;opacity:.7}
 .study-offices .study-region,.study-towers .study-region{border-radius:var(--ds-r-12);text-align:left}
 .study-towers .study-region-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .study-offices .study-region-copy,.study-towers .study-region-copy{padding:14px 18px 20px}

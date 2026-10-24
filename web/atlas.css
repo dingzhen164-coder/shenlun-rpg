@@ -32,7 +32,8 @@
 .source-empty{font-size:var(--ds-fs-12);color:var(--muted);padding:7px 8px}
 .original{white-space:normal;font-size:var(--ds-fs-16);line-height:2;max-width:46em;margin:0 auto;line-break:strict;overflow-wrap:anywhere}
 .original p{margin:0 0 1em;text-align:justify}
-.original .source-heading{font-size:var(--ds-fs-16);line-height:1.7;color:var(--route);margin:1.65em 0 .75em;font-weight:700;text-align:left}
+.original .source-heading{font-size:var(--ds-fs-16);line-height:1.7;color:var(--ink);margin:1.65em 0 .75em;font-weight:700;text-align:left}
+.original .source-heading .source-emphasis{color:inherit;font-weight:inherit}   /* 标题不显示红色（含用户在标题里划的重点） */
 .original .source-heading:first-child{margin-top:0}
 .original .source-label{color:var(--route);font-size:var(--ds-fs-14);margin:1.25em 0 .6em;font-weight:700}
 .original .source-item{padding-left:1.4em;text-indent:-1.4em;margin-bottom:.55em}

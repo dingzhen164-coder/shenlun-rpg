@@ -7,7 +7,7 @@
 @media(max-width:1100px) and (orientation:portrait){.wx-gates{gap:16px;margin:28px auto}.wx-gate{min-height:360px;padding:24px 12px}.wx-gate h3{font-size:var(--ds-fs-26);letter-spacing:3px}.wx-gate small{letter-spacing:1px}.wx-gate p{font-size:var(--ds-fs-12)}.wx-category{gap:14px;padding:20px}.wx-heading{gap:15px}.wx-atlas-shell{height:calc(100dvh - var(--study-workspace-height,90px) - 60px)}}
 .wx-atlas-workspace{padding:0;overflow:hidden}.wx-atlas-workspace>.wx-atlas-shell{height:100%}.wx-atlas-workspace .wx-atlas-frame{border-radius:var(--ds-r-8);min-height:0}
 .wx-atlas-workspace .wx-atlas-frame{background:transparent;border:0}
-.wx-import [data-digest-target]{flex:1 1 100%;min-width:0}.wx-import [name=target]{width:100%;max-width:100%;box-sizing:border-box;text-overflow:ellipsis}
+.wx-import [data-import-result]{white-space:pre-line}
 
 /* 透明器物直接浮于山景，不以矩形卡片承载；雾光只铺在整个入口区域。 */
 .wx-home .wx-heading,.wx-workspace:has(>.wx-categories)>.wx-heading{background:transparent;border:0;box-shadow:none;text-shadow:0 1px 5px var(--panel),0 0 18px var(--panel)}
@@ -38,3 +38,18 @@
 @media(max-width:1100px){.wx-workspace .wx-exam-list .wx-atlas-entry{grid-template-columns:112px minmax(0,1fr) 54px;gap:16px;padding:16px 14px}.wx-exam-art{width:112px;height:120px}.wx-workspace .wx-exam-list .wx-atlas-entry b{font-size:var(--ds-fs-22)}}
 @media(prefers-reduced-motion:reduce){.wx-atlas-instrument .wx-atlas-orbit,.wx-atlas-instrument .wx-atlas-glint{animation:none}}
 html.wx-motion-paused .wx-atlas-instrument g{animation-play-state:paused}
+
+/* 3.7.4：导入区“管理已导入文件”：按栏目分组勾选，批量删除（删除前自动备份）。 */
+.wx-manage{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.wx-manage>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:700}
+.wx-manage-group{margin:8px 0;padding:4px 12px 8px;border:1px solid var(--line);border-radius:var(--ds-r-8);min-width:0}
+.wx-manage-group legend{padding:0 6px;font-size:var(--ds-fs-12);color:var(--gold);letter-spacing:.08em}
+.wx-manage-item{display:flex;gap:12px;align-items:flex-start;min-height:44px;padding:8px 0;border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent);cursor:pointer}
+.wx-manage-item:first-of-type{border-top:0}
+.wx-manage-item input{flex:none;width:20px;height:20px;margin-top:2px}
+.wx-manage-item span{min-width:0;overflow-wrap:anywhere}
+.wx-manage-item small{display:block;margin-top:2px;color:var(--muted);font-size:var(--ds-fs-12)}
+.wx-manage-actions{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}
+.wx-manage-actions button{min-height:44px}
+.wx-danger{border-color:var(--red);color:var(--red)}
+.wx-danger:disabled{opacity:.45}

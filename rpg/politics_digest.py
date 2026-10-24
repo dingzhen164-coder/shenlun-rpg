@@ -1,7 +1,11 @@
-"""独立消化清单PDF：按原空位展示，答案仅取显式答案或所选配套原文的唯一匹配。
+"""独立消化清单PDF：按原空位展示，答案仅取显式答案或配套原文的唯一匹配。
 
 wanxiang_journal注册API；训练/时政消化/<目标摘要>.json存PDF模板，原文/<PDF摘要>.pdf留原件，
 进度/<目标摘要>.json单独保存。标红不决定空位；不调用AI，不改讲义、批注或修为。
+
+导入不再选择配套讲义（3.7.4）：每一段清单用它的上下文文字去所有已导入的冲刺讲义、月半、专题里找出处，
+找到的段落分配到对应资料（同一份PDF拆出的几篇讲义共用时归到“整份讲义”），分段保存在各资料的清单里，
+每段记src（在PDF里的序号）以便重复导入不叠加；找不到出处的段落不导入、不猜，导入结果里如实告知。
 """
 import base64
 import hashlib
@@ -43,29 +47,6 @@ def resolve(g, target):
         desc = {'source': 'wanxiang_journal', 'kind': target['kind'], 'id': target['id']}
         return desc, data, data['title']
     raise politics.PoliticsError('配套讲义来源无效')
-
-
-def targets(g):
-    from . import wanxiang_journal as journal
-    out = []
-    for exam in politics.EXAMS:
-        materials = politics.atlas(g.paths, exam['id'])['materials']
-        groups = {}
-        for m in materials:
-            if m.get('practice_only'):
-                continue
-            out.append({'target': {'source': 'atlas', 'exam': exam['id'], 'material': m['id']}, 'label': exam['title']+' · '+m['title']})
-            stem = Path(m.get('pdf', '')).stem
-            if re.fullmatch(r'[0-9a-f]{64}', stem):
-                groups.setdefault(stem, []).append(m)
-        for stem, rows in groups.items():
-            if len(rows)>1:
-                out.append({'target': {'source':'atlas','exam':exam['id'],'bundle':stem}, 'label': exam['title']+' · 整份讲义 · '+(rows[0].get('pdf_name') or rows[0]['title'])+'等%s份资料'%len(rows)})
-    journals=journal.listing(g)
-    for kind in journal.KINDS:
-        for item in journals[kind]:
-            out.append({'target': {'source':'wanxiang_journal','kind':kind,'id':item['id']}, 'label':journal.KINDS[kind]+' · '+item['title']})
-    return {'targets':out}
 
 
 def _pdf_lines(doc):
@@ -268,8 +249,50 @@ def mark(g, body):
     return get(g,body['target'])
 
 
+def _candidates(g):
+    """所有可作为出处的资料：[(资料身份, 文本列表, 同一份讲义PDF的摘要)]；练习占位材料不算。"""
+    from . import wanxiang_journal as journal
+    out=[]
+    for exam in politics.EXAMS:
+        for m in politics.atlas(g.paths,exam['id'])['materials']:
+            if m.get('practice_only'):continue
+            stem=Path(m.get('pdf','')).stem
+            out.append(({'source':'atlas','exam':exam['id'],'material':m['id']},[m['original']],stem if re.fullmatch(r'[0-9a-f]{64}',stem) else ''))
+    listing=journal.listing(g)
+    for kind in journal.KINDS:
+        for item in listing[kind]:
+            data=journal.load(g.paths,kind,item['id'])
+            out.append(({'source':'wanxiang_journal','kind':kind,'id':item['id']},['\n'.join(n['paras']) for n in data['news']],''))
+    return out
+
+
+def _located(template,texts):
+    """清单这一段的各段固定文字是否按顺序出现在某份资料里（相邻不超过240字）；文字太少不足以认定出处。"""
+    lits=[norm(x) for x in BLANK.split(NUMBER.sub('',template))]
+    lits=[x for x in lits if x]
+    if not lits or sum(map(len,lits))<6:return False
+    for raw in texts:
+        text=norm(raw);start=text.find(lits[0]);tries=0
+        while start>=0 and tries<400:
+            at=start+len(lits[0]);ok=True
+            for lit in lits[1:]:
+                i=text.find(lit,at)
+                if i<0 or i-at>240:ok=False;break
+                at=i+len(lit)
+            if ok:return True
+            start=text.find(lits[0],start+1);tries+=1
+    return False
+
+
+def _owners(matches):
+    """出处资料 → 保存位置：同一份讲义PDF拆出的多篇共用一份“整份讲义”清单；其余各自保存（同样原文出现在多份资料就都保存）。"""
+    stems={m[2] for m in matches}
+    if len(matches)>1 and len(stems)==1 and next(iter(stems)) and len({m[0]['exam'] for m in matches})==1:
+        stem=next(iter(stems));return [({'source':'atlas','exam':matches[0][0]['exam'],'bundle':stem},[t for m in matches for t in m[1]])]
+    return [(m[0],m[1]) for m in matches]
+
+
 def import_pdf(g, body):
-    desc,chosen,label=resolve(g,body.get('target'))
     raw=str(body.get('data') or '').split(',',1)[-1]
     if len(raw)>56*1024*1024:raise politics.PoliticsError('请拆成40MB以内的PDF')
     try:content=base64.b64decode(raw,validate=True)
@@ -277,14 +300,38 @@ def import_pdf(g, body):
     if len(content)>40*1024*1024 or not content.startswith(b'%PDF'):raise politics.PoliticsError('请选择40MB以内的PDF')
     paragraphs=parse_pdf(content)
     ident=hashlib.sha256(content).hexdigest()
-    file=_store(g,desc);saved=politics.read_json(file,{'schema':1,'target':desc,'documents':[]})
-    duplicate=any(d['hash']==ident for d in saved['documents'])
-    if not duplicate:
-        name=Path(str(body.get('name') or '消化清单.pdf')).name[:200]
+    name=Path(str(body.get('name') or '消化清单.pdf')).name[:200]
+    candidates=_candidates(g)
+    placed={};unmatched=0       # placed：保存位置摘要 → [资料身份, 文本池, 本次新增的段落]
+    for src,row in enumerate(paragraphs):
+        matches=[c for c in candidates if _located(row['text'],c[1])]
+        if not matches:unmatched+=1;continue
+        for desc,pool in _owners(matches):
+            key=politics.digest(desc)
+            slot=placed.setdefault(key,[desc,pool,[]]);slot[2].append(dict(row,src=src))
+    if not placed:
+        raise politics.PoliticsError('没有在已导入的讲义、月半或专题里找到这份清单的出处，未导入；请先导入对应资料，或检查清单文字与原文是否一致')
+    added=existing=ready=pending=0;targets=0
+    with politics._LOCK:
+        for key,(desc,pool,rows) in placed.items():
+            file=_store(g,desc);saved=politics.read_json(file,{'schema':1,'target':desc,'documents':[]})
+            doc=next((d for d in saved['documents'] if d['hash']==ident),None)
+            if doc is None:doc={'hash':ident,'name':name,'paragraphs':[]};saved['documents'].append(doc)
+            if any('src' not in r for r in doc['paragraphs']):existing+=len(rows);continue     # 旧版整份导入过的同一份PDF：不叠加
+            have={r['src'] for r in doc['paragraphs']}
+            fresh=[r for r in rows if r['src'] not in have]
+            existing+=len(rows)-len(fresh)
+            if not fresh:continue
+            doc['paragraphs'].extend(fresh);targets+=1
+            politics.atomic_json(file,saved)
+            for r in fresh:
+                answers=match_answers(r['text'],pool);explicit=r.get('provided',[])
+                for k in range(len(BLANK.findall(r['text']))):
+                    added+=1
+                    if (explicit[k] if k<len(explicit) else None) or answers[k]:ready+=1
+                    else:pending+=1
         original=g.paths.train/'时政消化/原文'/(ident+'.pdf')
-        original.parent.mkdir(parents=True,exist_ok=True)
-        if not original.exists():original.write_bytes(content)
-        saved['documents'].append({'hash':ident,'name':name,'paragraphs':paragraphs})
-        politics.atomic_json(file,saved)
-    data=get(g,desc)
-    return dict(channel='digest',duplicate=duplicate,title=label,**data['counts'])
+        if not original.exists():
+            original.parent.mkdir(parents=True,exist_ok=True);original.write_bytes(content)
+    return dict(channel='digest',duplicate=not added and bool(existing),title=name,blanks=added,ready=ready,pending=pending,
+                rows=len(paragraphs),unmatched=unmatched,targets=targets)
