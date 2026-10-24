@@ -249,19 +249,20 @@ function banner() {
   const html=w.map(x=>`<div class="warn">${x}</div>`).join("");if($("#banner").innerHTML!==html)$("#banner").innerHTML=html;
 }
 
-// 人物只在行测公共地图和第一层子地图出现，独立于原训练会话。
+// 偶遇只在宗门主页和五峰主入口出现；子页/训练/阅读不保留抽屉。
 window.CHARACTERS?.configure({api, error:showError, scope:()=>DASH?.vault||'', ai:()=>!!DASH?.ai, context:()=>{
   if(isSL()||!DASH?.features?.bank||!DASH?.vault)return null;
   if(document.documentElement.matches('.in-chat,.in-sl-exam,.in-notes,.drawing')
     ||window.CARDS?.isOpen()||window.MINDMAP?.isOpen()
     ||document.querySelector('.narrative-dialog,.yj-stage,.ln-stage'))return null;
-  if(VIEW==='train'||VIEW==='bank'){
+  if(VIEW==='train'){
     if(VIEW===TRAIN_ROUTE&&(T.session||T.busy||T.msgs.length))return null;
-    if(VIEW==='bank')return 'bank';
-    return {'万象峰':'peak-chang','辨言峰':'peak-yan','明理峰':'peak-li','演数峰':'peak-shu','观星峰':'peak-zi'}[window.STUDY_REGIONS?.title()]||'train';
+    const name=window.STUDY_REGIONS?.title();
+    if(name==='万象峰'&&!document.querySelector('#view .wx-home'))return null;
+    if(name!=='万象峰'&&document.querySelector('#view .study-region-heading')?.getAttribute('aria-label')!==name)return null;
+    return {'万象峰':'peak-chang','辨言峰':'peak-yan','明理峰':'peak-li','演数峰':'peak-shu','观星峰':'peak-zi'}[name]||null;
   }
-  if(VIEW==='tianji'&&window.TIANJI?.isOpen())return null;
-  return ['home','contest','skeleton','tianji'].includes(VIEW)?VIEW:null;
+  return VIEW==='home'?'home':null;
 }});
 
 async function render() {

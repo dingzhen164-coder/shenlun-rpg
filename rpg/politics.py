@@ -13,7 +13,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from . import ai, paths, tianji, policy_search
+from . import ai, paths, tianji, policy_search, politics_reading
 
 _LOCK = threading.RLock()
 _STRIPES = [threading.Lock() for _ in range(64)]
@@ -111,7 +111,8 @@ def atlas(pp, exam=None):
         themes.append({'id':'imported', 'name':'导入讲义', 'category':'imported', 'question':'回到原文理解政策',
                        'meaning':'这里保留补充PDF的正文和配套题目，未自动推断其理论归属；可选词生成解释批注。',
                        'pitfall':'以讲义原文及参考答案为准，缺少答案时不判分。'})
-    return dict(base, categories=categories, themes=themes, materials=materials, questions=base['questions'] + extra['questions'])
+    return dict(base, categories=categories, themes=themes, materials=materials, questions=base['questions'] + extra['questions'],
+                practice_question_ids=[q['id'] for q in extra['questions']])
 
 
 def source_counts(data):
@@ -137,18 +138,25 @@ def progress(pp, exam=None):
     return read_json(exam_folder(pp, exam) / '进度.json', {'status': {}, 'attempts': {}})
 
 
-def digest_items(material):
-    """消化卡只取讲义自带挖空或既有回忆题，不用AI编造答案；ID按资料隔离。"""
-    items = []
-    for i, row in enumerate(material.get('cloze', [])):
-        for k, part in enumerate(row.get('parts', [])):
-            if not part.get('a'):
-                continue
-            question = ''.join(('____' if j == k else p.get('t', p.get('a', ''))) for j, p in enumerate(row['parts']))
-            items.append({'id': '%s:blank:%s:%s' % (material['id'], i, k), 'question': question, 'answer': part['a']})
-    for i, row in enumerate(material.get('understanding', {}).get('recall', [])):
-        if row.get('question') and row.get('answer'):
-            items.append({'id': '%s:recall:%s' % (material['id'], i), 'question': row['question'], 'answer': row['answer']})
+def material_source(material, exam=None):
+    """研读/批注共用同一来源，不改原文或旧批注身份；消化按独立PDF空位。"""
+    exam = exam_id(exam)
+    text = material['original']
+    cloze, _ = politics_reading.cloze_ranges(text, [(row, i) for i, row in enumerate(material.get('cloze', []))])
+    return {'text': text, 'title': material['title'], 'date': material.get('date', ''),
+            'id': ['atlas', material['id']] if exam == DEFAULT_EXAM else ['atlas', exam, material['id']],
+            'support': material.get('understanding', {}),
+            'emphasis': politics_reading.merge(politics_reading.raw_ranges(text, material.get('originalEmphasis', []))+cloze)}
+
+
+def digest_items(material, pp=None, exam=None):
+    # 兼容原PDF内已有空位；研读红字与独立回忆问答不再生成消化。
+    items=[]
+    for i,row in enumerate(material.get('cloze',[])):
+        for k,part in enumerate(row['parts']):
+            if part.get('a'):
+                question=''.join('____' if j==k else p.get('t',p.get('a','')) for j,p in enumerate(row['parts']))
+                items.append({'id':'%s:blank:%s:%s'%(material['id'],i,k),'question':question,'answer':part['a']})
     return items
 
 
@@ -164,7 +172,7 @@ def set_progress(pp, body):
             state['status'][key] = body['value']
         elif body.get('field') == 'digest':
             key = str(body.get('id'))
-            if not any(item['id'] == key for material in data['materials'] for item in digest_items(material)):
+            if not any(item['id'] == key for material in data['materials'] for item in digest_items(material, pp, exam)):
                 raise PoliticsError('消化条目不存在')
             value = body.get('value')
             if value not in ('remember', 'forgot', None):
@@ -206,17 +214,14 @@ def source(pp, body):
         idx = body.get('news')
         if type(idx) is not int or not 0 <= idx < len(data['news']):
             raise PoliticsError('时政条目不存在')
-        item = data['news'][idx]
-        return {'text': '\n'.join(item['paras']), 'title': item['title'], 'date': data.get('title', ''),
-                'id': ['wanxiang_journal', data['id'], body.get('kind'), idx], 'support': {}}
+        return wanxiang_journal.news_source(data, body.get('kind'), idx)
     if body.get('source') == 'atlas':
         exam = exam_id(body.get('exam'))
         data = atlas(pp, exam)
         item = next((m for m in data['materials'] if m['id'] == body.get('material')), None)
         if not item:
             raise PoliticsError('材料不存在')
-        return {'text': item['original'], 'title': item['title'], 'date': item.get('date', ''),
-                'id': ['atlas', item['id']] if exam == DEFAULT_EXAM else ['atlas', exam, item['id']], 'support': item.get('understanding', {})}
+        return material_source(item, exam)
     if body.get('source') == 'tianji':
         if body.get('kind') not in tianji.KINDS:
             raise PoliticsError('时政分类无效')
@@ -250,7 +255,11 @@ def validate_anchor(src, body):
     normalize = lambda s: re.sub(r'\s+', '', s)
     if normalize(paragraph) not in normalize(src['text']):
         raise PoliticsError('原文已变化，请重新打开资料')
-    return {'paragraph': paragraph, 'start': start, 'end': end, 'word': word}
+    anchor = {'paragraph': paragraph, 'start': start, 'end': end, 'word': word}
+    if 'block_offset' in body:
+        anchor['block_offset'] = body['block_offset']
+        politics_reading.anchor_range(src['text'], anchor)
+    return anchor
 
 
 def explain(pp, src, body):
@@ -306,6 +315,7 @@ def register(api):
         exam = exam_id(body.get('exam'))
         data = atlas(pp, exam)
         for material in data['materials']:
+            material['reading'] = politics_reading.reading(pp, material_source(material, exam))
             material['digest_items'] = digest_items(material)
         return {'data': data, 'progress': progress(pp, exam), 'exam': next(e for e in EXAMS if e['id'] == exam)}
 
@@ -315,4 +325,5 @@ def register(api):
     api.ROUTES[('POST', '/api/politics/import')] = route(lambda pp, b: __import__('rpg.politics_import', fromlist=['import_pdf']).import_pdf(pp, b))
     api.ROUTES[('POST', '/api/politics/progress')] = route(set_progress)
     api.ROUTES[('POST', '/api/politics/notes')] = route(lambda pp, b: {'notes': list_notes(pp, source(pp, b))})
+    api.ROUTES[('POST', '/api/politics/highlights')] = route(lambda pp, b: politics_reading.mark(pp, source(pp, b), b) if 'enabled' in b else politics_reading.reading(pp, source(pp, b)))
     api.ROUTES[('POST', '/api/politics/explain')] = route(lambda pp, b: explain(pp, source(pp, b), b))

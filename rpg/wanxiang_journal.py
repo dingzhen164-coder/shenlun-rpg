@@ -478,17 +478,35 @@ def progress_of(g, kind, iid):
     return g.state.setdefault("wanxiang_journal", {}).setdefault(kind + ":" + iid, {"read": [], "cloze": {}, "quiz": {}})
 
 
+def news_source(data, kind, index):
+    from . import politics_reading
+    news = data['news'][index]
+    text = '\n'.join(news['paras'])
+    ranges, keys = politics_reading.cloze_ranges(text, [(row, i) for i, row in enumerate(data['cloze']) if row.get('news') == index])
+    return {'text': text, 'title': news['title'], 'date': data.get('title', ''), 'support': {},
+            'id': ['wanxiang_journal', data['id'], kind, index], 'emphasis': ranges, 'cloze_keys': keys}
+
+
+def with_reading(paths, data, kind):
+    from . import politics_reading
+    data['reading'] = [politics_reading.reading(paths, news_source(data, kind, i)) for i in range(len(data['news']))]
+    return data
+
+
 def summary(data, pr):
-    blanks = [(i, k) for i, c in enumerate(data["cloze"]) for k, p in enumerate(c["parts"]) if p.get("a")]
-    seen = [b for b in blanks if "%d-%d" % b in pr["cloze"]]
-    forgot = sum(1 for b in seen if pr["cloze"]["%d-%d" % b] == 0)
+    blanks = ['%d-%d' % (i,k) for i,c in enumerate(data['cloze']) for k,p in enumerate(c['parts']) if p.get('a')]
+    seen = [b for b in blanks if b in pr['cloze']]
+    forgot = sum(1 for b in seen if pr['cloze'][b] == 0)
     done = [q for q in data["questions"] if str(q["key"]) in pr["quiz"]]
     right = sum(1 for q in done if pr["quiz"][str(q["key"])].get("ok"))
     n_news = len(data["news"])
     read = len([i for i in pr["read"] if i < n_news])
-    parts = [read / n_news if n_news else 1, len(seen) / len(blanks) if blanks else 1,
+    count=len(blanks);seen_count=len(seen)
+    if data.get('digest'):
+        count=data['digest']['counts']['blanks'];seen_count=data['digest']['counts']['seen'];forgot=data['digest']['counts']['forgot']
+    parts = [read / n_news if n_news else 1, seen_count / count if count else 1,
              len(done) / len(data["questions"]) if data["questions"] else 1]
-    return {"read": read, "news": n_news, "blanks": len(blanks), "seen": len(seen), "forgot": forgot,
+    return {"read": read, "news": n_news, "blanks": count, "seen": seen_count, "forgot": forgot,
             "questions": len(data["questions"]), "done": len(done), "right": right,
             "frac": round(sum(parts) / 3, 3), "last": pr.get("last", "")}
 
@@ -507,6 +525,8 @@ def listing(g):
             item["id"] = f.stem
             item["heads"] = [n["title"] for n in data.get("news", []) if n.get("stars", 0) >= 2][:5] or \
                             [g_ for g_ in data.get("groups", [])][:5]
+            from . import politics_digest
+            data['digest']=politics_digest.get(g,{'source':'wanxiang_journal','kind':kind,'id':f.stem})
             item["stat"] = summary(data, progress_of(g, kind, f.stem))
             out[kind].append(item)
     out["month"].sort(key=lambda x: (x.get("year") or 0, x.get("month") or 0, HALF_ORDER.get(x.get("half"), 0)), reverse=True)
@@ -518,7 +538,9 @@ def listing(g):
 def get(g, kind, iid):
     if kind not in KINDS:
         raise JournalError("种类不对")
-    data = load(g.paths, kind, iid)
+    data = with_reading(g.paths, load(g.paths, kind, iid), kind)
+    from . import politics_digest
+    data['digest']=politics_digest.get(g,{'source':'wanxiang_journal','kind':kind,'id':iid})
     pr = progress_of(g, kind, iid)
     pr["last"] = g.t
     touch()
@@ -527,7 +549,7 @@ def get(g, kind, iid):
 
 def mark(g, kind, iid, body):
     """记进度：{read: 新闻序号} / {cloze: "条-空", ok: 0|1} / {quiz: 题号, choice: "B"}"""
-    data = load(g.paths, kind, iid)
+    data = with_reading(g.paths, load(g.paths, kind, iid), kind)
     pr = progress_of(g, kind, iid)
     pr["last"] = g.t
     touch()
@@ -543,7 +565,7 @@ def mark(g, kind, iid, body):
                 pr["read"].append(i)
     if "cloze" in body:
         key = str(body["cloze"])
-        allowed = {'%d-%d' % (i, k) for i, row in enumerate(data['cloze']) for k, part in enumerate(row['parts']) if part.get('a')}
+        allowed = {'%d-%d'%(i,k) for i,row in enumerate(data['cloze']) for k,p in enumerate(row['parts']) if p.get('a')}
         if key not in allowed:
             raise JournalError('消化条目不存在')
         if body.get("clear"):
@@ -574,6 +596,8 @@ def mark(g, kind, iid, body):
         part = body["reset"]
         if part in ("read", "cloze", "quiz"):
             pr[part] = [] if part == "read" else {}
+    from . import politics_digest
+    data['digest']=politics_digest.get(g,{'source':'wanxiang_journal','kind':kind,'id':iid})
     return {"progress": pr, "stat": summary(data, pr), "events": ev}
 
 
@@ -602,9 +626,9 @@ def forgot_cards(g, kind, iid):
     pr = progress_of(g, kind, iid)
     made = set(pr.setdefault("carded", []))
     items = []
-    for i, c in enumerate(data["cloze"]):
+    for i,c in enumerate(data['cloze']):
         for k, p in enumerate(c["parts"]):
-            key = "%d-%d" % (i, k)
+            key = '%d-%d'%(i,k)
             if "a" not in p or not p["a"] or pr["cloze"].get(key) != 0 or key in made:
                 continue
             # 取这个空所在的那一句（前后到句号 / 分号）
@@ -715,7 +739,7 @@ def ensure_legacy(g):
 def register(api):
     """万象峰专用接口，行测限定；与旧天机台接口和前端完全分离。"""
     import base64
-    from . import politics, politics_import, ai
+    from . import politics, politics_import, politics_digest, ai
 
     def run(fn, body):
         with api.open_game() as g:
@@ -729,8 +753,9 @@ def register(api):
 
     def import_pdf(g, body):
         channel = body.get('channel', 'sprint-study')
-        if channel not in ('month', 'topic', 'sprint-study', 'sprint-quiz'):
+        if channel not in ('month', 'topic', 'sprint-study', 'sprint-quiz', 'digest'):
             raise JournalError('请选择正确的导入栏目')
+        if channel=='digest':return politics_digest.import_pdf(g,body)
         if channel.startswith('sprint-'):
             return dict(politics_import.import_pdf(g.paths, dict(body, mode='practice' if channel=='sprint-quiz' else 'study')), channel=channel)
         raw = str(body.get('data') or '').split(',', 1)[-1]
@@ -789,3 +814,6 @@ def register(api):
         api.ROUTES[('POST','/api/wanxiang/journal/'+name)] = lambda b, fn=fn: run(fn,b)
     api.ROUTES[('POST','/api/wanxiang/journal/ask')] = ask
     api.ROUTES[('POST','/api/wanxiang/import')] = lambda b: run(import_pdf,b)
+    api.ROUTES[('POST','/api/wanxiang/digest/targets')] = lambda b: run(lambda g,b:politics_digest.targets(g),b)
+    api.ROUTES[('POST','/api/wanxiang/digest/get')] = lambda b: run(lambda g,b:politics_digest.get(g,b.get('target')),b)
+    api.ROUTES[('POST','/api/wanxiang/digest/mark')] = lambda b: run(politics_digest.mark,b)
