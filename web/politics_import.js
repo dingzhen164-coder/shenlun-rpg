@@ -53,8 +53,9 @@
       else notes.push(result.duplicate?'这份PDF已导入，未重复添加。':`已加入 ${result.added} 份材料、${result.questions} 道题。${result.unanswered?`${result.unanswered} 道题未找到参考答案，暂不判分。`:''}${result.whole_document_questions?`${result.whole_document_questions} 道题保留为整份讲义配套练习。`:''}`);
      }catch(error){notes.push(`「${file.name}」未导入：${error.message}`);}
     }
-    message=notes.join('\n');output.textContent=message;
-    await onDone(chosenExam);const panel=root.querySelector('.wx-import');if(panel)panel.open=true;
+    message=notes.join('\n');
+    await onDone(chosenExam);const panel=root.querySelector('.wx-import');if(panel)panel.open=true;/* 先刷新目录再显示结果，避免提示已出现而目录还是旧的 */
+    const live=root.querySelector('[data-import-result]');if(live)live.textContent=message;
    }catch(error){output.textContent='导入未完成：'+error.message;}finally{button.disabled=false;}
   };
  }
