@@ -65,6 +65,9 @@ def main():
             make_pdf(pp.train/'自编补充.pdf', [[(1,'一、自编经济会议'),(1,'在主产区布局产能，支持主产区发展产业。'),
                      (1,'配套练习'),(1,'1.（多选）自编政策对象包括哪些？'),(1,'A.主产区'),(1,'B.生产区'),
                      (1,'C.销售区'),(1,'D.其他'),(1,'参考答案'),(1,'1.【答案】AB。解析：自编选项的说明。')]])
+            from tests.test_politics_exam import make as make_exam, PAGE1 as EXAM1, PAGE2 as EXAM2, ANSWERS as EXAM3
+            with make_exam([EXAM1, EXAM2, EXAM3]) as exam_doc:       # 3.7.5：十套卷式的冲刺刷题PDF（两套，答案按套分开）
+                exam_doc.save(str(pp.train/'自编十套卷.pdf'))
             print('UI-POLITICS ' + str(pp.train), flush=True)
             if '--wanxiang373-fixture' in sys.argv:
                 # 本批界面只用自编长题、四类目录与零空场人物，仍是隔离临时库。
