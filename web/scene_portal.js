@@ -23,8 +23,8 @@
   const placeName = (p, layout=load()) => layout.names[p.id] || p.label;
   const PEAK_GLYPH = {'peak-chang':'政','peak-yan':'言','peak-li':'邏','peak-shu':'數','peak-zi':'資'};
   function placeIcon(p){
-    const glyph=config.id==='xingce'&&PEAK_GLYPH[p.id];
-    return glyph?`<span class="portal-calligraphy no-ic">${glyph}</span>`:(PLACE_ICON[p.id]||'◆');
+    const glyph=p.glyph||(config.id==='xingce'&&PEAK_GLYPH[p.id]);
+    return glyph?`<span class="portal-calligraphy no-ic">${esc(glyph)}</span>`:(PLACE_ICON[p.id]||'◆');
   }
   function title(view) {return view==='home'?config?.title:config?.viewTitles?.[view]||config?.places.find(p=>p.view===view)&&placeName(config.places.find(p=>p.view===view));}
   const layoutKey = () => 'scene-layout:' + config.id + ':saved'; // 稳定键不随版本/美术文件名变动
