@@ -672,3 +672,6 @@ shared rpg/study_lamp.py
 shared web/study_lamp.js
 shared tests/test_study_lamp.py
 diverged tests/ui_study_lamp366.cjs
+shared tools/release_precheck.py
+shared tests/test_release_precheck.py
+diverged tools/release_acked_branches.txt

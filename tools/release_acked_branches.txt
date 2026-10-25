@@ -1,0 +1,4 @@
+# 长期确认“不随发布”的远端分支（一行一个，不带 origin/；#开头为注释）。新的并行分支不要写在这里，要合入当前分支。
+claude/shenlun-fakao-rpg-updates-6tnbxx   # 2026-10-22 的旧分支（3.6.6/3.6.7 当时的改动已另行发布）
+claude/practical-maxwell-pgcmzg           # 2026-10-12 的旧文档分支
+claude/determined-cannon-8bgw1p           # 2026-10-22 的旧分支
