@@ -16,7 +16,13 @@ async function setTime(p,mode){await p.evaluate(m=>{localStorage.setItem('scene-
  const p=await browser.newPage({viewport});active=p;const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());
  assert.deepEqual(await p.evaluate(()=>[5.49,5.5,8,17,19.5].map(h=>SCENE_CLOCK.phase(new Date(2026,9,17,Math.floor(h),Math.round(h%1*60))))),['night','dawn','day','dusk','night']);
  for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);for(const mode of ['day','night']){
-  await setTime(p,mode);await p.evaluate(()=>go('home'));assert(await p.locator('.portal-'+mode).first().isVisible());
+  await setTime(p,mode);await p.evaluate(()=>go('home'));
+  const homeArt=await p.evaluate(m=>{
+   const stage=document.querySelector('.portal-stage');
+   if(document.body.classList.contains('xuanhuan')&&matchMedia('(orientation: portrait)').matches)
+    return getComputedStyle(stage,'::before').backgroundImage.includes('academy-');
+   return [...document.querySelectorAll('.portal-'+m)].some(img=>img.getClientRects().length&&getComputedStyle(img).display!=='none');
+  },mode);assert(homeArt,'对应时段的学院或地图背景可见');
   for(const view of ['dwelling','train','skeleton','notes','settings',...(subject==='申论'?[]:['bank','contest'])]){
    await p.evaluate(v=>go(v),view);if(view==='bank'||view==='contest')await p.locator(view==='bank'?'.th-landscape':'.cs-landscape').waitFor();else await p.waitForFunction(()=>document.body.classList.contains('has-page-art'));
    assert.equal(await p.evaluate(()=>document.documentElement.dataset.sceneTime),mode);const filter=await p.locator(view==='bank'?'.th-landscape':view==='contest'?'.cs-landscape':'#bgLayer').evaluate(e=>getComputedStyle(e).filter);

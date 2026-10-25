@@ -65,6 +65,9 @@ def main():
             make_pdf(pp.train/'自编补充.pdf', [[(1,'一、自编经济会议'),(1,'在主产区布局产能，支持主产区发展产业。'),
                      (1,'配套练习'),(1,'1.（多选）自编政策对象包括哪些？'),(1,'A.主产区'),(1,'B.生产区'),
                      (1,'C.销售区'),(1,'D.其他'),(1,'参考答案'),(1,'1.【答案】AB。解析：自编选项的说明。')]])
+            from tests.test_politics_exam import make as make_exam, PAGE1 as EXAM1, PAGE2 as EXAM2, ANSWERS as EXAM3
+            with make_exam([EXAM1, EXAM2, EXAM3]) as exam_doc:       # 3.7.5：十套卷式的冲刺刷题PDF（两套，答案按套分开）
+                exam_doc.save(str(pp.train/'自编十套卷.pdf'))
             print('UI-POLITICS ' + str(pp.train), flush=True)
             if '--wanxiang373-fixture' in sys.argv:
                 # 本批界面只用自编长题、四类目录与零空场人物，仍是隔离临时库。
@@ -108,6 +111,15 @@ def main():
                         im.save(d / ('sl-zhoujingyi-%s.png' % expr))
                 if s2 == '行测':
                     (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
+        if '--art-generic-train' in sys.argv:
+            # 3.7.4：用户在美术文件夹里放过“修炼”整页背景（白天/夜晚/无后缀）——五峰仍须各用自己的图，不被它顶替。
+            import base64
+            from rpg import art as _art
+            png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            for _f, name, rel, *_r in _art.slots('行测'):
+                if rel in ('beauty/page/train.webp', 'beauty/page/train-day.webp', 'beauty/page/train-night.webp'):
+                    (d / (name + '.png')).write_bytes(png)
         if '--art-real' in sys.argv:
             # 看合成效果用：把程序自带的青衡宗全景当作所有行测子地图的背景
             from PIL import Image

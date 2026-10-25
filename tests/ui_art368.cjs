@@ -1,7 +1,7 @@
-/* 仅美术验收：五峰三时段真实解码、原位换图、黄昏设置与横竖屏，不触发发布全量检查。 */
+/* （3.7.4起服务夹具放了“修炼”整页背景，五峰仍须用自己的图。）仅美术验收：五峰三时段真实解码、原位换图、黄昏设置与横竖屏，不触发发布全量检查。 */
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {spawn}=require('node:child_process'),{chromium}=require('playwright');
-const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py','行测'],{env:process.env});
+const srv=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py','行测','--art-generic-train'],{env:process.env});
 let logs='',page,browser;srv.stderr.on('data',b=>logs+=b);
 const ready=new Promise((resolve,reject)=>{let s='';const t=setTimeout(()=>reject(Error(logs)),20000);srv.stdout.on('data',b=>{s+=b;const m=s.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(t);resolve(m[1]);}});srv.on('exit',()=>{clearTimeout(t);reject(Error(logs));});});
 (async()=>{try{

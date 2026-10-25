@@ -40,7 +40,7 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
    await page.evaluate(async data=>api('/api/wanxiang/import',{channel:'sprint-quiz',name:'自编补充.pdf',data}),fs.readFileSync(train+'/自编补充.pdf').toString('base64'));
    f=await enter();await f.locator('#nav [data-go=practice]').click();
   }
-  await f.locator('.question').waitFor();assert((await f.locator('.question .chip').textContent()).includes('第2题'),'只显示导入题，内置第1题不混入');assert.equal(await f.locator('.wx-reflow-line').count(),5,'题干与四个选项分别自动折行');
+  await f.locator('.question').waitFor();assert.equal(await f.locator('.question').getAttribute('id'),'q2','只显示导入题（题号2），内置第1题不混入');assert((await f.locator('.question .chip').textContent()).includes('第1题'),'卡片显示套卷内题号');assert.equal(await f.locator('.wx-reflow-line').count(),5,'题干与四个选项分别自动折行');
   if(size==='desktop'&&theme==='light'){await f.locator('#atlasSearch').click();await f.locator('#search').fill('本段支持谁');await f.locator('[data-question-link="1"]').click();await f.locator('#q1').waitFor();assert.equal(await f.locator('[data-tab=questions][aria-selected=true]').count(),1,'搜索内置题进入讲义精卷，不跳到只含导入题的刷题区');await f.locator('.atlas-reading-tools [data-go=sprint]').click();}
   await f.locator('#nav [data-go=month]').click();await f.locator('[data-open="month|2026-10-上"]').click();await f.locator('.wxj-news-body[data-highlights-ready=true]').waitFor();
   await f.locator('[data-mode=cloze]').click();assert.deepEqual(await f.locator('.wxj-b[data-digest-blank]').allTextContents(),['主产区'],'期刊兼容原PDF的消化清单');

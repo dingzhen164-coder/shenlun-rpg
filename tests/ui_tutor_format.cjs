@@ -18,6 +18,12 @@ const text=`选 B 吗？被“横空出世”带跑了。\n\n**结论：选 D**�
   assert(titles.some(t=>t.trim()==='用什么方法'),'加粗小标题自成一段');
   assert.doesNotMatch(await p.locator('#fmtbox .tutor-md').first().innerHTML(),/\*\*|\|---/,'没有残留的 Markdown 符号');
   assert.equal(await p.locator('#fmtbox .tutor-md').count(),1,'纯文字不走富文本');
+  // 旧讲解里的 LaTeX（\\( … \\)）显示成读得懂的普通文字，富文本和纯文字两条渲染路径都一样
+  const latex='设总人数为 \\(100a+10b+c\\)，得 \\(90(a-b)=270\\)，所以 \\(b=a-3\\)；\\(x\\equiv3\\pmod4\\)。';
+  for(const html of await p.evaluate((t)=>[msgHtml({who:'npc',text:t}),msgHtml({who:'npc',text:'**结论**\n\n'+t}),blocksHtml([{t:'text',v:t}])],latex)){
+   assert(html.includes('100a+10b+c')&&html.includes('90(a-b)=270')&&html.includes('b=a-3')&&html.includes('x≡3（mod 4）'),'公式换成普通文字：'+html);
+   assert(!/\\\(|\\\)|\\equiv|\\pmod/.test(html),'没有残留的LaTeX：'+html);
+  }
   assert.match(await p.locator('#fmtbox .say').nth(1).innerHTML(),/一句普通的话<br>换行不丢/);
   const over=await p.evaluate(()=>{const r=document.querySelector('#fmtbox .tutor-md table').getBoundingClientRect();return r.right>innerWidth+2||document.documentElement.scrollWidth>innerWidth+2;});
   assert(!over,label+' 表格不伸出屏幕');

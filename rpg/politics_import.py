@@ -11,7 +11,7 @@ import statistics
 from functools import lru_cache
 from pathlib import Path
 
-from . import politics, political_outline, wanxiang_journal
+from . import politics, political_outline, politics_exam, wanxiang_journal
 
 Q = re.compile(r'^(\d+)[.．、]\s*(?:【[^】]+】)?(?:[（(](单选|多选|不定项)[)）])?(.*)')
 OPTION = re.compile(r'^([A-D])[.．、)）]\s*(.*)')
@@ -232,10 +232,21 @@ def import_pdf(pp, body):
                 raise politics.PoliticsError('请先解密PDF后再导入')
             if not any(p.get_text().strip() for p in doc):
                 raise politics.PoliticsError('这份PDF没有可提取文字，请先做文字识别（OCR）再导入')
-            try:
-                units, questions = _known(path)
-            except wanxiang_journal.JournalError:
-                units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
+            exam_report = None
+            if body.get('mode') == 'practice':
+                # 冲刺刷题：按套卷→题号→选项切分；识别不到题再退回通用解析。
+                papers, parsed, exam_report = politics_exam.parse(doc, str(body.get('name') or '冲刺刷题.pdf'))
+                if parsed:
+                    units = [{'title': x['title'], 'original': '', 'practice_only': True} for x in papers]
+                    questions = [{'text': q['text'], 'answer': q['answer'], 'analysis': q['analysis'], 'owner': q['paper'], 'no': q['no'],
+                                  'paper': papers[q['paper']]['title']} for q in parsed]
+                else:
+                    exam_report = None
+            if exam_report is None:
+                try:
+                    units, questions = _known(path)
+                except wanxiang_journal.JournalError:
+                    units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
             _layout_text(doc, questions)
     except (RuntimeError, ValueError) as error:
         if isinstance(error, politics.PoliticsError):
@@ -284,10 +295,11 @@ def import_pdf(pp, body):
             ids[i] = m
             added += 1
         next_id = max((int(q['id']) for q in data['questions']), default=0)+1
-        seen = {politics.digest([q['text'], q['answer']]) for q in data['questions']}
+        sign = lambda q: politics.digest([q['text'], q['answer']] + ([q['paper'], q['no']] if q.get('paper') else []))
+        seen = {sign(q) for q in data['questions']}
         added_q = 0
         for q in questions:
-            signature = politics.digest([q['text'], q['answer']])
+            signature = sign(q)
             if signature in seen:
                 continue
             m = ids[q['owner']]
@@ -295,7 +307,8 @@ def import_pdf(pp, body):
             stored = next((x for x in extra['materials'] if x['id'] == m['id']), None)
             links = stored['questions'] if stored else extra.setdefault('links', {}).setdefault(m['id'], [])
             extra['questions'].append({'id': next_id, 'material': m['id'], 'text': q['text'], 'answer': q['answer'], 'analysis': q.get('analysis', ''), 'tags': m['tags'],
-                                       'layout_text': q.get('layout_text', ''), 'pdf': path.relative_to(pp.vault).as_posix()})
+                                       'layout_text': q.get('layout_text', ''), 'pdf': path.relative_to(pp.vault).as_posix(),
+                                       **({'no': q['no'], 'paper': q['paper']} if q.get('paper') else {})})
             links.append(next_id)
             next_id += 1
             added_q += 1
@@ -304,4 +317,5 @@ def import_pdf(pp, body):
         politics.atomic_json(file, extra)
         combined = politics.atlas(pp, exam)
         return {'added': added, 'questions': added_q, 'duplicate': False, 'counts': politics.source_counts(combined),
-                'unanswered': sum(not q['answer'] for q in questions), 'whole_document_questions': sum(units[q['owner']].get('practice_only', False) for q in questions)}
+                'unanswered': sum(not q['answer'] for q in questions), 'whole_document_questions': sum(units[q['owner']].get('practice_only', False) for q in questions),
+                'exam': exam_report}

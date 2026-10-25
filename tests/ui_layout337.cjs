@@ -33,10 +33,13 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.evaluate(async region=>{STUDY_REGIONS.select(region);await go('train');},region);await p.locator('.fx-region-work').waitFor();
   assert.equal(await p.locator('[data-study-regions-back]').count(),0);assert(await p.locator('.subpage-place').innerText().then(s=>s.includes(subject==='行测'?'辨言峰':board)));
   const geometry=await p.evaluate(()=>{const a=document.querySelector('.fx-region-work').getBoundingClientRect(),v=document.querySelector('#view').getBoundingClientRect(),h=document.querySelector('#studyHud').getBoundingClientRect(),cards=[...document.querySelectorAll('.fx-region-work>.card')].map(e=>({height:e.clientHeight,scroll:e.scrollHeight}));return {top:a.top,bottom:a.bottom,viewBottom:v.bottom,hudBottom:h.bottom,cards};});
-  if(subject==='行测'){
+  const activeSubject=await p.evaluate(()=>document.body.classList.contains('xuanhuan')?'法考':DASH.subject);
+  if(activeSubject==='行测'){
    const panel=await p.locator('.fx-scenic-peak').boundingBox();
    assert(panel.width<viewport.width*.95&&panel.height<viewport.height*.8,'四峰选择页收拢、留出山景 '+JSON.stringify(panel));
    assert(geometry.top>geometry.hudBottom+24&&geometry.bottom<geometry.viewBottom-24,'四峰上下留景 '+JSON.stringify(geometry));
+  }else if(activeSubject==='法考'){
+   assert(geometry.top>geometry.hudBottom+48&&geometry.bottom<geometry.viewBottom-8&&geometry.cards.every(c=>c.height>180),'学科楼展示环境且资料卡可读 '+JSON.stringify(geometry));
   }else assert(Math.abs(geometry.bottom-geometry.viewBottom)<20&&Math.abs(geometry.top-geometry.hudBottom)<24,'资料用满顶栏下工作区 '+JSON.stringify(geometry));
   assert(geometry.cards.every(c=>c.height>100));
   if(process.argv.includes('--shots')&&size==='tablet'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-region.png')});}
