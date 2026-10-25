@@ -12,6 +12,7 @@
   const TAB_KEY = { '修为与突破': 'growth', '仕途与晋升': 'growth', '成长与晋升': 'growth', '十二经': 'shier', '修行记录': 'records', '学习记录': 'records', '储物袋': 'bag', '修行日志': 'diary', '学时与出勤': 'daily', '时辰与日课': 'daily' };
   const REGION_KEY = { '万象峰': 'chang', '辨言峰': 'yan', '明理峰': 'li', '演数峰': 'shu', '观星峰': 'zi', '归纳概括': 'guina', '综合分析': 'zonghe', '提出对策': 'duice', '贯彻执行': 'guanche', '大作文': 'dazuowen',
     '民法': 'minfa', '刑法': 'xingfa', '民诉': 'minsu', '刑诉': 'xingsu', '行政法': 'xingzheng', '商经知': 'shangjing', '三国法': 'sanguo', '理论法': 'lilun' };
+  const PEAK_NAMES = ['万象峰', '辨言峰', '明理峰', '演数峰', '观星峰'];
   const regionName = () => { try { return window.STUDY_REGIONS ? STUDY_REGIONS.title() : ''; } catch (e) { return ''; } };
   const tabLabel = () => { const t = document.querySelector('.fx-tab[aria-selected="true"]'); return t ? t.textContent.trim() : ''; };
   let view = '', applied='';
@@ -21,6 +22,8 @@
       const tk = page === 'dwelling' ? TAB_KEY[tabLabel()] : '';              // 洞府每个页签可单独配背景，没有就回退洞府整体背景
       if (tk) {want.push(`beauty/page/dwelling-${tk}-${dn}.webp`, `beauty/page/dwelling-${tk}.webp`);fallback.push(...others.map(t=>`beauty/page/dwelling-${tk}-${t}.webp`));}
       const rk = page === 'train' ? REGION_KEY[regionName()] : '';          // 修炼页选中某个分区（五峰等）时可单独配背景
+      // 行测五峰各有自己的昼/昏/夜图：只在本峰的图里选，用户放在美术文件夹里的“修炼”整页背景不能把五峰顶替成同一张。
+      if (rk && PEAK_NAMES.includes(regionName())) return [`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`, ...others.map(t => `beauty/page/train-${rk}-${t}.webp`)].find(has);
       if (rk) {want.push(`beauty/page/train-${rk}-${dn}.webp`, `beauty/page/train-${rk}.webp`);fallback.push(...others.map(t=>`beauty/page/train-${rk}-${t}.webp`));}
       want.push(`beauty/page/${page}-${dn}.webp`, `beauty/page/${page}.webp`);fallback.push(...others.map(t=>`beauty/page/${page}-${t}.webp`));
       want.push(...fallback);
@@ -39,7 +42,7 @@
   }
   function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
     // 五峰是独立地点，不再被旧全局背景压住；专门设置的峰/页背景仍优先。
-    const peakScene=view==='train'&&['万象峰','辨言峰','明理峰','演数峰','观星峰'].includes(regionName());
+    const peakScene=view==='train'&&PEAK_NAMES.includes(regionName());
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
     b.dataset.sceneRelight=(hit?(peakScene||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';   // 五峰有专用昼/昏/夜图，清晨也按原图显示，不再套晨光滤镜

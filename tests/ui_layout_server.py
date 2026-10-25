@@ -108,6 +108,15 @@ def main():
                         im.save(d / ('sl-zhoujingyi-%s.png' % expr))
                 if s2 == '行测':
                     (d / '子地图背景' / '洞府-十二经.png').write_bytes(png); (d / '子地图背景' / '万象峰.png').write_bytes(png)
+        if '--art-generic-train' in sys.argv:
+            # 3.7.4：用户在美术文件夹里放过“修炼”整页背景（白天/夜晚/无后缀）——五峰仍须各用自己的图，不被它顶替。
+            import base64
+            from rpg import art as _art
+            png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            for _f, name, rel, *_r in _art.slots('行测'):
+                if rel in ('beauty/page/train.webp', 'beauty/page/train-day.webp', 'beauty/page/train-night.webp'):
+                    (d / (name + '.png')).write_bytes(png)
         if '--art-real' in sys.argv:
             # 看合成效果用：把程序自带的青衡宗全景当作所有行测子地图的背景
             from PIL import Image
