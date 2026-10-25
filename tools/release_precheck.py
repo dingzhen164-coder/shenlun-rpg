@@ -124,7 +124,7 @@ def check_versions(root, remote='origin'):
     if req.get('version') != ver:
         out.append((FAIL, '.github/release-request.json 的版本是 %s，和 version.py 的 %s 不一致' % (req.get('version'), ver)))
     top = re.split(r'^## ', log, flags=re.M)[1:2]
-    need_note = '旧存档照常使用' in (read(os.path.join(root, 'CLAUDE.md')) or '')     # 只有规则文件要求每版都写时才检查
+    need_note = '更新记录都写明“旧存档照常使用”' in (read(os.path.join(root, 'CLAUDE.md')) or '')     # 只有规则文件要求每版都写时才检查
     if need_note and top and '旧存档照常使用' not in top[0]:
         out.append((FAIL, '更新记录顶部这一节没有写“旧存档照常使用”（CLAUDE.md 要求每个版本都写）'))
     git(root, 'fetch', '-q', '--tags', remote)
