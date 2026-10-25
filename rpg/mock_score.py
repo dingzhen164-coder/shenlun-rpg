@@ -28,7 +28,7 @@ def estimate(g, directory, counts, rec):
     except (ValueError,TypeError,InvalidOperation,OverflowError):
         return dict(ready=False,score=None,known_score=None,reason='参考题量或分值无效，请核对训练/规则.md',modules={},unknown=0)
     metadata=rec.get('html_import') or {}
-    known=set(metadata.get('known_numbers') or [])
+    known=set(metadata.get('known_numbers') or [])|set((rec.get('exam') or {}).get('known_numbers') or [])     # 整卷考试批改过的题（没答的算0分）
     numbers,unknown,duplicate=set(),0,False
     for f in directory.glob('[0-9][0-9]-*.md'):
         for q in vault.parse_board_file(f):

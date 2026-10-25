@@ -80,6 +80,7 @@ def main():
                         text='二、自编标题\n（一）自编小标题\n'+m['original'];m.update(original=text,originalEmphasis=[[0,len(''.join(text.split()))]])
                     data['materials'].append(m)
                 politics.atomic_json(pp.train/'时政知识地图/内容.json',data)
+                make_pdf(pp.train/'自编完整清单.pdf',[[(1,'自编消化清单'),(1,'一、自编小标题'),(1,'1.在________布局产能。'),(1,'自编的普通句子，没有空也要原样保留。'),(1,'2.自编未知政策提出________要求。'),(1,'3.自编另一条未知政策补充________内容。')]])      # 3.7.6：整份保留与待补全的界面检查
                 make_pdf(pp.train/'自编消化清单.pdf',[[(1,'自编消化清单'),(1,'1.在________布局产能。'),(1,'2.自编未知政策提出________要求。')]])
                 news['questions']=[{'key':0,'no':1,'kind':'单选','stem':'自编题面应该连续显示，不应在半句\n中换行。'*5,'stmts':[],'opts':{'A':'自编甲方选项\n的续行','B':'自编乙方','C':'自编丙方','D':'自编丁方'},'answer':'A','analysis':'自编说明','news':0}]
                 news['news'][0]['qs']=[0]

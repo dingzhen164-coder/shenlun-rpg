@@ -29,6 +29,18 @@ class MockError(Exception):
     pass
 
 
+def season_name(g, n):
+    """这一场模考给人看的名字：整卷考试的试卷用自己的名字（如“花生26下模拟卷第一套”），旧的粉笔季仍叫“第N季”。内部编号n不变。"""
+    rec = g.state.get("mocks", {}).get(str(n), {})
+    return str(rec.get("name") or "").strip() or "第%d季" % n
+
+
+def safe_name(name):
+    """名字用在文件名里：去掉不能做文件名的字符"""
+    import re
+    return re.sub(r'[\\/:*?"<>|\s]+', "", str(name))[:40] or "未命名"
+
+
 def exam_date(value):
     """考试日共用唯一ISO字段；旧空日期不猜测，不因图表读取改存档。"""
     if not value:
@@ -131,12 +143,12 @@ def set_score(g, n, score, source):
     rec = g.state.setdefault("mocks", {}).setdefault(str(n), {})
     had = rec.get("score") is not None or _boss_score(g, n) is not None or _credited(g, n)
     rec["score"] = _num(score, 0, 100)
-    rec["score_source"] = source if source in ("html", "estimate", "ocr", "manual") else "manual"
+    rec["score_source"] = source if source in ("html", "estimate", "ocr", "manual", "exam") else "manual"
     rec["date"] = str(rec.get("date") or g.t)[:10]
     unhide(g, n)
     if rec["score"] is not None and not had:
         _mark_credited(g, n)
-        return g.add_boss("第%d季" % n, rec["score"])
+        return g.add_boss(season_name(g, n), rec["score"])
     return []
 
 
@@ -194,7 +206,7 @@ def summary(g):
                 review.append({"board": b, "total": len(qs), "ok": sum(q["icon"] == "✅" for q in qs),
                                "wrong": sum(q["icon"] == "❌" for q in qs), "blank": sum(q["icon"] == "⚪" for q in qs),
                                "reviewed": len(set(rv.get(b, [])) & {q["num"] for q in qs}), "resume": pos.get(b)})
-        seasons.append({"season": n, "date": rec.get("date", ""), "score": score, "score_from_boss": rec.get("score") is None and score is not None,
+        seasons.append({"season": n, "name": season_name(g, n), "date": rec.get("date", ""), "score": score, "score_from_boss": rec.get("score") is None and score is not None,
                         "estimate":estimate,"reported_score":(rec.get("html_import") or {}).get("reported_score"),
                         "score_source":rec.get("score_source","manual"),
                         **{k: rec.get(k) for k in FIELDS[1:]},
@@ -245,6 +257,9 @@ def save(g, body):
     if rec["rank"] and rec["people"] and rec["rank"] > rec["people"]:
         raise MockError("排名不能大于总人数")
     rec["date"] = date or rec.get("date") or g.t
+    name = str(body.get("name") or "").strip()[:40]
+    if name:
+        rec["name"] = name
     rec["minutes"] = {m: v for m in MODULE_NAMES
                       if (v := _num((body.get("minutes") or {}).get(m), 0, 300)) is not None}
     rep = body.get("report")
@@ -257,7 +272,7 @@ def save(g, body):
     ev = []
     if rec["score"] is not None and not had_score:
         _mark_credited(g, n)
-        ev = g.add_boss("第%d季" % n, rec["score"])
+        ev = g.add_boss(season_name(g, n), rec["score"])
     return ev
 
 
@@ -297,7 +312,7 @@ def _facts(g, season):
             blank = [q["num"] for q in vault.parse_board_file(f) if q["icon"] == "⚪"]
             if bad or blank:
                 wrong[f.stem[3:]] = {"错": bad, "未作答/未录": blank}
-    slim = lambda s: {"季": s["season"], "日期": s["date"], "我的分数": s["score"], "大比平均分": s.get("avg"), "最高分": s.get("top"),
+    slim = lambda s: {"季": s["season"], "试卷名": s.get("name"), "日期": s["date"], "我的分数": s["score"], "大比平均分": s.get("avg"), "最高分": s.get("top"),
                       "已击败%": s.get("beat"), "排名": s.get("rank"), "总人数": s.get("people"), "答对": s["ok"], "题数": s["total"],
                       "总用时分钟": s["minutes"],
                       "模块": [{"模块": m["name"], "对": m["ok"], "题数": m["total"], "正确率%": round(m["acc"] * 100, 1),
@@ -343,7 +358,8 @@ def write_analysis(g, season):
     folder.mkdir(parents=True, exist_ok=True)
     who = {"user": "🧑 我", "assistant": "🌸 " + g.persona["导师名"]}
     body = "\n\n".join("**%s**（%s）：\n\n%s" % (who[m["role"]], m.get("t", ""), m["content"].strip()) for m in conv)
-    (folder / ("第%d季考情分析.md" % season)).write_text("# 第%d季 · 宗门大比考情分析\n\n%s\n" % (season, body), encoding="utf-8", newline="\n")
+    name = season_name(g, season)
+    (folder / ("%s考情分析.md" % safe_name(name))).write_text("# %s · 宗门大比考情分析\n\n%s\n" % (name, body), encoding="utf-8", newline="\n")
 
 
 def after_marks(g, season):
@@ -354,5 +370,5 @@ def after_marks(g, season):
     c = season_counts(g.paths, sd)
     ok = sum(x["ok"] for x in c.values())
     for p in g.state.get("practice", []):
-        if p.get("source") == "粉笔第%d季模考" % season and p.get("board") == "模考":
+        if p.get("source") in ("粉笔第%d季模考" % season, g.state.get("mocks", {}).get(str(season), {}).get("practice_source")) and p.get("board") == "模考":
             p["correct"] = min(ok, p.get("total") or ok)

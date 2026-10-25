@@ -1222,7 +1222,8 @@ class Game:
             w["item"] = iid
         self._heal_progress("wrong", key, ok)
         n, src, num = key.split("|")
-        label = f"第{n}季{src}第{num}题"
+        from . import mock
+        label = f"{mock.season_name(self, int(n))}{src}第{num}题"
         gap = int(self.rules.num("回炉间隔天数"))
         if ok:
             w["streak"] = w["streak"] + 1 if redo else 1

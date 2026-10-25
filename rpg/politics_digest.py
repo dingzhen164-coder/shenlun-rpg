@@ -19,7 +19,7 @@ BLANK = re.compile(r'(?:[_＿﹍﹎][ \t]*){2,}|（[ \u3000]*）|\([ \u3000]{2,}
 NUMBER = re.compile(r'^\s*(\d+)[.．、]\s*')
 
 
-RV = 2          # 识别规则版本：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
+RV = 3          # 识别规则版本（3：整份保留全文——标题、没有空的段落、加粗都留下）：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
 _ASCII_PUNCT = {'(': '（', ')': '）', ',': '，', ';': '；', ':': '：', '!': '！', '?': '？'}
 
 
@@ -113,16 +113,21 @@ def _pdf_lines(doc):
                 for c in covered:c[4]=True
             else:row.append([left,right,'',False,True])
         for y,row in sorted(rows.items()):
-            text='';gap=False
+            cells=[];gap=False                                  # [(字, 是否加粗)]：留着逐字的加粗信息，段落里的加粗重点才能原样显示
             for c in sorted(row,key=lambda c:(c[0],c[1])):
                 if c[4]:
-                    if not gap:text+='____';gap=True
-                else:text+=c[2];gap=False
-            text=re.sub(r'(?<=[^\x00-\x7f])[ \t]+(?=[^\x00-\x7f])','',text)      # 中文字符之间的空格是排版留下的，不是内容
+                    if not gap:cells+=[('_',False)]*4;gap=True
+                else:cells+=[(ch,bool(c[3])) for ch in c[2]];gap=False
+            text=''.join(ch for ch,_ in cells)
+            drop={i for m in re.finditer(r'(?<=[^\x00-\x7f])[ \t]+(?=[^\x00-\x7f])',text) for i in range(m.start(),m.end())}      # 中文字符之间的空格是排版留下的，不是内容
+            cells=[c for i,c in enumerate(cells) if i not in drop]
+            while cells and not cells[0][0].strip():cells.pop(0)
+            while cells and not cells[-1][0].strip():cells.pop()
+            text=''.join(ch for ch,_ in cells)
             letters=[c for c in row if c[2].strip()]
             weight=sum(c[3] for c in letters)/max(1,len(letters))
             if not text.strip() or (y>page.rect.height*.9 and re.fullmatch(r'\s*\d{1,3}\s*',text)):continue
-            result.append((text.strip(),weight))
+            result.append((text,weight,''.join('1' if b else '0' for _,b in cells)))
     return result
 
 
@@ -148,13 +153,13 @@ def parse_pdf(content):
     except (RuntimeError, ValueError) as error:
         raise politics.PoliticsError('PDF无法读取：'+str(error))
     if not lines:raise politics.PoliticsError('PDF没有可提取文字，请先做OCR')
-    paragraphs,answers,current=[],{},''
+    blocks,answers,current,cmask=[],{},'',''
     in_answers=False
     def flush():
-        nonlocal current
-        if BLANK.search(current):paragraphs.append(current)
-        current=''
-    for line,weight in lines:
+        nonlocal current,cmask
+        if current.strip():blocks.append({'text':current,'mask':cmask,'kind':'p'})
+        current=cmask=''
+    for line,weight,mask in lines:
         if re.fullmatch(r'(?:参考)?答案(?:与解析)?[：:]?',line) or line.endswith('·答案与解析'):
             flush();in_answers=True;continue
         if not BLANK.search(line) and re.search(r'消化清单|填空练习',line):
@@ -166,37 +171,52 @@ def parse_pdf(content):
         heading=_is_heading(line,weight,current)
         if NUMBER.match(line) or heading or (current and re.search(r'[。！？；]$',current)):
             flush()
-        if heading:continue
-        if current and re.search(r'[A-Za-z]$',current) and re.match(r'[A-Za-z]',line):current+=' '
-        current+=line
+        if heading:blocks.append({'text':line,'mask':mask,'kind':'h'});continue     # 3.7.6：小标题单独成块保留，让每一段都找得到位置
+        if current and re.search(r'[A-Za-z]$',current) and re.match(r'[A-Za-z]',line):current+=' ';cmask+='0'
+        current+=line;cmask+=mask
     flush()
-    if not paragraphs:raise politics.PoliticsError('未识别到清单空位；支持文字下划线、空括号和文字行中的空白下划线，扫描版请先OCR')
-    numbers=[NUMBER.match(p).group(1) if NUMBER.match(p) else None for p in paragraphs]
+    blanked=[b for b in blocks if BLANK.search(b['text'])]
+    if not blanked:raise politics.PoliticsError('未识别到清单空位；支持文字下划线、空括号和文字行中的空白下划线，扫描版请先OCR')
+    numbers=[NUMBER.match(b['text']).group(1) if NUMBER.match(b['text']) else None for b in blanked]      # 题号只在有空的段里数，没有空的段（小标题、普通句子）不参与
     out=[]
-    for text,no in zip(paragraphs,numbers):
-        count=len(BLANK.findall(text));provided=[]
+    for b in blocks:
+        text=b['text'];count=len(BLANK.findall(text));provided=[]
+        no=NUMBER.match(text).group(1) if count and NUMBER.match(text) else None
         if no and numbers.count(no)==1 and no in answers:
             value=answers[no]
             provided=[value] if count==1 else [v.strip() for v in re.split(r'[、；;|｜]',value)]
             if len(provided)!=count:provided=[]
-        out.append({'text':text,'provided':provided})
+        row={'text':text,'provided':provided,'kind':b['kind']}
+        runs=[[m.start(),m.end()] for m in re.finditer('1+',b['mask'])] if b['kind']=='p' else []
+        if runs:row['bold']=runs
+        out.append(row)
     return out
 
 
+_SEP='，。；：！？、'
+
+
 def match_answers(template, sources):
-    """枚举明确上下文的所有匹配；有歧义、无上下文或复杂度超限均不填。"""
+    """枚举明确上下文的所有匹配；有歧义、无上下文或复杂度超限均不填。
+    空在整段开头/结尾时（3.7.6）：按“一个分句”取答案——开头的空从上一个逗号/句号之后到后面的固定文字，
+    结尾的空从前面的固定文字到下一个逗号/句号；只在原文单句里找，仍须唯一才填。"""
     stripped=NUMBER.sub('',template)
     pieces=[norm(s) for s in BLANK.split(stripped)]
     count=len(pieces)-1
-    if not count or sum(map(len,pieces))<4 or any(not s for s in pieces):return [None]*count
+    lead,trail=not pieces[0],not pieces[-1]
+    if not count or sum(map(len,pieces))<4 or any(not x for x in pieces[1:-1]) or (count==1 and (lead or trail) and len(pieces[0]+pieces[1])<4):
+        return [None]*count
     candidates=[];budget=[0]
+    def clause_end(text,cursor):
+        ends=[i for i in (text.find(c,cursor) for c in _SEP) if i>=0]
+        return min(ends) if ends else len(text)
     def walk(text,k,cursor,values):
         budget[0]+=1
         if budget[0]>2000:return
         literal=pieces[k+1]
         if not literal:
-            answer=text[cursor:].rstrip('。！？；')
-            if 0<len(answer)<=120:candidates.append(values+[answer])
+            answer=text[cursor:clause_end(text,cursor)]
+            if 0<len(answer)<=40:candidates.append(values+[answer])
             return
         at=text.find(literal,cursor+1)
         while at>=0 and at-cursor<=120:
@@ -205,11 +225,21 @@ def match_answers(template, sources):
                 if k+1==count:candidates.append(values+[answer])
                 else:walk(text,k+1,at+len(literal),values+[answer])
             at=text.find(literal,at+1)
-    for source in sources:
-        for raw in [source]+re.split(r'\n\s*\n|(?<=[。！？；])',source):
+    for n,source in enumerate(sources):
+        for m,raw in enumerate([source]+re.split(r'\n\s*\n|(?<=[。！？；])',source)):
+            if m==0 and (lead or trail):continue         # 分句边界只在单句里可靠：整篇原文拼起来会把标题、前一段的字算进答案
             text=norm(raw)
             if not text:continue
-            starts=[0] if not pieces[0] else [m.start()+len(pieces[0]) for m in re.finditer('(?='+re.escape(pieces[0])+')',text)]
+            if lead:
+                for found in re.finditer(re.escape(pieces[1]),text):
+                    start=max([text.rfind(c,0,found.start()) for c in _SEP]+[-1])+1
+                    answer=text[start:found.start()]
+                    if not 0<len(answer)<=40:continue
+                    if count==1:candidates.append([answer])
+                    else:walk(text,1,found.end(),[answer])
+                    if budget[0]>2000:return [None]*count
+                continue
+            starts=[m2.start()+len(pieces[0]) for m2 in re.finditer('(?='+re.escape(pieces[0])+')',text)]
             for start in starts:
                 walk(text,0,start,[])
                 if budget[0]>2000:return [None]*count
@@ -234,6 +264,20 @@ def _legacy(g,desc,chosen):
     return [(chosen['cloze'],chosen['title'],'',progress)]
 
 
+def _fill_file(g,key):
+    return g.paths.train/'时政消化/补全'/(key+'.json')
+
+
+def _literals(text,a,b,bold,whole):
+    """text[a:b]这一段普通文字 → [{'t':文字,'b':是否加粗}]；整段加粗（小标题）直接标成粗体。"""
+    if a>=b:return []
+    if whole:return [{'t':text[a:b],'b':True}]
+    cuts=sorted({a,b}|{x for run in bold for x in run if a<x<b});out=[]
+    for x,y in zip(cuts,cuts[1:]):
+        out.append({'t':text[x:y],'b':True} if any(s<=x and y<=e for s,e in bold) else {'t':text[x:y]})
+    return out
+
+
 def get(g, target):
     desc,chosen,label=resolve(g,target)
     descriptors=[(desc,chosen)]
@@ -247,20 +291,28 @@ def get(g, target):
         key=politics.digest(owner)
         saved=politics.read_json(_store(g,owner),{'documents':[]})
         memory=politics.read_json(g.paths.train/'时政消化/进度'/(key+'.json'),{})
+        fills=politics.read_json(_fill_file(g,key),{})
         for document in saved['documents']:
             documents.append(document['name'])
             for i,row in enumerate(document['paragraphs']):
-                answers=match_answers(row['text'],_pool(readings,owner))
-                literals=BLANK.split(row['text']);parts=[]
-                for k,literal in enumerate(literals):
-                    if literal:parts.append({'t':literal})
-                    if k==len(literals)-1:continue
+                text=row['text'];kind=row.get('kind','p')
+                if not BLANK.search(text):          # 3.7.6：没有空的句子和小标题照样保留，保持PDF原来的上下文
+                    rows.append({'title':document['name'],'kind':kind,'parts':_literals(text,0,len(text),row.get('bold',[]),kind=='h')})
+                    continue
+                answers=match_answers(text,_pool(readings,owner))
+                parts=[];at=0;spans=list(BLANK.finditer(text))
+                for k,m in enumerate(spans):
+                    parts+=_literals(text,at,m.start(),row.get('bold',[]),False);at=m.end()
                     explicit=row['provided'][k] if k<len(row.get('provided',[])) else None
-                    answer=explicit or answers[k]
-                    ident=key+':'+politics.digest([document['hash'],i,k,answer])[:24]
-                    part={'id':ident,'a':answer,'status':'provided' if explicit else 'matched' if answer else 'pending','owner':owner}
+                    bkey=politics.digest([document['hash'],i,k]);fill=fills.get(bkey)
+                    answer=explicit or answers[k] or fill
+                    # 手动补全的空编号不含答案：改答案不丢核对记号
+                    ident=(key+':f'+bkey[:22]) if fill and not (explicit or answers[k]) else key+':'+politics.digest([document['hash'],i,k,answer])[:24]
+                    status='provided' if explicit else 'matched' if answers[k] else 'filled' if fill else 'pending'
+                    part={'id':ident,'a':answer,'status':status,'owner':owner,'bkey':bkey}
                     parts.append(part);items.append(part);progress[ident]=memory.get(ident)
-                rows.append({'title':document['name'],'parts':parts})
+                parts+=_literals(text,at,len(text),row.get('bold',[]),False)
+                rows.append({'title':document['name'],'kind':kind,'parts':parts})
     # 兼容原PDF内已有消化清单，但不从红字/独立回忆问答生成空位。
     if not documents:
         for old_rows,title,mid,old_progress in _legacy(g,desc,chosen):
@@ -279,6 +331,21 @@ def get(g, target):
             'seen':sum(p['a'] is not None and progress.get(p['id']) in ('remember','forgot') for p in items),
             'forgot':sum(p['a'] is not None and progress.get(p['id'])=='forgot' for p in items)}
     return {'target':desc,'label':label,'paragraphs':rows,'items':items,'progress':progress,'counts':counts,'documents':documents}
+
+
+def fill(g, body):
+    """待补全的空由用户自己填答案：只存在补全文件里（按空位置，不改清单模板与讲义）；填空文字为空＝取消补全。"""
+    data=get(g,body.get('target'))
+    item=next((p for p in data['items'] if p['id']==body.get('id')),None)
+    if not item or item['status'] not in ('pending','filled'):raise politics.PoliticsError('这个空已有明确答案，或不属于此清单，不能补全')
+    text=re.sub(r'\s+',' ',str(body.get('text') or '')).strip()
+    if len(text)>80:raise politics.PoliticsError('补全的答案太长，请精简到80字以内')
+    with politics._LOCK:
+        file=_fill_file(g,politics.digest(item['owner']));fills=politics.read_json(file,{})
+        if text:fills[item['bkey']]=text
+        else:fills.pop(item['bkey'],None)
+        file.parent.mkdir(parents=True,exist_ok=True);politics.atomic_json(file,fills)
+    return get(g,body['target'])
 
 
 def mark(g, body):
@@ -360,18 +427,26 @@ def _carry_marks(g,key,doc_hash,old_rows,new_rows,pool):
     """新规则重新识别同一份PDF：段落文字相同（或新段落是旧段落去掉标题等多余前缀后的一部分）且空数相同的，核对记号随之迁移。"""
     file=g.paths.train/'时政消化/进度'/(key+'.json')
     memory=politics.read_json(file,{})
-    if not memory:return 0
+    fill_file=_fill_file(g,key);fills=politics.read_json(fill_file,{})
+    if not memory and not fills:return 0
     old=[(norm(r['text']),len(BLANK.findall(r['text'])),_row_ids(key,doc_hash,i,r,pool)) for i,r in enumerate(old_rows)]
     moved=0
     for j,row in enumerate(new_rows):
         text=norm(row['text']);blanks=len(BLANK.findall(row['text']));new_ids=None
-        for old_text,old_blanks,old_ids in old:
+        for old_index,(old_text,old_blanks,old_ids) in enumerate(old):
             if old_blanks!=blanks or not blanks or text not in old_text:continue
             new_ids=new_ids or _row_ids(key,doc_hash,j,row,pool)
-            for (oid,_),(nid,answer) in zip(old_ids,new_ids):
+            for k,((oid,_),(nid,answer)) in enumerate(zip(old_ids,new_ids)):
                 if answer and oid in memory and nid not in memory:memory[nid]=memory[oid];moved+=1
+            for k in range(blanks):                  # 手动补全的答案和它们的核对记号跟着空位一起搬
+                old_key=politics.digest([doc_hash,old_index,k]);new_key=politics.digest([doc_hash,j,k])
+                if old_key in fills and new_key not in fills:fills[new_key]=fills[old_key];moved+=1
+                old_id,new_id=key+':f'+old_key[:22],key+':f'+new_key[:22]
+                if old_id in memory and new_id not in memory:memory[new_id]=memory[old_id]
             break
-    if moved:politics.atomic_json(file,memory)
+    if moved:
+        politics.atomic_json(file,memory)
+        if fills:fill_file.parent.mkdir(parents=True,exist_ok=True);politics.atomic_json(fill_file,fills)
     return moved
 
 
@@ -387,14 +462,32 @@ def import_pdf(g, body):
     candidates=_candidates(g)
     lost=[]
     placed={};unmatched=0       # placed：保存位置摘要 → [资料身份, 文本池, 本次新增的段落]
-    for src,row in enumerate(paragraphs):
+    own=[]
+    for row in paragraphs:      # 先各自在资料里找出处；找不到的（小标题、太短的句子、原文有出入的）稍后按前后文归位
         matches=[c for c in candidates if _located(row['text'],c[1])]
-        if not matches:unmatched+=1;lost.append(re.sub(r'(?:_\s*){2,}','＿＿',row['text'])[:28]);continue
-        for desc,pool in _owners(matches):
-            key=politics.digest(desc)
-            slot=placed.setdefault(key,[desc,pool,[]]);slot[2].append(dict(row,src=src))
-    if not placed:
+        own.append(_owners(matches) if matches else None)
+    if not any(own):
         raise politics.PoliticsError('没有在已导入的讲义、月半或专题里找到这份清单的出处，未导入；请先导入对应资料，或检查清单文字与原文是否一致')
+    loose=[o is None for o in own]
+    names=lambda o:{politics.digest(d) for d,_ in o}
+    i=0
+    while i<len(own):
+        if own[i] is not None:i+=1;continue
+        j=i
+        while j<len(own) and own[j] is None:j+=1
+        before=own[i-1] if i>0 else None;after=own[j] if j<len(own) else None
+        cut=j                   # 这一段空档里 cut 之前归前一份资料，cut 起归后一份
+        if before is None:cut=i
+        elif after is not None and names(before)!=names(after):
+            heads=[k for k in range(i,j) if paragraphs[k]['kind']=='h']
+            cut=heads[-1] if heads else j
+        for k in range(i,j):own[k]=before if k<cut else after
+        i=j
+    for src,row in enumerate(paragraphs):
+        if loose[src] and BLANK.search(row['text']):unmatched+=1;lost.append(re.sub(r'(?:_\s*){2,}','＿＿',row['text'])[:28])
+        for desc,pool in own[src]:
+            key=politics.digest(desc)
+            slot=placed.setdefault(key,[desc,pool,[]]);slot[2].append(dict(row,src=src,**({'loose':True} if loose[src] and BLANK.search(row['text']) else {})))
     added=existing=ready=pending=0;targets=0;moved=redone=0
     with politics._LOCK:
         for key,(desc,pool,rows) in placed.items():
@@ -422,5 +515,5 @@ def import_pdf(g, body):
         if not original.exists():
             original.parent.mkdir(parents=True,exist_ok=True);original.write_bytes(content)
     return dict(channel='digest',duplicate=not added and bool(existing),title=name,blanks=added,ready=ready,pending=pending,
-                rows=len(paragraphs),unmatched=unmatched,targets=targets,redone=redone,moved=moved,
+                rows=sum(1 for r in paragraphs if BLANK.search(r['text'])),blocks=len(paragraphs),unmatched=unmatched,targets=targets,redone=redone,moved=moved,
                 pdf_blanks=sum(len(BLANK.findall(r['text'])) for r in paragraphs),lost=lost[:5])

@@ -1,6 +1,6 @@
 /* 宗门大比：每周粉笔模考的成绩与走势（数据来自 /api/mock，见 rpg/mock.py）。
    - 顶上一排数字：模考总平均分、最近一次、最高、大比平均分、平均击败、最近排名、平均正确率
-   - 分数走势（我的 / 大比平均 / 最高分）、六大模块正确率走势：折线图，悬停看每一季的数，下面可展开数据表
+   - 分数走势（我的分数）、六大模块正确率走势：折线图，横轴按试卷提交日期排列、每个点都标试卷名和日期，悬停看每份试卷的数，下面可展开数据表
    - 六大模块：选一季或“历次平均”，看得分（没录就估）、正确率、用时
    - 大比复盘：选一季，按板块逐题复盘（和试炼交卷后的复盘一样；时间记进“修炼 · 复习”，见 rpg/trainer.py mock_review）
    - 历次模考一览 + 录入成绩单（粉笔成绩单上的数字照抄） */
@@ -16,6 +16,8 @@
   let MK = null;             // 答题卡截图识别结果 {season, marks, sections, images, ...}
   let MK_SEASON = null;
   let REPORT = null;         // 成绩截图认出来的各模块答对数（保存时一起存）
+  const NAMES = {};          // 季号 → 试卷名（后端 season.name；整卷考试用试卷自己的名字，旧的是“第N季”）
+  const nm = (n) => NAMES[n] || `第${n}季`;
   let RV = null;             // 大比复盘看哪一季
   let RV_WRONG = false;      // 只复盘错题和没做的
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -24,7 +26,8 @@
 
   // ---------------------------------------------------------------- 折线图（一条 y 轴；悬停十字线 + 提示）
   function lineChart(id, { xs, series, yMin, yMax, unit = "", ticks = 5 }) {
-    const W = 760, H = 280, L = 55, R = 55, T = 14, B = 52;
+    const L = 55, R = 55, T = 14, B = 92, SLOT = 96;
+    const W = Math.max(760, L + R + SLOT * xs.length), H = 320;   // 点多时图变宽、可左右滑，每个点的标签都不省略
     const iw = W - L - R, ih = H - T - B;
     const x = (i) => L + (xs.length <= 1 ? iw / 2 : (i * iw) / (xs.length - 1));
     const y = (v) => T + ih - ((v - yMin) / (yMax - yMin)) * ih;
@@ -32,12 +35,13 @@
       const v = yMin + ((yMax - yMin) * k) / ticks;
       return `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="cg"/><text x="${L - 6}" y="${y(v) + 4}" class="cy">${Math.round(v)}${unit}</text>`;
     }).join("");
-    const labelStep=Math.max(1,Math.ceil(xs.length/5));
-    const xl = xs.map((t,i)=>{
-      if(i%labelStep&&i!==xs.length-1||i!==xs.length-1&&xs.length-1-i<labelStep*.6)return '';
-      const [season,date]=t.split('（');
-      return `<text x="${x(i)}" y="${H-27}" class="cx"><tspan x="${x(i)}">${esc(season)}</tspan><tspan x="${x(i)}" dy="18">${esc(date?'（'+date:'')}</tspan></text>`;
-    }).join('');
+    const xl = xs.map((t, i) => {
+      const cut = t.endsWith("）") ? t.lastIndexOf("（") : -1;
+      const name = cut > 0 ? t.slice(0, cut) : t, date = cut > 0 ? t.slice(cut) : "";
+      const parts = []; for (let k = 0; k < name.length && parts.length < 3; k += 7) parts.push(name.slice(k, k + 7));
+      if (name.length > 21) parts[2] = parts[2].slice(0, 6) + "…";
+      return `<text x="${x(i)}" y="${T + ih + 18}" class="cx">${parts.concat(date ? [date] : []).map((line, k) => `<tspan x="${x(i)}" dy="${k ? 15 : 0}">${esc(line)}</tspan>`).join("")}<title>${esc(t)}</title></text>`;
+    }).join("");
     const lines = series.map((s) => {
       const pts = s.values.map((v, i) => (v == null ? null : [x(i), y(v)]));
       let d = "", pen = false;
@@ -46,11 +50,11 @@
       return `<path d="${d}" class="cl${s.dash ? " dash" : ""}" style="stroke:${s.color}"/>${dots}`;
     }).join("");
     const legend = series.map((s) => `<span class="lg"><i style="background:${s.color};border-color:${s.color}"${s.dash ? ' class="dash"' : ""}></i>${esc(s.name)}</span>`).join("");
-    const table = `<details class="ctable"><summary>看数据表</summary><div class="tbl-wrap"><table><thead><tr><th>季</th>${series.map((s) => `<th>${esc(s.name)}</th>`).join("")}</tr></thead>
+    const table = `<details class="ctable"><summary>看数据表</summary><div class="tbl-wrap"><table><thead><tr><th>试卷</th>${series.map((s) => `<th>${esc(s.name)}</th>`).join("")}</tr></thead>
       <tbody>${xs.map((t, i) => `<tr><td>${esc(t)}</td>${series.map((s) => `<td>${s.values[i] == null ? "—" : f1(s.values[i]) + unit}</td>`).join("")}</tr>`).join("")}</tbody></table></div></details>`;
     return `<div class="chart" id="${id}" data-chart='${esc(JSON.stringify({ xs, series: series.map((s) => ({ name: s.name, color: s.color, values: s.values })), L, R, W, unit }))}'>
       <div class="legend">${legend}</div>
-      <div class="cwrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="折线图">${grid}${xl}
+      <div class="cwrap" style="${W > 760 ? "overflow-x:auto" : ""}"><svg viewBox="0 0 ${W} ${H}" style="${W > 760 ? `min-width:${W}px` : ""}" role="img" aria-label="折线图">${grid}${xl}
         <line class="cross" x1="0" x2="0" y1="${T}" y2="${T + ih}" style="display:none"/>${lines}</svg><div class="tip" hidden></div></div>
       ${table}</div>`;
   }
@@ -69,7 +73,7 @@
         tip.hidden = false;
         tip.innerHTML = `<b>${esc(c.xs[i])}</b>` + c.series.map((s) => `<div><i style="background:${s.color}"></i>${esc(s.name)}<span>${s.values[i] == null ? "—" : f1(s.values[i]) + c.unit}</span></div>`).join("");
         const left = (px / c.W) * r.width;
-        tip.style.left = Math.min(Math.max(0, left + 12), wrap.clientWidth - tip.offsetWidth - 4) + "px";
+        tip.style.left = Math.min(Math.max(0, left + 12), r.width - tip.offsetWidth - 4) + "px";
       };
       wrap.addEventListener("pointermove", move);
       wrap.addEventListener("pointerdown", move);
@@ -84,7 +88,7 @@
     const s = PICK === "avg" ? null : d.seasons.find((x) => String(x.season) === String(PICK));
     const mods = s ? s.modules : d.modules.map((m) => ({ ...m, ok: null }));
     const opts = [`<option value="avg" ${PICK === "avg" ? "selected" : ""}>历次平均</option>`]
-      .concat(d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${String(PICK) === String(x.season) ? "selected" : ""}>第 ${x.season} 季</option>`)).join("");
+      .concat(d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${String(PICK) === String(x.season) ? "selected" : ""}>${esc(nm(x.season))}</option>`)).join("");
     const cards = mods.map((m, i) => `<div class="mod" style="--mc:var(--s${(d.module_names.indexOf(m.name) % 6) + 1})">
         <div class="mod-h"><b>${esc(m.name)}</b>${s && m.total ? `<span class="faint small">${m.ok}/${m.total} 题</span>` : `<span class="faint small">${m.seasons || ""}${m.seasons ? " 季" : ""}</span>`}</div>
         <div class="mod-row"><span>得分</span><b>${f1(m.score)}</b>${s && m.estimated ? '<span class="faint small">估</span>' : ""}</div>
@@ -108,7 +112,7 @@
       <p class="small muted">${estimate.ready?'按当前参考题量、分值和逐题对错计算；参考分值可能与粉笔赋分不同。':esc(estimate.reason)} 已录成绩保持；下方建议值可修改，点击保存后才按原规则记录成绩。</p>
       <div class="row">${s.reported_score!=null?'<button type="button" id="mkUseReported">填入HTML报告分数</button>':''}${estimate.ready?'<button type="button" id="mkUseEstimate">填入参考估分</button>':''}</div>
       <details class="fold"><summary>参考分值与计算明细</summary><p class="small muted">分值与题量可在训练/规则.md的“模考参考”项修改；此表不用于申论或法考。</p><div class="tbl-wrap"><table class="mk-table"><thead><tr><th>题型</th><th>题数</th><th>答对</th><th>每题参考分</th></tr></thead><tbody>${(estimate.rows||[]).map(r=>`<tr><td>${esc(r.name)}</td><td>${r.total}</td><td>${r.ok}</td><td>${f1(r.points)}</td></tr>`).join('')}</tbody></table></div></details></div>`:'';
-    const opts = d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${x.season === s.season ? "selected" : ""}>第 ${x.season} 季${x.score == null ? "（未录）" : ""}</option>`).join("");
+    const opts = d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${x.season === s.season ? "selected" : ""}>${esc(nm(x.season))}${x.score == null ? "（未录）" : ""}</option>`).join("");
     const modIn = (key, ph) => d.module_names.map((m) => {
       const mm = s.modules.find((x) => x.name === m);
       const val = key === "minutes" ? mm?.minutes : mm && !mm.estimated ? mm.score : null;
@@ -122,19 +126,23 @@
         <div id="rpResult" class="small"></div></div>
       ${scoreInfo}
       <div class="row mk-row">
-        <label>哪一季 <select id="mkSeason">${opts}</select></label>
+        <label>哪份试卷 <select id="mkSeason">${opts}</select></label>
+        <label>试卷名称 <input type="text" id="mkName" maxlength="40" value="${esc(s.name || "")}" placeholder="如 花生26下模拟卷第一套"></label>
         <label>实际考试日期 <input type="date" id="mkDate" value="${esc(s.date || DASH?.today || "")}"></label>
         <label>我的分数 <input type="number" step="0.01" min="0" max="100" data-score-source="${scoreSource}" id="mkScore" value="${v("score")}" placeholder="如 68.5"></label>
+      </div>
+      <details class="fold" id="mkNotesFold" ${["avg", "top", "beat", "rank", "people"].some((k) => s[k] != null) ? "open" : ""}><summary>可选备注：粉笔报告上的大比平均分、最高分、已击败、排名（不进走势图，不影响成绩）</summary>
+        <div class="row mk-row">
         <label>大比平均分 <input type="number" step="0.1" id="mkAvg" value="${v("avg")}" placeholder="如 53.7"></label>
         <label>最高分 <input type="number" step="0.1" id="mkTop" value="${v("top")}" placeholder="如 91.4"></label>
         <label>已击败 % <input type="number" step="0.1" id="mkBeat" value="${v("beat")}" placeholder="如 5.9"></label>
         <label>排名 <input type="number" id="mkRank" value="${v("rank")}" placeholder="如 38580"></label>
         <label>总人数 <input type="number" id="mkPeople" value="${v("people")}" placeholder="如 44774"></label>
-      </div>
+        </div></details>
       <details class="fold" id="mkModsFold" ${s.minutes != null ? "open" : ""}><summary>各模块用时（分钟）· 各模块得分（报告里有就填，没有会按答对题数估）</summary>
         <div class="row mk-row">${modIn("minutes", "用时")}</div>
         <div class="row mk-row">${modIn("score", "得分")}</div></details>
-      <div class="row" style="margin-top:8px"><button class="primary" id="mkSave">保存这一季</button><span class="small muted">对错题数从「FB模考试卷复盘/板块复盘/第N季」自动统计，不用填</span></div></div>`;
+      <div class="row" style="margin-top:8px"><button class="primary" id="mkSave">保存成绩单</button><span class="small muted">对错题数从这份试卷的复盘文件自动统计，不用填</span></div></div>`;
   }
 
   // ---------------------------------------------------------------- 考情分析：师傅大比分析 + 追问（存档，也写进 训练/宗门大比/第N季考情分析.md）
@@ -142,7 +150,7 @@
     const ss = d.seasons.slice().reverse();
     if (AN == null) AN = ss[0]?.season;
     const conv = CONV[AN] || [];
-    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === AN ? "selected" : ""}>第 ${x.season} 季</option>`).join("");
+    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === AN ? "selected" : ""}>${esc(nm(x.season))}</option>`).join("");
     const msgs = conv.map((m) => m.role === "assistant"
       ? `<div class="npc an-msg">${tutorFace()}<div class="say"><div class="who">${esc(DASH?.persona?.tutor || "师尊")} <span class="faint small">${esc(m.t || "")}</span></div>${md(m.content)}</div></div>`
       : `<div class="msg me an-me">${esc(m.content)}</div>`).join("");
@@ -151,18 +159,18 @@
         <span class="spacer"></span><select id="anSeason" style="width:auto">${opts}</select>
         <button class="${conv.length ? "ghost" : "primary"}" id="anGo" ${AN_BUSY ? "disabled" : ""}>${AN_BUSY ? "师傅分析中…" : conv.length ? "🔄 重新分析" : "🧙 师傅大比分析"}</button>
         <button class="ghost" id="anFold">${fold ? "▸ 展开" : "▾ 收起"}</button></div>
-      ${fold ? `<p class="small muted" style="margin:8px 0 0">${conv.length ? `第 ${AN} 季已分析（${conv.filter((m) => m.role === "assistant").length} 段师傅的话），点「展开」看。` : `还没分析过第 ${AN} 季。`}</p></div>` : `
-      <div class="an-body">${msgs || `<p class="muted small">还没分析过第 ${AN} 季。先导入答题卡截图、录好成绩单，师傅分析得更准。</p>`}</div>
+      ${fold ? `<p class="small muted" style="margin:8px 0 0">${conv.length ? `「${nm(AN)}」已分析（${conv.filter((m) => m.role === "assistant").length} 段师傅的话），点「展开」看。` : `还没分析过「${nm(AN)}」。`}</p></div>` : `
+      <div class="an-body">${msgs || `<p class="muted small">还没分析过「${nm(AN)}」。先导入答题卡截图、录好成绩单，师傅分析得更准。</p>`}</div>
       ${conv.length ? `<div class="an-ask"><textarea id="anText" rows="2" placeholder="接着问师傅：比如“数量关系该先补哪类题？”“时间怎么分配？”（Ctrl+Enter 发送）"></textarea>
         <button class="primary" id="anSend" ${AN_BUSY ? "disabled" : ""}>问师傅</button></div>` : ""}
-      <p class="small faint" style="margin:6px 0 0">对话存在 训练/宗门大比/第 ${AN} 季考情分析.md</p></div>`}`;
+      <p class="small faint" style="margin:6px 0 0">对话存在 训练/宗门大比/${esc(nm(AN))}考情分析.md</p></div>`}`;
   }
 
   // ---------------------------------------------------------------- 导入答题卡截图（绿对红错）
   function marksCard(d) {
     const ss = d.seasons.slice().reverse();
     if (MK_SEASON == null) MK_SEASON = ss[0]?.season;
-    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === MK_SEASON ? "selected" : ""}>第 ${x.season} 季</option>`).join("");
+    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === MK_SEASON ? "selected" : ""}>${esc(nm(x.season))}</option>`).join("");
     let preview = "";
     if (MK && MK.season === MK_SEASON) {
       const cell = (n) => { const v = MK.marks[n]; return `<span class="mk-dot ${v === "ok" ? "ok" : v === "bad" ? "bad" : "none"}" data-mkdot="${n}" title="点一下改对 / 错">${n}</span>`; };
@@ -171,11 +179,11 @@
       preview = `<div class="mk-sum">对 <b class="ok">${ok}</b> · 错 <b class="bad">${bad}</b>${miss ? ` · 没识别到 <b>${miss}</b>（灰色，点一下设成对 / 错，或再加一张截图）` : ""}
           <span class="faint small">${MK.images.map((x) => x.matched ? `第 ${x.image} 张：${x.from}–${x.to} 题${x.ambiguous ? "（位置不太确定，核对一下）" : ""}` : `第 ${x.image} 张没对上：${esc(x.why)}`).join("；")}</span></div>
         ${MK.sections.map((sec) => `<div class="mk-sec"><div class="small muted">${esc(sec.name)}</div><div class="mk-dots">${Array.from({ length: sec.to - sec.from + 1 }, (_, i) => cell(String(sec.from + i))).join("")}</div></div>`).join("")}
-        <div class="row" style="margin-top:8px"><button class="primary" id="mkMarksSave">保存到第 ${MK.season} 季复盘</button>
-          <span class="small muted">写进 板块复盘/第${MK.season}季 的复盘文件（错题“我的答案”记成“？”）；心魔录、正确率、灵根跟着更新</span></div>`;
+        <div class="row" style="margin-top:8px"><button class="primary" id="mkMarksSave">保存到「${esc(nm(MK.season))}」复盘</button>
+          <span class="small muted">写进这份试卷的复盘文件（错题“我的答案”记成“？”）；心魔录、正确率、灵根跟着更新</span></div>`;
     }
     return `<div class="card contest-card" id="mkMarksCard"><h3>📸 导入答题卡截图 <small>粉笔模考报告里的答题卡（绿 = 对、红 = 错）；可以选几张，滚动截的重叠也行</small></h3>
-      <div class="row mk-row"><label>哪一季 <select id="mkMarksSeason">${opts}</select></label>
+      <div class="row mk-row"><label>哪份试卷 <select id="mkMarksSeason">${opts}</select></label>
         <label>截图 <input type="file" id="mkMarksFiles" accept="image/png,image/jpeg" multiple></label>
         <button class="primary" id="mkMarksScan">识别</button></div>${preview}</div>`;
   }
@@ -186,7 +194,7 @@
     if (!ss.length) return "";
     if (RV == null || !ss.some((s) => s.season === RV)) RV = ss[ss.length - 1].season;
     const cur = ss.find((s) => s.season === RV);
-    const opts = ss.slice().reverse().map((s) => `<option value="${s.season}" ${s.season === RV ? "selected" : ""}>第 ${s.season} 季${s.date ? "（" + esc(s.date) + "）" : ""}</option>`).join("");
+    const opts = ss.slice().reverse().map((s) => `<option value="${s.season}" ${s.season === RV ? "selected" : ""}>${esc(nm(s.season))}${s.date ? "（" + esc(s.date) + "）" : ""}</option>`).join("");
     const all = cur.review.reduce((a, b) => a + b.total, 0), seen = cur.review.reduce((a, b) => a + b.reviewed, 0);
     const tiles = cur.review.map((b) => {
       const bad = b.wrong + b.blank, full = b.reviewed >= b.total;
@@ -198,13 +206,13 @@
     return `<div class="card contest-card rv-card"><div class="row" style="flex-wrap:wrap;gap:10px"><h3 style="margin:0">📜 大比复盘
         <small>像刷完一组题那样，把这一季模考逐题过一遍：看题 → 对答案 → 读解析 → 不懂就问师傅。复盘时间记进「修炼 · 复习」</small></h3>
         <span class="spacer"></span><select id="rvPick" style="width:auto">${opts}</select></div>
-      <div class="row" style="gap:12px;margin:8px 0 4px;align-items:center"><span class="small muted">这一季已复盘 <b>${seen}</b>/${all} 题</span>
+      <div class="row" style="gap:12px;margin:8px 0 4px;align-items:center"><span class="small muted">这份试卷已复盘 <b>${seen}</b>/${all} 题</span>
         <label class="small" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="rvWrong" style="width:auto" ${RV_WRONG ? "checked" : ""}> 只复盘错题和没做的</label>
         <span class="spacer"></span><button class="primary" id="rvStart">${seen ? "从第一个板块复盘" : "开始复盘"}</button></div>
       <div class="rv-grid">${tiles}</div></div>`;
   }
   function startReview(board) {
-    startTask({ task: { type: "mock_review", season: RV, board, only_wrong: RV_WRONG, title: `大比复盘 · 第${RV}季` } });
+    startTask({ task: { type: "mock_review", season: RV, board, only_wrong: RV_WRONG, title: `大比复盘 · ${nm(RV)}` } });
   }
   function bindReview() {
     const pick = document.getElementById("rvPick");
@@ -214,36 +222,32 @@
     document.getElementById("rvStart").onclick = () => {
       const cur = MOCK.seasons.find((s) => s.season === RV);
       const first = (cur?.review || []).find((b) => !RV_WRONG || b.wrong + b.blank);
-      if (first) startReview(first.board); else toast("这一季没有错题，全对！");
+      if (first) startReview(first.board); else toast("这份试卷没有错题，全对！");
     };
     document.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = () => startReview(b.dataset.rv)));
   }
 
   function html(d) {
+    for (const x of d.seasons || []) NAMES[x.season] = x.name || `第${x.season}季`;
     const o = d.overall, ss = d.seasons;
     if (!ss.length) {
       return (window.MOCK_IMPORT?.html()||'')+`<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">${window.SUBJECT0==='行测'?'还没有模考。打开场景“录入”，先导入试卷，再核对对错和成绩。':'还没有模考记录。先使用本科原有入口导入资料或记录成绩。'}</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"");
     }
     const lr = o.latest_rank;
-    const head = `<div class="card contest-hero"><div class="row"><h2>⚔ ${esc(W("boss"))}</h2><span class="small muted">共 ${o.count} 季模考 · 录了成绩单的 ${o.scored} 季</span></div>
+    const head = `<div class="card contest-hero"><div class="row"><h2>⚔ ${esc(W("boss"))}</h2><span class="small muted">共 ${o.count} 份试卷 · 已出分 ${o.scored} 份</span></div>
       <div class="kpis">
-        ${kpi("模考总平均分", f1(o.mean), o.scored ? `${o.scored} 季` : "录成绩单后显示", "hero")}
+        ${kpi("模考总平均分", f1(o.mean), o.scored ? `${o.scored} 份试卷` : "录成绩单后显示", "hero")}
         ${kpi("最近一次", f1(o.latest))}
         ${kpi("最高", f1(o.best))}
-        ${kpi("大比平均分", f1(o.mean_avg), o.mean != null && o.mean_avg != null ? `我比平均 ${o.mean - o.mean_avg >= 0 ? "+" : ""}${f1(o.mean - o.mean_avg)}` : "")}
-        ${kpi("平均已击败", o.mean_beat == null ? "—" : f1(o.mean_beat) + "%")}
-        ${kpi("最近排名", lr ? `${lr.rank}<small>/${lr.people || "?"}</small>` : "—", lr ? `第 ${lr.season} 季` : "")}
         ${kpi("平均正确率", o.mean_acc == null ? "—" : Math.round(o.mean_acc) + "%", "按复盘对错")}
       </div></div>`;
-    const xs = ss.map((s) => "第" + s.season + "季" + (s.date ? "（" + s.date.replace(/-/g,".") + "）" : "（日期待补）"));
-    const vals = ss.flatMap((s) => [s.score, s.avg, s.top]).filter((v) => v != null);
+    const xs = ss.map((s) => (s.name || nm(s.season)) + (s.date ? "（" + s.date.replace(/-/g,".") + "）" : "（日期待补）"));
+    const vals = ss.map((s) => s.score).filter((v) => v != null);
     const lo = vals.length ? Math.max(0, Math.floor(Math.min(...vals) / 10) * 10 - 10) : 0;
     const scoreChart = lineChart("chScore", {
       xs, yMin: lo, yMax: 100, unit: "", ticks: Math.round((100 - lo) / 10),
       series: [
         { name: "我的分数", color: "var(--s1)", values: ss.map((s) => s.score) },
-        { name: "大比平均分", color: "var(--s2)", values: ss.map((s) => s.avg), dash: true },
-        { name: "最高分", color: "var(--s3)", values: ss.map((s) => s.top), dash: true },
       ],
     });
     const accChart = lineChart("chAcc", {
@@ -251,19 +255,18 @@
       series: d.module_names.map((m, i) => ({ name: m, color: `var(--s${i + 1})`,
         values: ss.map((s) => { const x = s.modules.find((y) => y.name === m); return x ? Math.round(x.acc * 1000) / 10 : null; }) })),
     });
-    const rows = ss.slice().reverse().map((s) => `<tr><td><b>第 ${s.season} 季</b></td><td>${esc(s.date || "")}</td>
-        <td class="num"><b>${f1(s.score)}</b>${s.score_from_boss ? '<span class="faint small"> 修仙录</span>' : ""}</td><td class="num">${f1(s.avg)}</td><td class="num">${f1(s.top)}</td>
-        <td class="num">${s.beat == null ? "—" : f1(s.beat) + "%"}</td><td class="num">${s.rank ? `${s.rank}/${s.people || "?"}` : "—"}</td>
+    const rows = ss.slice().reverse().map((s) => `<tr><td><b>${esc(s.name || nm(s.season))}</b></td><td>${esc(s.date || "")}</td>
+        <td class="num"><b>${f1(s.score)}</b>${s.score_from_boss ? '<span class="faint small"> 修仙录</span>' : ""}</td>
         <td class="num">${s.ok}/${s.total}（${pc(s.acc)}）</td><td class="num">${s.minutes == null ? "—" : s.minutes + " 分"}</td>
         <td><button class="ghost small" data-mk-edit="${s.season}">${s.score == null ? "录入" : "改"}</button></td></tr>`).join("");
     return head + reviewCard(d) + analysisCard(d) + (window.MOCK_REWARDS?.html(DASH)||"") + `
       <div class="grid g2 contest-grid" style="margin-top:14px">
-        <div class="card contest-card"><h3>📈 分数走势 <small>我的分数 · 大比平均分 · 最高分（满分 100，y 轴从 ${lo} 起）</small></h3>${scoreChart}</div>
-        <div class="card contest-card"><h3>🎯 各模块正确率走势 <small>点图例看各条线；悬停看每一季</small></h3>${accChart}</div>
+        <div class="card contest-card"><h3>📈 分数走势 <small>按提交日期排列，每个点标试卷名与日期（满分 100，y 轴从 ${lo} 起）</small></h3>${scoreChart}</div>
+        <div class="card contest-card"><h3>🎯 各模块正确率走势 <small>点图例看各条线；悬停看每份试卷</small></h3>${accChart}</div>
       </div>
       ${moduleGrid(d)}
-      <div class="card contest-card"><h3>🏯 历次大比 <small>排名、大比平均分、已击败照抄粉笔报告；对错题数来自复盘</small></h3>
-        <div class="tbl-wrap"><table class="mk-table"><thead><tr><th>季</th><th>日期</th><th>我的分数</th><th>大比平均</th><th>最高分</th><th>已击败</th><th>排名</th><th>答对</th><th>用时</th><th></th></tr></thead>
+      <div class="card contest-card"><h3>🏯 历次大比 <small>按提交日期排列；对错题数来自复盘；粉笔报告上的平均分、排名等只作可选备注</small></h3>
+        <div class="tbl-wrap"><table class="mk-table"><thead><tr><th>试卷</th><th>日期</th><th>我的分数</th><th>答对</th><th>用时</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
       ${window.MOCK_IMPORT?.html()||''}
       ${marksCard(d)}
@@ -357,7 +360,7 @@
       try {
         const r = await api("/api/mock/marks/save", { season: MK.season, marks: MK.marks });
         MOCK = r.summary; MK = null;
-        toast(`第 ${MK_SEASON} 季的对错已写进复盘（改了 ${r.changed} 题）`);
+        toast(`「${nm(MK_SEASON)}」的对错已写进复盘（改了 ${r.changed} 题）`);
         await refresh(); rerender();
       } catch (e) { showError(e); }
     };
@@ -397,12 +400,12 @@
       const g = (id) => document.getElementById(id).value;
       const pickMods = (key) => Object.fromEntries([...document.querySelectorAll(`[data-mk-${key}]`)].map((i) => [i.getAttribute(`data-mk-${key}`), i.value]));
       try {
-        const r = await api("/api/mock/save", { season: g("mkSeason"), date: g("mkDate"), score: g("mkScore"), score_source:document.getElementById("mkScore").dataset.scoreSource, avg: g("mkAvg"), top: g("mkTop"),
+        const r = await api("/api/mock/save", { season: g("mkSeason"), date: g("mkDate"), name: g("mkName"), score: g("mkScore"), score_source:document.getElementById("mkScore").dataset.scoreSource, avg: g("mkAvg"), top: g("mkTop"),
           beat: g("mkBeat"), rank: g("mkRank"), people: g("mkPeople"), minutes: pickMods("minutes"), scores: pickMods("score"),
           report: REPORT && String(REPORT.season) === String(g("mkSeason")) ? REPORT : null });
         REPORT = null;
         MOCK = r.summary; EDIT = g("mkSeason");
-        toast(`第 ${EDIT} 季成绩单已保存`);
+        toast(`「${nm(EDIT)}」成绩单已保存`);
         rerender();
         const ss = MOCK.seasons, k = ss.findIndex((x) => String(x.season) === String(EDIT));
         if (window.CEREMONY && k >= 0 && ss[k].score != null && g("mkScore") !== "") {

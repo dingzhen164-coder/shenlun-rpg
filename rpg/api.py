@@ -366,7 +366,11 @@ def _import_call(fn, body):
 
 
 def import_status(body):
-    return importer.status(_import_paths())
+    out = importer.status(_import_paths())
+    with open_game(save=False) as g:
+        for x in out["seasons"]:
+            x["name"] = mock.season_name(g, x["season"])
+    return out
 
 
 def import_preview(body):
@@ -573,6 +577,62 @@ def mock_save(body):
         except mock.MockError as e:
             raise ApiError(str(e))
         return {"events": tutor.enrich(g, ev + g.housekeeping()) if ev else [], "summary": mock.summary(g)}
+
+
+def _exam(fn, *args, save=True, locked=False):
+    """整卷模拟考试接口：统一处理游戏存档锁和错误"""
+    from . import exam_room
+    try:
+        with open_game(save=save) as g:
+            return fn(g, *args)
+    except (exam_room.ExamError, importer.ImportError_) as e:
+        raise ApiError(str(e))
+
+
+def exam_list(body):
+    from . import exam_room
+    return _exam(exam_room.papers, save=False)
+
+
+def exam_import(body):
+    from . import exam_room
+    with importer.LOCK:
+        return _exam(exam_room.import_paper, body)
+
+
+def exam_answers(body):
+    from . import exam_room
+    with importer.LOCK:
+        return _exam(exam_room.import_answers, body)
+
+
+def exam_begin(body):
+    from . import exam_room
+    return _exam(exam_room.begin, int(body.get("season") or 0))
+
+
+def exam_save(body):
+    from . import exam_room
+    return _exam(exam_room.save_run, int(body.get("season") or 0), body)
+
+
+def exam_submit(body):
+    from . import exam_room
+    def run(g, n, b):
+        r = exam_room.submit(g, n, b)
+        r["events"] = tutor.enrich(g, (r.get("events") or []) + g.housekeeping())
+        return r
+    return _exam(run, int(body.get("season") or 0), body)
+
+
+def exam_result(body):
+    from . import exam_room
+    return _exam(exam_room.result, int(body.get("season") or 0), save=False)
+
+
+def exam_discard(body):
+    from . import exam_room
+    return _exam(exam_room.discard, int(body.get("season") or 0))
 
 
 def import_install(body):
@@ -1398,6 +1458,14 @@ ROUTES = {
     ("POST", "/api/idioms/delete"): idioms_delete,
     ("POST", "/api/idioms/tutor"): idioms_tutor,
     ("POST", "/api/mock/save"): mock_save,
+    ("POST", "/api/exam/list"): exam_list,
+    ("POST", "/api/exam/import"): exam_import,
+    ("POST", "/api/exam/answers"): exam_answers,
+    ("POST", "/api/exam/begin"): exam_begin,
+    ("POST", "/api/exam/save"): exam_save,
+    ("POST", "/api/exam/submit"): exam_submit,
+    ("POST", "/api/exam/result"): exam_result,
+    ("POST", "/api/exam/discard"): exam_discard,
     ("POST", "/api/mock/marks/scan"): mock_marks_scan,
     ("POST", "/api/mock/report/scan"): mock_report_scan,
     ("POST", "/api/mock/marks/save"): mock_marks_save,

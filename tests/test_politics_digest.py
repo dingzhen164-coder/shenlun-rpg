@@ -39,10 +39,10 @@ class DigestTests(unittest.TestCase):
             source=g.paths.train/'时政知识地图/内容.json';before=source.read_bytes();xp=g.state['xp']
         with patch('rpg.politics.ai.chat',side_effect=AssertionError('不得猜答案')):
             result=self.send(file);data=self.get()
-        # 第2段（自编未知政策）在任何讲义里都找不到出处：不导入、不猜，只在结果里告知。
-        self.assertEqual((result['rows'],result['unmatched'],result['blanks'],result['ready'],result['pending']),(2,1,1,1,0))
-        self.assertEqual([p['a'] for p in data['items']],['主产区'])
-        self.assertEqual(data['items'][0]['status'],'matched')
+        # 第2段（自编未知政策）在任何讲义里都找不到出处：不猜答案，但整份清单保留——按前后文归到相邻资料，标“待补全”，结果里如实告知。
+        self.assertEqual((result['rows'],result['unmatched'],result['blanks'],result['ready'],result['pending']),(2,1,2,1,1))
+        self.assertEqual([p['a'] for p in data['items']],['主产区',None])
+        self.assertEqual([p['status'] for p in data['items']],['matched','pending'])
         self.assertEqual(source.read_bytes(),before)
         with api.open_game(save=False) as g:self.assertEqual(g.state['xp'],xp)
 
@@ -97,7 +97,8 @@ class DigestTests(unittest.TestCase):
         counts=[]
         for style in ('line','rect','text','space'):
             out=digest.parse_pdf(self._page(self.ROWS,style));texts=[re.sub(r'_+','____',x['text']) for x in out]
-            self.assertFalse([t for t in texts if '2025年工作成就' in t or '政策取向' in t or '全国两会' in t],style+'：小标题不能并进空的段落')
+            self.assertEqual([x['text'] for x in out if x['kind']=='h'],['二、2026年全国两会之政府工作报告','（一）2025年工作成就','（三）2026年政策取向'],style+'：小标题单独成块保留')
+            self.assertFalse([t for x,t in zip(out,texts) if x['kind']=='p' and ('2025年工作成就' in t or '政策取向' in t or '全国两会' in t)],style+'：小标题不能并进正文')
             self.assertTrue(any(t.startswith('____增加值规模') for t in texts),style+'：行首的空不能丢')
             self.assertTrue(any('物价合理____作为货币政策' in t for t in texts),style+'：换行后行首的空不能丢')
             counts.append(sum(len(digest.BLANK.findall(t)) for t in texts))
@@ -132,6 +133,49 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(result['unmatched'],1);self.assertTrue(result['lost'][0].startswith('2.自编未知政策提出'))
         self.assertEqual(result['pdf_blanks'],2)
 
+    def test_full_text_is_kept_with_headings_plain_sentences_and_bold(self):
+        doc=fitz.open();page=doc.new_page(width=595,height=842)
+        page.insert_text((60,80),'一、自编政策取向',fontname='china-s',fontsize=10.5)
+        page.insert_text((60,98),'这一句没有空，也要保留。',fontname='china-s',fontsize=10.5)
+        page.insert_text((60,116),'Key ',fontname='helv',fontsize=10.5);page.insert_text((84,116),'growth',fontname='hebo',fontsize=10.5)
+        page.insert_text((120,116),' needs ____ policy.',fontname='helv',fontsize=10.5)
+        out=digest.parse_pdf(doc.tobytes())
+        self.assertEqual(out[0]['kind'],'h')
+        body=next(x for x in out if 'Key' in x['text'])
+        self.assertTrue(any(x['text']=='这一句没有空，也要保留。' and x['kind']=='p' for x in out),'没有空的句子也保留')
+        word=body['text'].index('growth');self.assertIn([word,word+6],body['bold'],'PDF里加粗的字逐字记下来')
+        self.assertNotIn([0,3],body['bold'])
+
+    def test_unlocated_blocks_follow_neighbours_and_data_keeps_every_sentence(self):
+        file=self.pdf(['消化清单','一、自编小标题','1.在________布局产能。','自编没有出处的普通句子，原样保留。','2.自编未知政策提出________要求。'])
+        result=self.send(file);data=self.get()
+        texts=[''.join(p.get('t','') if 't' in p else '____' for p in row['parts']) for row in data['paragraphs']]
+        self.assertEqual([row['kind'] for row in data['paragraphs']],['h','p','p','p'])
+        self.assertIn('自编没有出处的普通句子，原样保留。',texts[2])
+        self.assertTrue(data['paragraphs'][0]['parts'][0]['b'],'小标题按粗体显示')
+        self.assertEqual(result['unmatched'],1)
+
+    def test_bold_runs_are_returned_with_literal_pieces(self):
+        row={'text':'国家发展____很重要','provided':[],'kind':'p','bold':[[2,4]]}
+        parts=digest._literals(row['text'],0,len(row['text']),row['bold'],False)
+        self.assertEqual(parts,[{'t':'国家'},{'t':'发展','b':True},{'t':'____很重要'}])
+
+    def test_user_fill_completes_pending_blank_and_survives_reimport(self):
+        file=self.pdf(['1.在________布局产能。','2.自编未知政策提出________要求。'])
+        self.send(file);item=next(p for p in self.get()['items'] if p['status']=='pending')
+        with self.assertRaises(api.ApiError):api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':next(p for p in self.get()['items'] if p['status']=='matched')['id'],'text':'乱改'})
+        data=api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':item['id'],'text':'  自编  答案 '})
+        filled=next(p for p in data['items'] if p['status']=='filled');self.assertEqual(filled['a'],'自编 答案')
+        self.mark(filled,'remember');self.assertEqual(self.get()['progress'][filled['id']],'remember')
+        self.assertEqual(self.get()['counts']['pending'],0)
+        # 改答案不丢核对记号；清空则回到待补全
+        data=api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':filled['id'],'text':'新答案'})
+        again=next(p for p in data['items'] if p['status']=='filled');self.assertEqual((again['id'],again['a']),(filled['id'],'新答案'))
+        self.assertEqual(data['progress'][filled['id']],'remember')
+        data=api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':filled['id'],'text':''})
+        self.assertEqual(sum(p['status']=='pending' for p in data['items']),1)
+        with self.assertRaises(api.ApiError):api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':item['id'],'text':'长'*81})
+
     def test_titled_answer_section_is_not_mistaken_for_cover(self):
         self.send(self.pdf(['1.在____布局产能。','消化清单·答案与解析','1.自编答案']))
         self.assertEqual(self.get()['items'][0]['a'],'自编答案')
@@ -140,7 +184,13 @@ class DigestTests(unittest.TestCase):
         self.assertEqual(digest.match_answers('支持____发展产业。',['支持甲方发展产业。支持乙方发展产业。']),[None])
         self.assertEqual(digest.match_answers('支持____和____发展。',['支持甲和乙和丙发展。']),[None,None])
         self.assertEqual(digest.match_answers('支持____发展产业。',['支持甲方发展产业。支持甲方发展产业。']),['甲方'])
-        self.assertEqual(digest.match_answers('____发展产业。',['支持甲方发展产业。']),[None])
+        # 3.7.6：空在整段开头/结尾时按“分句”取答案（上一个逗号/句号之后到后面的固定文字），仍须唯一才填
+        self.assertEqual(digest.match_answers('____发展产业。',['支持甲方发展产业。']),['支持甲方'])
+        self.assertEqual(digest.match_answers('2.____地制宜发展新质生产力，建设现代化产业体系。',['要求，因地制宜发展新质生产力，建设现代化产业体系。']),['因'])
+        self.assertEqual(digest.match_answers('____发展产业。',['支持甲方发展产业。鼓励乙方发展产业。']),[None],'两处不同的前缀不猜')
+        self.assertEqual(digest.match_answers('____增加值规模连续16年第一，____领域外资准入。',['制造业增加值规模连续16年第一，制造业领域外资准入。']),['制造业','制造业'])
+        self.assertEqual(digest.match_answers('森林覆盖率提高到____',['森林覆盖率提高到25，成为国家。']),['25'])
+        self.assertEqual(digest.match_answers('____以上',['成为国家，25%以上。']),[None],'上下文太少不猜')
 
     def test_duplicate_import_keeps_progress_and_does_not_repeat_rows(self):
         file=self.pdf(['1.在____布局产能。'])

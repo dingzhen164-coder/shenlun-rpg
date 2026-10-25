@@ -75,3 +75,16 @@ body{background:transparent}.atlas-toolbar{background:color-mix(in srgb,var(--pa
 .sprint-workspace .sprint-document.current{background:color-mix(in srgb,var(--gold) 16%,transparent);box-shadow:inset 3px 0 0 var(--gold)}
 .sprint-workspace .sprint-index-label{color:color-mix(in srgb,var(--gold) 70%,var(--text));font-weight:700}
 .sprint-workspace .sprint-index .hint,.sprint-workspace .sprint-index .empty{color:var(--text);opacity:.82}
+
+/* 3.7.6 消化清单整份保留：小标题、普通句子、加粗重点；待补全的空点开直接填答案。 */
+.sprint-digest .digest-heading{font:700 var(--ds-fs-20)/1.6 var(--display);margin:26px 0 8px;color:var(--ink,var(--ds-text))}
+.sprint-digest .digest-heading:first-child{margin-top:6px}
+.sprint-digest .digest-bold{font-weight:800}
+.sprint-cloze-paragraph{margin:0}
+.sprint-digest button.digest-pending{font:inherit;cursor:pointer;display:inline;min-height:42px;background:transparent;border:0;border-bottom:2px dashed var(--line);color:var(--muted);padding:0 6px}
+.sprint-digest button.digest-pending:hover,.sprint-digest button.digest-pending:focus-visible{border-bottom-color:var(--gold);color:var(--ds-text)}
+.sprint-digest .digest-fill-edit{display:inline-flex;align-items:center;gap:6px;vertical-align:baseline;max-width:100%}
+.sprint-digest .digest-fill-edit input{width:min(16em,60vw);min-height:42px;font:inherit;padding:0 8px;border:1px solid var(--gold);border-radius:var(--ds-r-4);background:color-mix(in srgb,var(--panel) 92%,transparent);color:inherit}
+.sprint-digest .digest-fill-edit .digest-save{min-height:42px;padding:0 12px;font-size:var(--ds-fs-13)}
+.sprint-digest button.digest-edit{font-size:var(--ds-fs-12);min-height:32px;min-width:32px;padding:0;margin-left:2px;border:0;background:transparent;color:var(--muted);cursor:pointer;vertical-align:super}
+.sprint-digest button.digest-edit:hover{color:var(--ds-text)}
