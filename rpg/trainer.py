@@ -642,10 +642,10 @@ def _discuss_ask(g, s, text, independent=False):
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
-        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}},
+        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}, 'board':d['board']},
                     digest=_skill_digest(g,d['board']),skill=_skill_name(g,d['board']))
                     if independent else prompts.discuss(peak_tutors.persona(g,d['board']),d,_skill_digest(g,d['board']),text))
-        r = ai.chat(messages, temperature=0.6, max_tokens=1500)
+        r = prompts.plain_math(ai.chat(messages, temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     d["history"] += [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
@@ -1457,7 +1457,7 @@ def _explain_group(g, board, material, items):
     skill = _skill_name(g, board)
     digest, used = _tutor_material(g, board)
     try:
-        text = ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest=digest, skill=skill), temperature=0.5, max_tokens=2800)
+        text = prompts.plain_math(ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest=digest, skill=skill, board=board), temperature=0.5, max_tokens=2800))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
@@ -1501,7 +1501,7 @@ def _explain(g, q, r):
     skill = _skill_name(g, q['board'])
     digest, used = _tutor_material(g, q['board'])
     try:
-        text = ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, digest=digest, skill=skill), temperature=0.5, max_tokens=2400)
+        text = prompts.plain_math(ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, digest=digest, skill=skill), temperature=0.5, max_tokens=2400))
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     idioms.from_explanation(g,q,text)
@@ -1535,7 +1535,7 @@ def _review_chat(g, s, run, text):
            "question": q["stem"] + "\n" + "\n".join("%s. %s" % kv for kv in q["options"].items()),
            "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
     try:
-        reply = ai.chat(prompts.discuss(peak_tutors.persona(g, q["board"]), ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500)
+        reply = prompts.plain_math(ai.chat(prompts.discuss(peak_tutors.persona(g, q["board"]), ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
@@ -1789,7 +1789,7 @@ def _mreview_chat(g, s, text):
     ctx = {"kind": "大比复盘", "title": "第%s季第%s题" % (s["season"], q["num"]), "board": pq["board"], "history": hist[-10:],
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
-        reply = ai.chat(prompts.discuss(peak_tutors.persona(g, pq["board"]), ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500)
+        reply = prompts.plain_math(ai.chat(prompts.discuss(peak_tutors.persona(g, pq["board"]), ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]

@@ -14,10 +14,25 @@
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
+// AI 偶尔写 LaTeX（\( … \)、\frac…），界面不渲染公式：显示前统一换成普通文字和 Unicode 符号（与 rpg/prompts.py plain_math 同规则，旧存档里的讲解也一并变好读）
+const PLAIN_SUP = { 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹", n: "ⁿ" };
+const PLAIN_SYM = { times: "×", cdot: "·", div: "÷", le: "≤", leq: "≤", ge: "≥", geq: "≥", ne: "≠", neq: "≠", approx: "≈", equiv: "≡", pm: "±", infty: "∞",
+  rightarrow: "→", to: "→", Rightarrow: "⇒", therefore: "∴", because: "∵", ldots: "…", dots: "…", cdots: "⋯", quad: " ", qquad: " ", pi: "π", alpha: "α",
+  beta: "β", theta: "θ", in: "∈", cap: "∩", cup: "∪", sim: "～", angle: "∠", circ: "°", degree: "°", triangle: "△" };
+const plainTex = (s) => {
+  s = s.replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, "$1").replace(/\\(?:left|right)/g, "");
+  for (let i = 0; i < 3; i++) s = s.replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, (_, a, b) => [a, b].map((x) => (/^[\w.]+$/.test(x) ? x : `(${x})`)).join("/"));
+  return s.replace(/\\sqrt\{([^{}]*)\}/g, (_, a) => "√" + (/^[\w.]+$/.test(a) ? a : `(${a})`))
+    .replace(/\\pmod\{([^{}]*)\}|\\pmod\s*(\w+)/g, (_, a, b) => `（mod ${a || b}）`).replace(/\\bmod/g, " mod ")
+    .replace(/\^\{?([0-9n]+)\}?/g, (_, d) => [...d].map((c) => PLAIN_SUP[c]).join("")).replace(/\^\{([^{}]+)\}/g, "^($1)")
+    .replace(/_\{([^{}]*)\}/g, "$1").replace(/\\([A-Za-z]+)( ?)/g, (_, k, sp) => (k in PLAIN_SYM ? PLAIN_SYM[k] : k + sp))
+    .replace(/\\[,;! ]/g, " ").replace(/[{}]/g, "").replace(/[ \t]{2,}/g, " ").trim();
+};
+const plainMath = (s) => String(s ?? "").replace(/\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]|\$\$([\s\S]+?)\$\$|(?<![\d$])\$([^$\n]*[\\^_][^$\n]*)\$/g, (_, a, b, c, d) => plainTex(a ?? b ?? c ?? d));
+const md = (s) => plainMath(esc(s)).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
 // 师傅（npc）的讲解：带表格 / 列表 / 小标题的 Markdown 渲染成真正的表格、分段、加粗（MDLITE 先转义再渲染，安全）；纯文字仍走 md()
 const tutorMd = (s) => {
-  const t = String(s ?? "");
+  const t = plainMath(String(s ?? ""));
   const rich = /^\s*\|.+\|\s*$/m.test(t) || /^\s*([-*]|\d+[.、])\s+\S/m.test(t) || /\n\s*\n/.test(t.trim());
   const tidy = t.replace(/^(\*\*[^*\n]{1,24}\*\*)[ \t]*$/gm, "$1\n");          // 单独一行的加粗小标题自成一段，不和下一行连在一起
   return window.MDLITE && rich ? `<div class="md tutor-md">${MDLITE.render(tidy)}</div>` : md(t);
