@@ -10,6 +10,7 @@ wanxiang_journal注册API；训练/时政消化/<目标摘要>.json存PDF模板�
 import base64
 import hashlib
 import re
+import unicodedata
 from pathlib import Path
 
 from . import politics
@@ -18,8 +19,19 @@ BLANK = re.compile(r'(?:[_＿﹍﹎][ \t]*){2,}|（[ \u3000]*）|\([ \u3000]{2,}
 NUMBER = re.compile(r'^\s*(\d+)[.．、]\s*')
 
 
+RV = 2          # 识别规则版本：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
+_ASCII_PUNCT = {'(': '（', ')': '）', ',': '，', ';': '；', ':': '：', '!': '！', '?': '？'}
+
+
+def _fold(ch):
+    """比对用的字符折叠：全角字母数字、％等折成半角；半角标点折成中文全角标点（PDF与原文常在这两种写法间不一致）。"""
+    if ch in _ASCII_PUNCT:return _ASCII_PUNCT[ch]
+    one=unicodedata.normalize('NFKC',ch)
+    return one if len(one)==1 and one not in _ASCII_PUNCT else ch
+
+
 def norm(text):
-    return re.sub(r'\s+', '', text)
+    return ''.join(_fold(c) for c in re.sub(r'\s+', '', text))
 
 
 def resolve(g, target):
@@ -49,37 +61,79 @@ def resolve(g, target):
     raise politics.PoliticsError('配套讲义来源无效')
 
 
+def _underlines(page):
+    """页上所有水平线段（线、细长矩形、细长四边形都算，Word/WPS导出的下划线写法不同），首尾相接的合并成一条。"""
+    segs=[]
+    for drawing in page.get_drawings():
+        for item in drawing['items']:
+            kind=item[0]
+            if kind=='l':
+                a,b=item[1],item[2]
+                if abs(a.y-b.y)<=.7:segs.append([min(a.x,b.x),max(a.x,b.x),(a.y+b.y)/2])
+            elif kind in ('re','qu'):
+                r=item[1] if kind=='re' else item[1].rect
+                if r.height<=1.8 and r.width>=4:segs.append([r.x0,r.x1,(r.y0+r.y1)/2])
+    segs.sort(key=lambda s:(round(s[2]),s[0]))
+    merged=[]
+    for seg in segs:
+        if merged and abs(merged[-1][2]-seg[2])<=.8 and seg[0]-merged[-1][1]<=1.5:merged[-1][1]=max(merged[-1][1],seg[1])
+        else:merged.append(seg)
+    return [m for m in merged if m[1]-m[0]>=10]
+
+
+def _bold(span):
+    return bool(span['flags']&16) or bool(re.search(r'bold|black|heavy|黑体|粗',span.get('font',''),re.I))
+
+
 def _pdf_lines(doc):
-    """提取文字与真正空白处的绘制下划线；正文已有字的下划线不算空。"""
+    """逐字提取，返回 [(这一行的文字, 加粗字符占比)]；绘制下划线按下面的规则认成空：
+    贴着基线下方，不压在有字的地方（空格不算有字，被下划线盖住的空格整段换成一个空）；
+    左右至少一侧紧挨着文字——所以行首、行尾、字中间的空都认，页眉线、表格线、字下面的强调下划线不会被当成空。"""
     from .wanxiang_journal import NOISE
     result=[]
     for page in doc:
         rows={}
-        for block in page.get_text('dict')['blocks']:
+        for block in page.get_text('rawdict')['blocks']:
             for line in block.get('lines', []):
                 for span in line['spans']:
-                    if span['text'].strip() in NOISE:
+                    chars=span.get('chars',[])
+                    if ''.join(c['c'] for c in chars).strip() in NOISE:
                         continue
-                    baseline=round(span['origin'][1],1)
-                    rows.setdefault(baseline,[]).append((span['bbox'][0],span['bbox'][2],span['text'],False))
-        for drawing in page.get_drawings():
-            for item in drawing['items']:
-                if item[0]!='l':continue
-                a,b=item[1],item[2]
-                if abs(a.y-b.y)>.7 or abs(a.x-b.x)<12:continue
-                left,right=sorted((a.x,b.x))
-                candidates=[y for y in rows if -1<=a.y-y<=5]
-                if not candidates:continue
-                y=min(candidates,key=lambda y:abs(a.y-y))
-                spans=rows[y]
-                if not any(x2<=left+2 for x1,x2,_,_ in spans):continue
-                if any(x1<right-1 and x2>left+1 for x1,x2,_,_ in spans):continue
-                spans.append((left,right,'____',True))
-        for y,spans in sorted(rows.items()):
-            text=''.join(s[2] for s in sorted(spans))
+                    row=rows.setdefault(round(span['origin'][1],1),[]);bold=_bold(span)
+                    for c in chars:row.append([c['bbox'][0],c['bbox'][2],c['c'],bold,False])     # x0,x1,字,加粗,是否被下划线盖住的空格
+        for left,right,line_y in _underlines(page):
+            candidates=[y for y in rows if -1<=line_y-y<=5.5]
+            if not candidates:continue
+            row=rows[min(candidates,key=lambda y:abs(line_y-y))]
+            solid=[c for c in row if c[2].strip() and c[4] is False]
+            if any(c[0]<right-2 and c[1]>left+2 for c in solid):continue
+            if not (any(0<=left-c[1]<=8 for c in solid) or any(0<=c[0]-right<=8 for c in solid)):continue
+            covered=[c for c in row if not c[2].strip() and left-1<=(c[0]+c[1])/2<=right+1]
+            if covered:
+                for c in covered:c[4]=True
+            else:row.append([left,right,'',False,True])
+        for y,row in sorted(rows.items()):
+            text='';gap=False
+            for c in sorted(row,key=lambda c:(c[0],c[1])):
+                if c[4]:
+                    if not gap:text+='____';gap=True
+                else:text+=c[2];gap=False
+            text=re.sub(r'(?<=[^\x00-\x7f])[ \t]+(?=[^\x00-\x7f])','',text)      # 中文字符之间的空格是排版留下的，不是内容
+            letters=[c for c in row if c[2].strip()]
+            weight=sum(c[3] for c in letters)/max(1,len(letters))
             if not text.strip() or (y>page.rect.height*.9 and re.fullmatch(r'\s*\d{1,3}\s*',text)):continue
-            result.append(text.strip())
+            result.append((text.strip(),weight))
     return result
+
+
+HEADING = re.compile(r'^(?:[一二三四五六七八九十]+[、．]|[（(][一二三四五六七八九十]+[）)]|第[一二三四五六七八九十]+[部章节篇])')
+
+
+def _is_heading(line,weight,current):
+    """标题：独占一行、没有空、不带句内标点；整行加粗或以“一、”“（一）”“第一部分”开头。标题自成一段，不并进下面的正文。"""
+    if BLANK.search(line) or len(line)>40 or re.search(r'[，。；！？：]',line):return False
+    if current and not re.search(r'[。！？；]$',current):return False       # 上一段还没写完，这一行是它的续行
+    return bool(HEADING.match(line)) or weight>=.9
 
 
 def parse_pdf(content):
@@ -100,7 +154,7 @@ def parse_pdf(content):
         nonlocal current
         if BLANK.search(current):paragraphs.append(current)
         current=''
-    for line in lines:
+    for line,weight in lines:
         if re.fullmatch(r'(?:参考)?答案(?:与解析)?[：:]?',line) or line.endswith('·答案与解析'):
             flush();in_answers=True;continue
         if not BLANK.search(line) and re.search(r'消化清单|填空练习',line):
@@ -109,10 +163,10 @@ def parse_pdf(content):
             m=NUMBER.match(line)
             if m:answers[m.group(1)]=re.sub(r'^(?:【答案】|答案[：:])','',line[m.end():]).split('解析：')[0].strip('。 ')
             continue
-        heading=re.match(r'^[一二三四五六七八九十]+[、．]',line)
+        heading=_is_heading(line,weight,current)
         if NUMBER.match(line) or heading or (current and re.search(r'[。！？；]$',current)):
             flush()
-        if heading and not BLANK.search(line):continue
+        if heading:continue
         if current and re.search(r'[A-Za-z]$',current) and re.match(r'[A-Za-z]',line):current+=' '
         current+=line
     flush()
@@ -292,6 +346,35 @@ def _owners(matches):
     return [(m[0],m[1]) for m in matches]
 
 
+def _row_ids(key,doc_hash,i,row,pool):
+    """与get()相同的空位编号：[(编号, 答案)]；用来在重新识别后把旧的核对记号搬到新编号上。"""
+    answers=match_answers(row['text'],pool);out=[]
+    for k in range(len(BLANK.findall(row['text']))):
+        explicit=row['provided'][k] if k<len(row.get('provided',[])) else None
+        answer=explicit or answers[k]
+        out.append((key+':'+politics.digest([doc_hash,i,k,answer])[:24],answer))
+    return out
+
+
+def _carry_marks(g,key,doc_hash,old_rows,new_rows,pool):
+    """新规则重新识别同一份PDF：段落文字相同（或新段落是旧段落去掉标题等多余前缀后的一部分）且空数相同的，核对记号随之迁移。"""
+    file=g.paths.train/'时政消化/进度'/(key+'.json')
+    memory=politics.read_json(file,{})
+    if not memory:return 0
+    old=[(norm(r['text']),len(BLANK.findall(r['text'])),_row_ids(key,doc_hash,i,r,pool)) for i,r in enumerate(old_rows)]
+    moved=0
+    for j,row in enumerate(new_rows):
+        text=norm(row['text']);blanks=len(BLANK.findall(row['text']));new_ids=None
+        for old_text,old_blanks,old_ids in old:
+            if old_blanks!=blanks or not blanks or text not in old_text:continue
+            new_ids=new_ids or _row_ids(key,doc_hash,j,row,pool)
+            for (oid,_),(nid,answer) in zip(old_ids,new_ids):
+                if answer and oid in memory and nid not in memory:memory[nid]=memory[oid];moved+=1
+            break
+    if moved:politics.atomic_json(file,memory)
+    return moved
+
+
 def import_pdf(g, body):
     raw=str(body.get('data') or '').split(',',1)[-1]
     if len(raw)>56*1024*1024:raise politics.PoliticsError('请拆成40MB以内的PDF')
@@ -302,21 +385,26 @@ def import_pdf(g, body):
     ident=hashlib.sha256(content).hexdigest()
     name=Path(str(body.get('name') or '消化清单.pdf')).name[:200]
     candidates=_candidates(g)
+    lost=[]
     placed={};unmatched=0       # placed：保存位置摘要 → [资料身份, 文本池, 本次新增的段落]
     for src,row in enumerate(paragraphs):
         matches=[c for c in candidates if _located(row['text'],c[1])]
-        if not matches:unmatched+=1;continue
+        if not matches:unmatched+=1;lost.append(re.sub(r'(?:_\s*){2,}','＿＿',row['text'])[:28]);continue
         for desc,pool in _owners(matches):
             key=politics.digest(desc)
             slot=placed.setdefault(key,[desc,pool,[]]);slot[2].append(dict(row,src=src))
     if not placed:
         raise politics.PoliticsError('没有在已导入的讲义、月半或专题里找到这份清单的出处，未导入；请先导入对应资料，或检查清单文字与原文是否一致')
-    added=existing=ready=pending=0;targets=0
+    added=existing=ready=pending=0;targets=0;moved=redone=0
     with politics._LOCK:
         for key,(desc,pool,rows) in placed.items():
             file=_store(g,desc);saved=politics.read_json(file,{'schema':1,'target':desc,'documents':[]})
             doc=next((d for d in saved['documents'] if d['hash']==ident),None)
-            if doc is None:doc={'hash':ident,'name':name,'paragraphs':[]};saved['documents'].append(doc)
+            if doc is None:doc={'hash':ident,'name':name,'paragraphs':[],'rv':RV};saved['documents'].append(doc)
+            elif doc.get('rv',1)<RV and any('src' in r for r in doc['paragraphs']):
+                # 识别规则升级：同一份PDF按新规则整份重新识别（标题不再并进正文、行首行尾的空不再漏），核对记号尽量搬过去
+                moved+=_carry_marks(g,key,ident,doc['paragraphs'],[dict(r) for r in rows],pool)
+                doc['paragraphs']=[];doc['rv']=RV;redone+=1
             if any('src' not in r for r in doc['paragraphs']):existing+=len(rows);continue     # 旧版整份导入过的同一份PDF：不叠加
             have={r['src'] for r in doc['paragraphs']}
             fresh=[r for r in rows if r['src'] not in have]
@@ -334,4 +422,5 @@ def import_pdf(g, body):
         if not original.exists():
             original.parent.mkdir(parents=True,exist_ok=True);original.write_bytes(content)
     return dict(channel='digest',duplicate=not added and bool(existing),title=name,blanks=added,ready=ready,pending=pending,
-                rows=len(paragraphs),unmatched=unmatched,targets=targets)
+                rows=len(paragraphs),unmatched=unmatched,targets=targets,redone=redone,moved=moved,
+                pdf_blanks=sum(len(BLANK.findall(r['text'])) for r in paragraphs),lost=lost[:5])

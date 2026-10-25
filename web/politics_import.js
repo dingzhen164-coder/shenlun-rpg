@@ -47,8 +47,9 @@
      try{
       const result=await api('/api/wanxiang/import',{channel:chosenChannel,exam:chosenExam,kind,name:file.name,data:await read(file)});
       if(digest){
-       const skipped=result.unmatched?`，${result.unmatched}段没找到出处未导入`:'';
-       notes.push(result.duplicate?`「${result.title}」已导入，未重复添加${skipped}`:`「${result.title}」已分配到${result.targets}份资料：共${result.blanks}空，有明确答案或已匹配${result.ready}空，待补全${result.pending}空${skipped}`);
+       const skipped=result.unmatched?`，${result.unmatched}段没找到出处未导入${(result.lost||[]).length?'（如：'+result.lost.map(x=>'「'+x+'…」').join('、')+'）':''}`:'';
+       const redone=result.redone?`；已按新的识别规则重新识别${result.moved?'，'+result.moved+'个核对记号已保留':''}`:'';
+       notes.push(result.duplicate?`「${result.title}」已导入，未重复添加${skipped}`:`「${result.title}」识别到${result.rows}段${result.pdf_blanks}空，已分配到${result.targets}份资料：共${result.blanks}空，有明确答案或已匹配${result.ready}空，待补全${result.pending}空${skipped}${redone}`);
       }else if(result.channel==='month'||result.channel==='topic')notes.push(`已加入「${result.title}」：研读${result.news}条、消化${result.cloze}段、精卷${result.questions}题。`);
       else notes.push(result.duplicate?'这份PDF已导入，未重复添加。':`已加入 ${result.added} 份材料、${result.questions} 道题。${result.unanswered?`${result.unanswered} 道题未找到参考答案，暂不判分。`:''}${result.whole_document_questions?`${result.whole_document_questions} 道题保留为整份讲义配套练习。`:''}`);
      }catch(error){notes.push(`「${file.name}」未导入：${error.message}`);}

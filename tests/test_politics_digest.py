@@ -2,6 +2,7 @@
 import base64
 import copy
 import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -63,6 +64,73 @@ class DigestTests(unittest.TestCase):
         with self.assertRaises(api.ApiError):self.send(self.pdf(['1.自编完全无关的文字________补充说明内容。']))
         self.assertFalse(self.get()['documents'])
         with api.open_game(save=False) as g:self.assertFalse((g.paths.train/'时政消化/原文').exists() and list((g.paths.train/'时政消化/原文').glob('*.pdf')))
+
+    @staticmethod
+    def _page(rows,style):
+        """按真实清单页的样子画一页：加粗小标题独占一行，空有下划线线段/细矩形/文字下划线/带下划线的空格四种写法。"""
+        doc=fitz.open();page=doc.new_page(width=595,height=842);y=80
+        for row in rows:
+            x=60
+            for seg in row:
+                kind,text=('t',seg) if isinstance(seg,str) else seg
+                if kind in ('t','B'):
+                    page.insert_text((x,y),text,fontname='china-s',fontsize=10.5,render_mode=2 if kind=='B' else 0,border_width=.3 if kind=='B' else 0)
+                    x+=fitz.get_text_length(text,fontname='china-s',fontsize=10.5)
+                else:
+                    w=float(text)
+                    if style=='line':page.draw_line((x,y+2),(x+w,y+2),width=.6)
+                    elif style=='rect':page.draw_rect(fitz.Rect(x,y+1.6,x+w,y+2.2),fill=(0,0,0),color=None)
+                    elif style=='text':
+                        under='_'*int(w/5.3);page.insert_text((x,y),under,fontname='china-s',fontsize=10.5);w=fitz.get_text_length(under,fontname='china-s',fontsize=10.5)
+                    else:page.insert_text((x,y),' '*int(w/2.6),fontname='china-s',fontsize=10.5);page.draw_line((x,y+2),(x+w,y+2),width=.6)
+                    x+=w
+            y+=17
+        return doc.tobytes()
+
+    ROWS=[[('B','二、2026年全国两会之政府工作报告')],[('B','（一）2025年工作成就')],
+          ['国内生产总值增长',('b',24),'%，总量达到',('b',48),'万亿元。'],
+          [('b',50),'增加值规模连续16年保持全球第一，',('b',40),'领域外资准入限制措施全'],['部取消。货物贸易第',('b',40),'大国地位更加巩固。'],
+          [('B','（三）2026年政策取向')],['坚持稳中求进、提质增效，加大',('b',30),'周'],['期和',('b',30),'周期调节力度。'],
+          ['1.继续实施更加积极的',('b',40),'政策。把促进经济稳定增长、物价合理'],[('b',40),'作为货币政策的重要考量，运用',('b',20),'准',('b',20),'息工具。']]
+
+    def test_headings_stay_out_of_paragraphs_and_every_underline_style_is_recognized(self):
+        counts=[]
+        for style in ('line','rect','text','space'):
+            out=digest.parse_pdf(self._page(self.ROWS,style));texts=[re.sub(r'_+','____',x['text']) for x in out]
+            self.assertFalse([t for t in texts if '2025年工作成就' in t or '政策取向' in t or '全国两会' in t],style+'：小标题不能并进空的段落')
+            self.assertTrue(any(t.startswith('____增加值规模') for t in texts),style+'：行首的空不能丢')
+            self.assertTrue(any('物价合理____作为货币政策' in t for t in texts),style+'：换行后行首的空不能丢')
+            counts.append(sum(len(digest.BLANK.findall(t)) for t in texts))
+        self.assertEqual(counts,[11,11,11,11],'四种下划线写法认出的空一样多')
+
+    def test_plain_underline_below_text_or_page_rule_is_not_a_blank(self):
+        doc=fitz.open();page=doc.new_page(width=595,height=842)
+        page.insert_text((60,100),'强调下划线下面的字不算空，后面有一个____真正的空。',fontname='china-s',fontsize=10.5)
+        page.draw_line((60,102),(120,102),width=.6)           # 压在字下面的强调线
+        page.draw_line((60,60),(500,60),width=.6)              # 页眉线
+        out=digest.parse_pdf(doc.tobytes());self.assertEqual(sum(len(digest.BLANK.findall(x['text'])) for x in out),1)
+
+    def test_reimport_after_recognition_upgrade_replaces_paragraphs_and_keeps_marks(self):
+        file=self.pdf(['1.在________布局产能。'])
+        self.send(file);first=self.get()
+        with api.open_game(save=False) as g:
+            store=next((g.paths.train/'时政消化').glob('*.json'))
+            saved=politics.read_json(store,{});doc=saved['documents'][0];real=doc['paragraphs'][0]
+            doc.pop('rv',None);doc['paragraphs']=[{'text':'自编旧段落____。','provided':[],'src':98},dict(real,src=0)]   # 旧规则留下的结果：多一段、序号不同
+            politics.atomic_json(store,saved)
+        old=self.get();item=next(x for x in old['items'] if x['a']=='主产区')
+        self.mark(item,'remember')
+        result=self.send(file)
+        self.assertEqual((result['redone'],result['moved']),(1,1))
+        new=self.get();self.assertEqual(len(new['items']),1)
+        self.assertEqual(new['progress'][new['items'][0]['id']],'remember','核对记号随新识别结果保留')
+        self.assertEqual(politics.read_json(store,{})['documents'][0]['rv'],digest.RV)
+        again=self.send(file);self.assertTrue(again['duplicate'],'同一规则版本再次导入不叠加')
+
+    def test_unmatched_samples_are_reported(self):
+        result=self.send(self.pdf(['1.在________布局产能。','2.自编未知政策提出________要求，请注意。']))
+        self.assertEqual(result['unmatched'],1);self.assertTrue(result['lost'][0].startswith('2.自编未知政策提出'))
+        self.assertEqual(result['pdf_blanks'],2)
 
     def test_titled_answer_section_is_not_mistaken_for_cover(self):
         self.send(self.pdf(['1.在____布局产能。','消化清单·答案与解析','1.自编答案']))
