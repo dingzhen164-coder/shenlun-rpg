@@ -29,10 +29,10 @@ class MockRewardTest(unittest.TestCase):
         amount = rewards.amount(g)
         key = rewards.exam_key('自编二')
         rewards.claim(g, key)
-        self.assertEqual(g.state['xp'], before + amount['cost'])
+        self.assertEqual(g.state['xp'], before + amount['amount'])
         self.assertFalse(g.state.get('claimed', 0) > int(g.rules.num('起始分数')))
         self.assertEqual(rewards.claim(g, key), [])
-        self.assertEqual(g.state['xp'], before + amount['cost'])
+        self.assertEqual(g.state['xp'], before + amount['amount'])
 
     def test_low_or_equal_score_ineligible_and_same_exam_once(self):
         g = self.make()
@@ -56,7 +56,32 @@ class MockRewardTest(unittest.TestCase):
                 amount = rewards.amount(g)
                 expected = (1 if info['big'] < 2 else 1/6 if info['big'] == 2 else 1/12) if getattr(g, 'subject', '法考') == '行测' else (1 if info['big'] < 2 else .5)
                 self.assertEqual(amount['rate'], expected)
-                self.assertEqual(amount['amount'], math.ceil(info['need'] * expected))
+                self.assertEqual(amount['amount'], min(math.ceil(info['need'] * expected), info['next_xp'] - g.state['xp']))   # 3.7.5：最多补满本阶段
+
+    def test_reward_only_fills_current_stage_without_overflow_or_auto_breakthrough(self):
+        """用户场景：练气七层 1080/3500，领取只补 2320，修为刚好圆满，不溢出、不自己突破。"""
+        g = self.make()
+        start = int(g.rules.num('起始分数')) + 6          # 练气七层的起点（起始分+6）
+        g.state.update(gates=g.gates(), claimed=start, xp=math.ceil(g.xp_at(start)) + 1080)
+        info = g.realm_info()
+        self.assertFalse(info['ready'])
+        rewards.offer(g, '补满测试', start + 20, start)
+        preview = rewards.amount(g)
+        self.assertIn(preview['amount'], (info['need'] - info['into'], info['need'] - info['into'] + 1), '补的就是本阶段还差的修为')
+        self.assertTrue(preview['capped'] and preview['amount'] < info['need'])
+        rewards.claim(g, rewards.exam_key('补满测试'))
+        after = g.realm_info()
+        self.assertEqual((after['into'], after['need']), (after['need'], after['need']), '刚好补满本阶段')
+        self.assertTrue(after['ready'], '圆满，等自己点突破')
+        self.assertEqual(g.state['claimed'], start, '领取不会自己突破')
+        self.assertLessEqual(g.state['xp'], math.ceil(g.xp_at(after['ready_to'])) + 1, '没有溢出到下一阶段')
+        # 已圆满：再领一份新的奖励不可领，提示先突破
+        rewards.offer(g, '圆满后', start + 30, start)
+        self.assertFalse(rewards.amount(g)['available'])
+        with self.assertRaisesRegex(ValueError, '突破'):
+            rewards.claim(g, rewards.exam_key('圆满后'))
+        g.break_through()
+        self.assertTrue(rewards.amount(g)['available'], '突破进入下一阶段后可以领')
 
     def test_claim_uses_stage_at_claim_time_and_max_stage_unavailable(self):
         g = self.make()

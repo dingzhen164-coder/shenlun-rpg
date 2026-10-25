@@ -150,9 +150,14 @@ def amount(g):
     if getattr(g, 'subject', '法考') == '行测' and info['big'] >= 2:
         divisor = max(1, int(g.rules.num('模考悟道.筑基分母' if info['big'] == 2 else '模考悟道.金丹及以后分母')))
         rate = 1.0 / divisor
-    return dict(amount=int(math.ceil(cost * rate)), cost=cost, rate=rate, divisor=divisor,
+    # 3.7.5：奖励只补满当前小境界（本阶段还差多少就最多领多少），不会溢出，也不会自己突破——突破仍由自己点。
+    target = info['next_xp']        # 下一小境界的修为门槛（向上取整），补到这里正好圆满
+    remaining = 0 if at_max or info['ready'] or not target else max(0, target - g.state['xp'])
+    full = int(math.ceil(cost * rate))
+    reward = min(full, remaining)
+    return dict(amount=reward, cost=cost, rate=rate, divisor=divisor, remaining=remaining, capped=reward < full,
                 realm=info['name'], next=info['next'] or info.get('gate_realm', ''),
-                available=cost > 0 and rate > 0)
+                available=reward > 0 and rate > 0)
 
 
 def view(g):
@@ -170,11 +175,17 @@ def claim(g, key):
         return []
     preview = amount(g)
     if not preview['available']:
+        info = g.realm_info()
+        if info['ready']:
+            raise ValueError('当前小境界修为已圆满，不再有可领取的修为；请先去洞府点「突破」，进入下一阶段后再领取')
+        if info['bottleneck']:
+            raise ValueError('已到大境界瓶颈，修为已补满，请先渡劫')
         raise ValueError('当前阶段没有可领取的突破修为')
     reward = preview['amount']
     ratio = '1/%d' % preview['divisor'] if preview['divisor'] > 1 else '%g%%' % (preview['rate'] * 100)
-    events = g._award(reward, 'insight', note='模考悟道「%s」：按%s突破所需修为的%s奖励，手动领取' %
-                      (record['name'], preview['realm'], ratio), bonus=False)
+    suffix = '，已补满本阶段（不溢出）' if preview['capped'] else ''
+    events = g._award(reward, 'insight', note='模考悟道「%s」：按%s突破所需修为的%s奖励，手动领取%s' %
+                      (record['name'], preview['realm'], ratio, suffix), bonus=False)
     # _award同时可能生成境界提醒；只为这笔悟道经验添加规则标记。
     event = next(e for e in reversed(g.state['events']) if e['type'] == 'insight' and e['xp'] == reward)
     event.update(reward_model=MODEL, exam_key=key)

@@ -69,7 +69,8 @@ class Updates363Test(unittest.TestCase):
         for score, divisor in ((52, 1), (60, 6), (62, 6), (65, 12), (70, 12), (80, 12)):
             self.g.state.update(gates=self.g.gates(), xp=math.ceil(self.g.xp_at(score))+1, claimed=score)
             amount = mock_rewards.amount(self.g)
-            self.assertEqual(amount['amount'], math.ceil(amount['cost']/divisor))
+            info = self.g.realm_info()
+            self.assertEqual(amount['amount'], min(math.ceil(amount['cost']/divisor), info['next_xp'] - self.g.state['xp']))   # 3.7.5：最多补满本阶段
         self.g.rules.raw['模考悟道.筑基分母'] = 3
         self.g.state.update(xp=math.ceil(self.g.xp_at(60))+1, claimed=60)
         self.assertEqual(mock_rewards.amount(self.g)['divisor'], 3)
