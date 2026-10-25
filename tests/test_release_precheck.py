@@ -29,6 +29,7 @@ class PrecheckTest(unittest.TestCase):
         self.remote, self.a, self.b = [os.path.join(base, x) for x in ('remote.git', 'a', 'b')]
         sh(base, 'init', '-q', '--bare', '-b', 'main', self.remote)
         sh(base, 'clone', '-q', self.remote, self.a)
+        write(self.a, 'CLAUDE.md', '每个版本的更新记录都写明“旧存档照常使用”\n')
         write(self.a, 'rpg/version.py', 'VERSION = "1.0.0"\n')
         write(self.a, 'rpg/data/changelog.md', '## 1.0.0 · 2026-01-01\n- 旧存档照常使用\n')
         write(self.a, '.github/release-request.json', json.dumps({'version': '1.0.0'}))
