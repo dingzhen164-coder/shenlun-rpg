@@ -818,3 +818,4 @@ def register(api):
     api.ROUTES[('POST','/api/wanxiang/import/delete')] = lambda b: run(lambda g,b:politics_manage.delete(g,b.get('ids')),b)
     api.ROUTES[('POST','/api/wanxiang/digest/get')] = lambda b: run(lambda g,b:politics_digest.get(g,b.get('target')),b)
     api.ROUTES[('POST','/api/wanxiang/digest/mark')] = lambda b: run(politics_digest.mark,b)
+    api.ROUTES[('POST','/api/wanxiang/digest/fill')] = lambda b: run(politics_digest.fill,b)
