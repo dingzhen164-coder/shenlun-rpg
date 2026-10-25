@@ -1662,8 +1662,9 @@ function startTimer() {
 // 修炼对话框顶上：标题和进度合成一行（标题后面跟小标签，底边一道细进度线），不再占一大块
 function sessionHead() {
   const b = T.battle;
-  if (!b) return `<div class="review-head"><b>${esc(T.title)}</b></div>`;
-  return b.label ? reviewHead(b) : bankHead(b);
+  // 3.7.5：答题/复盘的状态条一律由fixed_layout.pageBar搬进地点顶栏（bank-head），不再占题目上方的一行。
+  if (!b) return `<div class="review-head bank-head"><b>${esc(T.title)}</b></div>`;
+  return (b.label ? reviewHead(b) : bankHead(b)).replace('class="review-head"', 'class="review-head bank-head"');
 }
 function headRow(title, tags, ratio) {
   return `<div class="review-head"><b>${esc(title)}</b><span class="rh-stats">${tags.filter(Boolean).join("")}</span>

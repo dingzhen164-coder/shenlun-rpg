@@ -1070,3 +1070,8 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - 数据：每套一个practice_only材料（标题=套卷标题），`补充.json`问题多存`no`（套卷内题号）与`paper`；去重签名含套卷与题号，不同套的同一道题都保留。界面（atlas.js）：卡片显示“第N题”（旧数据仍显示全局号）；有多套时工具栏出现“选择套卷”下拉。导入结果回报“识别到N套：卷一 12题；…”及选项不全的题（最多8条）。
 - 已用旧规则导入过的同一份PDF：因PDF摘要已在imports里，再导入提示重复；需先在“管理已导入文件”删除再重新导入。
 - 测试：test_politics_exam（5项）、ui_exam375（电脑/平板横竖屏）；fixture在ui_layout_server的--politics-fixture里生成“自编十套卷.pdf”。
+
+### 3.7.5开发：答题/复盘状态条并入地点顶栏（2026-10-25，开发分支，待统一验证发布）
+- 用户要求：所有答题/复盘界面题目上方那一行（如“大比复盘 · 第40季 · 论证逻辑｜第1/5题｜✓4 ✗1｜复盘过1”）挪到最上方一栏“宗门大比”后面，增大答题区。实现：`app.js sessionHead`把所有`.review-head`（真题试炼、大比复盘、试炼复盘、无进度的普通任务标题）都加`bank-head`，复用3.3.9已有的`fixed_layout.pageBar`搬进`#studyHud .subpage-nav`（顶栏内横向滚动，进度细线隐藏）；`.chat`加`compact-bank`，题目区取回那一行的高度。
+- 顺带修了状态条小标签的样式：`.rh-stats span`连里面的图标span也套了药丸边框，✓/✗与数字被叠在一起；改成`.rh-stats>span`。
+- 测试：ui_contest_scene断言大比复盘状态条在顶栏、题目区上方没有；ui_compact_review/ui_training339原有断言继续通过。

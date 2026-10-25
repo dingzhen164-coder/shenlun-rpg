@@ -946,7 +946,7 @@ html.in-app main { padding-bottom: max(60px, env(safe-area-inset-bottom)); }
 .review-head > b { font-family: var(--display); font-size: 15px; letter-spacing: .04em; }
 .rh-stats b { font-variant-numeric: tabular-nums; }
 .rh-stats { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
-.rh-stats span { padding: 1px 9px; border-radius: var(--ds-r-pill); border: 1px solid var(--line); background: color-mix(in srgb, var(--panel2) 70%, transparent); }
+.rh-stats>span { padding: 1px 9px; border-radius: var(--ds-r-pill); border: 1px solid var(--line); background: color-mix(in srgb, var(--panel2) 70%, transparent); }
 .rh-stats .ok { color: var(--green); } .rh-stats .bad { color: var(--red); }
 .rh-bar { position: absolute; left: 0; bottom: -1px; height: 2px; background: var(--gold); border-radius: var(--ds-r-2); transition: width .3s; }
 .composer-row { align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1030,7 +1030,7 @@ html.no-cmix .tri-bar .seg-rdrill { background: var(--c-review); opacity: .4; }
 html.no-cmix .lecture-card { background: var(--panel); }
 html.no-cmix .msg.me { background: var(--panel2); }
 html.no-cmix .q-pin > .pin-body { background: var(--panel2); }
-html.no-cmix .rh-stats span, html.no-cmix .rv-board, html.no-cmix .kpi { background: var(--panel2); }
+html.no-cmix .rh-stats>span, html.no-cmix .rv-board, html.no-cmix .kpi { background: var(--panel2); }
 html.no-cmix .rv-board.done, html.no-cmix .kpi.hero { border-color: var(--gold); }
 html.no-cmix .st-veil { background: rgba(6, 8, 14, .88); }
 html.no-cmix .st-bar { background: rgba(255, 255, 255, .15); }
