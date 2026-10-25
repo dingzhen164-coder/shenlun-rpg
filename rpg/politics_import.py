@@ -295,7 +295,7 @@ def import_pdf(pp, body):
             ids[i] = m
             added += 1
         next_id = max((int(q['id']) for q in data['questions']), default=0)+1
-        sign = lambda q: politics.digest([q['text'], q['answer']] + ([q['paper'], q['no']] if q.get('no') else []))
+        sign = lambda q: politics.digest([q['text'], q['answer']] + ([q['paper'], q['no']] if q.get('paper') else []))
         seen = {sign(q) for q in data['questions']}
         added_q = 0
         for q in questions:
@@ -308,7 +308,7 @@ def import_pdf(pp, body):
             links = stored['questions'] if stored else extra.setdefault('links', {}).setdefault(m['id'], [])
             extra['questions'].append({'id': next_id, 'material': m['id'], 'text': q['text'], 'answer': q['answer'], 'analysis': q.get('analysis', ''), 'tags': m['tags'],
                                        'layout_text': q.get('layout_text', ''), 'pdf': path.relative_to(pp.vault).as_posix(),
-                                       **({'no': q['no'], 'paper': q['paper']} if q.get('no') else {})})
+                                       **({'no': q['no'], 'paper': q['paper']} if q.get('paper') else {})})
             links.append(next_id)
             next_id += 1
             added_q += 1
