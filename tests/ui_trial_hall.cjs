@@ -33,7 +33,7 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
  for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['tablet-landscape',{width:1280,height:800}]]){
   const page=await browser.newPage({viewport,deviceScaleFactor:2});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
-  const painted=await page.locator('.th-panorama').count();
+  const painted=await page.locator('.th-panorama').count(),left=(await page.locator('[data-th-enter=exam]').count())?'exam':'sets';   // 行测左门是整卷模考（见 ui_exam_room.cjs），法考等仍是套卷练习
   await page.locator(painted?'.th-panorama':'.th-tower-art').evaluate(img=>img.decode());
   if(painted){assert.equal(await page.locator('.th-panorama').evaluate(img=>img.naturalWidth),3840);assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const fit=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect(),inside=b=>b.left>=s.left-1&&b.right<=s.right+1&&b.top>=s.top-1&&b.bottom<=s.bottom+1;
    // 塔尖（画面上方）、左右山门与中央牌匾必须完整可见；横向要贴住或几乎贴住两侧，只允许裁掉底部多余石阶。
@@ -48,21 +48,21 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   if(!painted)await page.locator('.th-gate img').first().evaluate(img=>img.decode());
   if(process.argv.includes('--shots')){fs.mkdirSync(out,{recursive:true});await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');await page.screenshot({path:path.join(out,label+'-scene.png')});}
   const noTraining=[];const track=req=>{if(/\/api\/session\/start/.test(req.url()))noTraining.push(req.url());};page.on('request',track);
-  await page.locator('[data-th-enter=sets]').click();assert(await page.locator('.th-dialog').evaluate(d=>d.open));
-  if(painted){await page.evaluate(()=>{document.documentElement.dataset.scenePhase='night';});/* 3.7.4：面板随时间变色，浅字青灰底的断言固定在夜晚，白天另见 ui_trial_phase374 */for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);const ink=await page.locator('.th-choice b').first().evaluate(e=>({color:getComputedStyle(e).color,weight:Number(getComputedStyle(e).fontWeight)}));assert.equal(ink.color,'rgb(255, 244, 210)','青灰背景的题签不能继承浅色主题黑字');assert(ink.weight>=600);await fits(page);}await page.evaluate(()=>document.documentElement.dataset.theme='light');}
+  await page.locator('[data-th-enter='+left+']').click();assert(await page.locator('.th-dialog').evaluate(d=>d.open));
+  if(painted&&left==='sets'){await page.evaluate(()=>{document.documentElement.dataset.scenePhase='night';});/* 3.7.4：面板随时间变色，浅字青灰底的断言固定在夜晚，白天另见 ui_trial_phase374 */for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);const ink=await page.locator('.th-choice b').first().evaluate(e=>({color:getComputedStyle(e).color,weight:Number(getComputedStyle(e).fontWeight)}));assert.equal(ink.color,'rgb(255, 244, 210)','青灰背景的题签不能继承浅色主题黑字');assert(ink.weight>=600);await fits(page);}await page.evaluate(()=>document.documentElement.dataset.theme='light');}
   assert.equal(await page.locator('.th-dialog').evaluate(d=>getComputedStyle(d,'::backdrop').backgroundColor),'rgba(0, 0, 0, 0)');
-  await page.keyboard.press('Escape');await page.locator('.th-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('dialog[open]').count(),0);assert(await page.locator('[data-th-enter=sets]').evaluate(b=>b===document.activeElement));
+  await page.keyboard.press('Escape');await page.locator('.th-dialog').waitFor({state:'hidden'});assert.equal(await page.locator('dialog[open]').count(),0);assert(await page.locator('[data-th-enter='+left+']').evaluate(b=>b===document.activeElement));
   assert.equal(await page.locator('[data-th-motion]').count(),0);await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator(painted?'.th-panorama':'.th-current-light').evaluate(e=>getComputedStyle(e).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
   await page.locator('[data-th-enter=blocks]').click();await page.locator('[data-th-close]').click();assert.equal(await page.locator('dialog[open]').count(),0);
   await page.locator('[data-th-enter=history]').click();await fits(page);await page.locator('[data-th-close]').click();assert.deepEqual(noTraining,[]);page.off('request',track);
-  await page.locator('[data-th-enter=sets]').click();
-  for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);for(const tab of ['sets','blocks','history']){await enter(page,tab);await fits(page);}}
-  if(process.argv.includes('--shots')){await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.mouse.move(viewport.width-70,viewport.height/2);await page.waitForTimeout(500);await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');fs.mkdirSync(out,{recursive:true});await enter(page,'sets');await page.screenshot({path:path.join(out,label+'-sets.png')});if(label==='desktop'){await enter(page,'blocks');await page.screenshot({path:path.join(out,'desktop-blocks.png')});}}
-  await page.evaluate(()=>document.documentElement.dataset.theme='light');await enter(page,'sets');
-  await choose(page,'[data-th-book]',0);await page.locator('[data-th-paper="22"]').click();const selected=await page.locator('#th-pane-sets .th-selection h3').textContent();
+  await page.locator('[data-th-enter='+left+']').click();
+  for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);for(const tab of [left,'blocks','history']){await enter(page,tab);await fits(page);}}
+  if(process.argv.includes('--shots')){await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.mouse.move(viewport.width-70,viewport.height/2);await page.waitForTimeout(500);await page.waitForFunction(()=>!document.querySelector('#splash')||getComputedStyle(document.querySelector('#splash')).opacity==='0');fs.mkdirSync(out,{recursive:true});await enter(page,left);await page.screenshot({path:path.join(out,label+'-sets.png')});if(label==='desktop'){await enter(page,'blocks');await page.screenshot({path:path.join(out,'desktop-blocks.png')});}}
+  await page.evaluate(()=>document.documentElement.dataset.theme='light');await enter(page,left);let selected='';
+  if(left==='sets'){await choose(page,'[data-th-book]',0);await page.locator('[data-th-paper="22"]').click();selected=await page.locator('#th-pane-sets .th-selection h3').textContent();}
   await enter(page,'blocks');await choose(page,'[data-th-board]',1);await choose(page,'[data-th-topic]',0);
-  const chosenTopic=await page.locator('[data-th-topic]').inputValue();await enter(page,'sets');assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
-  await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();assert.equal(await page.locator('dialog[open]').count(),0);await page.locator('[data-th-enter=sets]').click();assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
+  const chosenTopic=await page.locator('[data-th-topic]').inputValue();await enter(page,left);if(left==='sets')assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
+  await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();assert.equal(await page.locator('dialog[open]').count(),0);await page.locator('[data-th-enter='+left+']').click();if(left==='sets')assert.equal(await page.locator('#th-pane-sets .th-selection h3').textContent(),selected);
   await enter(page,'blocks');assert.equal(await page.locator('[data-th-topic]').inputValue(),chosenTopic);
   // 续做已经没有剩余新题的知识点复盘，按钮仍应可用，接口沿用原点:板块:知识点。
   await choose(page,'[data-th-topic]',2);assert.equal(await page.locator('.th-start').textContent().then(x=>x.trim()),'继续练习 →');assert(await page.locator('.th-start').isEnabled());
@@ -74,7 +74,7 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.locator('[data-act^="exam_pick"]').first().click();await page.waitForFunction(()=>!T.busy);const before=await page.evaluate(()=>({answered:T.battle.answered,position:T.battle.position}));await pause(page);
   await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.deepEqual(await page.evaluate(()=>({answered:T.battle.answered,position:T.battle.position})),before);await pause(page);
   // 套卷题数不受20题设置限制；此夹具一套跨两板块共6题。
-  await enter(page,'sets');await page.locator('[data-th-paper="23"]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),6);await pause(page);
+  if(left==='sets'){await enter(page,'sets');await page.locator('[data-th-paper="23"]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),6);await pause(page);}
   // 按套卷板块训练取同一套全部题，包含做过的题，来源始终可见；独立恢复与旧模式互不覆盖。
   if(painted){
   await enter(page,'blocks');await page.locator('.bankOrder').selectOption('paper');

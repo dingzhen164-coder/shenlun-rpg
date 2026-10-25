@@ -185,8 +185,14 @@ def _recite_prompt(g, board, it, head):
             + f"再用自己的话讲思路（共 {len(it['thoughts'])} 条）。允许同义表达与不同顺序，含义要对应，不能混淆上位分类和下位方法。")
 
 
+def _sname(g, season):
+    """模考的名字：旧的粉笔季叫“第N季”，整卷考试的试卷用自己的名字"""
+    from . import mock
+    return mock.season_name(g, int(season))
+
+
 def _wrong_intro(g, q, head):
-    return _msg("sys", f"{head}第{q['season']}季 · {q['source']} · 第{q['num']}题（上次你选了 {q['mine'] or '未作答'}）",
+    return _msg("sys", f"{head}{_sname(g, q['season'])} · {q['source']} · 第{q['num']}题（上次你选了 {q['mine'] or '未作答'}）",
                 blocks=vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
                 qkey='mock:' + q['key'])
 
@@ -1604,7 +1610,7 @@ def _time_board(g, src):
 def _mreview_load(g, s, src):
     d, boards = mock_boards(g, s["season"])
     if not d or src not in boards:
-        raise TrainError("第%s季没有「%s」的复盘" % (s["season"], src))
+        raise TrainError("%s没有「%s」的复盘" % (_sname(g, s["season"]), src))
     qs = [dict(q, season=s["season"], source=src, dir=str(d), key="%s|%s|%s" % (s["season"], src, q["num"]))
           for q in vault.parse_board_file(vault.board_file(d, src))]
     times=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_seconds') or {}
@@ -1615,7 +1621,7 @@ def _mreview_load(g, s, src):
     picked = [q for q in qs if q["icon"] != "✅"] if s["only_wrong"] else qs
     s["all_correct"] = s["only_wrong"] and not picked
     s.update(source=src, board=_time_board(g, src), boards=boards, qs=picked or qs, rpos=0, explain={}, chat={},
-             title="📜 大比复盘 · 第%s季 · %s" % (s["season"], src))
+             title="📜 大比复盘 · %s · %s" % (_sname(g, s["season"]), src))
     # 上次“暂时离开”停在哪题：接着看
     saved = mock_saved(g, s["season"]).get(src)
     s["resumed"] = 0
@@ -1637,7 +1643,7 @@ def _start_mreview(g, task):
         raise TrainError("选一季模考再复盘")
     d, boards = mock_boards(g, season)
     if not boards:
-        raise TrainError("第%s季还没有板块复盘：先到藏经阁 → 经卷 · 题库 → 导入真题，导入这一季的模考 PDF" % season)
+        raise TrainError("%s还没有板块复盘：先在试炼塔左侧「套卷」或藏经阁里导入这份模考试卷" % _sname(g, season))
     src = task.get("board") if task.get("board") in boards else boards[0]
     s = new_session("mock_review", "", task, season=season, only_wrong=bool(task.get("only_wrong")))
     _mreview_load(g, s, src)
@@ -1655,8 +1661,8 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
     if q["num"] not in done:
         done.append(q["num"])
     msgs = []
-    msgs.append(_msg("sys", "复盘 第 %d/%d 题 · 第%s季第 %s 题 · %s · %s" % (
-        i + 1, len(qs), s["season"], q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
+    msgs.append(_msg("sys", "复盘 第 %d/%d 题 · %s第 %s 题 · %s · %s" % (
+        i + 1, len(qs), _sname(g, s["season"]) if re.fullmatch(r"第\d+季", _sname(g, s["season"])) else _sname(g, s["season"]) + " · ", q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
         qkey="mock:" + q["key"]))
     duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
@@ -1692,7 +1698,7 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
            "buttons": [{"id": a, "label": b} for a, b in btns]}
     r = _resp(s, msgs, events, input=_remember(s, inp))
     c = _mreview_counts(qs)
-    r["battle"] = {"label": "大比复盘 · 第%s季 · %s" % (s["season"], s["source"]), "total": len(qs), "position": i + 1,
+    r["battle"] = {"label": "大比复盘 · %s · %s" % (_sname(g, s["season"]), s["source"]), "total": len(qs), "position": i + 1,
                    "ok": c["✅"], "wrong": c["❌"], "blank": c["⚪"], "reviewed": len(done), "phase": "review"}
     r["replace"] = True
     if scroll_bottom:
@@ -1744,15 +1750,15 @@ def _mreview_action(g, s, act):
         return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
     elif act in ("mr_pause", "bank_pause"):
         mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]
-        text = "进度已保存：第%s季 · %s 停在第 %d/%d 题（第 %s 题）。下次在宗门大比点这个板块，从这题接着复盘。" % (
-            s["season"], s["source"], i + 1, len(qs), qs[i]["num"])
+        text = "进度已保存：%s · %s 停在第 %d/%d 题（第 %s 题）。下次在宗门大比点这个板块，从这题接着复盘。" % (
+            _sname(g, s["season"]), s["source"], i + 1, len(qs), qs[i]["num"])
         return _resp(s, [_msg("sys", text)], finished=True)
     elif act in ("mr_close", "skip"):
         mock_saved(g, s["season"]).pop(s["source"], None)
         c = _mreview_counts(qs)
         done = mock_reviewed(g, s["season"]).get(s["source"], [])
-        text = "第%s季 · %s 复盘结束：这个板块复盘过 %d 题（这次看的 %d 题里答对 %d、答错 %d、没做 %d）。错题都在%s里，接着去%s。" % (
-            s["season"], s["source"], len(done), len(qs), c["✅"], c["❌"], c["⚪"], g.T("nav.wrong")[2:], g.T("kill") + g.T("wrong"))
+        text = "%s · %s 复盘结束：这个板块复盘过 %d 题（这次看的 %d 题里答对 %d、答错 %d、没做 %d）。错题都在%s里，接着去%s。" % (
+            _sname(g, s["season"]), s["source"], len(done), len(qs), c["✅"], c["❌"], c["⚪"], g.T("nav.wrong")[2:], g.T("kill") + g.T("wrong"))
         return _resp(s, [_msg("sys", text), _msg("npc", _say(g, "试炼·复盘结束") or "复盘完了就去把错题斩干净。")], finished=True)
     else:
         raise TrainError("这一步请使用当前题目的按钮")
@@ -1786,7 +1792,7 @@ def _mreview_chat(g, s, text):
         return _mreview_show(g, s, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
                                                                  + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
     pq = _mreview_pq(s, q)
-    ctx = {"kind": "大比复盘", "title": "第%s季第%s题" % (s["season"], q["num"]), "board": pq["board"], "history": hist[-10:],
+    ctx = {"kind": "大比复盘", "title": "%s 第%s题" % (_sname(g, s["season"]), q["num"]), "board": pq["board"], "history": hist[-10:],
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
         reply = prompts.plain_math(ai.chat(prompts.discuss(peak_tutors.persona(g, pq["board"]), ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500))

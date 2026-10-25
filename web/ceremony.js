@@ -156,10 +156,10 @@
   function contest(s, prev) {
     const diff = s.avg != null ? s.score - s.avg : null;
     let text;
-    if (diff == null) text = `第 ${s.season} 季宗门大比落幕。你交出了 ${s.score} 分的答卷——成绩已录入宗门名册，且看下回如何。`;
-    else if (diff >= 10) text = `第 ${s.season} 季宗门大比，你出手便压住了全场，比同门平均高出 ${diff.toFixed(1)} 分。长老们交头接耳：此子道基扎实，假以时日，必成大器。只是山外有山，榜首仍在前方。`;
-    else if (diff >= 0) text = `第 ${s.season} 季宗门大比，你稳稳胜过同门平均 ${diff.toFixed(1)} 分。不算惊艳，却也守住了自己的位置。差距藏在几个薄弱板块里——回去把心魔一只只斩了，下一季再争。`;
-    else text = `第 ${s.season} 季宗门大比，你比同门平均低了 ${(-diff).toFixed(1)} 分。败一场不丢人，丢人的是不知道败在哪。去心魔录里看看这一季的错题，它们就是你下一次突破的台阶。`;
+    if (diff == null) text = `${s.name||`第 ${s.season} 季`}宗门大比落幕。你交出了 ${s.score} 分的答卷——成绩已录入宗门名册，且看下回如何。`;
+    else if (diff >= 10) text = `${s.name||`第 ${s.season} 季`}宗门大比，你出手便压住了全场，比同门平均高出 ${diff.toFixed(1)} 分。长老们交头接耳：此子道基扎实，假以时日，必成大器。只是山外有山，榜首仍在前方。`;
+    else if (diff >= 0) text = `${s.name||`第 ${s.season} 季`}宗门大比，你稳稳胜过同门平均 ${diff.toFixed(1)} 分。不算惊艳，却也守住了自己的位置。差距藏在几个薄弱板块里——回去把心魔一只只斩了，下一季再争。`;
+    else text = `${s.name||`第 ${s.season} 季`}宗门大比，你比同门平均低了 ${(-diff).toFixed(1)} 分。败一场不丢人，丢人的是不知道败在哪。去心魔录里看看这一季的错题，它们就是你下一次突破的台阶。`;
     if (prev && prev.score != null) {
       const d = s.score - prev.score;
       text += d > 0 ? `比上一季精进 ${d.toFixed(1)} 分。` : d < 0 ? `比上一季回落 ${(-d).toFixed(1)} 分，稳住心神。` : "与上一季持平。";
@@ -170,7 +170,7 @@
                    [["已击败", s.beat != null ? s.beat + "%" : "—"], ["排名", s.rank ? `${s.rank} / ${s.people || "?"}` : "—"]]];
     if (best && worst && best !== worst) stats.push([["最强", `${best.name} ${Math.round(best.acc * 100)}%`], ["最弱", `${worst.name} ${Math.round(worst.acc * 100)}%`]]);
     const tone = diff == null || diff >= 0 ? "gold" : "crimson";
-    return show({ title: "大比", subtitle: `第 ${s.season} 季 · 宗门大比`, text, stats, tone });
+    return show({ title: "大比", subtitle: `${s.name||`第 ${s.season} 季`} · 宗门大比`, text, stats, tone });
   }
 
   window.CEREMONY = { show, realm, contest };

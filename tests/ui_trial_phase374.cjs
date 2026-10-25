@@ -15,9 +15,10 @@ const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.
    const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
    assert.equal(await page.evaluate(()=>document.documentElement.dataset.scenePhase),phase,`${label}${name}：自动模式时段不对`);
-   for(const mode of ['blocks','sets']){
+   const left=(await page.locator('[data-th-enter=exam]').count())?'exam':'sets';
+   for(const mode of ['blocks',left]){
     await page.locator(`[data-th-enter=${mode}]`).click();
-    const s=await page.locator('.th-dialog[open]').evaluate(d=>{const cs=getComputedStyle(d),act=getComputedStyle(d.querySelector('.th-actions')),pick=d.querySelector('.th-choice b,.th-selection h3');return {text:getComputedStyle(pick||d).color,paper:act.backgroundColor,before:getComputedStyle(d,'::before').backgroundImage,filter:getComputedStyle(d,'::before').filter,after:getComputedStyle(d,'::after').backgroundImage};});
+    const s=await page.locator('.th-dialog[open]').evaluate(d=>{const cs=getComputedStyle(d),act=getComputedStyle(d.querySelector('.th-actions')),pick=d.querySelector('.th-pane:not([hidden]) :is(.th-choice b,.th-selection h3,.er-intro h3)');return {text:getComputedStyle(pick||d).color,paper:act.backgroundColor,before:getComputedStyle(d,'::before').backgroundImage,filter:getComputedStyle(d,'::before').filter,after:getComputedStyle(d,'::after').backgroundImage};});
     assert.match(s.before,/selection\.webp/,`${label}${name}${mode}：背景图丢失`);
     assert.ok(contrast(s.text,s.paper)>=4.5,`${label}${name}${mode}：文字对比度不足 ${contrast(s.text,s.paper).toFixed(2)}`);
     assert.equal(lum(s.paper)<.2,dark,`${label}${name}${mode}：底色明暗不符合${name}（${s.paper}）`);
