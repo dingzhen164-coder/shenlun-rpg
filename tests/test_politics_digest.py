@@ -146,6 +146,26 @@ class DigestTests(unittest.TestCase):
         word=body['text'].index('growth');self.assertIn([word,word+6],body['bold'],'PDF里加粗的字逐字记下来')
         self.assertNotIn([0,3],body['bold'])
 
+    def test_blanks_in_another_font_stay_on_their_line_and_stroke_bold_is_bold(self):
+        """用户的真实PDF（PDFium导出）：下划线是Times字体的“_”字符，基线比宋体字高/低约0.12磅，旧版按0.1取整拆成两行，
+        行首/行中的空全被甩到行尾并合成一个；加粗是 Tr 2（填充+描边，texttrace里多出type=1的描边），不是粗体字库。"""
+        doc=fitz.open();page=doc.new_page(width=595,height=842)
+        def put(x,y,text,font='china-s',bold=False):
+            page.insert_text((x,y),text,fontname=font,fontsize=10.4,**({'render_mode':2,'border_width':.3} if bold else {}))     # Tr 2：填充+描边，和真实PDF一样
+            return x+fitz.get_text_length(text,fontname=font,fontsize=10.4)
+        x=put(60,100,'2.继续实施适度宽松的');x=put(x,100.12,'________',font='tiro');put(x,100,'政策。把促进经济稳定增长、物价合理')
+        x=put(60,118.12,'________',font='tiro');x=put(x,118,'作为货币政策的重要考量，灵活高效运用');x=put(x,118.12,'____',font='tiro')
+        x=put(x,118,'准',bold=True);x=put(x,118.12,'____',font='tiro');put(x,118,'息等多种政策工具，')
+        put(60,136,'保持');x=put(96,136,'流动性充裕',bold=True);put(x,136,'，使社会融资规模增长。')
+        out=digest.parse_pdf(doc.tobytes())
+        self.assertEqual(len(out),1)
+        text=out[0]['text']
+        self.assertEqual(text,'2.继续实施适度宽松的________政策。把促进经济稳定增长、物价合理________作为货币政策的重要考量，灵活高效运用____准____息等多种政策工具，保持流动性充裕，使社会融资规模增长。')
+        self.assertEqual(len(digest.BLANK.findall(text)),4)
+        for word in ('准','流动性充裕'):
+            at=text.index(word);self.assertIn([at,at+len(word)],out[0]['bold'],word+'描边加粗要认出来')
+        self.assertNotIn(text.index('作为'),[a for a,_ in out[0]['bold']])
+
     def test_unlocated_blocks_follow_neighbours_and_data_keeps_every_sentence(self):
         file=self.pdf(['消化清单','一、自编小标题','1.在________布局产能。','自编没有出处的普通句子，原样保留。','2.自编未知政策提出________要求。'])
         result=self.send(file);data=self.get()
