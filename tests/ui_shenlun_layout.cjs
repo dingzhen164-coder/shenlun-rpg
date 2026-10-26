@@ -45,6 +45,9 @@ async function main(){
  assert.equal(await page.locator('[data-mat-tab]').count(),3);
  await page.locator('[data-mat-tab="2"]').click();
  assert.equal(await page.locator('[data-mat-article]:not(.sl-mat-off)').getAttribute('data-mat-article'),'2');
+ const tb=await page.locator('.sl-material-toolbar').boundingBox();assert.ok(tb.height<=130,'材料工具条过高 '+tb.height);
+ assert.equal(await page.locator('.fx-exam-switch').isVisible(),false);
+ assert.equal(await page.locator('[data-mat-tab="2"]').getAttribute('aria-selected'),'true');
  await shot('2-tabs');
  // 第3题：题干只有来源库ID，无法匹配 → 整卷并提示选定；手动选定后只剩材料4
  await page.locator('#slBack').click();await open(2);

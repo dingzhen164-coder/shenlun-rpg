@@ -247,6 +247,15 @@
       tabs(mobile,[...grid.children].map((panel,i)=>({label:i===0?'给定资料':'我的作答',panel})),'sl-material',1);
     }
     if(result){const signature=result.textContent.trim();if(signature&&result.dataset.fxResult!==signature){result.dataset.fxResult=signature;root.querySelector('.fx-exam-switch .fx-tab:last-child')?.click();}}
+    // 顶部页签条已隐藏；批改完成后用题干栏里的按钮在作答与批改之间切换。
+    const heading=root.querySelector('.sl-exam-heading .row');
+    if(heading&&result){
+      let btn=heading.querySelector('#slViewResult');
+      const tabButtons=()=>[...root.querySelectorAll('.fx-exam-switch .fx-tab')];
+      const sync=()=>{const on=tabButtons()[1]?.getAttribute('aria-selected')==='true';btn.hidden=!result.textContent.trim();btn.textContent=on?'← 返回作答':'查看批改';btn.dataset.on=on?'1':'';};
+      if(!btn){btn=make('button','ghost small');btn.id='slViewResult';btn.type='button';heading.querySelector('#slSplit')?.before(btn);btn.onclick=()=>{tabButtons()[btn.dataset.on?0:1]?.click();sync();};}
+      sync();
+    }
     return true;
   }
   function catalog(root) {
