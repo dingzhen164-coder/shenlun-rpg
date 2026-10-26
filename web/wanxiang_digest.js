@@ -16,7 +16,9 @@
  function html(data,journal=false){
   if(!data)return '<p class="sprint-digest-tip" role="status">正在读取消化清单…</p>';
   if(!data.counts.blanks)return '<div class="sprint-empty-digest">尚未导入消化清单。请回到政治理论页，在统一导入区选择“消化清单”，上传PDF即可，程序会按上下文自动匹配到对应的讲义，不用自己选。</div>';
-  return `<section class="sprint-digest" aria-label="PDF消化清单">${data.paragraphs.map(row=>row.kind==='h'
+  const seen=data.counts.seen||0;
+  const tools=`<div class="digest-tools"><button type="button" class="digest-reset" data-digest-reset ${seen?'':'disabled'} title="${seen?'把这一份清单所有空恢复成没核对过，方便再复习一遍；你补全的答案会保留':'还没有核对过的空，不用重置'}">↺ 重置所有的空${seen?`（已核对 ${seen} 个）`:''}</button></div>`;
+  return `<section class="sprint-digest" aria-label="PDF消化清单">${tools}${data.paragraphs.map(row=>row.kind==='h'
    ?`<h3 class="digest-heading">${row.parts.map(p=>esc(p.t)).join('')}</h3>`
    :`<p class="sprint-cloze-paragraph">${row.parts.map(p=>p.t!==undefined?literal(p):blank(p,data,journal)).join('')}</p>`).join('')}</section>`;
  }
@@ -50,6 +52,12 @@
    finally{if(button.isConnected)button.disabled=false;}
   });
   root.querySelectorAll('[data-digest-fill],[data-digest-edit]').forEach(node=>bindOne(root,node,data,onChange));
+  root.querySelectorAll('[data-digest-reset]').forEach(button=>button.onclick=async()=>{
+   if(!confirm('把这一份清单所有的空重置成“没核对过”？\n你补全的答案会保留，其他清单不受影响。'))return;
+   button.disabled=true;
+   try{const result=await api('/api/wanxiang/digest/reset',{target:data.target});if(root.isConnected)await onChange(result);}
+   catch(error){parent.showError(error);button.disabled=false;}
+  });
   if(openNext){const target=[...root.querySelectorAll('[data-digest-fill]')].find(n=>n.dataset.digestFill===openNext);openNext='';target?.scrollIntoView({block:'center'});target?.click();}
  }
  window.WANXIANG_DIGEST={html,bind};

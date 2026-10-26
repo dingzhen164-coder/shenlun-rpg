@@ -37,6 +37,16 @@ class ReadingTests(unittest.TestCase):
         self.assertNotIn('items',result,'标红接口不生成消化挖空')
         self.assertEqual(file.read_bytes(),before)
 
+    def test_clear_all_marks_of_this_article_and_restore(self):
+        base=self.current()['ranges'];self.assertTrue(base)
+        cleared=self.current(clear=True)
+        self.assertEqual(cleared['ranges'],[]);self.assertTrue(cleared['edited'])
+        self.assertEqual(self.current()['ranges'],[],'再读取仍是取消后的样子')
+        anchor=self.anchor()
+        self.assertEqual(self.current(**anchor,enabled=True)['ranges'],[[8,11]],'取消后还能单独标回某个词')
+        restored=self.current(clear=False)
+        self.assertEqual(restored['ranges'],base);self.assertFalse(restored['edited'])
+
     def test_cancel_keeps_note_progress_xp_and_can_restore(self):
         body=self.anchor()
         with api.open_game() as g:
