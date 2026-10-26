@@ -88,3 +88,14 @@ body{background:transparent}.atlas-toolbar{background:color-mix(in srgb,var(--pa
 .sprint-digest .digest-fill-edit .digest-save{min-height:42px;padding:0 12px;font-size:var(--ds-fs-13)}
 .sprint-digest button.digest-edit{font-size:var(--ds-fs-12);min-height:32px;min-width:32px;padding:0;margin-left:2px;border:0;background:transparent;color:var(--muted);cursor:pointer;vertical-align:super}
 .sprint-digest button.digest-edit:hover{color:var(--ds-text)}
+
+/* 冲刺刷题：导入答案 / 识别提示 */
+.answer-import{margin:var(--ds-sp-12) 0;border:1px solid var(--line);border-radius:var(--ds-r-8);background:color-mix(in srgb,var(--panel) 95%,transparent);padding:0 var(--ds-sp-16)}
+.answer-import summary{min-height:var(--ds-touch);display:flex;align-items:center;gap:var(--ds-sp-8);cursor:pointer;font-size:var(--ds-fs-13)}
+.answer-import summary small{color:var(--muted);font-size:var(--ds-fs-12)}
+.answer-import-body{display:flex;flex-direction:column;gap:var(--ds-sp-12);padding:var(--ds-sp-8) 0 var(--ds-sp-16)}
+.answer-import-body label{display:flex;flex-direction:column;gap:var(--ds-sp-4);font-size:var(--ds-fs-12);color:var(--muted)}
+.answer-import-body label>span{display:block}
+.answer-import-body select,.answer-import-body textarea,.answer-import-body input[type=file]{width:100%;box-sizing:border-box;min-height:var(--ds-touch);font-size:var(--ds-fs-14)}
+.answer-import-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--ds-sp-12)}
+.question-flags{margin:var(--ds-sp-8) 0 0;color:var(--orange)}

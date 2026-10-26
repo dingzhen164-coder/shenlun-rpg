@@ -239,7 +239,7 @@ def import_pdf(pp, body):
                 if parsed:
                     units = [{'title': x['title'], 'original': '', 'practice_only': True} for x in papers]
                     questions = [{'text': q['text'], 'answer': q['answer'], 'analysis': q['analysis'], 'owner': q['paper'], 'no': q['no'],
-                                  'paper': papers[q['paper']]['title']} for q in parsed]
+                                  'paper': papers[q['paper']]['title'], 'flags': q.get('flags', [])} for q in parsed]
                 else:
                     exam_report = None
             if exam_report is None:
@@ -308,7 +308,7 @@ def import_pdf(pp, body):
             links = stored['questions'] if stored else extra.setdefault('links', {}).setdefault(m['id'], [])
             extra['questions'].append({'id': next_id, 'material': m['id'], 'text': q['text'], 'answer': q['answer'], 'analysis': q.get('analysis', ''), 'tags': m['tags'],
                                        'layout_text': q.get('layout_text', ''), 'pdf': path.relative_to(pp.vault).as_posix(),
-                                       **({'no': q['no'], 'paper': q['paper']} if q.get('paper') else {})})
+                                       **({'no': q['no'], 'paper': q['paper']} if q.get('paper') else {}), **({'flags': q['flags']} if q.get('flags') else {})})
             links.append(next_id)
             next_id += 1
             added_q += 1

@@ -324,6 +324,7 @@ def register(api):
     api.ROUTES[('GET', '/api/politics/catalog')] = route(lambda pp, b: {'exams': catalog(pp)})
     api.ROUTES[('POST', '/api/politics/import')] = route(lambda pp, b: __import__('rpg.politics_import', fromlist=['import_pdf']).import_pdf(pp, b))
     api.ROUTES[('POST', '/api/politics/progress')] = route(set_progress)
+    api.ROUTES[('POST', '/api/politics/answers')] = route(lambda pp, b: __import__('rpg.politics_exam', fromlist=['apply_answers']).apply_answers(pp, b))
     api.ROUTES[('POST', '/api/politics/notes')] = route(lambda pp, b: {'notes': list_notes(pp, source(pp, b))})
     api.ROUTES[('POST', '/api/politics/highlights')] = route(lambda pp, b: politics_reading.mark(pp, source(pp, b), b) if 'enabled' in b else politics_reading.reading(pp, source(pp, b)))
     api.ROUTES[('POST', '/api/politics/explain')] = route(lambda pp, b: explain(pp, source(pp, b), b))

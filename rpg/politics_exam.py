@@ -19,7 +19,7 @@ from . import wanxiang_journal
 
 PAPER = re.compile(r'卷[一二三四五六七八九十百0-9]+|第[一二三四五六七八九十0-9]+套|套卷[一二三四五六七八九十0-9]+|模拟卷[一二三四五六七八九十0-9]*')
 QUESTION = re.compile(r'^(\d{1,3})[.．、](?!\d)\s*(.*)$')
-OPTION = re.compile(r'(?<![A-Za-z])([A-D])[.．、)）]\s*')      # 行内选项之间的空格会被clean收掉（如“A.①③B.①②”），所以不要求前面有空格
+OPTION = re.compile(r'(?<![A-Za-z])([A-Da-d])[.．、)）]\s*')      # 行内选项之间的空格会被clean收掉（如“A.①③B.①②”），所以不要求前面有空格
 STATEMENT = re.compile(r'^[①②③④⑤⑥⑦⑧⑨⑩（(]')
 ANSWER_HEAD = re.compile(r'^(?:参考)?答案(?:与|及)?(?:解析)?[：:]?$|参考答案|答案与解析|答案及解析')
 ANSWER = re.compile(r'^(\d{1,3})\s*[.．、:：]?\s*(?:【答案】|答案[：:]?)?\s*([A-D](?:[A-D、，, ]*[A-D])?)(?![A-Za-z])[。.]?\s*(.*)$')
@@ -55,12 +55,13 @@ def split_options(text, expect='A'):
     marks = [(m.start(), m.end(), m.group(1)) for m in OPTION.finditer(text)]
     picked = []
     for start, end, letter in marks:
+        # OCR常把大写选项字母识别成小写（“c.”）：小写只在正好接上下一个字母时才认，避免把“a.”之类当选项。
         if not picked:
-            if start != 0 or letter < expect:
+            if start != 0 or letter.upper() < expect or (letter.islower() and letter.upper() != expect):
                 return []
-        elif letter != chr(ord(picked[-1][2])+1):
+        elif letter.upper() != chr(ord(picked[-1][2].upper())+1):
             continue
-        picked.append((start, end, letter))
+        picked.append((start, end, letter.upper()))
     if not picked:
         return []
     out = []
@@ -68,6 +69,67 @@ def split_options(text, expect='A'):
         stop = picked[i+1][0] if i+1 < len(picked) else len(text)
         out.append((letter, text[end:stop].strip()))
     return out
+
+
+CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩'
+JUNK = '@＠'
+
+
+def _numbers(text):
+    return [CIRCLED.index(c)+1 if c in CIRCLED else None for c in text if c in CIRCLED or c in JUNK]
+
+
+def repair_symbols(stem, opts):
+    """OCR把①②③④里的个别圈数字认成“@”：能确定的补回去，补不准的保持原样。返回(确定补回数, 按均衡推测补回数)。
+    确定：选项里的数字必须从小到大，卡在前后数字之间只剩一个可能。
+    推测：仍有几个可能时，取在其他选项里出现最少的那个（这类“①③ ①② ②④ ③④”的选项通常每个数字出现次数一样多），并列则不补。"""
+    sure = guessed = 0
+    # 题干里的“@党的…”：按前一条的编号顺延
+    last = 0
+    for i, line in enumerate(stem):
+        if line and line[0] in CIRCLED:
+            last = CIRCLED.index(line[0])+1
+        elif line and line[0] in JUNK and last < len(CIRCLED):
+            stem[i] = CIRCLED[last]+line[1:]
+            last += 1
+            sure += 1
+    present = sorted({CIRCLED.index(c)+1 for line in stem for c in line[:1] if c in CIRCLED}) or [1, 2, 3, 4]      # 陈述编号以题干里每条陈述开头的为准
+    contents = [list(c) for _, c in opts]
+    def used():
+        count = {}
+        for cs in contents:
+            for c in cs:
+                if c in CIRCLED:
+                    count[CIRCLED.index(c)+1] = count.get(CIRCLED.index(c)+1, 0)+1
+        return count
+    for guess in (False, True):
+        changed = True
+        while changed:
+            changed = False
+            for cs in contents:
+                for i, c in enumerate(cs):
+                    if c not in JUNK:
+                        continue
+                    before = max([CIRCLED.index(x)+1 for x in cs[:i] if x in CIRCLED] or [0])
+                    after = min([CIRCLED.index(x)+1 for x in cs[i+1:] if x in CIRCLED] or [99])
+                    options = [n for n in present if before < n < after and CIRCLED[n-1] not in cs]
+                    if not guess and len(options) == 1:
+                        pick = options[0]
+                    elif guess and len(options) > 1:
+                        count = used()
+                        low = min(count.get(n, 0) for n in options)
+                        best = [n for n in options if count.get(n, 0) == low]
+                        if len(best) != 1:
+                            continue
+                        pick = best[0]
+                    else:
+                        continue
+                    cs[i] = CIRCLED[pick-1]
+                    sure, guessed = (sure, guessed+1) if guess else (sure+1, guessed)
+                    changed = True
+    for k, cs in enumerate(contents):
+        opts[k] = (opts[k][0], ''.join(cs))
+    return sure, guessed
 
 
 def _join(a, b):
@@ -163,14 +225,19 @@ def parse(doc, name):
         if q['opts']:
             letter, content = q['opts'][-1]
             q['opts'][-1] = (letter, _join(content, text))
-        elif STATEMENT.match(text) or not q['stem'] or SENTENCE_END.search(q['stem'][-1]):
+        elif (STATEMENT.match(text) or (text[:1] in JUNK and any(l[:1] in CIRCLED for l in q['stem']))     # OCR把“③”认成“@”的陈述行也要另起一行
+              or not q['stem'] or SENTENCE_END.search(q['stem'][-1])):
             q['stem'].append(text)
         else:
             q['stem'][-1] = _join(q['stem'][-1], text)
     out = []
+    repaired = guessed_total = 0
     for q in questions:
+        sure, guessed = repair_symbols(q['stem'], q['opts'])
+        repaired += sure
+        guessed_total += guessed
         letters = [letter for letter, _ in q['opts']]
-        flags = []
+        flags = ['符号推测'] if guessed else []
         if len(q['opts']) < 4:
             flags.append('选项不全')
         book = answers.get(q['paper'], {})
@@ -182,5 +249,74 @@ def parse(doc, name):
     out = [q for q in out if q['text'].strip()]
     report = {'papers': [{'title': p['title'], 'questions': sum(q['paper'] == i for q in out)} for i, p in enumerate(papers)],
               'incomplete': ['%s第%d题' % (papers[q['paper']]['title'][-12:], q['no']) for q in out if '选项不全' in q['flags']][:8],
-              'incomplete_count': sum('选项不全' in q['flags'] for q in out), 'unanswered': sum(not q['answer'] for q in out)}
+              'incomplete_count': sum('选项不全' in q['flags'] for q in out), 'unanswered': sum(not q['answer'] for q in out),
+              'repaired': repaired, 'guessed': guessed_total}
     return papers, out, report
+
+
+# ---------------------------------------------------------------- 导入答案（套卷里原PDF没有答案时，另给一份答案文字/答案页PDF）
+_KEY_ITEM = re.compile(r'(?<!\d)(\d{1,3})\s*[.．、:：)）]?\s*(?:【答案】|答案[：:]?)?\s*([A-Da-d]{1,4})(?![A-Za-z])')
+
+
+def parse_key(text):
+    """答案文字 → {题号: 'A' 或 'ABD'}。支持“1-20 BCDAB…”、每行“1.A 2.B”“3.【答案】AB”、答案页里“1.【答案】A。解析：…”。"""
+    from . import importer
+    text = str(text or '')
+    if re.search(r'\d+\s*[-~—–至]\s*\d+', text):
+        key = {k: v for k, v in importer.parse_key(text).items() if v in 'ABCD'}
+        if key:
+            return key
+    key = {}
+    for line in text.splitlines():
+        line = re.sub(r'解析[：:].*$', '', line)           # 解析里的数字不当题号
+        for m in _KEY_ITEM.finditer(line):
+            key.setdefault(int(m.group(1)), ''.join(sorted(set(m.group(2).upper()))))
+    if key:
+        return key
+    return {k: v for k, v in importer.parse_key(text).items() if v in 'ABCD'}
+
+
+def apply_answers(pp, body):
+    """给一份导入的套卷补答案（按套卷内题号）；已有答案的按新答案覆盖。只改 补充.json 里这一套的题，不动原PDF和讲义。"""
+    from . import politics
+    exam = politics.exam_id(body.get('exam'))
+    material = str(body.get('material') or '')
+    text = str(body.get('text') or '').strip()
+    if not text and body.get('pdf'):
+        from . import exam_room
+        try:
+            text = exam_room._pdf_text(str(body['pdf']))
+        except exam_room.ExamError as error:
+            raise politics.PoliticsError(str(error))
+    if not text:
+        raise politics.PoliticsError('请粘贴答案（如：1-20 BCDAB…，或每行 1.A 2.B），或选择答案文件')
+    key = parse_key(text)
+    if not key:
+        raise politics.PoliticsError('没认出答案：请写成“1-20 BCDAB…”或每行“1.A 2.B”的样子')
+    with politics._LOCK:
+        file = politics.exam_folder(pp, exam) / '补充.json'
+        extra = politics.read_json(file, {'materials': [], 'questions': [], 'imports': []})
+        paper = next((m for m in extra['materials'] if m['id'] == material and m.get('practice_only')), None)
+        if not paper:
+            raise politics.PoliticsError('请先选择要补答案的套卷')
+        questions = [q for q in extra['questions'] if q.get('material') == material and q.get('no') is not None]
+        by_no = {}
+        for q in questions:
+            by_no.setdefault(int(q['no']), q)
+        filled = changed = same = 0
+        for no, letters in key.items():
+            q = by_no.get(no)
+            if not q:
+                continue
+            if not q.get('answer'):
+                filled += 1
+            elif q['answer'] != letters:
+                changed += 1
+            else:
+                same += 1
+            q['answer'] = letters
+        unknown = sorted(n for n in key if n not in by_no)
+        if filled or changed:
+            politics.atomic_json(file, extra)
+        return {'title': paper['title'], 'filled': filled, 'changed': changed, 'same': same, 'total': len(by_no),
+                'missing': sorted(n for n, q in by_no.items() if not q.get('answer'))[:30], 'unknown': unknown[:30]}
