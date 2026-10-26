@@ -1655,7 +1655,7 @@ window.finishMindmapReading=async token=>{
 };
 
 
-render();
+Promise.resolve(render()).finally(()=>setTimeout(()=>window.BeautyArt?.warm?.(),2500));   // 首页画好后，空闲时把常去地点的背景提前下好（beauty_art.js）
 
 
 

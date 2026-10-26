@@ -50,14 +50,32 @@
   }
   const decoded=new Map();
   function decode(src){if(!decoded.has(src))decoded.set(src,new Promise(resolve=>{const img=new Image();img.onload=()=>{if(img.decode)img.decode().then(()=>resolve(true),()=>resolve(false));else resolve(true);};img.onerror=()=>resolve(false);img.src=src;}));return decoded.get(src);}
-  function prepare(page){const hit=findHit(page),urls=hit?[url(hit)]:[];
-    const opposite=findHit(page,document.documentElement.dataset.sceneTime==='night'?'day':'night');if(opposite&&opposite!==hit)urls.push(url(opposite));
+  // 进页面前只等“这一页现在要显示的图”；另一时段（夜/昼）的图过一会儿再悄悄下，不拖慢进门。
+  function prepare(page,quiet){const hit=findHit(page),urls=hit?[url(hit)]:[],extra=[];
+    const opposite=findHit(page,document.documentElement.dataset.sceneTime==='night'?'day':'night');if(opposite&&opposite!==hit)extra.push(url(opposite));
     if(isXingce()&&page==='bank'){const selection=`beauty/trial/selection-${phase()}.webp`;if(has(selection))urls.push(url(selection));}
     const examScene=!(typeof isSL==='function'&&isSL());
-    if(page==='bank'&&examScene)urls.push(...['tower','gate','landscape'].map(k=>has(`beauty/trial/${k}-night.webp`)&&document.documentElement.dataset.sceneTime==='night'?url(`beauty/trial/${k}-night.webp`):`assets/beauty/trial/${k}.png`));
+    // 行测的试炼塔是一整张画（hall），三层拆件图只有法考版在用，不再白下近8MB。
+    if(page==='bank'&&examScene&&!isXingce())urls.push(...['tower','gate','landscape'].map(k=>has(`beauty/trial/${k}-night.webp`)&&document.documentElement.dataset.sceneTime==='night'?url(`beauty/trial/${k}-night.webp`):`assets/beauty/trial/${k}.png`));
     if(page==='contest'&&examScene)urls.push('assets/beauty/contest/arena.png');
+    if(!quiet&&extra.length)setTimeout(()=>extra.forEach(decode),2500);
     return Promise.all(urls.map(decode));
   }
+  // 软件打开、首页画出来之后，空闲时把常去的地点背景一张张提前下好并解码（只下当前时段那一张）；之后点进去就不用再等。
+  // 浏览器缓存靠服务器的 ETag：图没换就不重下。省流量模式、或还在处理别的事时不抢带宽。
+  let warmed='';
+  const WARM_PAGES=['bank','skeleton','contest','dwelling','notes','tianji'];
+  function warm(){
+    const key=phase()+'/'+(isXingce()?'x':'o');if(warmed===key)return;warmed=key;
+    try{if(navigator.connection?.saveData)return;}catch(_){}
+    const idle=fn=>(window.requestIdleCallback?requestIdleCallback(fn,{timeout:4000}):setTimeout(fn,300));
+    const queue=[...WARM_PAGES.map(pg=>()=>prepare(pg,true)),
+      ()=>Promise.all(PEAK_NAMES.map(n=>{const r=`beauty/page/train-${REGION_KEY[n]}-${phase()}.webp`;return has(r)?decode(url(r)):null;})),
+      ()=>fetch('political_atlas.html').then(r=>r.text()).then(t=>Promise.all([...t.matchAll(/(?:src|href)="([^":]+\.(?:js|css))"/g)].map(m=>fetch(m[1]).then(r=>r.arrayBuffer())))).catch(()=>0)];
+    const step=()=>{if(warmed!==key)return;const job=queue.shift();if(!job)return;idle(()=>{Promise.resolve().then(job).catch(()=>0).then(()=>setTimeout(step,400));});};
+    step();
+  }
+  function heroFor(page){const hit=findHit(page);return hit?url(hit):'';}
   function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
     // 五峰是独立地点，不再被旧全局背景压住；专门设置的峰/页背景仍优先。
     const peakScene=view==='train'&&PEAK_NAMES.includes(regionName());
@@ -96,10 +114,11 @@
   const start = () => {
     new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme','data-scene-time','data-scene-phase'] });
     new MutationObserver(apply).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(()=>{if(warmed)warm();}).observe(document.documentElement, { attributes: true, attributeFilter: ['data-scene-time','data-scene-phase'] });   // 昼夜换了：把新时段的图接着预下
     readView();
     const v = document.getElementById('view'); let q = 0;                    // 洞府切页签时更新背景
     if (v) new MutationObserver(() => { if (!q) { q = 1; queueMicrotask(() => { q = 0; apply(); }); } }).observe(v, { attributes: true, attributeFilter: ['aria-selected'], subtree: true, childList: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  window.BeautyArt = { prepare, mount(page){view=page;apply();}, has, url, files: () => Array.from(F.keys()) };
+  window.BeautyArt = { prepare, warm, heroFor, mount(page){view=page;apply();}, has, url, files: () => Array.from(F.keys()) };
 })();

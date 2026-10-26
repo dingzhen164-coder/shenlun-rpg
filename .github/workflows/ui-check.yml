@@ -85,6 +85,7 @@ jobs:
               ['node', 'tests/ui_scene_panels.cjs', '--subject=申论'],
               ['node', 'tests/ui_trial_hall.cjs', '--shots'],
               ['node', 'tests/ui_exam_room.cjs'],
+              ['node', 'tests/ui_warm_load.cjs'],
               ['node', 'tests/ui_contest_scene.cjs', '--subject=行测', '--shots'],
               ['node', 'tests/ui_layout335.cjs', '--subject=行测', '--shots'],
               ['node', 'tests/ui_layout335.cjs', '--subject=申论'],
