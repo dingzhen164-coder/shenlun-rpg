@@ -8,6 +8,10 @@
  const when=s=>String(s||'').slice(0,10);
  const LETTERS=['A','B','C','D'];
  let home=null,hooks=null,run=null;
+ /* 错误必须画在考场自己的面板里：试炼塔面板和答题页都是模态<dialog>（顶层），页面上的toast会被盖在下面，用户看不到失败原因（踩坑记录 2026-10-26）。 */
+ const failText=e=>String(e&&e.message||e||'操作失败');
+ function homeError(message){const box=home?.querySelector('[data-er-error]');if(!box)return;box.textContent=message||'';box.hidden=!message;if(message)box.scrollIntoView({block:'nearest'});}
+ function runError(r,message){const box=r.root.querySelector('[data-er-run-error]');if(!box)return;box.textContent=message||'';box.hidden=!message;}
 
  /* ------------------------------------------------------------------ 首页：试卷列表、导入 */
  function paneHtml(){return '<div class="er-home" data-er-home><p class="er-note" role="status">正在读取试卷…</p></div>';}
@@ -29,7 +33,7 @@
  function homeHtml(d){
   const ready=d.split_ready&&d.pymupdf;
   const importer=`<details class="er-import"><summary>＋ 导入模拟试卷</summary><form data-er-import-form><label><span>试卷名称（会原样显示在宗门大比里）</span><input type="text" maxlength="40" placeholder="如：花生26下模拟卷第一套" data-er-name></label><label><span>试卷 PDF（题目 + 选项，约 130 题）</span><input type="file" accept=".pdf,application/pdf" data-er-pdf></label>${ready?'':`<p class="er-warn">${!d.split_ready?'PDF 拆分需先安装 xingce-mokao-split。':'PDF 缺少 pymupdf 组件。'}也可以先到“宗门大比 → 录入”导入。</p>`}<div class="er-form-row"><button type="submit" class="primary" ${ready?'':'disabled'}>导入并拆分</button><span class="er-note" role="status" data-er-import-note></span></div></form></details>`;
-  return `<div class="er-intro"><h3>整卷模拟考试</h3><p>限时 <b>${d.minutes}</b> 分钟，全卷连续作答；交卷后批改并给分，成绩按试卷名称记进“宗门大比”，同时记一次模拟训练。分模块练习请走右边的“板块”。</p></div>${importer}
+  return `<p class="er-error" data-er-error role="alert" hidden></p><div class="er-intro"><h3>整卷模拟考试</h3><p>限时 <b>${d.minutes}</b> 分钟，全卷连续作答；交卷后批改并给分，成绩按试卷名称记进“宗门大比”，同时记一次模拟训练。分模块练习请走右边的“板块”。</p></div>${importer}
    <div class="er-list" aria-label="试卷列表">${d.papers.map(paperRow).join('')||'<p class="er-empty">还没有可考的试卷。先用上面的“导入模拟试卷”导入一份 PDF。</p>'}</div>`;
  }
  async function load(){
@@ -55,17 +59,17 @@
     if(form.hasAttribute('data-er-import-form')){
      const name=form.querySelector('[data-er-name]').value.trim(),file=form.querySelector('[data-er-pdf]').files[0],note=form.querySelector('[data-er-import-note]');
      if(!name)return void(note.textContent='先给试卷起个名字');if(!file)return void(note.textContent='先选择试卷 PDF');
-     btn.disabled=true;note.textContent='上传并拆分中，一份约需一两分钟，请稍候…';
+     btn.disabled=true;homeError('');note.textContent='上传并拆分中，一份约需一两分钟，请稍候…';
      try{const data=await readFile(file,40*1048576),r=await hooks.api('/api/exam/import',{name,data});
       note.textContent='';await load();const row=home.querySelector(`[data-er-season="${r.season}"] .er-paper-main small`);
       const msg=home.querySelector('.er-intro');msg?.insertAdjacentHTML('afterend',`<p class="er-ok" role="status">已导入「${esc(r.name)}」：${r.total} 题，其中 ${r.keyed} 题带答案${r.keyed<r.total?'。缺答案的题可在下面“导入答案”补上，也可以先考，交卷时这些题不判分':''}。</p>`);void row;
-     }catch(error){note.textContent='';hooks.error(error);}
+     }catch(error){note.textContent='';homeError('导入「'+name+'」失败：'+failText(error));}
      finally{if(btn.isConnected)btn.disabled=false;}
      return;
     }
     if(form.hasAttribute('data-er-answer-form')){
      const season=Number(form.dataset.erAnswerForm),text=form.querySelector('[data-er-answer-text]').value,file=form.querySelector('[data-er-answer-file]').files[0],note=form.querySelector('.er-note');
-     btn.disabled=true;note.textContent='保存中…';
+     homeError('');btn.disabled=true;note.textContent='保存中…';
      try{
       const body={season,text};
       if(file){if(/\.pdf$/i.test(file.name))body.pdf=await readFile(file,20*1048576);else if(!text.trim())body.text=await file.text();}
@@ -73,7 +77,7 @@
       let msg=`补上 ${r.filled} 题答案，现有 ${r.keyed}/${r.total} 题`;
       if(r.regraded){msg+=`；已按新答案重新批改，成绩 ${r.regraded.score==null?'—':r.regraded.score} 分`;await hooks.refresh?.();}
       await load();const again=home.querySelector(`[data-er-answer-form="${season}"] .er-note`);if(again){again.textContent=msg;again.parentElement.parentElement.hidden=false;}
-     }catch(error){note.textContent='';hooks.error(error);}
+     }catch(error){note.textContent='';homeError('保存答案失败：'+failText(error));}
      finally{if(btn.isConnected)btn.disabled=false;}
     }
    });
@@ -94,7 +98,7 @@
  function runShell(r){
   const d=document.createElement('dialog');d.className='er-run';d.setAttribute('aria-label','整卷模拟考试 · '+r.name);
   d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><div class="er-clock" role="timer" aria-live="off" data-er-clock>--:--</div><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
-   ${r.warning?`<p class="er-banner" data-er-warning>${esc(r.warning)}</p>`:''}<p class="er-banner er-timeup" data-er-timeup hidden role="alert">时间到。可以继续作答，成绩会标记“超时”；也可以现在交卷。</p>
+   ${r.warning?`<p class="er-banner" data-er-warning>${esc(r.warning)}</p>`:''}<p class="er-banner er-error" data-er-run-error role="alert" hidden></p><p class="er-banner er-timeup" data-er-timeup hidden role="alert">时间到。可以继续作答，成绩会标记“超时”；也可以现在交卷。</p>
    <div class="er-body" data-er-body></div>
    <footer class="er-foot"><button type="button" data-er-prev>上一题</button><div class="er-choices" role="group" aria-label="选择答案" data-er-choices></div><button type="button" data-er-next>下一题</button></footer>
    <aside class="er-sheet" data-er-sheet hidden role="dialog" aria-label="答题卡"><div class="er-sheet-panel"><header><b>答题卡</b><span class="er-sheet-count" data-er-sheet-count></span><button type="button" data-er-sheet-close aria-label="关闭答题卡">✕</button></header><div class="er-sheet-body" data-er-sheet-body></div><footer><div class="er-legend" aria-hidden="true"><i class="done"></i>已答<i class="mark"></i>标记<i class="cur"></i>当前</div><p class="er-confirm" data-er-confirm hidden></p><div class="er-sheet-actions"><button type="button" data-er-continue hidden>继续答题</button><button type="button" class="primary" data-er-submit>交卷</button></div></footer></div></aside>`;
@@ -153,7 +157,7 @@
   if(r.saving)return r.saving;
   r.dirty=false;
   const body={season:r.season,answers:r.answers,marks:[...r.marks],elapsed:elapsedNow(r)};
-  r.saving=hooks.api('/api/exam/save',body).catch(error=>{r.dirty=true;if(!quiet&&!r.warned){r.warned=true;hooks.error(error);}}).finally(()=>{r.saving=null;});
+  r.saving=hooks.api('/api/exam/save',body).then(()=>runError(r,'')).catch(error=>{r.dirty=true;if(!r.warned||!quiet){r.warned=true;runError(r,'答案暂存失败（会继续重试，请别关闭这个页面）：'+failText(error));}}).finally(()=>{r.saving=null;});
   return r.saving;
  }
  function touch(r){r.dirty=true;clearTimeout(r.saveT);r.saveT=setTimeout(()=>persist(r,true),500);}
@@ -187,13 +191,13 @@
  async function openRun(season){
   if(run)return;
   let data;
-  try{data=await hooks.api('/api/exam/begin',{season});}catch(error){return hooks.error(error);}
+  try{data=await hooks.api('/api/exam/begin',{season});}catch(error){return homeError('开始考试失败：'+failText(error));}
   const r={season,name:data.summary.name,questions:data.questions,materials:data.materials,modules:data.modules,
    limit:data.run.limit,base:data.run.elapsed||0,t0:Date.now(),running:true,idx:0,answers:{...(data.run.answers||{})},
    marks:new Set(data.run.marks||[]),warning:data.warning||'',timeup:false,lastMaterial:'',matScroll:0};
   const first=r.questions.findIndex(q=>!r.answers[q.num]);r.idx=first<0?0:first;
   r.root=runShell(r);document.body.appendChild(r.root);run=r;
-  r.root.addEventListener('cancel',e=>{e.preventDefault();if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
+  r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
   r.root.addEventListener('click',e=>onClick(r,e));
   r.root.showModal();renderQuestion(r);tick(r);
   r.timer=setInterval(()=>{if(document.hidden){return;}tick(r);},1000);
@@ -252,7 +256,8 @@
   }catch(error){
    btn.disabled=false;r.running=true;r.t0=Date.now();
    r.timer=setInterval(()=>{if(!document.hidden)tick(r);},1000);r.autosave=setInterval(()=>persist(r,true),30000);
-   hooks.error(error);
+   runError(r,'交卷失败，答案没有丢，可以再点一次“交卷”：'+failText(error));
+   openSheet(r,false);
   }
  }
 
@@ -279,9 +284,9 @@
   root.querySelector('.er-result').focus({preventScroll:true});
  }
  async function openResult(season){
-  let data;try{data=await hooks.api('/api/exam/result',{season});}catch(error){return hooks.error(error);}
+  let data;try{data=await hooks.api('/api/exam/result',{season});}catch(error){return homeError('读取成绩失败：'+failText(error));}
   const d=document.createElement('dialog');d.className='er-run er-done';d.setAttribute('aria-label','整卷成绩 · '+data.name);document.body.appendChild(d);
-  d.addEventListener('cancel',e=>{e.preventDefault();d._erDone?.();});
+  d.addEventListener('cancel',e=>{if(e.target!==d)return;e.preventDefault();d._erDone?.();});
   d.showModal();showResult(d,data,()=>{d.close();d.remove();load();});
  }
 

@@ -31,6 +31,8 @@ def main():
             paths.save_settings({'subject': '行测', 'vaults': vaults})
 
             def fake_split(paths_, body):
+                if '拆分失败' in body['file']:
+                    raise importer.ImportError_('拆分失败：\n共解析0题（自编日志：这份PDF的版式拆分脚本不认识）')
                 number = int(body['file'].split('季')[0].lstrip('第'))
                 blank_paper(paths_.train/('模考复盘/第%d季' % number), unknown={5, 6})
                 return {'ready': 130, 'fix': 0}

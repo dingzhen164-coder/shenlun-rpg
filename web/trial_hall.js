@@ -81,7 +81,7 @@
     const host=root.querySelector('.trial-hall'),m=model;if(!host||!m||host.dataset.thBound)return;host.dataset.thBound='1';
     const dialog=host.querySelector('.th-dialog');let opener=null;
     function close(){dialog.close();opener?.focus({preventScroll:true});}
-    dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+    dialog.addEventListener('cancel',e=>{if(e.target!==dialog)return;e.preventDefault();close();});     // 文件选择框取消时的cancel事件会冒泡上来，不能把整个面板关掉（踩坑记录 2026-10-26）
     function tabState(){host.dataset.thView=m.view;host.querySelector('#th-dialog-title').textContent={sets:'套卷试炼',exam:'整卷模拟考试',blocks:'板块试炼',history:'练习记录',catalog:'历年真题卷轴'}[m.view];host.querySelectorAll('.th-pane').forEach(p=>p.hidden=p.id!=='th-pane-'+m.view);}
     function actions(){host.querySelector('.th-actions').innerHTML=footer(m);host.querySelectorAll('.th-start,[data-th-review],.bankOrder,#bankCount').forEach(b=>{if(m.busy)b.disabled=true;});}
     function refreshPane(id){host.querySelector('#th-pane-'+id).innerHTML=(id==='sets'?setsPane:blocksPane)(m);decorate();actions();}
