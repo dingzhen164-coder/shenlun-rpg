@@ -13,6 +13,7 @@ async function main(){
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.evaluate(()=>go('skeleton'));await page.locator('[data-libtab="bank"]').click();await page.locator('#slBankRefresh').click();
  await page.locator('#slFilterRegion').selectOption('验证专用');
+ assert.ok((await page.locator('.sl-material-stats').textContent()).includes('待确认 1 题'));
  const open=async n=>{await page.locator('.sl-paper summary').filter({hasText:'2026版面验证自编卷'}).click().catch(()=>{});await page.locator('.sl-paper-q').nth(n).locator('[data-slq]').click();await page.locator('#slAns').waitFor();await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);};
  const shot=async name=>{if(shots)await page.screenshot({path:path.join(shots,name+'.png')});};
  const sizes=[['desktop',1280,860],['tablet-landscape',1280,800],['tablet-portrait',800,1280]];

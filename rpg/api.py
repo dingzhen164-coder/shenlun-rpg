@@ -976,6 +976,8 @@ def shenlun_answer(body):
 
 
 def shenlun_materials(body):
+    if body.get("auto"):
+        return _sl_bank(shenlun_bank.material_auto, str(body["auto"]))
     return dict(_sl_bank(shenlun_bank.material_pick, body), complete_bank=True)
 
 

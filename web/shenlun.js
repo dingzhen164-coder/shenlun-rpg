@@ -83,7 +83,7 @@
     const d = await api('/api/shenlun/papers'); B.papers = d.papers;
     const controls = `<div class="card sl-bank-head"><div class="row"><h3>真题档案库 <small>录入 → 作答 → 证据批改 → 修改复练</small></h3><span class="spacer"></span>${importing ? '' : '<button class="ghost small" id="slBankImport">录入真题</button>'}</div>
       <p class="small muted">按题干和给定资料独立作答，交卷前隐藏参考答案。批改建议分供训练使用，评分标准同题固定。</p>
-      <button class="primary" id="slSourceStart">⬇ 下载并录入公开申论题库</button> <button class="ghost small" id="slBankRefresh">刷新题库</button>
+      ${materialStats()}<button class="primary" id="slSourceStart">⬇ 下载并录入公开申论题库</button> <button class="ghost small" id="slBankRefresh">刷新题库</button>
       <div class="small muted" id="slSourceStatus">首次下载约330MB，保存到电脑的申论库；重复录入保留已有题目。</div>
       ${importing ? `<details class="sl-bank-input"><summary>导入自己的题目包（JSON）</summary><p class="small muted">可导入整套或多套；包含title、materials和questions。材料原文、参考答案只存本地。</p><input type="file" id="slPackage" accept=".json"><button class="ghost small" id="slTemplate">下载格式模板</button><div id="slImportMessage" class="small muted"></div></details>
       <details class="sl-bank-input"><summary>手动录入一道题</summary><div class="sl-manual-grid">
@@ -95,6 +95,11 @@
       <label>参考答案（可空）<textarea id="slManualReference" rows="3"></textarea></label><button id="slManualSave" class="primary">录入并保存</button><div id="slManualMessage" class="small muted"></div></details>` : ''}</div>`;
     return controls + '<div id="slPaperList">' + paperListHtml() + '</div>';
   }
+  function materialStats() {
+    const c={};B.papers.forEach(p=>p.questions.forEach(q=>{c[q.material_source]=(c[q.material_source]||0)+1;}));
+    const total=Object.values(c).reduce((a,b)=>a+b,0);if(!total)return '';
+    return `<p class="small muted sl-material-stats">材料对应：题干写明或已选定 ${(c.stem||0)+(c.manual||0)+(c.import||0)} 题 · 使用全卷 ${(c.whole||0)+(c.single||0)} 题 · 可按引文对应 ${c.quote||0} 题 · 待确认 ${c.all||0} 题（作答时点“选定本题材料”）</p>`;
+  }
   function paperListHtml() {
     const regions = [...new Set(B.papers.map(p=>p.region))].sort(), years = [...new Set(B.papers.map(p=>p.year))].sort().reverse();
     const select = (id, values, value, label) => `<select id="${id}" aria-label="${label}"><option value="">${label}</option>${values.map(x=>`<option ${x===value?'selected':''}>${esc(x)}</option>`).join('')}</select>`;
@@ -102,7 +107,7 @@
     const count = Math.ceil(filtered.length/12); B.page = Math.min(B.page, Math.max(0,count-1));
     const filter = `<div class="card row sl-bank-filters">${select('slFilterRegion',regions,B.region,'全部地区')}${select('slFilterYear',years,B.year,'全部年份')}${select('slFilterType',['归纳概括','综合分析','提出对策','贯彻执行','大作文'],B.type,'全部题型')}${select('slFilterTopic',[...new Set(B.papers.flatMap(p=>p.questions.flatMap(q=>q.topics)))].sort(),B.topic,'全部主题')}<input id="slFilterSearch" placeholder="搜索试卷" value="${esc(B.search)}"><span class="small muted">${filtered.length}套 · ${filtered.reduce((n,p)=>n+p.questions.length,0)}题</span></div>`;
     if (!filtered.length) return filter + '<div class="card sl-empty">还没有匹配的完整真题。可下载公开题库，或在档案室录入自己的题目。</div>';
-    return filter + filtered.slice(B.page*12,B.page*12+12).map(p=>`<details class="card sl-paper"><summary><b>${esc(p.title)}</b><span class="tag">${esc(p.region)}</span><span class="small muted">${p.questions.length}题 · ${esc(p.edition)}</span></summary><p class="small muted">${esc(p.source)} · 材料${p.materials}则</p><div class="row">${p.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<button class="ghost small" data-sl-topic-edit="${esc(p.id)}">标注整卷主题</button></div>${p.questions.map(q=>`<div class="sl-paper-q"><span class="tag cur">第${q.no}题 · ${esc(q.type)}</span><span class="small muted">${q.total||'分值待补'}分${q.words?' · '+q.words+'字':''}</span>${q.complete?'':'<span class="tag bad">资料待补全</span>'}<p>${esc(q.stem)}</p><div class="row">${q.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="small muted">${esc(q.topic_scope)}</span><button class="ghost small" data-sl-topic-edit="${esc(q.qid)}">标注本题主题</button></div><button class="primary small" data-slq="${esc(q.qid)}">作答</button></div>`).join('')}</details>`).join('') + `<div class="card row"><button id="slPaperPrev" ${B.page?'':'disabled'}>← 上一页</button><span>第${B.page+1}/${count}页</span><button id="slPaperNext" ${B.page<count-1?'':'disabled'}>下一页 →</button></div>`;
+    return filter + filtered.slice(B.page*12,B.page*12+12).map(p=>`<details class="card sl-paper"><summary><b>${esc(p.title)}</b><span class="tag">${esc(p.region)}</span><span class="small muted">${p.questions.length}题 · ${esc(p.edition)}</span></summary><p class="small muted">${esc(p.source)} · 材料${p.materials}则</p><div class="row">${p.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<button class="ghost small" data-sl-topic-edit="${esc(p.id)}">标注整卷主题</button>${p.questions.some(q=>q.material_source==='quote')?`<button class="ghost small" data-slmat-auto="${esc(p.id)}" title="题干引用的原文逐字出现在某则材料里的题，自动定为对应材料">按引文对应材料（${p.questions.filter(q=>q.material_source==='quote').length}题）</button>`:''}</div>${p.questions.map(q=>`<div class="sl-paper-q"><span class="tag cur">第${q.no}题 · ${esc(q.type)}</span><span class="small muted">${q.total||'分值待补'}分${q.words?' · '+q.words+'字':''}</span>${q.complete?'':'<span class="tag bad">资料待补全</span>'}${q.material_source==='all'?'<span class="tag" title="题干指明了具体材料，但无法自动对应；作答时可选定">材料待确认</span>':q.material_source==='quote'?'<span class="tag" title="题干引用的原文能在某则材料里找到">材料可按引文对应</span>':''}<p>${esc(q.stem)}</p><div class="row">${q.topics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}<span class="small muted">${esc(q.topic_scope)}</span><button class="ghost small" data-sl-topic-edit="${esc(q.qid)}">标注本题主题</button></div><button class="primary small" data-slq="${esc(q.qid)}">作答</button></div>`).join('')}</details>`).join('') + `<div class="card row"><button id="slPaperPrev" ${B.page?'':'disabled'}>← 上一页</button><span>第${B.page+1}/${count}页</span><button id="slPaperNext" ${B.page<count-1?'':'disabled'}>下一页 →</button></div>`;
   }
   function bindBank(root) {
     const $ = s=>root.querySelector(s);
@@ -112,6 +117,7 @@
     root.querySelectorAll('[data-slq]').forEach(el=>el.onclick=()=>open(el.dataset.slq));
     const prev=$('#slPaperPrev'),next=$('#slPaperNext'); if(prev)prev.onclick=()=>{B.page--;redraw();};if(next)next.onclick=()=>{B.page++;redraw();};
     SL_TRAINING.bindTopics(root,B.papers);
+    root.querySelectorAll('[data-slmat-auto]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const d=await post('/api/shenlun/materials',{auto:b.dataset.slmatAuto});toast(`已为${d.done}道题对应材料`);rerender();}catch(e){showError(e);b.disabled=false;}});
     const imp=$('#slBankImport');if(imp)imp.onclick=()=>{LIB.tab='bank';go('skeleton');};
     const refreshBtn=$('#slBankRefresh');if(refreshBtn)refreshBtn.onclick=rerender;
     const status=$('#slSourceStatus'),start=$('#slSourceStart');
@@ -140,9 +146,11 @@
   }
   function fullAnswerHtml() {
     const q=S.q, ids=q.material_ids||[], labelOf=id=>(q.all_materials||[]).find(m=>m.id===id)?.label||id;
-    const source={manual:'已按你的选择',import:'题目自带',stem:'按题干写明的资料',all:''}[q.material_source]||'';
+    const source={manual:'已按你的选择',import:'题目自带',stem:'按题干写明的资料'}[q.material_source]||'';
+    const sg=q.suggested_material_ids||[],sgNames=sg.map(labelOf).map(esc).join('、');
     const notice=q.material_source==='all'&&(q.all_materials||[]).length>1
-      ? `<p class="small warn sl-material-notice">题干没写明用哪几则材料，现显示全卷${q.suggested_material_ids?.length?'（系统推测与“'+q.suggested_material_ids.map(labelOf).map(esc).join('、')+'”相关）':''}；批改按全卷材料。<button class="ghost small" id="slMaterialPick">选定本题材料</button></p>`
+      ? `<p class="small warn sl-material-notice">题干指明了具体材料但无法自动对应，现显示全卷${sg.length?`；${q.suggest_kind==='quote'?'题干引用的原文出现在':'按用词推测相关的是'}“${sgNames}”`:''}；批改按全卷。${sg.length?'<button class="ghost small" id="slMaterialAdopt">采用推测</button>':''}<button class="ghost small" id="slMaterialPick">选定本题材料</button></p>`
+      : q.material_source==='whole'&&(q.all_materials||[]).length>1 ? `<p class="small muted sl-material-notice">本题使用全部给定资料（题干没限定具体材料）<button class="ghost small" id="slMaterialPick">调整</button></p>`
       : (q.all_materials||[]).length>1 ? `<p class="small muted sl-material-notice">本题材料：${q.materials.map(m=>esc(m.label)).join('、')}（${source}）<button class="ghost small" id="slMaterialPick">调整</button></p>` : '';
     const tabs=q.materials.length>1?`<div class="sl-material-tabs row" role="tablist" aria-label="本题材料">${q.materials.map((m,i)=>`<button class="ghost small${(q.suggested_material_ids||[]).includes(m.id)?' sl-suggested':''}" role="tab" data-mat-tab="${i}" aria-selected="${i===0}">${esc(m.label)}</button>`).join('')}</div>`:'';
     return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span><button class="ghost small" id="slSplit" title="调整左右分栏宽度">⇔ 分栏</button><button class="ghost small" id="slStemToggle" aria-expanded="false">展开题干</button></div><div class="sl-task-scroll sl-stem-collapsed"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'').replace(/\n/g,'<br>')}</p>${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
@@ -175,8 +183,10 @@
       dlg.innerHTML=`<h3>选定本题用到的材料</h3><p class="small muted">勾选后，左边只显示这些材料，批改也只依据它们。全选或不选等于恢复全卷。</p>${q.all_materials.map(m=>`<label class="row"><input type="checkbox" value="${esc(m.id)}" ${chosen.has(m.id)?'checked':''}> ${esc(m.label)}</label>`).join('')}<div class="row"><button class="ghost" value="cancel">取消</button><span class="spacer"></span><button class="primary" id="slPickOk">确定</button></div>`;
       document.body.append(dlg);dlg.showModal();
       dlg.querySelector('[value="cancel"]').onclick=()=>{dlg.close();dlg.remove();};
-      dlg.querySelector('#slPickOk').onclick=async()=>{const ids=[...dlg.querySelectorAll('input:checked')].map(x=>x.value);try{if(!(await flushDraft()))return;await post('/api/shenlun/materials',{qid:S.qid,ids});dlg.close();dlg.remove();open(S.qid);}catch(e){toast(e.message);}};
+      dlg.querySelector('#slPickOk').onclick=async()=>{const ids=[...dlg.querySelectorAll('input:checked')].map(x=>x.value);try{if(!(await flushDraft()))return;await post('/api/shenlun/materials',{qid:S.qid,ids});dlg.close();dlg.remove();open(S.qid,S.origin==='train');}catch(e){toast(e.message);}};
     };
+    const adopt=$('#slMaterialAdopt');
+    if(adopt)adopt.onclick=async()=>{try{if(!(await flushDraft()))return;await post('/api/shenlun/materials',{qid:S.qid,ids:S.q.suggested_material_ids});open(S.qid,S.origin==='train');}catch(e){toast(e.message);}};
     const best=(S.q.suggested_material_ids||[])[0],idx=best?S.q.materials.findIndex(m=>m.id===best):0;if(idx>0)show(idx);
   }
   function comprehensiveHtml(r) {
