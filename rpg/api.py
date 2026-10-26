@@ -982,6 +982,10 @@ def shenlun_answer(body):
     return _sl_bank(shenlun_bank.answer_get, body.get("qid"))
 
 
+def shenlun_materials(body):
+    return dict(_sl_bank(shenlun_bank.material_pick, body), complete_bank=True)
+
+
 def shenlun_history(body):
     return {"history": _sl_bank(shenlun_review.history, body.get("qid"))}
 
@@ -1408,6 +1412,7 @@ ROUTES = {
     ("POST", "/api/shenlun/card/clock"): shenlun_card_clock,
     ("POST", "/api/shenlun/card/recognize"): shenlun_card_recognize,
     ("POST", "/api/study/schedule"): schedule_settings,
+    ("POST", "/api/shenlun/materials"): shenlun_materials,
     ("POST", "/api/shenlun/history"): shenlun_history,
     ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
     ("GET", "/api/shenlun/questions"): shenlun_questions,

@@ -177,13 +177,120 @@ def question(p,qid, reveal=False):
         for q in paper['questions']:
             if q['qid']==qid:
                 d=dict(q, paper_id=paper['id'],paper_title=paper['title'],source=paper['source'],edition=paper['edition'])
-                d['materials']=[dict(m,text=text(m['text'])) for m in paper['materials'] if not q['material_ids'] or m['id'] in q['material_ids']]
+                ids,source=material_choice(p,paper,q)
+                d['material_ids'],d['material_source']=ids,source
+                d['all_materials']=[{'id':m['id'],'label':m['label']} for m in paper['materials']]
+                d['suggested_material_ids']=suggest_materials(q['stem'],paper['materials']) if source=='all' else []
+                d['materials']=[dict(m,text=text(m['text'])) for m in paper['materials'] if not ids or m['id'] in ids]
                 d['material_mark_keys']=[hashlib.sha256((str(m['id'])+'\n'+m['text']).encode('utf-8')).hexdigest() for m in d['materials']]
                 d['complete']=bool(d['materials']) and d['total']>0
                 if not reveal:
                     d.pop('references',None); d.pop('analysis',None)
                 return d
     raise BankError('题目不存在')
+
+
+_CN_NUM = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}
+_NUM = r'(?:\d{1,2}|[一二三四五六七八九十]{1,3})'
+_REF = re.compile(r'(?:给定)?(?:资料|材料)\s*(' + _NUM + r'(?:\s*(?:[、，,和及与]|[～~—\-－至到]|(?:[～~—\-－至到]\s*)?(?:资料|材料))\s*' + _NUM + r')*)')
+
+
+def _to_num(x):
+    if x.isdigit():
+        return int(x)
+    if len(x)==1:
+        return _CN_NUM.get(x)
+    if x[0]=='十':
+        return 10+_CN_NUM.get(x[1],0)
+    if x[-1]=='十':
+        return _CN_NUM.get(x[0],0)*10
+    if len(x)==2 and x[0] in _CN_NUM and x[1]=='十':
+        return _CN_NUM[x[0]]*10
+    return _CN_NUM.get(x[0],0)*10+_CN_NUM.get(x[-1],0)
+
+
+def _material_numbers(mats):
+    """材料标签里带的序号；缺失或重复时退回出现顺序。"""
+    nums=[]
+    for i,m in enumerate(mats):
+        found=re.search(r'(\d{1,2})|([一二三四五六七八九十]{1,3})',m['label'])
+        nums.append(_to_num(found.group(0)) if found else i+1)
+    return nums if len(set(nums))==len(nums) else list(range(1,len(mats)+1))
+
+
+def infer_material_ids(stem, mats):
+    """只认题干里明确写出的“给定资料X”“资料2、4”“资料1～3”；写不出来不猜，返回空表示沿用整卷。"""
+    stem=re.sub(r'\[materialid\]\d+\[/materialid\]','',str(stem))
+    if not mats or re.search(r'全部(?:给定)?(?:资料|材料)|所有(?:给定)?(?:资料|材料)|全部给定',stem):
+        return []
+    nums=_material_numbers(mats)
+    wanted=set()
+    for found in _REF.finditer(stem):
+        span=found.group(1)
+        parts=re.findall(_NUM+r'|[、，,和及与]|[～~—\-－至到]',span)
+        last=None; ranged=False
+        for part in parts:
+            if re.fullmatch(r'[～~—\-－至到]',part):
+                ranged=True; continue
+            if part in '、，,和及与':
+                ranged=False; continue
+            n=_to_num(part)
+            if n is None:
+                continue
+            if ranged and last and last<n:
+                wanted.update(range(last,n+1))
+            else:
+                wanted.add(n)
+            last=n; ranged=False
+    ids=[m['id'] for m,n in zip(mats,nums) if n in wanted]
+    return ids if ids and len(ids)<len(mats) else []
+
+
+def suggest_materials(stem, mats):
+    """题干没写明材料时按用词重合度给出推测，只用于界面提示，不改变批改用的材料。"""
+    stem=re.sub(r'\[materialid\]\d+\[/materialid\]|[请根据概括分析提出要求不超过字全面准确有条理分]|给定资料|材料','',str(stem))
+    grams={stem[i:i+2] for i in range(len(stem)-1) if not re.search(r'[\s，。、；：“”（）()\d]',stem[i:i+2])}
+    if len(grams)<3 or len(mats)<2:
+        return []
+    scores=[(sum(1 for g in grams if g in text(m['text'])),m['id']) for m in mats]
+    best=max(scores)[0]
+    return [i for n,i in scores if best>=3 and n>=best*0.6]
+
+
+def _pick_file(p,qid):
+    return p.reviews/'材料选择'/(_safe(qid)+'.json')
+
+
+def material_choice(p, paper, q):
+    """(材料id列表, 来源)。来源：manual 用户选定 / import 题目自带 / stem 题干写明 / all 整卷未确认。"""
+    known={m['id'] for m in paper['materials']}
+    f=_pick_file(p,q['qid'])
+    if f.exists():
+        try:
+            ids=[x for x in json.loads(f.read_text(encoding='utf-8')).get('ids',[]) if x in known]
+            if ids:
+                return ids,'manual'
+        except (OSError,ValueError):
+            pass
+    if q['material_ids']:
+        return q['material_ids'],'import'
+    ids=infer_material_ids(q['stem'],paper['materials'])
+    return (ids,'stem') if ids else ([],'all')
+
+
+def material_pick(p, body):
+    qid=body.get('qid'); q=question(p,qid)
+    known={m['id'] for m in q['all_materials']}
+    ids=[str(x) for x in body.get('ids') or []]
+    if any(x not in known for x in ids):
+        raise BankError('材料不存在')
+    with _IMPORT_LOCK:
+        f=_pick_file(p,qid)
+        if ids and len(ids)<len(known):
+            _write(f,{'qid':qid,'ids':ids})
+        elif f.exists():
+            f.unlink()
+    return question(p,qid)
 
 
 def answer_file(p,qid):

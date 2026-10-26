@@ -202,7 +202,7 @@ jobs:
         shell: python
         run: |
           import subprocess
-          for command in [['node', 'tests/ui_shenlun.cjs']]:
+          for command in [['node', 'tests/ui_shenlun.cjs'], ['node', 'tests/ui_shenlun_layout.cjs']]:
               result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
               print(' '.join(command) + '\n' + result.stdout, flush=True)
               if result.returncode:
