@@ -25,7 +25,6 @@ body.portal-home #view,body.guantu.portal-home #view{width:100%;max-width:none;m
 html.in-chat .train{top:max(var(--study-hud-height),var(--chat-top,0px))}
 html.nt-full .nt-book,.yj-stage,.ln-stage{top:var(--study-hud-height)!important}
 html.in-sl-exam .sl-full-grid{height:calc(100dvh - var(--study-hud-height) - var(--sl-exam-heading-height,142px) - 90px);min-height:300px}
-.sl-writing.sl-card-expanded{top:var(--study-hud-height)!important}
 @media(max-width:720px){:root{--study-hud-height:160px}.study-hud{padding:8px;gap:8px;font-size:var(--ds-fs-11)}.study-hud-player{width:55%;max-width:none;padding:8px;gap:6px;border-radius:22px 8px 14px 22px}.study-hud-avatar{width:42px;height:42px;border-width:2px}.study-hud-name{gap:1px}.study-hud-name strong{font-size:15px}.study-hud-name span{font-size:var(--ds-fs-10)}.study-hud-world{min-width:0;max-width:none;width:45%;padding:8px}.study-hud-calendar{gap:2px 8px}.study-hud-location strong{font-size:var(--ds-fs-13)}.study-hud-location>span:first-child{font-size:var(--ds-fs-16)}.study-hud-meter span{font-size:9px;padding:0 3px}.study-hud-profile small{font-size:9px}}
 @media(max-width:430px){:root{--study-hud-height:180px}.study-hud-avatar{width:30px;height:30px}.study-hud-player{align-items:flex-start}.study-hud-name span{display:block;width:100%}.study-hud-meter span{font-size:8px}.study-hud-location span{display:block}.study-hud-location>span:first-child{display:none}}
 
@@ -61,7 +60,6 @@ html.study-workspace body .study-hud-location{margin-top:0}
 html.in-chat .train{top:max(var(--study-workspace-height,100px),var(--chat-top,0px))}
 html.nt-full .nt-book,.yj-stage,.ln-stage{top:var(--study-workspace-height,100px)!important}
 html.in-sl-exam .sl-full-grid{height:calc(100dvh - var(--study-workspace-height,100px) - var(--sl-exam-heading-height,142px) - 90px)}
-.sl-writing.sl-card-expanded{top:var(--study-workspace-height,100px)!important}
 @media(max-width:720px){body:not(.portal-home) .study-hud{padding:8px 12px;gap:8px}body:not(.portal-home) .study-hud-player{padding:8px;gap:6px;width:56%}body:not(.portal-home) .study-hud-world{width:44%;padding:8px}body:not(.portal-home) .study-hud-profile{display:block}body:not(.portal-home) .study-hud-meter{margin-top:3px}body:not(.portal-home) .study-hud-avatar{width:32px;height:32px}body:not(.portal-home) .study-hud-location span{display:inline}html.study-workspace body .study-hud{padding:6px 8px;gap:8px}html.study-workspace body .study-hud-avatar{width:26px;height:26px}html.study-workspace body .study-hud-player,html.study-workspace body .study-hud-world{padding:0}}
 .study-regions{padding:24px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);overflow:hidden}
 .study-regions-heading h2,.study-region-heading h2{margin:4px 0;font-family:var(--display);font-size:28px;font-weight:500}

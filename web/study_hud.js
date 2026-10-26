@@ -39,7 +39,7 @@
     let root=document.getElementById('studyHud');
     if(!root){root=document.createElement('aside');root.id='studyHud';root.className='study-hud';root.setAttribute('aria-label','角色与备考信息');document.body.insertBefore(root,document.getElementById('banner'));
       const measure=()=>{const box=root.getBoundingClientRect(),style=document.documentElement.style;style.setProperty('--study-workspace-height',Math.ceil(root.classList.contains('subpage-heading')?box.bottom:box.height)+'px');if(document.body.classList.contains('portal-home'))style.setProperty('--study-hud-height',Math.ceil(box.bottom+12)+'px');};
-      const sync=()=>{const h=document.documentElement;h.classList.toggle('study-workspace',['in-chat','nt-full','yj-on','in-sl-exam','focus'].some(c=>h.classList.contains(c))||!!document.querySelector('.sl-writing.sl-card-expanded'));measure();};
+      const sync=()=>{const h=document.documentElement;h.classList.toggle('study-workspace',['in-chat','nt-full','yj-on','in-sl-exam','focus'].some(c=>h.classList.contains(c)));measure();};
       new ResizeObserver(measure).observe(root);
       new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['class']});
       new MutationObserver(sync).observe(document.getElementById('view')||document.body,{subtree:true,attributes:true,attributeFilter:['class']});

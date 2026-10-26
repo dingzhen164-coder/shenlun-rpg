@@ -197,7 +197,7 @@ class Game:
     # ================================================================ 申论：作答批改的成绩
     def on_grade(self, qid, board, score, full, words=0, lost=(), summary="", draft=False):
         """一次作答批改的成绩。记进批改记录；正式的（不是试批）再计入专长得分率和修为。
-        返回 {"id", "events"}。分数由 shenlun_rubric 算好传进来，这里不再判断。"""
+        返回 {"id", "events"}。分数由 shenlun_review 算好传进来，这里不再判断。"""
         rate = score / full if full else 0.0
         rid = "%s-%d" % (self.t, int(time.time() * 1000) % 10 ** 9)
         rec = {"id": rid, "d": self.t, "qid": qid, "board": board, "score": score, "full": full, "rate": round(rate, 3),

@@ -37,6 +37,14 @@ async function main(){
   await shot('1-'+name);
  }
  await page.setViewportSize({width:1280,height:860});
+ // 专注书写：材料栏收起、红格占满，工具条仍在；再点恢复。不再有独立全屏层
+ await page.locator('[data-card="expand"]').click();
+ assert.equal(await page.locator('.sl-card-expanded').count(),0);
+ const focus=await page.evaluate(()=>({m:document.querySelector('.sl-materials').getBoundingClientRect().width,w:document.querySelector('.sl-writing').getBoundingClientRect().width,vw:innerWidth}));
+ assert.ok(focus.m<5&&focus.w>focus.vw*.9,'专注书写应收起材料栏 '+JSON.stringify(focus));
+ assert.ok(await page.locator('[data-card="pen"]').isVisible());
+ await page.locator('[data-card="expand"]').click();
+ assert.ok((await page.locator('.sl-materials').boundingBox()).width>200);
  // 手指默认滚动红格、不画笔；勾选后才书写
  const ink=page.locator('.sl-card-ink');await ink.scrollIntoViewIfNeeded();
  assert.equal(await page.locator('#slFinger').isChecked(),false);
