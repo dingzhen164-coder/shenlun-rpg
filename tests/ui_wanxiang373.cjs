@@ -19,6 +19,7 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
 
   }
   let f=await enter();await page.locator('.npc-encounters').waitFor({state:'detached'});await columns(f,'.sprint-welcome');assert.equal(await f.locator('.sprint-group').count(),4);
+  await f.locator('.sprint-index.hx381-shell').waitFor();const frost=await f.locator('.sprint-index').evaluate(e=>{const s=getComputedStyle(e);return{bg:s.backgroundColor,blur:s.backdropFilter||s.webkitBackdropFilter,border:s.borderTopWidth,edge:s.borderTopColor};});assert.notEqual(frost.bg,'rgba(0, 0, 0, 0)','目录必须有轻透底板');assert.match(frost.blur,/blur\(/,'目录保留背景虚化');assert.equal(frost.border,'1px');assert.notEqual(frost.edge,'rgba(0, 0, 0, 0)','目录保留细边线');
   await f.locator('[data-material=m1]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();await columns(f,'.sprint-document-body');
   { // 所有标题不加红：标题块不渲染标红且用正文墨色；正文标红保持。目录条目下显示字数而不是“未学·N题”。
    await f.locator('[data-material=m3]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();
@@ -28,12 +29,26 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
    await f.locator('[data-material=m1]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();
   }
   if(size==='desktop'&&theme==='light'){
+   { // 一键取消这一篇的红标记（再恢复）：不改批注、不动消化清单的空
+    const bulk=f.locator('.wn-bulk-btn');assert.equal((await bulk.textContent()).includes('一键取消红标记'),true);
+    page.once('dialog',d=>d.accept());await bulk.click();await f.locator('.source-emphasis').waitFor({state:'detached'});
+    assert.equal((await bulk.textContent()).includes('恢复红标记'),true);assert.equal(explainCalls,0);
+    await bulk.click();await f.locator('.source-emphasis').waitFor();assert.equal(await f.locator('.source-emphasis').count(),1,'恢复后红标记回来');
+    assert.equal((await bulk.textContent()).includes('一键取消红标记'),true);
+   }
    assert.equal(await f.locator('.source-emphasis').count(),1);await select(f,'主产区');assert.equal(await f.locator('.wn-highlight').textContent(),'取消标红');await f.locator('.wn-highlight').click();await f.locator('.source-emphasis').waitFor({state:'detached'});assert.equal(explainCalls,0);
    await f.locator('[data-tab=understand]').click();await f.locator('[data-digest-blank]').first().waitFor();assert.equal(await f.locator('[data-digest-blank]').count(),1,'取消标红不移除PDF空位');assert.equal(await f.locator('.digest-pending').count(),1,'找不到出处的清单段落也保留，标为待补全');assert.equal(await f.locator('.sprint-digest-meta,.sprint-digest-source,[data-digest-filter]').count(),0,'清单页不再显示配套/统计/来源行');await f.locator('[data-tab=original]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();await select(f,'主产区');await f.locator('.wn-highlight').click();await f.locator('.source-emphasis').waitFor();
    await f.locator('.source-emphasis').click();await f.locator('.wn-pop section').first().waitFor();assert.equal(explainCalls,1);await f.locator('.wn-unmark').click();await f.locator('.source-emphasis').waitFor({state:'detached'});await f.locator('.wn-word').click();await f.locator('.wn-pop section').first().waitFor();assert.equal(explainCalls,1,'取消标红后批注仍读取缓存');await f.locator('.wn-pop header button').click();await select(f,'主产区');await f.locator('.wn-highlight').click();await f.locator('.source-emphasis').waitFor();
   }
   if(size==='desktop'&&theme==='light'){await f.locator('.sprint-index [data-material=m2]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();await select(f,'甲方','.original p:last-child');await f.locator('.wn-select').click();await f.locator('.wn-pop section').first().waitFor();assert.equal(await f.locator('.original p').first().locator('.wn-word').count(),0,'重复段落的批注不能串位');assert.equal(await f.locator('.original p').last().locator('.wn-word').count(),1);await f.locator('.wn-pop header button').click();await f.locator('.sprint-index [data-material=m1]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();}
   await f.locator('[data-tab=understand]').click();await f.locator('[data-digest-blank]').first().waitFor();assert.equal(await f.locator('[data-digest-blank]').count(),1);assert.equal(await f.locator('.digest-pending').count(),1);await f.locator('[data-digest-blank]').click();await f.locator('.sprint-blank:not(:disabled)').waitFor();assert.equal(await f.locator('.sprint-blank:not(:disabled)').evaluate(el=>getComputedStyle(el).whiteSpace),'normal');
+  { // 重置所有的空：核对过的空回到“没核对”，可以再复习一遍
+   const reset=f.locator('[data-digest-reset]');await reset.waitFor();
+   assert.equal(await reset.isEnabled(),true,'核对过一个空后，重置按钮可点');assert.match(await reset.textContent(),/已核对 1 个/);
+   page.once('dialog',d=>d.accept());await reset.click();await f.locator('.sprint-blank.hidden-answer').waitFor();assert.equal(await f.locator('[data-digest-reset]').isDisabled(),true,'没有核对过的空时重置按钮置灰');
+   assert.equal(await f.locator('.sprint-blank.remember,.sprint-blank.forgot').count(),0,'重置后空位都盖回去');assert.equal(await f.locator('[data-digest-blank]').count(),1,'PDF里的空还在');
+   await f.locator('[data-digest-blank]').click();await f.locator('.sprint-blank:not(:disabled)').waitFor();
+  }
   if(theme==='light'&&size!=='landscape')await page.screenshot({path:`ui-artifacts/wanxiang373/${size}-cloze.png`});
   await f.locator('.atlas-reading-tools [data-go=sprint]').click();await f.locator('#nav [data-go=practice]').click();
   if(size==='desktop'&&theme==='light'){await f.locator('.sprint-practice-empty').waitFor();assert.equal(await f.locator('.question').count(),0);

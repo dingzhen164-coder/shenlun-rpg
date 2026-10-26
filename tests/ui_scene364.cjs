@@ -49,7 +49,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   assert(await p.evaluate(()=>__content===document.querySelector('#view').firstElementChild));
   await p.evaluate(()=>{localStorage.setItem('scene-time','night');SCENE_FX.apply();});
   for(const v of ['train','skeleton','notes','tianji','settings',...(subject==='行测'?['bank','contest']:[])]){
-   await p.evaluate(v=>go(v),v);await p.waitForFunction(()=>document.body.dataset.sceneRelight==='native'&&getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('-night.webp'));
+   await p.evaluate(v=>go(v),v);await p.waitForFunction(v=>document.body.dataset.sceneRelight==='native'&&(v==='bank'?document.querySelector('.th-panorama')?.src.includes('-night.webp'):getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('-night.webp')),v);
    const selector=v==='bank'?'.th-landscape':v==='contest'?'.cs-landscape':'#bgLayer';
    assert.equal(await p.locator(selector).evaluate(e=>getComputedStyle(e).filter),'none',v);
    if(v==='bank'){

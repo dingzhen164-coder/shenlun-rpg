@@ -49,7 +49,7 @@ class IndependentReviewTests(unittest.TestCase):
 
     def test_wrong_question_explain_button_ignores_discussion_history(self):
         session={'discuss':{'board':'类比推理','question':'自编题干及A甲B乙','answer':'A','mine':'错题作答_CANARY','reference':'错题解析_CANARY','previous':'前次_CANARY','history':[{'role':'assistant','content':'历史_CANARY'}]}}
-        with patch.object(trainer.ai,'available',return_value=True),patch.object(trainer,'_skill_digest',return_value='自编错题心法'),patch.object(trainer.ai,'chat',return_value='自编解释') as chat:
+        with patch.object(trainer.ai,'available',return_value=True),patch.object(trainer,'_tutor_material',return_value=('自编错题心法',['SKILL.md'])),patch.object(trainer.ai,'chat',return_value='自编解释') as chat:
             result=trainer._discuss_ask(self.g,session,'请独立讲解',independent=True)
         payload=str(chat.call_args.args[0]);self.assertIn('自编题干及A甲B乙',payload)
         self.assertNotIn('_CANARY',payload)

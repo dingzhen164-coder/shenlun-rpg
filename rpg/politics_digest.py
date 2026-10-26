@@ -19,7 +19,7 @@ BLANK = re.compile(r'(?:[_＿﹍﹎][ \t]*){2,}|（[ \u3000]*）|\([ \u3000]{2,}
 NUMBER = re.compile(r'^\s*(\d+)[.．、]\s*')
 
 
-RV = 4          # 识别规则版本（4：同一行里不同字体的基线差零点几磅不再拆行、描边加粗认得出；3：整份保留全文——标题、没有空的段落、加粗都留下）：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
+RV = 5          # 识别规则版本（5：讲义里每篇都夹着的“【重要提醒】”标签行导入时去掉；4：同一行里不同字体的基线差零点几磅不再拆行、描边加粗认得出；3：整份保留全文——标题、没有空的段落、加粗都留下）：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
 _ASCII_PUNCT = {'(': '（', ')': '）', ',': '，', ';': '；', ':': '：', '!': '！', '?': '？'}
 
 
@@ -151,6 +151,9 @@ def _pdf_lines(doc):
     return result
 
 
+NOTICE = re.compile(r'^【\s*重要提醒\s*】[：:\s]*')      # 讲义里每篇都夹着的“【重要提醒】”标签：导入时去掉；标签后面跟着的正文照常保留
+
+
 HEADING = re.compile(r'^(?:[一二三四五六七八九十]+[、．]|[（(][一二三四五六七八九十]+[）)]|第[一二三四五六七八九十]+[部章节篇])')
 
 
@@ -180,6 +183,10 @@ def parse_pdf(content):
         if current.strip():blocks.append({'text':current,'mask':cmask,'kind':'p'})
         current=cmask=''
     for line,weight,mask in lines:
+        tag=NOTICE.match(line)
+        if tag:
+            line,mask=line[tag.end():],mask[tag.end():]
+            if not line.strip():continue
         if re.fullmatch(r'(?:参考)?答案(?:与解析)?[：:]?',line) or line.endswith('·答案与解析'):
             flush();in_answers=True;continue
         if not BLANK.search(line) and re.search(r'消化清单|填空练习',line):
@@ -368,11 +375,7 @@ def fill(g, body):
     return get(g,body['target'])
 
 
-def mark(g, body):
-    data=get(g,body.get('target'));value=body.get('value')
-    if value not in ('remember','forgot',None):raise politics.PoliticsError('消化状态无效')
-    item=next((p for p in data['items'] if p['id']==body.get('id') and p['a']),None)
-    if not item:raise politics.PoliticsError('该空待补全或不属于此清单，不能记录核对结果')
+def _write_mark(g,item,value):
     owner=item['owner']
     if item.get('legacy') and owner['source']=='atlas':
         politics.set_progress(g.paths,dict(exam=owner['exam'],field='digest',id=item['legacy'],value=value))
@@ -387,6 +390,24 @@ def mark(g, body):
         if value is None:memory.pop(item['id'],None)
         else:memory[item['id']]=value
         politics.atomic_json(file,memory)
+
+
+def mark(g, body):
+    data=get(g,body.get('target'));value=body.get('value')
+    if value not in ('remember','forgot',None):raise politics.PoliticsError('消化状态无效')
+    item=next((p for p in data['items'] if p['id']==body.get('id') and p['a']),None)
+    if not item:raise politics.PoliticsError('该空待补全或不属于此清单，不能记录核对结果')
+    _write_mark(g,item,value)
+    return get(g,body['target'])
+
+
+def reset(g, body):
+    """把当前这份清单的所有空恢复成“没核对过”，方便再复习一遍：只清核对记号（记得/忘了），
+    不动PDF原文、你补全的答案、其他清单；不发奖励、不调AI。"""
+    data=get(g,body.get('target'))
+    with politics._LOCK:
+        for item in data['items']:
+            if item['a'] and data['progress'].get(item['id']) in ('remember','forgot'):_write_mark(g,item,None)
     return get(g,body['target'])
 
 

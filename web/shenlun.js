@@ -270,17 +270,45 @@
     return `${reading?'<p class="small muted sl-paragraph-note">来源未标注段落，以下按句群分隔阅读；不代表原文段落。</p>':''}<div class="sl-material-text">${paras.map(x=>`<p>${esc(x)}</p>`).join('')}</div>`;
   }
   function fullAnswerHtml() {
-    const q=S.q;
-    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span></div><div class="sl-task-scroll"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'〔原库材料ID：$1〕').replace(/\n/g,'<br>')}</p>${q.stem.includes('[materialid]')?'<p class="small warn">来源库的材料ID不是下方材料序号；下方保留整卷资料，请先按题干内容核对本题对应材料。</p>':''}${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
+    const q=S.q, ids=q.material_ids||[], labelOf=id=>(q.all_materials||[]).find(m=>m.id===id)?.label||id;
+    const source={manual:'已按你的选择',import:'题目自带',stem:'按题干写明的资料',all:''}[q.material_source]||'';
+    const notice=q.material_source==='all'&&(q.all_materials||[]).length>1
+      ? `<p class="small warn sl-material-notice">题干没写明用哪几则材料，现显示全卷${q.suggested_material_ids?.length?'（系统推测与“'+q.suggested_material_ids.map(labelOf).map(esc).join('、')+'”相关）':''}；批改按全卷材料。<button class="ghost small" id="slMaterialPick">选定本题材料</button></p>`
+      : (q.all_materials||[]).length>1 ? `<p class="small muted sl-material-notice">本题材料：${q.materials.map(m=>esc(m.label)).join('、')}（${source}）<button class="ghost small" id="slMaterialPick">调整</button></p>` : '';
+    const tabs=q.materials.length>1?`<div class="sl-material-tabs row" role="tablist" aria-label="本题材料">${q.materials.map((m,i)=>`<button class="ghost small${(q.suggested_material_ids||[]).includes(m.id)?' sl-suggested':''}" role="tab" data-mat-tab="${i}" aria-selected="${i===0}">${esc(m.label)}</button>`).join('')}</div>`:'';
+    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span><button class="ghost small" id="slSplit" title="调整左右分栏宽度">⇔ 分栏</button><button class="ghost small" id="slStemToggle" aria-expanded="false">展开题干</button></div><div class="sl-task-scroll sl-stem-collapsed"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'').replace(/\n/g,'<br>')}</p>${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
-      <div class="sl-full-grid"><section class="card sl-materials"><div class="sl-material-toolbar"><h3>给定资料</h3>${SL_MATERIALS.toolbar()}</div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
-      <section class="card sl-writing"><div class="row"><h3>我的作答</h3><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button></div>
-      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}<div class="row sl-exam-clock"><b id="slElapsed">作答用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button></div>${SL_CARD.html(q)}
+      <div class="sl-full-grid"><section class="card sl-materials"><div class="sl-material-toolbar"><div class="row"><h3>给定资料</h3><span class="spacer"></span></div>${SL_MATERIALS.toolbar()}${tabs}${notice}</div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article data-mat-article="${i}"${i?' class="sl-mat-off"':''}><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
+      <section class="card sl-writing"><div class="row sl-write-top"><h3>我的作答</h3><b id="slElapsed" class="small">作答用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button>${SL_CARD.tools()}</div>
+      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}${SL_CARD.html(q)}
       <details class="sl-transcription" open><summary>识别文字核对 / 打字作答</summary><textarea id="slAns" class="sl-ta" spellcheck="false" placeholder="手写识别结果在这里核对；也可直接打字作答。"></textarea><button class="ghost small" id="slConfirmText">确认文字并保存</button><span id="slOcrStatus" class="small muted"></span></details>
-      <div class="row"><span class="small muted" id="slCnt"></span><span class="spacer"></span><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div>
       <p class="small muted">材料、题干和本次答案会发给设置中的AI。先建立材料评分标准，再按含义判断；失败不计分，草稿保留。</p>
-      ${B.history.length?`<details><summary>历史作答与批改（${B.history.length}稿）</summary>${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</details>`:''}</section></div>
+      ${B.history.length?`<details><summary>历史作答与批改（${B.history.length}稿）</summary>${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</details>`:''}
+      <div class="row sl-submit-row"><span class="small muted" id="slCnt"></span><span class="spacer"></span><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div></section></div>
       <section id="slRes">${S.result?comprehensiveHtml(S.result):''}</section>`;
+  }
+  // 材料页签、题干折叠、左右分栏：只改显示，不动材料内容和笔迹。
+  const SPLITS=[['40:60','40%'],['50:50','50%'],['30:70','30%'],['60:40','60%']];
+  const splitIndex=()=>{try{return Math.max(0,SPLITS.findIndex(x=>x[0]===localStorage.getItem('sl.split')));}catch(_){return 0;}};
+  function applySplit(root,i){const v=SPLITS[i];root.style.setProperty('--sl-split',v[1]);const b=root.querySelector('#slSplit');if(b)b.textContent='⇔ 分栏 '+v[0];}
+  function bindLayout(root) {
+    const $=s=>root.querySelector(s);
+    const toggle=$('#slStemToggle'),box=$('.sl-task-scroll');
+    toggle.onclick=()=>{const open=box.classList.toggle('sl-stem-collapsed')===false;toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'收起题干':'展开题干';};
+    let split=splitIndex();applySplit(document.documentElement,split);
+    $('#slSplit').onclick=()=>{split=(split+1)%SPLITS.length;applySplit(document.documentElement,split);try{localStorage.setItem('sl.split',SPLITS[split][0]);}catch(_){}window.dispatchEvent(new Event('resize'));};
+    const show=i=>{root.querySelectorAll('[data-mat-article]').forEach(a=>a.classList.toggle('sl-mat-off',a.dataset.matArticle!==String(i)));root.querySelectorAll('[data-mat-tab]').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.matTab===String(i))));const sc=$('.sl-material-scroll');if(sc)sc.scrollTop=0;window.dispatchEvent(new Event('resize'));};
+    root.querySelectorAll('[data-mat-tab]').forEach(t=>t.onclick=()=>show(t.dataset.matTab));
+    const pick=$('#slMaterialPick');
+    if(pick)pick.onclick=()=>{
+      const q=S.q,chosen=new Set(q.material_source==='all'?(q.suggested_material_ids?.length?q.suggested_material_ids:[]):q.material_ids);
+      const dlg=document.createElement('dialog');dlg.className='sl-material-dialog card';
+      dlg.innerHTML=`<h3>选定本题用到的材料</h3><p class="small muted">勾选后，左边只显示这些材料，批改也只依据它们。全选或不选等于恢复全卷。</p>${q.all_materials.map(m=>`<label class="row"><input type="checkbox" value="${esc(m.id)}" ${chosen.has(m.id)?'checked':''}> ${esc(m.label)}</label>`).join('')}<div class="row"><button class="ghost" value="cancel">取消</button><span class="spacer"></span><button class="primary" id="slPickOk">确定</button></div>`;
+      document.body.append(dlg);dlg.showModal();
+      dlg.querySelector('[value="cancel"]').onclick=()=>{dlg.close();dlg.remove();};
+      dlg.querySelector('#slPickOk').onclick=async()=>{const ids=[...dlg.querySelectorAll('input:checked')].map(x=>x.value);try{if(!(await flushDraft()))return;await post('/api/shenlun/materials',{qid:S.qid,ids});dlg.close();dlg.remove();open(S.qid);}catch(e){toast(e.message);}};
+    };
+    const best=(S.q.suggested_material_ids||[])[0],idx=best?S.q.materials.findIndex(m=>m.id===best):0;if(idx>0)show(idx);
   }
   function comprehensiveHtml(r) {
     const points=r.points.map(x=>`<div class="sl-pt ${x.hit}"><div class="row"><b>${esc(x.name)}</b><span class="tag">${HIT[x.hit][0]}</span><span class="spacer"></span><span>${x.earned}/${x.score}</span></div><p class="sl-point-action">${x.hit==='full'?'核心含义已覆盖，保持。':esc(x.suggestion||x.reason||'补充该核心含义。')}</p><details class="sl-point-detail"><summary>查看材料与作答证据</summary><p class="small"><b>材料依据：</b>${esc(x.material_quote)}</p><blockquote class="sl-ev"><b>你的原句：</b>${esc(x.evidence||'未体现')}</blockquote><p class="small">${esc(x.reason)}</p></details></div>`).join('');
@@ -312,6 +340,7 @@
   function bindFullAnswer(root,ta) {
     ta.value=S.draftText||'';
     const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
+    bindLayout(root);
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
     B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);});
     root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};

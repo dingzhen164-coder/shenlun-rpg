@@ -54,7 +54,7 @@ class SkillbookTest(unittest.TestCase):
         view = api.skillbook_view({})["boards"]
         self.assertTrue(len(view) >= 10)
         self.assertTrue(all(b["n_files"] == 0 and b["files"] == [] for b in view))
-        self.assertEqual(set(view[0]), {"board", "n_files", "files"})             # 没有 mode / source / pending 之类
+        self.assertEqual(set(view[0]), {"board", "n_files", "files", "teachers"})
         self.assertIsNone(skillbook.tutor_material(self.p, BOARD))
         with api.open_game(save=False) as g:
             self.assertEqual(trainer._tutor_material(g, BOARD), ("", []))          # 库里的原 skill 不再自动读取
@@ -245,32 +245,13 @@ class SkillbookTest(unittest.TestCase):
             self.assertFalse(hasattr(api, gone), gone)
         routes = {p for _, p in api.ROUTES}
         self.assertFalse(any(r.startswith("/api/distill/") or r in ("/api/skillbook/organize", "/api/skillbook/accept") for r in routes))
-        for needed in ("/api/skillbook/import", "/api/skillbook/zongjue"):
+        for needed in ("/api/skillbook/import", "/api/skillbook/teachers/import"):
             self.assertIn(needed, routes)
 
-    # ---- 心法总诀
-    def test_zongjue_has_the_five_files_readable_and_in_sync(self):
-        lst = api.skillbook_zongjue({})["files"]
-        self.assertEqual([x["file"] for x in lst], ["蒸馏-第一步-提取例题.md", "蒸馏-第二步-归纳心法.md", "蒸馏-第三步-生成学习版.md", "配置-空白模板.md", "使用流程.md"])
-        for x in lst:
-            t = api.skillbook_zongjue({"file": x["file"]})["text"]
-            self.assertTrue(len(t) > 300, x["file"])
-        flow = api.skillbook_zongjue({"file": "使用流程.md"})["text"]
-        self.assertIn("导入 skill", flow)
-        self.assertIn("固定清单", api.skillbook_zongjue({"file": "配置-空白模板.md"})["text"])
-        self.assertIn("references/", api.skillbook_zongjue({"file": "蒸馏-第二步-归纳心法.md"})["text"])
-        cfg = api.skillbook_zongjue({"file": "配置-空白模板.md"})["text"]
-        self.assertIn("混合型", cfg)
-        self.assertIn("方法 / 技巧清单", cfg)
-        self.assertIn("混合型文件格式", api.skillbook_zongjue({"file": "蒸馏-第二步-归纳心法.md"})["text"])
-        self.assertIn("用到的技巧", api.skillbook_zongjue({"file": "蒸馏-第一步-提取例题.md"})["text"])
-        step3 = api.skillbook_zongjue({"file": "蒸馏-第三步-生成学习版.md"})["text"]
-        self.assertIn("老师是怎么讲的", step3)
-        self.assertIn("学习版/", step3)
-        self.assertIn("老师的讲解", api.skillbook_zongjue({"file": "蒸馏-第一步-提取例题.md"})["text"])       # 第一步要把概念讲解记详细
-        for bad in ("../x.md", "不存在.md"):
-            with self.assertRaises(api.ApiError):
-                api.skillbook_zongjue({"file": bad})
+    def test_zongjue_feature_is_removed(self):
+        self.assertFalse(hasattr(api, 'skillbook_zongjue'))
+        self.assertFalse(hasattr(skillbook, 'zongjue_read'))
+        self.assertNotIn('/api/skillbook/zongjue', {p for _, p in api.ROUTES})
 
 
 if __name__ == "__main__":

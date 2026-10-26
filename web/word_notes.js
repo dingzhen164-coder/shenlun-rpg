@@ -17,7 +17,7 @@
     document.body.append(toolbar,pop);if(managed)document.body.append(highlightTool);
     const hideTools=()=>{toolbar.hidden=true;highlightTool.hidden=true;};
     const observer=new MutationObserver(()=>{if(!root.isConnected)close();});
-    const close=()=>{alive=false;controller.abort();observer.disconnect();toolbar.remove();highlightTool.remove();pop.remove();};
+    const close=()=>{alive=false;controller.abort();observer.disconnect();toolbar.remove();highlightTool.remove();bulk.remove();pop.remove();};
     cleanup=close;observer.observe(document.body,{childList:true,subtree:true});
     const blocks=()=>[...root.querySelectorAll('p,h2,h3,li')].filter(b=>!b.querySelector('p,h2,h3,li'));
     const blockOf=node=>{const el=node?.nodeType===3?node.parentElement:node;return el?.closest('p,h2,h3,li');};
@@ -58,7 +58,29 @@
     }
     const HEADING_LIKE=/^(?:[一二三四五六七八九十百]+[、．.]|[（(](?:[一二三四五六七八九十百]+|\d+)[）)]|\d+[.．、]|《)/;
     function isHeadingBlock(block){const t=block.textContent.trim();return block.matches('.source-heading,h1,h2,h3,h4')||(t.length>0&&t.length<=64&&HEADING_LIKE.test(t)&&!/[。；！？]/.test(t));}
-    function paint(){
+    // 研读：当前这一篇的红标记一键取消 / 恢复（不影响批注、消化清单、别的文章）
+    const bulk=document.createElement('div');bulk.className='wn-bulk';bulk.hidden=true;
+    const bulkButton=document.createElement('button');bulkButton.type='button';bulkButton.className='wn-bulk-btn';bulk.append(bulkButton);
+    if(managed){if(options.bulkHost){bulk.classList.add('wn-bulk-inline');(options.bulkBefore?.parentElement===options.bulkHost?options.bulkBefore.before(bulk):options.bulkHost.append(bulk));}else root.insertAdjacentElement('beforebegin',bulk);}      // 有现成的工具行就放进去，不额外占正文上方的高度
+    function syncBulk(){
+      if(!managed||!readingReady&&!reading.ranges.length&&!reading.edited){bulk.hidden=true;return;}
+      const has=reading.ranges.length>0;
+      bulk.hidden=!has&&!reading.edited;
+      bulkButton.dataset.mode=has?'clear':'restore';
+      bulkButton.textContent=has?'🧹 一键取消红标记':'↺ 恢复红标记';
+      bulkButton.title=has?'取消这一篇文章里全部红色重点；批注、消化清单和其他文章不受影响，之后可以恢复':'把这一篇的红色重点恢复成原来的样子';
+    }
+    bulkButton.addEventListener('click',async()=>{
+      await notesReady;if(!alive||loadError)return;
+      const clearing=reading.ranges.length>0;
+      if(clearing&&!confirm('取消这一篇的全部红标记？\n批注和消化清单都不受影响，之后可以点“恢复红标记”找回。'))return;
+      bulkButton.disabled=true;
+      try{reading=await api('/api/politics/highlights',{...source,clear:clearing});if(!alive||!root.isConnected)return;await options.onChange?.(reading);paint();hideTools();pop.hidden=true;}
+      catch(e){(parent.showError||alert)(e);}
+      finally{bulkButton.disabled=false;}
+    },opts);
+    function paint(){paintBlocks();syncBulk();}
+    function paintBlocks(){
       let blockOffset=0;
       for(const block of blocks()){
         const currentOffset=blockOffset;

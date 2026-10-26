@@ -1,18 +1,18 @@
-/* 藏经阁·心法（skill）：每个板块一份可随时修改的解题方法，初始是空的（数据来自 /api/skillbook，见 rpg/skillbook.py）。
-   先是一排会浮动的古籍书架（一个板块一本，最前面还有一本「心法总诀」），点开才进入全屏的阅读/修改页；“方法学习与追问会读到什么”的计算较慢，打开板块时才算并缓存。
-   没有“原版 / 我的版本”：直接改就是了，每次修改前的样子都留在历史里，可以回滚；别的平台生成的 .skill / .zip / .md 可以直接导入进来。
-   心法总诀：随程序发布的四份文件（蒸馏第一步、第二步、配置空白模板、使用流程），只读，可复制、可下载，拿到别的平台用。
+/* 藏经阁多老师心法：一板块一本书，书内按老师分文件；全局ZIP按文件名预览分发。
+   旧心法归“原有心法”，历史/修改/回滚保留；总诀和长教学说明已删除。
+   读取计划按板块+老师缓存，切换文件校验请求代次，不能把迟到正文放到另一位老师名下。
    阅读区用 MDLITE 渲染（逻辑符号、表格、英文小标题换中文）；修改区永远是原文。
    状态留在本模块里：切到别的页面再回来，书架立刻出现，选中的板块、文件和没保存的草稿都还在。 */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const POS = "skillbook-pos";
   let DATA = [], LOADED = false, SHELF = true, PLANS = {}, BOARD = "", FILE = "", CUR = null, MODE = "view", DRAFT = "", HIST = null, PREVIEW = null, NOTE = "", BUSY = false;
-  let ZJ = false, ZJFILES = [], ZJFILE = "", ZJTEXT = "";
+  let TEACHER = "",FILE_TICKET=0;
   const name = () => (window.W ? W("skillbook") : "心法");
-  const board = () => DATA.find((b) => b.board === BOARD) || null;
-  const plan = () => PLANS[BOARD] || null;
-  const savePos = () => { try { localStorage.setItem(POS, JSON.stringify({ b: BOARD, f: FILE })); } catch {} };
+  const multiTeacher=()=>typeof DASH!=='undefined'&&DASH?.subject==='\u884c\u6d4b';
+  const board = () => {const b=DATA.find(b=>b.board===BOARD);if(!b)return null;const row=b.teachers?.find(t=>t.name===TEACHER)||b.teachers?.[0];TEACHER=row?.name||"";return {...b,files:row?.files||b.files,n_files:(row?.files||b.files).length};};
+  const plan = () => PLANS[BOARD+'\n'+TEACHER] || null;
+  const savePos = () => { try { localStorage.setItem(POS, JSON.stringify({ b: BOARD, f: FILE, teacher:TEACHER })); } catch {} };
   const loadPos = () => { try { return JSON.parse(localStorage.getItem(POS) || "{}"); } catch { return {}; } };
   const num = (n) => Number(n || 0).toLocaleString("en-US");
   const read = (t) => (window.MDLITE ? MDLITE.render(t) : `<pre>${esc(t)}</pre>`);
@@ -21,14 +21,16 @@
   async function loadFile(rel) {
     const b = board();
     if (!b || !rel) { CUR = null; return; }
+    const ticket=++FILE_TICKET,who=TEACHER;
     FILE = rel; savePos();
-    try { CUR = await api("/api/skillbook/file", { board: b.board, path: rel }); } catch (e) { CUR = null; NOTE = e.message; }
+    try { const data=await api("/api/skillbook/file", { board: b.board, path: rel });if(ticket===FILE_TICKET&&BOARD===b.board&&TEACHER===who)CUR=data; } catch (e) { if(ticket===FILE_TICKET){CUR = null; NOTE = e.message;} }
   }
 
   async function loadPlan() {
     const b = board();
-    if (!b || !b.n_files || PLANS[b.board]) return;
-    try { PLANS[b.board] = await api("/api/skillbook/plan", { board: b.board }); } catch { PLANS[b.board] = { items: [], total: 0, words: 0, limit: 0, failed: true }; }
+    if (!b || !b.n_files || plan()) return;
+    const key=BOARD+'\n'+TEACHER;
+    try { PLANS[key] = await api("/api/skillbook/plan", { board: b.board, teacher:TEACHER||undefined }); } catch { PLANS[key] = { items: [], total: 0, words: 0, limit: 0, failed: true }; }
   }
 
   async function overview() {
@@ -54,19 +56,19 @@
     if (!pl) return '<div class="skb-meter small muted" role="status">正在计算方法学习与追问时会读到什么……</div>';
     if (pl.failed) return '<div class="skb-meter small muted">读取情况暂时算不出来，不影响查看和修改。</div>';
     const pct = Math.min(100, Math.round((pl.total / pl.limit) * 100));
-    const skipped = pl.items.filter((i) => i.kind === "method" && !i.read);
+    const skipped = pl.items.filter((i) => i.kind === "method" && !i.read),long=skipped.filter(i=>i.retrievable);
     const refs = pl.items.filter((i) => i.kind === "ref").length;
     return `<div class="skb-meter" role="group" aria-label="方法学习与追问读取情况">
       <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>方法学习与追问时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references / 学习版 里的 ${refs} 个文件只供查阅或阅读，不自动读入</span>` : ""}</div>
       <div class="skb-bar"><i style="width:${pct}%"></i></div>
-      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。请精简、拆分，或把它们放进 references/ 文件夹（只供查阅，不自动读入）。</div>` : ""}</div>`;
+      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件未整份读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。${long.length?'长文完整保留；复盘时在现有预算内按题选取相关原文，不另调AI，并在讲解后显示读取范围。没有匹配时不假称已读。':'请精简、拆分，或放进 references/ 文件夹只供查阅。'}</div>` : ""}</div>`;
   }
 
   function chips(b) {
     const info = Object.fromEntries((plan()?.items || []).map((i) => [i.rel, i]));
     return `<div class="skb-files" role="tablist">${b.files.map((f) => {
       const i = info[f];
-      return `<button role="tab" class="skb-chip ${f === FILE ? "on" : ""}" data-skb-file="${esc(f)}" aria-selected="${f === FILE}" title="${esc(f)}"><span>${esc(nice(f, i?.title))}</span>${i ? `<small>${num(i.words)}字${i.kind === "ref" ? " · 仅查阅" : i.read ? "" : " · 未读入"}</small>` : ""}</button>`;
+      return `<button role="tab" class="skb-chip ${f === FILE ? "on" : ""}" data-skb-file="${esc(f)}" aria-selected="${f === FILE}" title="${esc(f)}"><span>${esc(nice(f, i?.title))}</span>${i ? `<small>${num(i.words)}字${i.kind === "ref" ? " · 仅查阅" : i.read ? "" : i.retrievable?" · 复盘按题读取":" · 未读入"}</small>` : ""}</button>`;
     }).join("")}</div>`;
   }
 
@@ -105,34 +107,22 @@
   function side(b) {
     return `<button class="ghost small" data-skb="shelf">← 回书架</button>
         <div class="skb-who"><b>${esc(b.board)}</b></div>
+        ${b.teachers?.length?`<label class="skb-teacher-label">心法老师<select data-skb-teacher aria-label="选择心法老师">${b.teachers.map(t=>`<option value="${esc(t.name)}" ${t.name===TEACHER?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`:''}
         ${meter(b)}${b.files.length && MODE === "view" ? chips(b) : ""}`;
   }
 
   function shelf() {
-    return `<p class="lib-tip skb-tip small">每本古籍是一个板块的${esc(name())}，一开始都是空的：点开可看、可改、可导入别的平台生成的 skill，保存后下一次方法学习与追问就按新内容讲。</p>
-      <button class="skb-zj-card" data-skb="zj"><b>📜 ${esc(name())}总诀</b><span class="small muted">蒸馏第一步、第二步、第三步（学习版）、配置空白模板、使用流程——拿到 GPT / Gemini / DeepSeek 等平台生成 skill 或学习版，再导入下面的板块</span></button>
+    return `${multiTeacher()?'<div class="skb-import-bar"><button class="primary" data-skb="teachers-import">导入老师 skill</button><span class="small muted">ZIP / MD · 按“老师-板块”分发</span></div>':''}${NOTE?`<p class="skb-note" role="status">${esc(NOTE)}</p>`:''}
       <div class="tome-grid skb-shelf">${DATA.map((x, i) => {
         const seal = x.n_files ? x.n_files + " 篇" : "空";
         return `<div class="tome-slot"><button class="tome skb-tome ${x.n_files ? "" : "none"}" style="--h:${(i * 47 + 20) % 360};--d:${(i * 0.9).toFixed(1)}s" data-skb-board="${esc(x.board)}" aria-label="${esc(x.board)}（${seal}）">
           <span class="tome-cover"><span class="tome-label ${x.board.length > 4 ? "long" : ""}">${vlabel(x.board.slice(0, 6))}</span><span class="tome-seal">${seal}</span></span></button>
-          <div class="tome-cap">${esc(x.board)}<br>${x.n_files ? x.n_files + " 个文件" : "还没有内容"}</div></div>`;
-      }).join("")}</div>`;
-  }
-
-  function zjHtml() {
-    return `<aside class="skb-side card" aria-label="总诀文件"><button class="ghost small" data-skb="shelf">← 回书架</button>
-        <div class="skb-who"><b>📜 ${esc(name())}总诀</b></div>
-        <p class="small muted">五份可以直接复制到别的 AI 平台使用的说明。用法：配置（填一份）→ 第一步（每份逐字稿一次）→ 第二步（攒够再跑，得到做题用的 .skill）→ 第三步（可选，生成学习版）→ 回来导入到板块。</p>
-        <div class="skb-files" role="tablist">${ZJFILES.map((f) => `<button role="tab" class="skb-chip ${f.file === ZJFILE ? "on" : ""}" data-skb-zj="${esc(f.file)}" aria-selected="${f.file === ZJFILE}"><span>${esc(f.title)}</span></button>`).join("")}</div></aside>
-      <section class="skb-main card"><div class="skb-head"><h3>${esc(ZJFILES.find((f) => f.file === ZJFILE)?.title || "")} <small class="muted">${esc(ZJFILES.find((f) => f.file === ZJFILE)?.desc || "")}</small></h3>
-        <div class="skb-tools"><button class="primary small" data-skb="zj-copy">📋 复制全文</button><a class="ghost small skb-dl" href="/zongjue-file?f=${encodeURIComponent(ZJFILE)}" download="${esc(ZJFILE)}">⬇ 下载 .md</a></div></div>
-        ${NOTE ? `<div class="skb-note" role="status">${esc(NOTE)}</div>` : ""}
-        <div class="skb-body"><pre class="skb-zj-text" id="skbZj">${esc(ZJTEXT)}</pre></div></section>`;
+          <div class="tome-cap">${esc(x.board)}<br>${x.n_files ? (x.teachers?.length||1) + " 位老师 · "+x.n_files+" 份文档" : "还没有内容"}</div></div>`;
+      }).join("")}</div><input type="file" id="skbTeachersPick" accept=".zip,.md,.markdown" hidden>`;
   }
 
   function html() {
     if (!DATA.length) return '<div class="card"><p class="muted">还没有连接资料库，或这个科目没有板块。</p></div>';
-    if (ZJ) return zjHtml();
     const b = board();
     if (SHELF || !b) return shelf();
     return `<aside class="skb-side card" aria-label="文件">${side(b)}</aside>
@@ -144,27 +134,24 @@
 
   function paint() {
     const root = document.getElementById("skbRoot");
-    if (root) { root.className = "skb-root " + (SHELF && !ZJ || !board() && !ZJ ? "shelf" : "detail"); root.innerHTML = html(); }
+    if (root) { root.className = "skb-root " + (SHELF || !board() ? "shelf" : "detail"); root.innerHTML = html(); }
     const t = document.getElementById("skbText");
     if (t) t.oninput = () => { DRAFT = t.value; };
   }
 
   function paintSide() {                           // 读取情况算好后只刷新左栏和标题，不动正在写的文本框
     const el = document.querySelector("#skbRoot .skb-side"), b = board();
-    if (el && b && !SHELF && !ZJ) el.innerHTML = side(b);
+    if (el && b && !SHELF) el.innerHTML = side(b);
   }
 
-  async function openZj(file) {
-    if (!ZJFILES.length) ZJFILES = (await api("/api/skillbook/zongjue", {})).files;
-    ZJFILE = file || ZJFILE || ZJFILES[0].file;
-    ZJTEXT = (await api("/api/skillbook/zongjue", { file: ZJFILE })).text;
-  }
-
-  async function copyText(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch {}
-    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
-    let ok = false; try { ok = document.execCommand("copy"); } catch {}
-    ta.remove(); return ok;
+  async function importTeachers(file){
+    if(!file)return;
+    NOTE='正在核对老师与板块……';paint();
+    const data=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=()=>no(Error('无法读取文件'));r.readAsDataURL(file);});
+    const body={name:file.name,data},report=await api('/api/skillbook/teachers/import',{...body,preview:true});
+    const lines=report.items.map(x=>x.teacher+' → '+x.boards.join('、'));
+    if(!confirm(lines.join('\n')+'\n\n新增 '+report.added.length+' 份，更新 '+report.overwritten.length+' 份（旧内容保留历史），相同 '+report.same.length+' 份。'+(report.skipped.length?'\n跳过：'+report.skipped.map(x=>x.join('：')).join('\n'):'')+'\n确认导入？')){NOTE='已取消，未更改心法。';return;}
+    const r=await api('/api/skillbook/teachers/import',body);PLANS={};await overview();NOTE='已导入 '+r.items.length+' 份老师文档，分发到 '+(r.added.length+r.overwritten.length+r.same.length)+' 个板块文档位。'+(r.skipped.length?'跳过 '+r.skipped.length+' 份：'+r.skipped.map(x=>x.join('：')).join('；'):'');
   }
 
   async function doImport(file) {
@@ -174,6 +161,7 @@
     NOTE = "正在导入……"; paint();
     const data = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error("读不了这个文件")); r.readAsDataURL(file); });
     const r = await api("/api/skillbook/import", { board: b.board, name: file.name, data });
+    TEACHER='原有心法';
     const touched = [...r.added, ...r.overwritten];
     await reload(touched.includes("SKILL.md") ? "SKILL.md" : (touched[0] || FILE));
     const sk = r.skipped || [];
@@ -186,11 +174,9 @@
     try {
       if (kind === "shelf") {
         if (MODE === "edit" && DRAFT !== CUR?.text && !confirm("有没保存的修改，确定放弃吗？")) return;
-        MODE = "view"; SHELF = true; ZJ = false; await overview();
-      } else if (kind === "zj") {
-        await openZj(); ZJ = true; SHELF = false;
-      } else if (kind === "zj-copy") {
-        NOTE = (await copyText(ZJTEXT)) ? "已复制全文，可以粘贴到别的 AI 平台。" : "复制失败，请手动全选文字复制。";
+        MODE = "view"; SHELF = true; await overview();
+      } else if(kind==='teachers-import'){
+        document.getElementById('skbTeachersPick')?.click();return;
       } else if (kind === "import") {
         document.getElementById("skbPick")?.click(); return;
       } else if (kind === "edit") {
@@ -216,8 +202,9 @@
       } else if (kind === "newfile") {
         const n = (prompt("新文件名（.md，可带一层文件夹，如 chapters/02.md；入口文件叫 SKILL.md）", b.n_files ? "新文件.md" : "SKILL.md") || "").trim();
         if (!n) return;
-        await api("/api/skillbook/create", { board: b.board, path: n, text: "# " + n.replace(/\.md$/i, "").split("/").pop() + "\n\n" });
-        await reload(n); MODE = "edit"; DRAFT = CUR.text;
+        const rel=TEACHER&&TEACHER!=='原有心法'&&!n.startsWith('老师/')?'老师/'+TEACHER+'/'+n:n;
+        await api("/api/skillbook/create", { board: b.board, path: rel, text: "# " + n.replace(/\.md$/i, "").split("/").pop() + "\n\n" });
+        await reload(rel); MODE = "edit"; DRAFT = CUR.text;
       } else if (kind === "rename") {
         const n = (prompt("新的文件名", FILE) || "").trim();
         if (!n || n === FILE) return;
@@ -234,14 +221,14 @@
 
   window.SKILLBOOK = {
     async render() {
-      SHELF = !(MODE === "edit" && board()) && !ZJ;  // 有没写完的草稿就回到那一页，否则先看书架
+      SHELF = !(MODE === "edit" && board());  // 有没写完的草稿就回到那一页，否则先看书架
       if (LOADED) {                                   // 再次进入：用缓存立刻出，后台悄悄刷新
         overview().then(() => { if (SHELF) paint(); }).catch(() => {});
       } else {
         try { await overview(); } catch (e) { return `<div class="card"><p class="muted">读取失败：${esc(e.message)}</p></div>`; }
       }
-      if (!SHELF && !ZJ) loadPlan().then(paintSide);
-      return `<div class="skb-root ${SHELF && !ZJ ? "shelf" : "detail"}" id="skbRoot">${html()}</div>`;
+      if (!SHELF) loadPlan().then(paintSide);
+      return `<div class="skb-root ${SHELF ? "shelf" : "detail"}" id="skbRoot">${html()}</div>`;
     },
     bind(view) {
       const root = view?.querySelector("#skbRoot");
@@ -251,17 +238,17 @@
         const bt = e.target.closest("[data-skb-board]");
         if (bt) {
           if (MODE === "edit" && BOARD === bt.dataset.skbBoard) { SHELF = false; paint(); return; }
-          BOARD = bt.dataset.skbBoard; MODE = "view"; NOTE = ""; SHELF = false; ZJ = false;
+          BOARD = bt.dataset.skbBoard; MODE = "view"; NOTE = ""; SHELF = false;TEACHER=loadPos().b===BOARD?loadPos().teacher||'':'';
           const fp = loadPos(); await loadFile(board().files.includes(fp.f) && BOARD === fp.b ? fp.f : board().files[0]); paint(); loadPlan().then(paintSide); return;
         }
-        const z = e.target.closest("[data-skb-zj]");
-        if (z) { NOTE = ""; await openZj(z.dataset.skbZj); paint(); return; }
         const f = e.target.closest("[data-skb-file]");
         if (f) { MODE = "view"; NOTE = ""; await loadFile(f.dataset.skbFile); paint(); return; }
         const a = e.target.closest("[data-skb]");
         if (a && !a.disabled) act(a.dataset.skb, a);
       };
       root.onchange = async (e) => {
+        if(e.target.matches('[data-skb-teacher]')){if(MODE==='edit'&&DRAFT!==CUR?.text&&!confirm('放弃未保存的修改并切换老师？')){paintSide();return;}TEACHER=e.target.value;MODE='view';await loadFile(board().files[0]);paint();loadPlan().then(paintSide);return;}
+        if(e.target.id==='skbTeachersPick'){const f=e.target.files?.[0];e.target.value='';try{await importTeachers(f);}catch(er){NOTE=er.message||String(er);}paint();return;}
         if (e.target.id !== "skbPick") return;
         const file = e.target.files?.[0]; e.target.value = "";
         try { await doImport(file); } catch (er) { NOTE = er.message || String(er); }

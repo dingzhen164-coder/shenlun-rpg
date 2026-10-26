@@ -85,6 +85,7 @@ jobs:
               ['node', 'tests/ui_scene_panels.cjs', '--subject=申论'],
               ['node', 'tests/ui_trial_hall.cjs', '--shots'],
               ['node', 'tests/ui_exam_room.cjs'],
+              ['node', 'tests/ui_warm_load.cjs'],
               ['node', 'tests/ui_contest_scene.cjs', '--subject=行测', '--shots'],
               ['node', 'tests/ui_layout335.cjs', '--subject=行测', '--shots'],
               ['node', 'tests/ui_layout335.cjs', '--subject=申论'],
@@ -130,6 +131,7 @@ jobs:
               ['node', 'tests/ui_tablet_shell.cjs', '--subject=行测'],
               ['node', 'tests/ui_tablet_shell.cjs', '--subject=申论'],
               ['node', 'tests/ui_skillbook.cjs', '--subject=行测'],
+              ['node', 'tests/ui_skill_teachers.cjs'],
               ['node', 'tests/ui_skillbook.cjs', '--subject=申论'],
               ['node', 'tests/ui_tutor_format.cjs', '--subject=行测'],
               ['node', 'tests/ui_tutor_format.cjs', '--subject=申论'],
@@ -200,7 +202,7 @@ jobs:
         shell: python
         run: |
           import subprocess
-          for command in [['node', 'tests/ui_shenlun.cjs']]:
+          for command in [['node', 'tests/ui_shenlun.cjs'], ['node', 'tests/ui_shenlun_layout.cjs']]:
               result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
               print(' '.join(command) + '\n' + result.stdout, flush=True)
               if result.returncode:

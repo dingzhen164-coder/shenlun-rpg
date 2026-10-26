@@ -3,8 +3,16 @@ body.has-page-art[data-scene-art="room381"]:not(.portal-home) #bgLayer::after{op
 body[data-scene-art="room381"] #bgLayer{filter:none}
 body[data-scene-art="room381"] #bgLayer::before{background:none}
 body[data-scene-art="room381"] .cs-landscape::before,body[data-scene-art="room381"] .cs-landscape::after{background:none}
-body[data-scene-art="room381"] .th-painted::before{content:"";position:absolute;inset:-4%;background:var(--scene381-tower) center/cover no-repeat;filter:blur(20px);pointer-events:none}
-html[data-scene-phase] body[data-scene-art="room381"] .th-painted.th-side-gap::before{background-image:var(--scene381-tower);filter:blur(20px)}
+/* 主塔只绘制一次；上下只延展原图最外侧5%的天空/石阶，不再把整座塔cover放大做补边。 */
+body[data-scene-art="room381"]:has(.th-painted) #bgLayer{background-image:none!important;background-color:var(--panel)}
+html[data-scene-phase] body[data-scene-art="room381"] .th-painted::before{content:none;background-image:none;filter:none}
+.th-edge-fill{display:none}
+body[data-scene-art="room381"] .th-edge-fill{display:block;position:absolute;inset:0;overflow:hidden;pointer-events:none}
+body[data-scene-art="room381"] .th-edge-fill>i{position:absolute;display:none;background-image:var(--scene381-tower);background-repeat:no-repeat;filter:blur(12px)}
+body[data-scene-art="room381"] .th-vertical-gap .th-edge-top,body[data-scene-art="room381"] .th-vertical-gap .th-edge-bottom{display:block;left:-16px;right:-16px;height:calc(var(--th-gap-y) + 32px);background-size:100% 2000%}
+.th-edge-top{top:-16px;background-position:center top}.th-edge-bottom{bottom:-16px;background-position:center bottom}
+body[data-scene-art="room381"] .th-side-gap .th-edge-left,body[data-scene-art="room381"] .th-side-gap .th-edge-right{display:block;top:-16px;bottom:-16px;width:calc(var(--th-gap-x) + 32px);background-size:2000% 100%}
+.th-edge-left{left:-16px;background-position:left center}.th-edge-right{right:-16px;background-position:right center}
 html[data-scene-phase] body[data-scene-art="room381"] .th-panorama{filter:none;mask-image:linear-gradient(180deg,transparent,var(--ds-mask-opaque) 2%,var(--ds-mask-opaque) 98%,transparent)}
 html[data-scene-phase] body[data-scene-art="room381"] .trial-hall .th-panorama-wash{background:none;filter:none}
 body[data-scene-art="room381"] .th-panorama-wash::before,body[data-scene-art="room381"] .th-panorama-wash::after{background:none;box-shadow:none}
@@ -12,4 +20,6 @@ body[data-scene-selection="native381"] .th-sect .th-dialog.scene-panel::before{b
 body[data-scene-selection="native381"] .th-sect .th-dialog.scene-panel::after{background:none}
 body[data-scene-art="room381"] :where(.th-world-title,.th-scene-tools,.th-stele,.cs-heading,.cs-calendar,.cs-entrance){text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel),0 0 16px var(--panel)}
 body[data-scene-art="room381"] .th-sect .th-dialog.scene-panel :where(h2,h3,p,label,small,.th-choice,.th-list-head,.th-action-note){text-shadow:0 1px 3px var(--ds-trial-night-sky),0 0 8px var(--ds-trial-night-sky),0 0 16px var(--ds-trial-night-sky)}
-html[data-scene-phase] body[data-scene-art="room381"] .th-painted :is(.th-world-title,.th-stele){--ds-paper-ink:var(--hx381-scene-ink);color:var(--hx381-scene-ink);text-shadow:0 1px 3px var(--hx381-scene-halo),0 0 8px var(--hx381-scene-halo)}
+body[data-scene-art="room381"]{--hx381-scene-ink:var(--ds-trial-day-ink);--hx381-scene-halo:var(--ds-trial-day-paper)}
+html:is([data-scene-phase="night"],[data-scene-phase="dusk"]) body[data-scene-art="room381"]{--hx381-scene-ink:var(--ds-trial-letter);--hx381-scene-halo:var(--ds-trial-night-sky)}
+html[data-scene-phase] body[data-scene-art="room381"] .th-painted .th-world-title{--ds-paper-ink:var(--hx381-scene-ink);color:var(--hx381-scene-ink);text-shadow:0 1px 3px var(--hx381-scene-halo),0 0 8px var(--hx381-scene-halo)}

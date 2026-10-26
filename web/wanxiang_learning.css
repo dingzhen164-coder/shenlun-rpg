@@ -99,3 +99,5 @@ body{background:transparent}.atlas-toolbar{background:color-mix(in srgb,var(--pa
 .answer-import-body select,.answer-import-body textarea,.answer-import-body input[type=file]{width:100%;box-sizing:border-box;min-height:var(--ds-touch);font-size:var(--ds-fs-14)}
 .answer-import-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--ds-sp-12)}
 .question-flags{margin:var(--ds-sp-8) 0 0;color:var(--orange)}
+
+.sprint-digest .digest-tools{display:flex;justify-content:flex-end;margin:0 0 var(--ds-sp-8)}.sprint-digest button.digest-reset{min-height:42px;padding:0 var(--ds-sp-12);border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel);color:var(--ds-text);font:inherit;font-size:var(--ds-fs-13);cursor:pointer}.sprint-digest button.digest-reset:disabled{opacity:.5;cursor:default}

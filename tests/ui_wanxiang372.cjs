@@ -13,7 +13,19 @@ async function fit(f,selector){const data=await f.locator(selector).evaluate(el=
   await page.locator('[data-wx-branch=politics]').click();await page.locator('[data-wx-exam]').first().click();let f=page.frameLocator('.wx-atlas-frame');
   await f.locator('.wxj-cover').first().waitFor();assert.deepEqual(await f.locator('#nav button').allTextContents(),['月半时政','专题时政','冲刺学习','冲刺刷题']);assert.equal(await f.locator('input[type=file],[data-import]').count(),0);
   await f.locator('[data-open="month|2026-10-上"]').click();await f.locator('.wxj-news-body').waitFor();await fit(f,'.wxj-news-body');assert.equal(await f.locator('.atlas-toolbar').isVisible(),false,'期刊正文不叠加两层导航刘海');
-  await f.locator('#wxjRead').click();await f.locator('[data-mode=cloze]').click();const blank=f.locator('.wxj-b[data-digest-blank]').first(),wasRemembered=(await blank.getAttribute('class')).split(' ').includes('ok');await blank.click();await f.locator('.wxj-b.'+(wasRemembered?'no':'ok')+'[data-digest-blank]').first().waitFor();
+  // 慢速阅读保存恰好在按下空位后返回：不能重绘消化页，吞掉这次点击。
+  let releaseRead,readHeld;
+  if(size==='tablet'&&theme==='dark'){
+   let ready;readHeld=new Promise(resolve=>ready=resolve);const gate=new Promise(resolve=>releaseRead=resolve);
+   await page.route('**/api/wanxiang/journal/mark',async route=>{const response=await route.fetch();ready();await gate;await route.fulfill({response});},{times:1});
+  }
+  await f.locator('#wxjRead').click();await f.locator('[data-mode=cloze]').click();const blank=f.locator('.wxj-b[data-digest-blank]').first(),wasRemembered=(await blank.getAttribute('class')).split(' ').includes('ok');
+  if(releaseRead){
+   await readHeld;const box=await blank.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+   const saved=page.waitForResponse(r=>r.url().endsWith('/api/wanxiang/journal/mark'));releaseRead();await saved;
+   await blank.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.mouse.up();
+  }else await blank.click();
+  await f.locator('.wxj-b.'+(wasRemembered?'no':'ok')+'[data-digest-blank]').first().waitFor();
   await f.locator('#wxjBack').click();await f.locator('#nav [data-go=topic]').click();await f.locator('[data-open="topic|old-topic"]').click();await f.locator('.wxj-news-body').waitFor();await fit(f,'.wxj-news-body');
   if(theme==='light')await page.screenshot({path:`ui-artifacts/wanxiang372/${size}-topic.png`});
   await f.locator('#wxjBack').click();await f.locator('#nav [data-go=sprint]').click();assert.equal(await f.locator('.sprint-group').count(),4);assert.deepEqual(await f.locator('.sprint-group summary').evaluateAll(es=>es.map(e=>e.childNodes[0].textContent)),['重大会议','讲话','指导','文件']);
