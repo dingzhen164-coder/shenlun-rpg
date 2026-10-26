@@ -75,6 +75,19 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(virtual, {1}, "题号丢了的第1题从本部分第一行内容开始")
         self.assertEqual([(m["a"], m["b"]) for m in r["materials"]], [(8, 9)])
 
+    def test_cover_page_part_lines_without_a_count_do_not_crash(self):
+        # 花生26下1期：封面/目录里有“第一部分 政治理论”这类没有“共M题”的行，下一个“第N部分”曾因 None+1 报“程序出错”
+        cover = [[L("第一部分 政治理论", .1, .2, .5), L("第二部分 判断推理", .1, .25, .5), L("第三部分 资料分析", .1, .3, .5), footer(0)]]
+        r = scan.analyze(cover+self.pages)
+        self.assertEqual([(p["name"], p["start"], p["end"]) for p in r["parts"]], [("政治理论", 1, 3), ("判断推理", 4, 7), ("资料分析", 8, 9)])
+        self.assertEqual(r["missing"], [])
+
+    def test_part_name_and_count_on_one_line(self):
+        same = [[L("第一部分 政治理论（共3题）", .1, .11, .7)]+PAGES[0][2:]]+PAGES[1:]
+        r = scan.analyze(same+PAGES_C)
+        self.assertEqual([(p["name"], p["start"], p["end"]) for p in r["parts"]], [("政治理论", 1, 3), ("判断推理", 4, 7), ("资料分析", 8, 9)])
+        self.assertEqual(r["missing"], [])
+
     def test_regions_split_across_pages_and_stop_at_boundaries(self):
         r = scan.analyze(self.pages)
         q = {x["num"]: x for x in r["questions"]}

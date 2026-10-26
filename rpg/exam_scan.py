@@ -229,7 +229,7 @@ def ocr_pages(doc, engine=None, only=None):
 # ---------------------------------------------------------------- 版面分析
 FOOTER = re.compile(r"^第\s*\d+\s*页\s*(?:共\s*\d+\s*页)?$")
 PART = re.compile(r"^第\s*([一二三四五六七八九十]+)\s*部分\s*(.*)$")
-COUNT = re.compile(r"共\s*(\d+)\s*题")
+COUNT = re.compile(r"共\s*(\d+)\s*[小道]?\s*题")
 RANGE = r"(\d{1,3})\s*[~～\-—–至到]+\s*(\d{1,3})\s*题"
 GROUP = re.compile(r"^[一二三四五六七八九十]?\s*[、，,.]?\s*根据.{0,14}材料.{0,8}回答\s*" + RANGE)
 MARK = re.compile(r"请回答\s*" + RANGE)
@@ -387,7 +387,14 @@ def analyze(pages, part_sizes=None):
         m = PART.match(t)
         if m and len(t) <= 24 and not COUNT.search(t[:3]):
             idx = NUM.get(m.group(1)[:1], len(parts)+1)
-            part = {"idx": idx, "name": m.group(2).strip(), "count": None, "start": expected if not parts else parts[-1]["end"]+1, "end": None,
+            if parts and parts[-1]["end"] is None:
+                # 上一个“第N部分”一直没等到“共M题”：是封面/目录里的一行，不是真正的开头，丢掉（过去在这里 None+1 直接报错）
+                parts.pop()
+                for i in range(len(boundaries)-1, -1, -1):
+                    if boundaries[i][2] == "part":
+                        del boundaries[i]
+                        break
+            part = {"idx": idx, "name": COUNT.sub("", m.group(2)).strip("（）() ，,、 "), "count": None, "start": expected if not parts else parts[-1]["end"]+1, "end": None,
                     "page": line["page"], "y0": line["y0"]}
             parts.append(part)
             boundaries.append((line["page"], line["y0"], "part"))
@@ -396,6 +403,12 @@ def analyze(pages, part_sizes=None):
             pending_first = None
             group_open = None
             board = ""
+            hc = COUNT.search(m.group(2))
+            if hc:                                    # 部分名称和“共M题”写在同一行
+                part["count"] = int(hc.group(1)) or (sizes[idx-1] if 0 < idx <= len(sizes) else 0)
+                part["end"] = part["start"]+part["count"]-1
+                expected = part["start"]
+                board = next((b for k, b in PART_BOARD.items() if k in part["name"]), "")
             continue
         if part and after_part_row is not None and part["count"] is None and abs((line["y0"]+line["y1"])/2-(after_part_row["y0"]+after_part_row["y1"])/2) < .012 and not COUNT.search(t):
             part["name"] = (part["name"]+t).strip()        # 同一行右边是部分名称（“第五部分” “判断推理”）
