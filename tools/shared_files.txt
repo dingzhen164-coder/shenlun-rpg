@@ -686,3 +686,4 @@ diverged tests/ui_study_lamp366.cjs
 shared tools/release_precheck.py
 shared tests/test_release_precheck.py
 diverged tools/release_acked_branches.txt
+diverged tests/test_static_cache.py
