@@ -221,6 +221,60 @@ def grade(p,qid,answer,rules,chat):
     return q,res
 
 
+CALIBRATE_LIMIT = 2
+
+
+def _calibration_file(p, qid):
+    return p.rubrics/'综合'/'校准'/(bank._safe(qid)+'.json')
+
+
+def calibration(p, qid, standard_hash=None):
+    """上次校准结果；评分标准已更新（hash对不上）就视为没有。"""
+    f=_calibration_file(p,qid)
+    if not f.exists():
+        return None
+    try:
+        d=json.loads(f.read_text(encoding='utf-8'))
+    except (OSError,ValueError):
+        return None
+    return d if standard_hash is None or d.get('standard_hash')==standard_hash else None
+
+
+def calibrate(p, qid, rules, chat):
+    """用来源库附带的参考答案按同一份评分标准试批，看标准是否偏严或偏松。
+    只调用批改，不记成绩、不给奖励、不写复盘；参考答案不发给页面，只回得分率。"""
+    q=bank.question(p,qid,reveal=True)
+    refs=[x for x in q['references'] if str(x.get('answer') or '').strip()][:CALIBRATE_LIMIT]
+    if not refs:
+        raise ReviewError('这道题没有参考答案，无法校准评分标准')
+    results=[]
+    standard_hash=None
+    for ref in refs:
+        item={'source':str(ref.get('source') or '参考答案')}
+        try:
+            _,res=grade(p,qid,str(ref['answer']).strip(),rules,chat)
+            standard_hash=res['standard_hash']
+            item.update(total=res['total'],full=res['full'],rate=res['rate'],words=res['words'],
+                        missed=[x['name'] for x in res['points'] if x['hit']=='none'][:6])
+        except ReviewError as e:
+            item.update(error=str(e))
+        results.append(item)
+    if standard_hash is None:
+        raise ReviewError('参考答案试批没有成功：'+'；'.join(x.get('error','') for x in results))
+    rates=[x['rate'] for x in results if 'rate' in x]
+    avg=sum(rates)/len(rates)
+    if avg>=0.85:
+        verdict='参考答案得分率较高，评分标准与参考答案基本一致。'
+    elif avg>=0.6:
+        verdict='参考答案只拿到一部分分数：可能是参考答案本身没写全，或标准比参考答案更严。你的分数可作参考，不必追求满分。'
+    else:
+        verdict='参考答案得分率偏低：这套自动生成的标准对本题可能偏严或要点不全，本题分数仅供参考，更看重逐点对照里的缺口。'
+    out={'qid':qid,'standard_hash':standard_hash,'created':dt.datetime.now().isoformat(timespec='seconds'),
+         'results':results,'average_rate':round(avg,4),'verdict':verdict}
+    bank._write(_calibration_file(p,qid),out)
+    return out
+
+
 def history(p,qid):
     bank._safe(qid)
     out=[]

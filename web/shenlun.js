@@ -189,6 +189,24 @@
     if(adopt)adopt.onclick=async()=>{try{if(!(await flushDraft()))return;await post('/api/shenlun/materials',{qid:S.qid,ids:S.q.suggested_material_ids});open(S.qid,S.origin==='train');}catch(e){toast(e.message);}};
     const best=(S.q.suggested_material_ids||[])[0],idx=best?S.q.materials.findIndex(m=>m.id===best):0;if(idx>0)show(idx);
   }
+  function calibrationHtml(c,refs) {
+    const run=refs?`<button class="ghost small" id="slCalibrateRun">${c?'重新校准':'开始校准'}</button> <span class="small muted">会让AI批改${Math.min(refs,2)}份参考答案，不计成绩、不给奖励。</span>`:'<span class="small muted">这道题没有参考答案，无法校准。</span>';
+    if(!c)return `<p class="small muted">还没有校准过。评分标准由AI根据材料生成，非官方细则；校准能看出它对这道题偏严还是偏松。</p>${run}`;
+    return `<p><b>${esc(c.verdict)}</b></p>${c.results.map(x=>x.error?`<p class="small bad">${esc(x.source)}：试批失败（${esc(x.error)}）</p>`:`<p class="small">${esc(x.source)}：${x.total}/${x.full}（得分率${Math.round(x.rate*100)}%，${x.words}字）${x.missed.length?' · 未覆盖：'+x.missed.map(esc).join('、'):''}</p>`).join('')}<p class="small muted">校准于 ${esc(c.created)}</p>${run}`;
+  }
+  function bindCalibration(box) {
+    box.addEventListener('toggle',async e=>{
+      const d=e.target;if(!d.matches?.('.sl-calibrate')||!d.open||d.dataset.loaded)return;d.dataset.loaded='1';
+      const body=d.querySelector('.sl-calibrate-body');
+      try{const r=await post('/api/shenlun/calibrate',{qid:S.qid,standard_hash:d.dataset.hash});body.innerHTML=calibrationHtml(r.saved,Number(d.dataset.refs));}catch(err){body.textContent=err.message;}
+    },true);
+    box.addEventListener('click',async e=>{
+      const btn=e.target.closest('#slCalibrateRun');if(!btn)return;const d=btn.closest('.sl-calibrate'),body=d.querySelector('.sl-calibrate-body');
+      btn.disabled=true;body.insertAdjacentHTML('afterbegin','<p class="thinking small">正在用参考答案试批……</p>');
+      try{const r=await post('/api/shenlun/calibrate',{qid:S.qid,run:true});body.innerHTML=calibrationHtml(r.saved,Number(d.dataset.refs));}
+      catch(err){body.innerHTML=`<p class="small bad">${esc(err.message)}</p>`+calibrationHtml(null,Number(d.dataset.refs));}
+    });
+  }
   function comprehensiveHtml(r) {
     const points=r.points.map(x=>`<div class="sl-pt ${x.hit}"><div class="row"><b>${esc(x.name)}</b><span class="tag">${HIT[x.hit][0]}</span><span class="spacer"></span><span>${x.earned}/${x.score}</span></div><p class="sl-point-action">${x.hit==='full'?'核心含义已覆盖，保持。':esc(x.suggestion||x.reason||'补充该核心含义。')}</p><details class="sl-point-detail"><summary>查看材料与作答证据</summary><p class="small"><b>材料依据：</b>${esc(x.material_quote)}</p><blockquote class="sl-ev"><b>你的原句：</b>${esc(x.evidence||'未体现')}</blockquote><p class="small">${esc(x.reason)}</p></details></div>`).join('');
     return `<div class="card sl-pishi"><div class="row"><h3>领导批示 · 综合批改</h3><span class="spacer"></span><b class="sl-review-total">${r.total}/${r.full}</b></div><p>${esc(r.summary)}</p><div class="row">${r.parts.map(x=>`<span class="tag">${esc(x.name)} ${x.earned}/${x.full}</span>`).join('')}<span class="small muted">${r.words}字${r.answer_seconds!==undefined?' · 作答用时'+Math.floor(r.answer_seconds/60)+'分'+r.answer_seconds%60+'秒':''} · ${esc(r.method)}</span></div><p class="small muted">${esc(r.scoring_note)}${r.word_warning?' · '+esc(r.word_warning):''}</p></div>
@@ -196,7 +214,7 @@
       <div class="card"><h3>题干任务拆解</h3><p>${esc(r.task)}</p></div>
       ${points?`<div class="card"><h3>材料与作答逐点对照</h3>${points}</div>`:''}
       <div class="sl-review-grid"><div class="card"><h3>结构与表达</h3>${r.dimensions.map(x=>`<div class="sl-pt"><b>${esc(x.name)} · ${x.level}/4档</b><p>${esc(x.reason)}</p><details><summary class="small">查看原句</summary><blockquote class="sl-ev">${esc(x.quote||'尚未体现')}</blockquote></details><p class="small">下一步：${esc(x.improvement||'保持')}</p></div>`).join('')}</div><div class="card"><h3>题型专项检查</h3>${r.checks.map(x=>`<p><b>${esc(x.name)} · ${esc(x.status)}</b><br>${esc(x.reason)}</p>`).join('')||'<p class="muted">本题未返回额外专项检查</p>'}<h3>原句修改建议</h3>${r.revisions.length?`<p class="small ${r.revision_verified?'muted':'warn'}">${r.revision_verified?`将以下修改同时替换原句后共${r.revision_words}字${r.word_limit?' / 上限'+r.word_limit+'字':''}，已由程序核验。`:'历史建议未核验整篇字数，请重新批改后采用。'}</p>`:''}${r.revisions.map(x=>`<div class="sl-pt"><blockquote class="sl-ev">${esc(x.quote)}</blockquote><p><b>建议：</b>${esc(x.rewrite)}</p><p class="small muted">${esc(x.reason)}</p></div>`).join('')||'<p class="muted">优先按采分点缺口修改</p>'}</div></div>
-      <details class="card"><summary>交卷后参考资料</summary>${r.references.map(x=>`<h4>${esc(x.source)}</h4><p>${esc(x.answer).replace(/\n/g,'<br>')}</p>`).join('')}${r.analysis?`<h4>来源库解析（非官方细则）</h4><p>${esc(r.analysis).replace(/\n/g,'<br>')}</p>`:''}${!r.references.length&&!r.analysis?'<p>该题未提供参考答案或解析。</p>':''}</details><p class="small muted">复盘已保存：${esc(r.review_file)}</p>`;
+      <details class="card"><summary>交卷后参考资料</summary>${r.references.map(x=>`<h4>${esc(x.source)}</h4><p>${esc(x.answer).replace(/\n/g,'<br>')}</p>`).join('')}${r.analysis?`<h4>来源库解析（非官方细则）</h4><p>${esc(r.analysis).replace(/\n/g,'<br>')}</p>`:''}${!r.references.length&&!r.analysis?'<p>该题未提供参考答案或解析。</p>':''}</details><details class="card sl-calibrate" data-hash="${esc(r.standard_hash)}" data-refs="${r.references.length}"><summary>评分标准校准 <small class="muted">用参考答案试批，看这套标准偏严还是偏松</small></summary><div class="sl-calibrate-body small muted">展开后查看。</div></details><p class="small muted">复盘已保存：${esc(r.review_file)}</p>`;
   }
   function saveLabel(value) {const el=document.getElementById('slSaveStatus');if(el)el.textContent=value;}
   async function flushDraft() {
@@ -220,6 +238,7 @@
     ta.value=S.draftText||'';
     const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
     bindLayout(root);
+    bindCalibration(root.querySelector('#slRes'));
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
     B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);});
     root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};

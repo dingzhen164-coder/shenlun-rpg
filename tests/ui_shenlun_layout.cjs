@@ -65,6 +65,15 @@ async function main(){
  await page.locator('.sl-material-notice').filter({hasText:'已按你的选择'}).waitFor();await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);
  assert.equal(await page.locator('.sl-material-sheet').count(),1);
  await shot('3-picked');
+ // 批改后：“查看批改/返回作答”切换，评分标准校准可用且不计成绩
+ await page.locator('#slBack').click();await open(0);
+ await page.locator('#slAns').fill('走访居民了解需求，推动部门共享资料。');await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
+ assert.equal(await page.locator('#slViewResult').isVisible(),false);
+ await page.locator('#slSubmit').click();await page.locator('.sl-review-total').waitFor({timeout:8000}).catch(async e=>{console.log('SLRES:',await page.locator('#slRes').textContent(),await page.locator('#slViewResult').count());throw e;});
+ assert.ok((await page.locator('#slViewResult').textContent()).includes('返回作答'));
+ await page.locator('#slViewResult').click();await page.locator('#slAns').waitFor();assert.ok((await page.locator('#slViewResult').textContent()).includes('查看批改'));
+ await page.locator('#slViewResult').click();await page.locator('.sl-calibrate summary').click();await page.locator('#slCalibrateRun').click();
+ await page.locator('.sl-calibrate-body').filter({hasText:'得分率'}).waitFor();
  assert.deepEqual(errors,[]);
  }finally{await browser?.close();server.kill();}
 }

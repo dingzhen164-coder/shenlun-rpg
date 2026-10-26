@@ -981,6 +981,16 @@ def shenlun_materials(body):
     return dict(_sl_bank(shenlun_bank.material_pick, body), complete_bank=True)
 
 
+def shenlun_calibrate(body):
+    """body.run 为真才调用AI试批参考答案；否则只返回上次校准结果（没有则 saved 为空）。"""
+    qid = str(body.get("qid") or "")
+    if not body.get("run"):
+        return {"saved": _sl_bank(shenlun_review.calibration, qid, body.get("standard_hash") or None)}
+    with open_game(save=False) as g:
+        rules = g.rules
+    return {"saved": _sl_bank(shenlun_review.calibrate, qid, rules, lambda msgs: ai.chat_json(msgs, max_tokens=6000))}
+
+
 def shenlun_history(body):
     return {"history": _sl_bank(shenlun_review.history, body.get("qid"))}
 
@@ -1370,6 +1380,7 @@ ROUTES = {
     ("POST", "/api/shenlun/card/recognize"): shenlun_card_recognize,
     ("POST", "/api/study/schedule"): schedule_settings,
     ("POST", "/api/shenlun/materials"): shenlun_materials,
+    ("POST", "/api/shenlun/calibrate"): shenlun_calibrate,
     ("POST", "/api/shenlun/history"): shenlun_history,
     ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
     ("POST", "/api/shenlun/question"): shenlun_question,
