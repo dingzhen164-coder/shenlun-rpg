@@ -9,7 +9,7 @@ async function main(){
  try{
  const base=await new Promise((resolve,reject)=>{let t='';const timeout=setTimeout(()=>reject(Error(logs)),20000);server.stdout.on('data',b=>{t+=b;const m=t.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timeout);resolve(m[1]);}});server.on('exit',code=>{clearTimeout(timeout);reject(Error('server exit '+code+logs));});});
  browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});
- const page=await browser.newPage({viewport:{width:1280,height:860}});require('./fixed_ui_helpers.cjs').install(page);
+ const page=await browser.newPage({viewport:{width:1280,height:860},hasTouch:true});require('./fixed_ui_helpers.cjs').install(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.evaluate(()=>go('skeleton'));await page.locator('[data-libtab="bank"]').click();await page.locator('#slBankRefresh').click();
  await page.locator('#slFilterRegion').selectOption('验证专用');
@@ -23,7 +23,8 @@ async function main(){
  assert.ok((await page.locator('.sl-material-notice').textContent()).includes('题干写明'));
  // 笔工具在顶栏固定：红格滚到底后仍可见，且没有“滚动模式”
  assert.equal(await page.locator('[data-card="scroll"]').count(),0);
- for(const [name,w,h] of sizes){
+ for(const [name,w,h] of sizes)for(const theme of ['light','dark']){
+  await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
   await page.setViewportSize({width:w,height:h});await page.waitForTimeout(250);
   const m=await page.evaluate(()=>{const r=s=>{const e=document.querySelector(s);if(!e)return null;const b=e.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height};};return {mat:r('.sl-materials'),wr:r('.sl-writing'),ink:r('.sl-card-ink'),pen:r('[data-card="pen"]'),head:r('.sl-exam-heading'),vw:innerWidth,vh:innerHeight,sw:document.documentElement.scrollWidth};});
   assert.ok(m.sw<=m.vw+1,name+' 横向溢出');
@@ -34,7 +35,7 @@ async function main(){
   await page.evaluate(()=>{const s=document.querySelector('.sl-writing .fx-scroll')||document.querySelector('.sl-writing');s.scrollTop=s.scrollHeight;});
   const after=await page.locator('[data-card="pen"]').boundingBox();assert.ok(after.y>=0&&after.y<m.vh,name+' 滚动后笔按钮丢失');
   await page.evaluate(()=>{const s=document.querySelector('.sl-writing .fx-scroll')||document.querySelector('.sl-writing');s.scrollTop=0;});
-  await shot('1-'+name);
+  await shot('1-'+name+'-'+theme);
  }
  await page.setViewportSize({width:1280,height:860});
  // 手指默认滚动红格、不画笔；勾选后才书写
@@ -54,6 +55,7 @@ async function main(){
  assert.equal(await page.locator('.sl-material-sheet').count(),1);
  await shot('3-picked');
  assert.deepEqual(errors,[]);
+ console.log('SHENLUN-LAYOUT-OK：电脑/平板横竖屏明暗六组合、资料匹配/页签、手动选择、固定笔工具通过');
  }finally{await browser?.close();server.kill();}
 }
 main().catch(e=>{console.error(e);process.exit(1);});
