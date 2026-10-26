@@ -56,19 +56,19 @@
     if (!pl) return '<div class="skb-meter small muted" role="status">正在计算方法学习与追问时会读到什么……</div>';
     if (pl.failed) return '<div class="skb-meter small muted">读取情况暂时算不出来，不影响查看和修改。</div>';
     const pct = Math.min(100, Math.round((pl.total / pl.limit) * 100));
-    const skipped = pl.items.filter((i) => i.kind === "method" && !i.read);
+    const skipped = pl.items.filter((i) => i.kind === "method" && !i.read),long=skipped.filter(i=>i.retrievable);
     const refs = pl.items.filter((i) => i.kind === "ref").length;
     return `<div class="skb-meter" role="group" aria-label="方法学习与追问读取情况">
       <div class="small" title="字数按汉字和单词算，不含符号、空格和标记；读取上限按字符算（${num(pl.total)} / ${num(pl.limit)} 字符）"><b>方法学习与追问时会读：</b>${pl.items.filter((i) => i.read).length} 个文件 · 约 <b>${num(pl.words)}</b> 字 · 占读取上限 ${pct}%${refs ? `<br><span class="muted">references / 学习版 里的 ${refs} 个文件只供查阅或阅读，不自动读入</span>` : ""}</div>
       <div class="skb-bar"><i style="width:${pct}%"></i></div>
-      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件超出上限没有读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。请精简、拆分，或把它们放进 references/ 文件夹（只供查阅，不自动读入）。</div>` : ""}</div>`;
+      ${skipped.length ? `<div class="skb-warn small">⚠ ${skipped.length} 个文件未整份读入：${skipped.map((i) => esc(i.rel) + "（" + num(i.words) + " 字）").join("、")}。${long.length?'长文完整保留；复盘时在现有预算内按题选取相关原文，不另调AI，并在讲解后显示读取范围。没有匹配时不假称已读。':'请精简、拆分，或放进 references/ 文件夹只供查阅。'}</div>` : ""}</div>`;
   }
 
   function chips(b) {
     const info = Object.fromEntries((plan()?.items || []).map((i) => [i.rel, i]));
     return `<div class="skb-files" role="tablist">${b.files.map((f) => {
       const i = info[f];
-      return `<button role="tab" class="skb-chip ${f === FILE ? "on" : ""}" data-skb-file="${esc(f)}" aria-selected="${f === FILE}" title="${esc(f)}"><span>${esc(nice(f, i?.title))}</span>${i ? `<small>${num(i.words)}字${i.kind === "ref" ? " · 仅查阅" : i.read ? "" : " · 未读入"}</small>` : ""}</button>`;
+      return `<button role="tab" class="skb-chip ${f === FILE ? "on" : ""}" data-skb-file="${esc(f)}" aria-selected="${f === FILE}" title="${esc(f)}"><span>${esc(nice(f, i?.title))}</span>${i ? `<small>${num(i.words)}字${i.kind === "ref" ? " · 仅查阅" : i.read ? "" : i.retrievable?" · 复盘按题读取":" · 未读入"}</small>` : ""}</button>`;
     }).join("")}</div>`;
   }
 

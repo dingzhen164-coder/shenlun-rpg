@@ -23,6 +23,11 @@ const zipped=spawnSync('python3',['-c',"import io,json,sys,zipfile\nb=io.BytesIO
   assert.equal(await page.evaluate(()=>T.mentor.avatar),'assets/teachers/full-stop.png');for(const asset of ['lazy-cat','jade-cabbage','full-stop']){const response=await page.request.get(base+'/assets/teachers/'+asset+'.png');assert.equal(response.status(),200);}
   assert.equal(await page.locator('.review-teacher-avatar').count(),1,'复盘选择区直接显示老师Q版头像');await page.locator('.review-teacher-avatar').evaluate(img=>img.decode());assert(await page.locator('.review-teacher-avatar').isVisible());
   if(label==='desktop'){fs.mkdirSync('ui-artifacts/teachers',{recursive:true});await page.screenshot({path:'ui-artifacts/teachers/review-desktop.png'});}
+  if(label==='desktop'){
+   const catalog=JSON.parse(fs.readFileSync('rpg/data/teacher_avatars.json','utf8')),gallery=await browser.newPage({viewport:{width:1280,height:1000}});
+   await gallery.setContent('<meta charset="utf-8"><style>body{background:#efece4;font:14px sans-serif;margin:12px}.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}figure{margin:0;text-align:center;background:#fff9;border-radius:12px;padding:6px}img{height:90px;width:90px;object-fit:contain}figcaption{line-height:22px}</style><div class="grid">'+Object.entries(catalog).map(([name,r])=>'<figure><img src="'+base+'/assets/teachers/'+r.file+'.png"><figcaption>'+name+'</figcaption></figure>').join('')+'</div>');
+   await gallery.locator('img').evaluateAll(xs=>Promise.all(xs.map(im=>im.decode())));assert.equal(await gallery.locator('img').count(),58);await gallery.screenshot({path:'ui-artifacts/teachers/catalog.png',fullPage:true});await gallery.close();
+  }
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));assert.deepEqual(errors,[]);await page.close();console.log(label+'：多老师ZIP/完整分发/阅读选择/复盘心法隔离/旧讲解署名/Q版头像通过');
  }
 }finally{await browser?.close();service.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

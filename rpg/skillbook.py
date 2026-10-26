@@ -14,10 +14,12 @@ references/ 和 学习版/ 下的文件只供查阅 / 阅读，不自动读入�
 """
 import hashlib
 import io
+import json
 import os
 import re
 import tempfile
 import time
+import unicodedata
 import zipfile
 from pathlib import Path
 
@@ -112,6 +114,12 @@ def _read(f):
     return f.read_text(encoding="utf-8", errors="ignore")
 
 
+def _same_text(left, right):
+    """文本读取会规范CRLF；导入去重比较换行等价，不反复覆盖同一份Mac/Windows文档。"""
+    normal = lambda s: s.replace('\r\n','\n').replace('\r','\n')
+    return normal(left) == normal(right)
+
+
 # ---------------------------------------------------------------- 训练/技能 里的心法
 def own_files(paths, board):
     """训练/技能/<板块>/ 里的 .md（相对路径，SKILL.md 在前，其余按名字排序；.历史 和隐藏文件不算）"""
@@ -138,11 +146,11 @@ def has_own(paths, board):
 # 多老师文档按板块完整存储，不移动旧心法，也不把不同老师混合交给AI。
 TEACHER_DIR = "老师"
 LEGACY_TEACHER = "原有心法"
-AVATARS = {"大懒猫": "lazy-cat", "青菜白玉汤": "jade-cabbage", "句号": "full-stop"}
+AVATARS = json.loads((Path(__file__).parent / 'data' / 'teacher_avatars.json').read_text(encoding='utf-8'))
 
 
 def teacher_avatar(name):
-    return "assets/teachers/%s.png" % AVATARS[name] if name in AVATARS else ""
+    return "assets/teachers/%s.png" % AVATARS[name]['file'] if name in AVATARS else ""
 
 
 def teachers(paths, board):
@@ -171,17 +179,27 @@ def teacher_files(paths, board, teacher=None):
 def filename_teacher(filename, boards):
     """老师-板块.md；组合后缀逐个消费，未知文字不猜归类。"""
     stem = Path(filename).stem
+    if stem == '超格全家桶':
+        combined = ('图形推理','论证逻辑','形式逻辑','一拖五','定义判断','类比推理','逻辑填空','片段阅读','数量关系','资料分析')
+        return stem, [b for b in combined if b in boards]
     m = re.match(r"^(.+?)[-—－–](.+)$", stem)
     if not m:
         raise SkillError("文件名请使用“老师-板块.md”")
     who, label = m.group(1).strip(), re.sub(r"[\s、,，+＋/&及和]+", "", m.group(2))
+    label = unicodedata.normalize('NFKC', label)
+    label = re.sub(r'\((?:最新|最新版|更新版|修订版)\)$', '', label)
+    label = re.sub(r'^(?:20)?\d{2}(?=判断|数量|资料|言语|图推|逻辑)', '', label)
+    if any(token in label for token in ('申论','面试','综应','综B','公安专业')):
+        raise SkillError('不属于本轮行测板块，未导入；压缩包原件保留')
     _board_name(who)
     if who == LEGACY_TEACHER:
         raise SkillError("老师名称不能使用“原有心法”")
     groups = {"言语": ("逻辑填空", "片段阅读"), "言语理解": ("逻辑填空", "片段阅读"),
               "判断": ("论证逻辑", "形式逻辑", "一拖五", "定义判断", "类比推理", "图形推理"),
               "判断推理": ("论证逻辑", "形式逻辑", "一拖五", "定义判断", "类比推理", "图形推理"),
-              "逻辑判断": ("论证逻辑", "形式逻辑", "一拖五"), "资料": ("资料分析",), "数量": ("数量关系",)}
+              "逻辑判断": ("论证逻辑", "形式逻辑", "一拖五"), "逻辑": ("论证逻辑", "形式逻辑", "一拖五"),
+              "图推": ("图形推理",), "类比": ("类比推理",), "政常": ("政治理论", "常识判断"),
+              "政治": ("政治理论",), "常识": ("常识判断",), "资料": ("资料分析",), "数量": ("数量关系",)}
     aliases = dict(groups)
     aliases.update({b: (b,) for b in boards})
     out = []
@@ -231,7 +249,7 @@ def import_teachers(paths, boards, name, raw, preview=False):
     for row in planned:
         for board in row["boards"]:
             f = _file(paths, board, row["path"])
-            kind = ("same" if _read(f) == row["text"] else "overwritten") if f.is_file() else "added"
+            kind = ("same" if _same_text(_read(f), row["text"]) else "overwritten") if f.is_file() else "added"
             report[kind].append({"board": board, "path": row["path"]})
     if not preview:
         for row in planned:
@@ -269,7 +287,7 @@ def reading_plan(paths, board, teacher=None):
         if rel.split("/")[0] in REF_DIRS and "/" in rel:
             items.append({"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": False, "kind": "ref"})
             continue
-        item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": "method"}
+        item = {"rel": rel, "chars": n, "words": words(text), "title": title_of(text), "read": total + n <= TUTOR_LIMIT, "kind": "method", "retrievable": n > TUTOR_LIMIT}
         items.append(item)
         if item["read"]:
             total += n
@@ -278,7 +296,34 @@ def reading_plan(paths, board, teacher=None):
             "limit": TUTOR_LIMIT, "text": "\n\n".join(parts)}
 
 
-def tutor_material(paths, board, teacher=None):
+def _relevant_sections(text, question, budget):
+    """纯本地按题面匹配原文段落；不生成答案，不调用AI，不靠答案/解析挑段。"""
+    query=str(question or '')[:5000]
+    stop={'下列','以下','根据','正确','选项','题目','可以','属于','一个','关于','没有','其中','应当','能够'}
+    terms=set(re.findall(r'[A-Za-z]{3,}|\d+(?:\.\d+)?%',query.lower()))
+    for run in re.findall(r'[\u3400-\u9fff]+',query):
+        for n in (2,3,4):
+            terms.update(run[i:i+n] for i in range(len(run)-n+1) if run[i:i+n] not in stop)
+    if not terms or budget<300:return []
+    blocks=[];offset=0
+    # 约1800字符一块，优先按原段落切；不把匹配结果摘要或改写成新方法。
+    for part in re.split(r'(?<=\n)\s*\n',text):
+        start=text.find(part,offset);start=offset if start<0 else start
+        for j in range(0,len(part),1800):
+            fragment=part[j:j+1800];low=fragment.lower()
+            score=sum(min(low.count(t),3)*len(t) for t in terms if t in low)
+            blocks.append((score,start+j,start+j+len(fragment),fragment))
+        offset=start+len(part)
+    selected=[];spent=0
+    # 限制段数和总量，避免长材料带来大量弱匹配；没有命中则明确不假称读过。
+    for score,start,end,fragment in sorted(blocks,key=lambda b:(-b[0],b[1])):
+        if score<=0 or len(selected)>=16:break
+        if spent+len(fragment)+100>budget:continue
+        selected.append((start,end,fragment));spent+=len(fragment)+100
+    return sorted(selected)
+
+
+def tutor_material(paths, board, teacher=None, question=None):
     """讲题用的资料：(文字, 读到的文件清单)；板块是空的就返回 None（讲题时没有 skill 可依据）。"""
     if not has_own(paths, board):
         if teacher:
@@ -286,7 +331,23 @@ def tutor_material(paths, board, teacher=None):
         return None
     plan = reading_plan(paths, board, teacher)
     used = [i["rel"] if i["read"] else i["rel"] + "（未读入：超出上限）" for i in plan["items"] if i["kind"] == "method"]
-    return plan["text"], used
+    text=plan['text']
+    if question:
+        for item in plan['items']:
+            if item['read'] or not item.get('retrievable'):continue
+            original=_read(board_dir(paths,board)/item['rel'])
+            sections=_relevant_sections(original,question,TUTOR_LIMIT-len(text)-200)
+            if not sections:continue
+            excerpts=[];ranges=[]
+            for start,end,part in sections:
+                header='=== %s · 原文第%d–%d字符（按题选取，非全文） ===\n' % (item['rel'],start+1,end)
+                if len(text)+sum(len(p)+2 for p in excerpts)+len(header)+len(part)+4>TUTOR_LIMIT:break
+                excerpts.append(header+part);ranges.append('%d–%d'%(start+1,end))
+            if excerpts:
+                text+='\n\n'+'\n\n'.join(excerpts)
+                used=[u for u in used if not u.startswith(item['rel']+'（未读入：')]
+                used.append(item['rel']+'（按题读取原文：'+','.join(ranges)+'；非全文）')
+    return text, used
 
 
 # ---------------------------------------------------------------- 概览与读取（界面）
@@ -451,7 +512,7 @@ def _put(paths, board, rel, text):
     f = _file(paths, board, rel)
     if f.is_file():
         cur = _read(f)
-        if cur == text:
+        if _same_text(cur, text):
             return "same"
         _stash(paths, board, rel, cur)
         _atomic(f, text)
@@ -492,9 +553,16 @@ def _package_entries(name, raw, strict=False):
         n=info.filename
         if strict and not info.flag_bits & 0x800:
             try:
-                n=n.encode('cp437').decode('gb18030')
+                raw_name=n.encode('cp437')
             except UnicodeError:
-                pass
+                return n.replace('\\','/')
+            # Finder等ZIP未设UTF-8标记，实际字节仍可能是UTF-8；不能先按GBK成功解出乱码。
+            for encoding in ('utf-8','gb18030'):
+                try:
+                    n=raw_name.decode(encoding)
+                    break
+                except UnicodeError:
+                    pass
         return n.replace('\\','/')
     names = [zipname(i) for i in infos]
     usable = [n for n in names if not n.startswith("__MACOSX/") and "/__MACOSX/" not in n]

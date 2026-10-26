@@ -6,4 +6,6 @@
 - jade-cabbage.png：青菜白玉汤，捧清汤的嫩绿白玉大白菜。来源 exec-761e8a0b-d0ec-40e6-b170-ff9d912d05d4.png。
 - full-stop.png：句号，戴眼镜、持毛笔的墨色句号小精灵。来源 exec-072e835c-ac2d-4af2-a26c-ee809cd0f256.png。
 
-原图保留/workspace/generated_images，程序中以真实老师名映射文件。尚未提供的老师名单不杜撰；未配置头像时沿原文字头像兜底，不伪称已制作。
+2026-10-26收到实际65份MD，按58个不同老师/合集名称补齐全部头像；一位老师跨板块共用头像。映射与昵称意象见rpg/data/teacher_avatars.json，全部58张的来源图文件名、尺寸与SHA256见provenance.json。原图保留/workspace/generated_images。
+
+头像仅代表用户选中的文档作者/合集，不是现实人物肖像；申论/面试/综应/公安老师头像也已备好，但本轮心法分发仅接入行测，其他21份文档留在用户原包，不混入行测。程序不内置用户skill正文。

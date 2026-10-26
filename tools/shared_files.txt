@@ -5,6 +5,8 @@
 # ---- shared ----
 # 3.8.1行测专属视觉与导图增强；法考保留既有独立美术/阅读器。
 diverged tests/test_skill_teachers.py
+diverged tools/check_teacher_package.py
+diverged rpg/data/teacher_avatars.json
 diverged tests/ui_skill_teachers.cjs
 diverged web/hollow381.js
 diverged web/hollow381.css

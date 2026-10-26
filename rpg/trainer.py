@@ -702,13 +702,13 @@ def _skill_name(g, board):
     return g.boards.get(board, {}).get("skill") or SIDE_SKILLS.get(board) or ""
 
 
-def _tutor_material(g, board, teacher=None):
+def _tutor_material(g, board, teacher=None, question=None):
     """讲题资料 (文字, 读到的清单)：只读藏经阁·心法里这个板块自己的文件；板块是空的就没有 skill 可依据"""
-    return skillbook.tutor_material(g.paths, board, teacher) or ("", [])
+    return skillbook.tutor_material(g.paths, board, teacher, question) or ("", [])
 
 
-def _skill_digest(g, board, teacher=None):
-    return _tutor_material(g, board, teacher)[0]
+def _skill_digest(g, board, teacher=None, question=None):
+    return _tutor_material(g, board, teacher, question)[0]
 
 
 def _plain_digest(g, board):
@@ -725,9 +725,10 @@ def _discuss_ask(g, s, text, independent=False):
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
+        digest, used = _tutor_material(g,d['board'],teacher,d.get('question','')+('' if independent else '\n'+text))
         messages = (prompts.bank_explain(_teacher_persona(g,d['board'],teacher), {'stem':d.get('question',''), 'options':{}, 'board':d['board']},
-                    digest=_skill_digest(g,d['board'],teacher),skill=teacher or _skill_name(g,d['board']))
-                    if independent else prompts.discuss(_teacher_persona(g,d['board'],teacher),ctx,_skill_digest(g,d['board'],teacher),text))
+                    digest=digest,skill=teacher or _skill_name(g,d['board']))
+                    if independent else prompts.discuss(_teacher_persona(g,d['board'],teacher),ctx,digest,text))
         r = prompts.plain_math(ai.chat(messages, temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
@@ -736,7 +737,7 @@ def _discuss_ask(g, s, text, independent=False):
         d.setdefault('teacher_history', {})[teacher] = history[-10:]
     else:
         d["history"] = history[-10:]
-    return [_msg("npc", r, fold="🧙 师傅解惑" if independent else None)]
+    return [_msg("npc", r, fold="🧙 师傅解惑" if independent else None)] + _excerpt_note(used)
 
 
 def _discuss_reply(g, s, text):
@@ -1548,7 +1549,8 @@ GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整�
 def _explain_group(g, board, material, items, teacher=None):
     """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, board)
-    digest, used = _tutor_material(g, board, teacher) if teacher is not None else _tutor_material(g, board)
+    question=material+'\n'+'\n'.join(str(x.get('stem','')) for x in items)
+    digest, used = _tutor_material(g, board, teacher, question) if teacher is not None else _tutor_material(g, board)
     try:
         text = prompts.plain_math(ai.chat(prompts.group_explain(_teacher_persona(g, board, teacher), material, items, digest=digest, skill=teacher or skill, board=board), temperature=0.5, max_tokens=2800))
     except ai.AIError as e:
@@ -1560,6 +1562,11 @@ def _skill_note(skill, used):
     files = [x for x in used if '（未读入：' not in x]
     return ("\n本次仅依据题干/材料、选项和本板块skill独立讲解，不搜索答案、不查网页。\n已读心法：" + '、'.join(files)
             if files else "\n本次仅依据题干/材料与选项独立讲解，不搜索答案、不查网页；藏经阁尚无可读的本板块skill心法。")
+
+
+def _excerpt_note(used):
+    refs=[u for u in used if '按题读取原文：' in u]
+    return [_msg('sys','本次按题读取心法原文（非全文）：\n'+'\n'.join(refs))] if refs else []
 
 
 def _bank_group_explain(g, s, run, i, mat):
@@ -1593,7 +1600,8 @@ def _bank_group_explain(g, s, run, i, mat):
 def _explain(g, q, r, teacher=None):
     """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, q['board'])
-    digest, used = _tutor_material(g, q['board'], teacher) if teacher is not None else _tutor_material(g, q['board'])
+    question=str(q.get('stem',''))+'\n'+'\n'.join(str(v) for v in q.get('options',{}).values())
+    digest, used = _tutor_material(g, q['board'], teacher, question) if teacher is not None else _tutor_material(g, q['board'])
     try:
         text = prompts.plain_math(ai.chat(prompts.bank_explain(_teacher_persona(g, q['board'], teacher), q, digest=digest, skill=teacher or skill), temperature=0.5, max_tokens=2400))
     except ai.AIError as e:
@@ -1630,11 +1638,12 @@ def _review_chat(g, s, run, text):
            "question": q["stem"] + "\n" + "\n".join("%s. %s" % kv for kv in q["options"].items()),
            "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
     try:
-        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, q["board"],teacher), ctx, _skill_digest(g, q["board"],teacher), text), temperature=0.6, max_tokens=1500))
+        digest,used=_tutor_material(g,q['board'],teacher,ctx['question']+'\n'+text)
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, q["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
-    return _review_show(g, s, run, scroll_bottom=True)
+    return _review_show(g, s, run, extra=_excerpt_note(used), scroll_bottom=True)
 
 
 def _bank_reply(g, s, text):
@@ -1893,8 +1902,9 @@ def _mreview_chat(g, s, text):
     ctx = {"kind": "大比复盘", "title": "%s 第%s题" % (_sname(g, s["season"]), q["num"]), "board": pq["board"], "history": [{"role":h['role'],"content":h['content']} for h in hist if h.get('teacher') == teacher][-10:],
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
-        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, _skill_digest(g, pq["board"],teacher), text), temperature=0.6, max_tokens=1500))
+        digest,used=_tutor_material(g,pq['board'],teacher,ctx['question']+'\n'+text)
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
-    return _mreview_show(g, s, scroll_bottom=True)
+    return _mreview_show(g, s, extra=_excerpt_note(used), scroll_bottom=True)

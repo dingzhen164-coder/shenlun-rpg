@@ -1,0 +1,529 @@
+{
+  "tool": "image_gen",
+  "date": "2026-10-26",
+  "style": "Original Chinese-inspired chibi soft-clay fictional mascots, transparent, no real-person likeness",
+  "items": [
+    {
+      "name": "bud",
+      "file": "bud.png",
+      "sha256": "e21af005b309ff3394c9b6ee1453bbef8df2d415ef3bd39d41c57d1f30181b15",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-3e087d31-bba0-4445-82cb-bcc065785f10.png"
+    },
+    {
+      "name": "dudu",
+      "file": "dudu.png",
+      "sha256": "c9247e545d3976a0f64b72302a8db882428f2cf4e97533ee574275fd70b2a6a4",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-11363f7f-7f5a-4fcf-ac95-f4908e805d5a.png"
+    },
+    {
+      "name": "kiwi",
+      "file": "kiwi.png",
+      "sha256": "63f003417b1799dce97c3b6b124cff679320847ab3062a88ccf7eeb00768f6fe",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-6323b7ba-c38e-4018-a04c-8bcfafb50536.png"
+    },
+    {
+      "name": "了凡",
+      "file": "liaofan.png",
+      "sha256": "a54106cac7f177d54421b492b060d2fdbdfb899593c4676c94f2821fe41d8b7d",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-d4bb2684-020b-4711-a8c0-7f8864496482.png"
+    },
+    {
+      "name": "刘一恒",
+      "file": "liuyiheng.png",
+      "sha256": "1589ea27be98901ff71c48cde3e10452a649d76cabc612cc07ea5335f4917051",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-bde615ef-d54a-465c-add8-14a0053869f6.png"
+    },
+    {
+      "name": "厂长",
+      "file": "changzhang.png",
+      "sha256": "177412a11249eb285c8d7bf0a285985718e05263883472d13cd1fc38cb5cbd76",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-2f64afae-4e63-40fb-bee4-161ca2ddd667.png"
+    },
+    {
+      "name": "句号",
+      "file": "full-stop.png",
+      "sha256": "3099e4c33a9b918c23ff4919dc7920d016359fb9d36d6681e20cc88c7b1279ee",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-072e835c-ac2d-4af2-a26c-ee809cd0f256.png"
+    },
+    {
+      "name": "叽叽喳喳",
+      "file": "jijizhazha.png",
+      "sha256": "ab43c91668983d9184812da84ba0af7b7359892276b3443a6c61b796d4f5b97c",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-331918e9-78e5-435d-baed-3a4bdeb5f7a6.png"
+    },
+    {
+      "name": "周泰然",
+      "file": "zhoutairan.png",
+      "sha256": "5c4917b90b3025c679f485f0c7047b1e5915dab4bdff8b9f01e7861959dd12c2",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-a12b0fb3-fe62-4261-85cc-6a3fa7aae225.png"
+    },
+    {
+      "name": "唐宋",
+      "file": "tangsong.png",
+      "sha256": "093e1783200ed84d1d9ceee12a6921f7c318acb852725721c25e64294bc53124",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-ae8d5ca0-c58f-4641-aa0e-69140e0a0b8a.png"
+    },
+    {
+      "name": "唐棣",
+      "file": "tangdi.png",
+      "sha256": "491fcf680d61bc304a2e13433f47c847d9aa320333152363f5fd9ac3a96aabc9",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-8b77ea59-8eb5-4394-b90b-d1c58167ac90.png"
+    },
+    {
+      "name": "四诗",
+      "file": "sishi.png",
+      "sha256": "008461dbc2fd287ba88d558b3dc59da7af1f26305fe4a5fe0d80cdb79748fc7f",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-02343b9e-d9d5-45a5-9f60-7debab27b7ce.png"
+    },
+    {
+      "name": "大宝",
+      "file": "dabao.png",
+      "sha256": "f24df41e8e8a4815a55f4a7b53c53bcfb8e7ffeb3f59af07ffe782ad7deae144",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-fa1d4e4b-0618-4f9c-b318-c22543eb7e63.png"
+    },
+    {
+      "name": "大懒猫",
+      "file": "lazy-cat.png",
+      "sha256": "b927200534df42d5436894cd8ed2e4cc7664eb663ef1a88636f08c8ad7002ac7",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-e9ef5731-4120-4b62-b71e-8bd1152c5f09.png"
+    },
+    {
+      "name": "天晓",
+      "file": "tianxiao.png",
+      "sha256": "31d4f2d2b5d4f8b3d51b4013519a054ee893f4e7396b0c6b98e82417fad26cce",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-d45a0ff1-3dfb-4746-85bf-7752ce984eb4.png"
+    },
+    {
+      "name": "孙江媛",
+      "file": "sunjiangyuan.png",
+      "sha256": "27fda8ef8739a8fc9a51dcc569afb0448e79935693893a4f51ed436b150c3d46",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-696ec11e-e482-416a-b7d3-7b717ee7f652.png"
+    },
+    {
+      "name": "小P",
+      "file": "xiaop.png",
+      "sha256": "6d0884029cf83008033afaa898f9ab4f557484ca6a4e001a8b1140484633fcd5",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-eddd393b-3f16-4dc3-8fe9-4b4e02e2ef57.png"
+    },
+    {
+      "name": "小y",
+      "file": "xiaoy.png",
+      "sha256": "7400a20f67f56a74225ec850e08fb4dcda0889c878c9d7c36557df0a6022381e",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-c32897e0-6b60-47c4-bb6b-bf0c23163a33.png"
+    },
+    {
+      "name": "小乐",
+      "file": "xiaole.png",
+      "sha256": "01ae538d8faa37eeedba158383e846441e24192f50174dd0a3b2755dd853802d",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-6b813f90-fd47-4c49-95fb-ac8082d69884.png"
+    },
+    {
+      "name": "小月",
+      "file": "xiaoyue.png",
+      "sha256": "039508abff2ff38525f2cbec0ea05e5a08c4ddba374b7358ac26fff4deebcd3f",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-220ae21e-272d-426c-a99e-30fbe478c626.png"
+    },
+    {
+      "name": "小马哥",
+      "file": "xiaomage.png",
+      "sha256": "f8517f092253a724840828da2ddaeb04552231fd64c524fbf8013ff9f485fdfa",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-d184be74-ccde-44d3-b63b-ee80e9afa67c.png"
+    },
+    {
+      "name": "小黑",
+      "file": "xiaohei.png",
+      "sha256": "347ff47d324329de621696dfae9479da6d71d7ae0c0c963eb0ab15a9705e4804",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-7ee4dafe-fea3-4eb4-9705-699d05903ed2.png"
+    },
+    {
+      "name": "岳飞",
+      "file": "yuefei.png",
+      "sha256": "964e99aedbc5c0d49ca85c270bb4f4a3fbf0a5cc3de5ec57c119f26206a2c217",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-16b508ce-88fe-4240-8403-b35b0067b00b.png"
+    },
+    {
+      "name": "张小龙",
+      "file": "zhangxiaolong.png",
+      "sha256": "77f694836b2c98f83d3075784fcd5fb09af46521ae3d3fe1a5e0b7b055951143",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-d84b10a8-b41e-4eba-9b04-4fc7ab04523e.png"
+    },
+    {
+      "name": "张弓",
+      "file": "zhanggong.png",
+      "sha256": "b2fc4e18350d3d1125becf119b6641ec486ab9c65d8df2b06f710777d7809cc2",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-1d347d16-efc1-4eae-a0c9-e66c3a7f3bcd.png"
+    },
+    {
+      "name": "忠政",
+      "file": "zhongzheng.png",
+      "sha256": "bacfb43afa14e4e516a686dd0eb267f6f62500311cc670261ab2bb38eef3e48c",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-de19edd9-e887-469e-a804-fef5ec3a4682.png"
+    },
+    {
+      "name": "李威猛",
+      "file": "liweimeng.png",
+      "sha256": "c1318b4be9e9e81e10ff7136e3d641b85396217a71f229e028a57aa62cecc5ca",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-db225861-0ea0-4d2f-9762-30782db84052.png"
+    },
+    {
+      "name": "李崇立",
+      "file": "lichongli.png",
+      "sha256": "cf132217585b8ffe008846da87610992970929457be348488563c3dffa3ea3e0",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-a6e197da-378b-46e2-8ecb-27698335c92c.png"
+    },
+    {
+      "name": "李梦圆",
+      "file": "limengyuan.png",
+      "sha256": "2e44d6918c4e3945c9da4f0dce771fe4672421669cfcc901a04a58140714f261",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-72349890-07aa-47cc-8955-649a78bc4bbb.png"
+    },
+    {
+      "name": "李焕",
+      "file": "lihuan.png",
+      "sha256": "f30fcb6bc92b896795c2ca3ad966d53447ad8767d40e009df756c6bb62b5e693",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-4da53a1f-bf3e-4401-b93e-f231260e45ac.png"
+    },
+    {
+      "name": "李陈",
+      "file": "lichen.png",
+      "sha256": "1b252a2e55a2ecfd3f412028fba2f3489d3fad433f5b4176cfc6b1f78fd63848",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-fa58f200-155d-4632-ba14-692168ca9bb0.png"
+    },
+    {
+      "name": "林凡",
+      "file": "linfan.png",
+      "sha256": "1839f51a794f23d0b345bf03c6f373aaf204b86f093b3764382c59204a3205e3",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-926b6632-b985-4016-8f71-18ca2e4d3131.png"
+    },
+    {
+      "name": "正道",
+      "file": "zhengdao.png",
+      "sha256": "7839594c09824a1c94663aeb3433e03e47d8ebefdb2a987c8f1cc641de5e57e5",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-425f2579-aeff-41ba-96bb-435c4d806926.png"
+    },
+    {
+      "name": "毛娃",
+      "file": "maowa.png",
+      "sha256": "9a713b1237c939b715cdde72df0a3ddab355b0aae9ebd3853b96b40065336674",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-ccb891de-1293-4585-a236-fc298584e93c.png"
+    },
+    {
+      "name": "波波",
+      "file": "bobo.png",
+      "sha256": "3c35a585ca0e38424c8ec18b9b00576fbac0a0873ce77d4a0e529998cba95020",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-54312ef0-2432-4bb6-a6bb-0c839c905d29.png"
+    },
+    {
+      "name": "牟立志",
+      "file": "moulizhi.png",
+      "sha256": "1e042451604deff0cb24f3029c2e87e29093cd1eeace698709f856a44e25f563",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-4daf85af-cdcf-4f23-bc11-1d43e8c3a104.png"
+    },
+    {
+      "name": "王炎",
+      "file": "wangyan.png",
+      "sha256": "18a66e5690d58b34a01513646bdb38cd25e555939cd74ac5dba289b02bdd8b03",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-0e90d5e3-79bb-420f-97b3-a26642ee3439.png"
+    },
+    {
+      "name": "白鹭",
+      "file": "bailu.png",
+      "sha256": "c36b298d4dee9015c999892a2596c4dd75affd5cfa27104de9688e3e065d3978",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-3d60e806-a2d5-4794-905b-35926b3b292b.png"
+    },
+    {
+      "name": "相丽君",
+      "file": "xianglijun.png",
+      "sha256": "a5a8b9feb5263fdd6b1cc62f14366b537f5bde9d67a88ce8ed19b9b5e6804a2c",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-4996629e-cca6-4676-960f-8e04639072b9.png"
+    },
+    {
+      "name": "程意",
+      "file": "chengyi.png",
+      "sha256": "5c11bb56abb4eab3444237fb9a3af3a4c89fedf4e5cc6fb5d284ac4062e4fd39",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-885411ce-b079-42d9-8f9c-12f441450642.png"
+    },
+    {
+      "name": "章晓铭",
+      "file": "zhangxiaoming.png",
+      "sha256": "26e76114c3ebf3073240aabc510f83ce163f937082304e63fac21eba770604f4",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-337ed2c2-cbd0-4e14-ac7b-2696bbf63808.png"
+    },
+    {
+      "name": "老梅",
+      "file": "laomei.png",
+      "sha256": "f2d0e44e57f04118f19c759c564cc294bdec01d67105fa3133c39f2f4f232054",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-9d82a591-ae82-4640-92f4-65ba963d9307.png"
+    },
+    {
+      "name": "聂佳",
+      "file": "niejia.png",
+      "sha256": "cb555118608ed27305286b1835058b0a4d860bcda30e19d4e4efc2cc06170bbd",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-3b450a06-528a-48f8-92bb-3908cae55bf4.png"
+    },
+    {
+      "name": "花生",
+      "file": "huasheng.png",
+      "sha256": "8a87864574be72091c3803c716fd3a4b678bba3a7c2bffbf55305627b6a35a18",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-35d4df91-40c7-4de1-bda9-3c8a19d7ece2.png"
+    },
+    {
+      "name": "花生十三",
+      "file": "huasheng13.png",
+      "sha256": "b4ac1d416c3d940a3e7c211151cbdf73a327b763e5817c174956f1cb20e00a2f",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-7694258c-a579-4d93-ab87-58a348cdfa33.png"
+    },
+    {
+      "name": "苏有朋",
+      "file": "suyoupeng.png",
+      "sha256": "05d35c869dd0dbfb8cf6416a3905c9fb8e28daaa24ec0fbe3b7a63432912b2bb",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-2cf52364-16fb-4e50-af2e-9090d3e3b780.png"
+    },
+    {
+      "name": "薛睿",
+      "file": "xuerui.png",
+      "sha256": "91e21c1f4c3e7a1fca702589b961fc01fe2cc07cba01e2db371f6752e61ad867",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-f670f1b9-4638-4236-a9f1-812be31e848e.png"
+    },
+    {
+      "name": "袁东",
+      "file": "yuandong.png",
+      "sha256": "f79b6c6cca9a6c7e3814ddc1298a54a58821c32c43d0d76c13b2546548c3ce4c",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-7efe9069-7c7f-4a2e-8631-4954e11b1f15.png"
+    },
+    {
+      "name": "超格全家桶",
+      "file": "chaoge-bundle.png",
+      "sha256": "18a78c1c4461e560a8a15c8c253548bd04c79ba5eb0d5201346a608d66786dde",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-823e3a37-0cd7-4d85-aaf5-b74e83034e01.png"
+    },
+    {
+      "name": "邓健",
+      "file": "dengjian.png",
+      "sha256": "cf7a973a77393b47a0508a2293325eacb9c2d802e2f2cdd1fa8eb7c7e84b7374",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-9388f318-6e53-4a54-ab12-bdbb7c27e8db.png"
+    },
+    {
+      "name": "郭熙",
+      "file": "guoxi.png",
+      "sha256": "ea3c0e92a4fc83756ca8525485351a5a76ed46079a7d985fe008ad740b21788b",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-0a6edb38-cd9a-4d4e-88ad-548bea62ce82.png"
+    },
+    {
+      "name": "钟君",
+      "file": "zhongjun.png",
+      "sha256": "13925c3f5380382374436019416f6c8ff2af23162263fbbfcd0e5832de1a4e6b",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-0ef67f65-6d1a-4dd0-8286-304ab8d728ca.png"
+    },
+    {
+      "name": "陈怀安",
+      "file": "chenhuaian.png",
+      "sha256": "63840950ae5884dec6585e8dde96939f7efe100db81b744c4116b3d1c8b3c147",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-f22cd465-1e8e-4f82-8ee0-b3d475dea36b.png"
+    },
+    {
+      "name": "陈折桂",
+      "file": "chenzhegui.png",
+      "sha256": "22655e3cd615f20e3420da9734bdcc07e4aef6969f2d992f7b2d357bdba245d6",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-cf59219d-608f-4754-9c7a-1c0fc9ab8838.png"
+    },
+    {
+      "name": "青菜白玉汤",
+      "file": "jade-cabbage.png",
+      "sha256": "e9beb26a51bdc1b6f0c369a8c43aacb302b4505ca7928977374abca73d3fd247",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-761e8a0b-d0ec-40e6-b170-ff9d912d05d4.png"
+    },
+    {
+      "name": "飞扬",
+      "file": "feiyang.png",
+      "sha256": "4f30fc7894f7c86a5599fbef0d723d4269792ed9be2586ed2c71379098ceda7c",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-5ffdfda1-21d4-4d91-bde5-268cf3e258b9.png"
+    },
+    {
+      "name": "高照",
+      "file": "gaozhao.png",
+      "sha256": "369c95a8d9d5c908d984d5b70910c0943c577575920c3090383c1f29b9502ff1",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-8fc73dca-7e00-469f-85c4-b12765fb9450.png"
+    },
+    {
+      "name": "黑马",
+      "file": "heima.png",
+      "sha256": "a8cddff11e023a8937f0372ee247a02a1827ec819e73e2094fbf027490667be2",
+      "width": 1254,
+      "height": 1254,
+      "transparent": true,
+      "source": "exec-c22fa725-0fe8-4c96-bf7f-61ba468eeb1c.png"
+    }
+  ]
+}
