@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-0b8aa581-8658-4623-a7b1-cf3e7f802b0f.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-95ea792e-3c1d-4061-ae16-462392a237bd.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c135a57f926bc43b53c45acaa6200a77022dbed6bbef38e679e792bdeaa37d39"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-00a52b5b-5797-423d-9714-ed6a094c7a04.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "200abc41a757ff9479c64b4d081179e538173259ca061cfbc42cf8db56e724f8"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-1dd7c541-5146-428f-83e9-848edfc25b4e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "7731dc511ef465a41bcb2ee3f2721bda73f3c5af1397076ae33fcc5827dd542d"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-904b8fe0-ef29-47f8-8732-0a84b5bc56cf.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c1581433bc3338cffaaf42c9b76fce7f01519eee4e92847692ee000f5dbe26d8"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-7b9dee90-8b4c-4af2-bb55-49db718ea7e8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "07bfa50511f1a7bb31b67630d364c4d86ecd46ce284bd9071d50e770df4d9c2a"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-0308aa3a-6216-47ed-873c-267db1d1c0d9.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ba8744d5432380d038f16aa364e8a2da8fb34f9e110635b4319aa88f267b1967"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-1567140e-237e-46a8-86da-d177e2bfe130.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "09514560cf847d3cf3ada1ade518db34cd4e84f04f37abed9580b4a67da6e753"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-7da7f337-560d-4e07-9328-4a1a3ead65df.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "00f267c6352446737b57e0ea5526b6a276260ff26190dcf63af806446a8f16db"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/bank-night.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3379902,
+  "sha256": "beacd25cadb32b7a2128dfa283df446a2426552d6a80cd69e6c0863e66214f9a"
+}

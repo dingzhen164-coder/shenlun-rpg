@@ -1,0 +1,15 @@
+/* 独立分时原画：不再将昼景套滤镜冒充夜景；试炼塔保留原contain几何与门热区。 */
+body.has-page-art[data-scene-art="room381"]:not(.portal-home) #bgLayer::after{opacity:0!important}
+body[data-scene-art="room381"] #bgLayer{filter:none}
+body[data-scene-art="room381"] #bgLayer::before{background:none}
+body[data-scene-art="room381"] .cs-landscape::before,body[data-scene-art="room381"] .cs-landscape::after{background:none}
+body[data-scene-art="room381"] .th-painted::before{content:"";position:absolute;inset:-4%;background:var(--scene381-tower) center/cover no-repeat;filter:blur(20px);pointer-events:none}
+html[data-scene-phase] body[data-scene-art="room381"] .th-painted.th-side-gap::before{background-image:var(--scene381-tower);filter:blur(20px)}
+html[data-scene-phase] body[data-scene-art="room381"] .th-panorama{filter:none;mask-image:linear-gradient(180deg,transparent,var(--ds-mask-opaque) 2%,var(--ds-mask-opaque) 98%,transparent)}
+html[data-scene-phase] body[data-scene-art="room381"] .trial-hall .th-panorama-wash{background:none;filter:none}
+body[data-scene-art="room381"] .th-panorama-wash::before,body[data-scene-art="room381"] .th-panorama-wash::after{background:none;box-shadow:none}
+body[data-scene-selection="native381"] .th-sect .th-dialog.scene-panel::before{background-image:var(--scene381-selection,url('assets/beauty/trial/hd/3610/selection.webp'));filter:none;opacity:1}
+body[data-scene-selection="native381"] .th-sect .th-dialog.scene-panel::after{background:none}
+body[data-scene-art="room381"] :where(.th-world-title,.th-scene-tools,.th-stele,.cs-heading,.cs-calendar,.cs-entrance){text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel),0 0 16px var(--panel)}
+body[data-scene-art="room381"] .th-sect .th-dialog.scene-panel :where(h2,h3,p,label,small,.th-choice,.th-list-head,.th-action-note){text-shadow:0 1px 3px var(--ds-trial-night-sky),0 0 8px var(--ds-trial-night-sky),0 0 16px var(--ds-trial-night-sky)}
+html[data-scene-phase] body[data-scene-art="room381"] .th-painted :is(.th-world-title,.th-stele){--ds-paper-ink:var(--hx381-scene-ink);color:var(--hx381-scene-ink);text-shadow:0 1px 3px var(--hx381-scene-halo),0 0 8px var(--hx381-scene-halo)}

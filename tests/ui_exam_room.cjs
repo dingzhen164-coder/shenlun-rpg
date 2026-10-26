@@ -41,6 +41,13 @@ async function openRoom(page){
    // 导入试卷（拆分用自编数据代替）：要有名字和文件
    await page.locator('.er-import summary').click();
    await page.locator('[data-er-import-form] [type=submit]').click();assert((await page.locator('[data-er-import-note]').textContent()).includes('名字'));
+   // 拆分失败的原因要显示在考场面板里（模态面板盖住页面toast，之前用户只看到“上传并拆分中”然后什么都没有）
+   await page.locator('[data-er-name]').fill('拆分失败测试');await page.locator('[data-er-pdf]').setInputFiles(pdf);await page.locator('[data-er-import-form] [type=submit]').click();
+   const failure=page.locator('[data-er-error]');await failure.waitFor({state:'visible'});const said=await failure.innerText();assert(said.includes('导入「拆分失败测试」失败')&&said.includes('共解析0题'),said);
+   assert.equal(await page.locator('[data-er-import-note]').innerText(),'','失败后“拆分中”提示要消失');
+   // 文件选择框的cancel事件会冒泡到<dialog>，过去会把整个试炼面板关掉：重新选一次文件，面板必须还开着
+   await page.locator('[data-er-pdf]').setInputFiles(pdf);assert.equal(await page.locator('.th-dialog[open]').count(),1,'重新选文件不能关掉面板');
+   const inside=await failure.evaluate(e=>{const d=e.closest('dialog'),r=e.getBoundingClientRect(),t=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!d&&d.contains(t)});assert(inside,'错误提示没有被别的层盖住');
    await page.locator('[data-er-name]').fill(NAME2);await page.locator('[data-er-pdf]').setInputFiles(pdf);
    await page.locator('[data-er-import-form] [type=submit]').click();
    await page.locator('[data-er-season="1002"]').waitFor();assert((await page.locator('.er-ok').textContent()).includes(NAME2));

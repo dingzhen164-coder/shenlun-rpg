@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-a27cebb7-52ba-4a1c-ae13-181990f5ed9f.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-9134bcb8-ea3b-475e-ae0f-3f42c53b6788.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "851a44fe47a4c2d55f2ee4ad3c0a57839c1559590025daa3e5d231510e8ffbb0"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-9aeba1bc-44ad-4f07-aaa7-360a4d96c793.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f2a078578d73c095930eb89633c3a9756236d8a6447259b05379946dfd05bfdd"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-e7afadbd-f592-4765-816c-1f462e4f5155.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2e41df3883189181305406d34d65201f3740c98a61b417c8a5c2120807c832aa"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-3dc1a599-7e0f-4f35-8fbd-b24f2a21ff22.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "721f63be5c796343de5934fe89ca5ee4ae744f917136e47b0fb1789557efed53"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-22ab8365-0a3e-4fbb-b3f9-bc610e66aa65.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "e1dec10dbebf2242cf4103c0bada02ee4471b8d399e9b2b85af43377cbac2f62"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-fcc06c96-6ba2-4d94-bf11-cbd6ec1c814a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3d683bca896241e8720b82112a287bfbb1dc68c4c19af02e8fd4b6845f9ce900"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-841a98fe-f10f-42b0-9387-6a5256027794.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3c4c5d9b6ce43d532f46b8925ed11c20a4ebfb65e1c2de457455eff5a73cc46b"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-9560f85e-8d10-46a6-9e5e-bd8610c43648.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "43a7c99bcce916acdde135a7a3a05a6e642b8601b6507a4328c7dd83daae5bdd"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/tianji-day.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3412892,
+  "sha256": "2ecaa4c6943712cd0d114e3c804535e1837191921495a8248be71207243eab36"
+}

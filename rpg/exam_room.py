@@ -90,6 +90,11 @@ def _summary(g, n, qs=None):
                         for m in mock.MODULE_NAMES if any(q["module"] == m for q in qs)]}
 
 
+def _ocr_name():
+    from . import exam_scan
+    return exam_scan.ocr_engine_name()
+
+
 def papers(g):
     _guard(g)
     hidden = {str(x) for x in g.state.get("mocks_hidden", [])}
@@ -102,17 +107,20 @@ def papers(g):
             out.append(_summary(g, n, qs))
     out.sort(key=lambda p: (p["run"] is None, -p["season"]))
     return {"papers": out, "limit": limit_seconds(g), "minutes": limit_seconds(g) // 60,
-            "split_ready": bool(importer.split_script(g.paths)), "pymupdf": importer.has_pymupdf()}
+            "split_ready": bool(importer.split_script(g.paths)), "pymupdf": importer.has_pymupdf(), "ocr": _ocr_name()}
 
 
 # ---------------------------------------------------------------- 导入试卷、答案
+_PENDING = set()                 # 正在拆分的试卷编号（拆分要几分钟，期间别的导入不能抢同一个编号）
+
+
 def next_season(g):
-    used = [k for k, _ in vault.seasons(g.paths)] + [int(k) for k in g.state.get("mocks", {}) if str(k).isdigit()]
+    used = [k for k, _ in vault.seasons(g.paths)] + [int(k) for k in g.state.get("mocks", {}) if str(k).isdigit()] + list(_PENDING)
     return max([BASE] + used) + 1
 
 
-def import_paper(g, body):
-    """导入一份模拟试卷PDF：起一个试卷名，程序拆成各板块并入库（和宗门大比的导入同一套）。导入本身不计学习时间，交卷时才记。"""
+def plan_import(g, body):
+    """导入第一步（很快，拿存档锁）：核对试卷名和PDF，占一个编号。返回计划。"""
     _guard(g)
     name = re.sub(r"\s+", " ", str(body.get("name") or "")).strip()[:40]
     if not name:
@@ -123,12 +131,49 @@ def import_paper(g, body):
     if len(raw) > MAX_PDF * 4 // 3 + 16:
         raise ExamError("PDF太大，请拆成40MB以内再导入")
     n = next_season(g)
-    file = "第%d季-%s.pdf" % (n, mock.safe_name(name))
+    _PENDING.add(n)
+    return {"season": n, "name": name, "file": "第%d季-%s.pdf" % (n, mock.safe_name(name)), "raw": raw}
+
+
+def abort_import(plan):
+    _PENDING.discard(plan["season"])
+
+
+def run_split(paths, plan, engine=None):
+    """导入第二步（慢，几十秒到几分钟，不拿存档锁，别的请求不被挡住）：存PDF、拆成每题一张图。
+    有文字层又装了旧拆分脚本的，先走旧脚本（粉笔版式）；没有文字层（扫描图片）或旧脚本不认，走 exam_scan 的版面拆分。"""
+    from . import exam_scan
+    n, file = plan["season"], plan["file"]
     try:
-        importer.save_pdf(g.paths, {"name": file, "data": raw, "season": n})
-        report = importer.split_pdf(g.paths, {"file": file})
-    except importer.ImportError_ as error:
+        importer.save_pdf(paths, {"name": file, "data": plan["raw"], "season": n})
+        pdf = importer.pdf_dir(paths) / file
+        note = ""
+        if importer.has_pymupdf() and importer.split_script(paths) and _has_text_layer(pdf):
+            try:
+                return importer.split_pdf(paths, {"file": file})
+            except importer.ImportError_ as error:
+                note = "旧拆分脚本没认出这份试卷，改用按版面拆分（%s）" % str(error).splitlines()[0][:60]
+        report = exam_scan.split(paths, pdf, n, engine=engine)
+        if note:
+            report["split_log"] = note + "；" + report["split_log"]
+        return report
+    except (importer.ImportError_, exam_scan.ScanError) as error:
         raise ExamError(str(error))
+
+
+def _has_text_layer(pdf):
+    try:
+        import pymupdf as fitz
+        with fitz.open(str(pdf)) as doc:
+            return sum(len(p.get_text().strip()) for p in doc) >= 30*max(1, len(doc))//2
+    except Exception:
+        return False
+
+
+def finish_import(g, plan, report):
+    """导入第三步（很快，拿存档锁）：登记试卷名，返回识别结果。导入本身不计学习时间，交卷时才记。"""
+    n, name = plan["season"], plan["name"]
+    _PENDING.discard(n)
     rec = g.state.setdefault("mocks", {}).setdefault(str(n), {})
     rec["name"] = name
     rec.setdefault("date", "")
@@ -138,7 +183,19 @@ def import_paper(g, body):
         done.append(str(n))                   # 导入不另给120分钟，交卷时按实际用时记
     qs, _ = _questions(g, n)
     return {"season": n, "name": name, "total": len(qs), "keyed": sum(1 for q in qs if q["correct"]),
-            "split_log": report.get("split_log", ""), "ready": report.get("ready"), "fix": report.get("fix")}
+            "split_log": report.get("split_log", ""), "ready": report.get("ready"), "fix": report.get("fix"),
+            "missing": report.get("missing", []), "modules": report.get("modules", {})}
+
+
+def import_paper(g, body, engine=None):
+    """三步合在一起（测试和命令行用；网页走 api.exam_import 分三步，拆分时不占存档锁）"""
+    plan = plan_import(g, body)
+    try:
+        report = run_split(g.paths, plan, engine=engine)
+    except Exception:
+        abort_import(plan)
+        raise
+    return finish_import(g, plan, report)
 
 
 def _write_correct(paths, season, key):

@@ -122,6 +122,13 @@ def slots(subject):
         legacy = '演武场' if subject == '行测' and view == 'contest' else ''
         for suffix, rel in [('', 'beauty/page/%s.webp' % view), ('-白天', 'beauty/page/%s-day.webp' % view), ('-夜晚', 'beauty/page/%s-night.webp' % view)]:
             out.append(("子地图背景", place + suffix, rel, None, "image", (legacy + suffix,) if legacy else ()))
+        if subject == '行测' and view in ('dwelling', 'bank', 'contest', 'skeleton', 'tianji', 'settings'):
+            out.append(("子地图背景", place + '-黄昏', 'beauty/page/%s-dusk.webp' % view, None, "image", ()))
+            if view == 'bank':
+                out.append(("子地图背景", place + '-清晨', 'beauty/page/bank-dawn.webp', None, "image", ()))
+    if subject == '行测':
+        for phase, label in [('dawn', '清晨'), ('day', '白天'), ('dusk', '黄昏'), ('night', '夜晚')]:
+            out.append(("子地图背景", '试炼塔-选择厅-' + label, 'beauty/trial/selection-%s.webp' % phase, None, "image", ()))
     for key, name in REGIONS.get(subject, []):
         out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image", ()))
         out.append(("子地图背景", name + "-白天", "beauty/page/train-%s-day.webp" % key, None, "image", ()))
@@ -180,11 +187,46 @@ _PEAK_KEYS = ('chang', 'yan', 'li', 'shu', 'zi')
 _PEAK_RELS = frozenset('beauty/page/train-%s%s.webp' % (k, t) for k in _PEAK_KEYS for t in ('', '-day', '-night', '-dusk'))
 
 
+@lru_cache(maxsize=256)
+def _same_export381(own, old, own_time, old_time):
+    """只比对原样导出模板；时间作为缓存键，改绘后立即重新判断。"""
+    return Path(own).read_bytes() == Path(old).read_bytes()
+
+
+def _retired_export381(rel, own):
+    if not rel.startswith('beauty/page/'):
+        return False
+    parts = rel[len('beauty/page/'):-5].split('-')
+    phase = parts[-1] if parts[-1] in ('day', 'dusk', 'night', 'dawn') else 'day'
+    if phase in ('dusk', 'dawn'):
+        return False
+    suffix = '-night' if phase == 'night' else ''
+    scene, legacy = parts[0], ''
+    if scene == 'dwelling':
+        tab = parts[1] if len(parts) > 1 and parts[1] in dict(DWELLING_TABS['行测']) else 'growth'
+        legacy = 'beauty/scenes/xingce/dwelling-' + tab + suffix + '.webp'
+    elif scene in ('skeleton', 'tianji', 'settings'):
+        old = {'skeleton': 'dwelling-records', 'tianji': 'train-zi', 'settings': 'settings'}[scene]
+        legacy = 'beauty/scenes/xingce/' + old + suffix + '.webp'
+    elif scene in ('bank', 'contest') and phase == 'night':
+        legacy = 'beauty/' + ('trial/landscape' if scene == 'bank' else 'contest/arena') + '-night.webp'
+    if not legacy:
+        return False
+    from .paths import WEB_DIR
+    old = WEB_DIR / 'assets' / legacy
+    try:
+        a, b = own.stat(), old.stat()
+        return a.st_size == b.st_size and _same_export381(str(own), str(old), a.st_mtime_ns, b.st_mtime_ns)
+    except OSError:
+        return False
+
+
 def _override(paths, subject, slot):
     folder, stem, rel, _b, kind, aliases = slot
     if subject == '行测' and rel in _PEAK_RELS:
         return None
-    return _find(paths, folder, stem, kind, aliases)
+    own = _find(paths, folder, stem, kind, aliases)
+    return None if own and subject == '行测' and _retired_export381(rel, own) else own
 
 
 def lookup(paths, subject, asset_rel):
@@ -216,6 +258,7 @@ README = """美术文件夹说明
 首页全景/      白天、夜晚                         （地图首页的全景图）
 子地图背景/    <地点名>、<地点名>-白天、<地点名>-夜晚   （每个子页面背后的背景；不放就用程序默认的淡透全景）
                行测五峰（万象峰、辨言峰、明理峰、演数峰、观星峰）的白天/黄昏/夜晚背景固定使用程序自带的新图，这里放同名文件不会生效（不会删除）。
+               行测六处新场景跳过与旧内置图字节完全相同的导出模板（文件不删除），自行改绘仍可覆盖。黄昏用“地点-黄昏”；塔还支持“试炼塔-清晨”和“试炼塔-选择厅-白天/黄昏/夜晚/清晨”。
                洞府还可以每个页签单独一张：洞府-<页签名>、洞府-<页签名>-白天、洞府-<页签名>-夜晚（行测页签：修为与突破、十二经、修行记录、储物袋、修行日志）
 人物立绘/      平静、鼓励、讲解、关切、欣慰、眨眼     （引导人物半身立绘；行测、法考的眨眼图只含眼部，位置由程序固定）
                申论每个人单独一套：<姓名>-<表情>，例如 周静宜-平静.png（九位人物见 rpg/art.py）。纯色底（洋红/绿）的图会自动去底。

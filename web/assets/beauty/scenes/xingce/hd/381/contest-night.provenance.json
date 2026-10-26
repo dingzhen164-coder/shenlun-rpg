@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-01022f32-ac9f-466c-a600-d9671c0d2ac3.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-c368b126-04b9-4d7a-a1cf-4435a9c8d397.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ed8ca4948af74fd6fbca7952ef395ba091759a173fe17704915ddec7cdba7d29"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-99827c5d-02c9-41c1-84b4-4de841b33d3a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a9907257b1cc5f7c2e1e4554e85c36edb767cf2038f74c5e8614ef68d148cc13"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-b4b3aa43-93e9-4837-b0b1-0ed104a5108c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "51d75a217dc4c0a82972830b0f79f9999f48aa97b9ec05c0ac339766dc644710"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-b6af3258-6ecd-4a2e-9588-f2693eac00b6.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ade62f274141527566dcc105675b38e16d6e4c9eea2c3351e309c6c9438d9f95"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-1a6b3cae-58b1-4caa-ad14-2b4676889754.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "b96a467005673d89cada4c80628987d26a8387a8d074d02e62bbf80e902a251a"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-637515ec-3a9e-4fa8-b41a-88b2a822be2b.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "0bb75fc4db8a7da62f45aa59a1d101d736276094e4a8610f41ac20090e13fb7d"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-76bf9dab-8ff2-4d61-b02c-9fd0a1c79205.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "af184e750bfb08dbf60167ae560d406e55dac2a106b4e9b6a4ea97b05643a2fc"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-8c3085f2-2c85-4eb9-87ce-c535561e33ff.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "d11cf999943edcbcb360d032b6ae38dea911c9ad44ecc2fc977c37336bf0e6c3"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/contest-night.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3427196,
+  "sha256": "6fb75aa6ee174d2ba430e2a273e1618f5f2f9a4c1054b5400dc1f7d93fd03122"
+}

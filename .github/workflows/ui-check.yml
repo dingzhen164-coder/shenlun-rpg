@@ -33,7 +33,7 @@ jobs:
         shell: python
         run: |
           import subprocess
-          for command in [['node','tests/test_wanxiang_text.cjs'], ['node','tests/ui_politics.cjs'], ['node','tests/ui_wanxiang372.cjs'], ['node','tests/ui_wanxiang373.cjs'], ['node','tests/ui_updates362.cjs'], ['node','tests/ui_updates363.cjs']]:
+          for command in [['node','tests/test_wanxiang_text.cjs'], ['node','tests/ui_politics.cjs'], ['node','tests/ui_wanxiang372.cjs'], ['node','tests/ui_wanxiang373.cjs'], ['node','tests/ui_exam375.cjs'], ['node','tests/ui_updates362.cjs'], ['node','tests/ui_updates363.cjs']]:
               result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
               print(' '.join(command) + '\n' + result.stdout, flush=True)
               if result.returncode:
@@ -45,6 +45,11 @@ jobs:
         run: |
           import subprocess
           for command in [
+              ['node', 'tests/ui_mindmap381.cjs'],
+              ['node', 'tests/ui_hollow381.cjs'],
+              ['node', 'tests/ui_art381.cjs'],
+              ['node', 'tests/ui_trial_phase374.cjs'],
+              ['node', 'tests/ui_art368.cjs'],
               ['node', 'tests/test_guide.cjs'],
               ['node', 'tests/test_scene_portal.cjs'],
               ['node', 'tests/test_scene_fx.cjs'],

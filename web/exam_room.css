@@ -106,3 +106,7 @@ dialog.er-run::backdrop{background:var(--ds-mask-opaque)}
  .er-split .er-question{flex:1 1 auto}
  .er-clock{font-size:var(--ds-fs-18)}
 }
+
+.er-error{margin:0 0 var(--ds-sp-12);padding:var(--ds-sp-12) var(--ds-sp-16);border:1px solid var(--ds-danger);border-left-width:4px;border-radius:var(--ds-r-6);background:color-mix(in srgb,var(--ds-danger) 8%,var(--ds-surface));color:var(--ds-danger-text);font-size:var(--ds-fs-13);line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:40vh;overflow:auto}
+.er-error[hidden]{display:none}
+.er-banner.er-error{margin:0;border-radius:0;border-width:0 0 1px;border-left-width:0}

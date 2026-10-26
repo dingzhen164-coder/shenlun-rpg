@@ -1,0 +1,43 @@
+/* 3.8.1：外壳留景，真正阅读/数据区域保留纸面；只作用于行测。
+ * 不进入做题、整卷考场和灵台手札书写工作区，控件的选中/焦点/风险状态沿原实现。
+ */
+body.hollow381{--hx381-base-text:var(--text);--hx381-base-muted:var(--muted)}
+body.hollow381[data-scene-art="room381"]{--hx381-scene-ink:var(--ds-trial-day-ink);--hx381-scene-halo:var(--ds-trial-day-paper)}
+html:is([data-scene-phase="night"],[data-scene-phase="dusk"]) body.hollow381[data-scene-art="room381"]{--hx381-scene-ink:var(--ds-trial-letter);--hx381-scene-halo:var(--ds-trial-night-sky)}
+body.hollow381[data-scene-art="room381"] .hx381-shell{--text:var(--hx381-scene-ink);--muted:var(--hx381-scene-ink);--ds-text:var(--hx381-scene-ink);--ds-muted:var(--hx381-scene-ink);color:var(--hx381-scene-ink)}
+body.hollow381 .hx381-paper,body.hollow381 .hx381-shell :is(input,textarea,select){--text:var(--hx381-base-text);--muted:var(--hx381-base-muted);--ds-text:var(--hx381-base-text);--ds-muted:var(--hx381-base-muted);color:var(--hx381-base-text)}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell{background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell :where(h2,h3,p,label,.muted,.small,.k,.v){text-shadow:0 1px 2px var(--hx381-scene-halo,var(--panel)),0 0 8px var(--hx381-scene-halo,var(--panel))}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-paper{background:var(--panel)!important;background:color-mix(in srgb,var(--panel) 96%,transparent)!important;backdrop-filter:none!important;text-shadow:none}
+body.hollow381 .hx381-paper :where(p,span,h1,h2,h3,label,.muted,.small){text-shadow:none!important}
+body.hollow381 #studyHud :is(.study-hud-player,.study-hud-world){--hud-ink:var(--text);--hud-soft:var(--text);--hud-metal:var(--accent);--ds-plate-ink:var(--text);--ds-plate-soft:var(--muted);text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel)}
+body.hollow381 #studyHud .subpage-tools :is(button,#todayPill){--text:var(--hx381-base-text);--muted:var(--hx381-base-muted);--ds-text:var(--hx381-base-text);--ds-muted:var(--hx381-base-muted);color:var(--hx381-base-text);text-shadow:none}
+body.hollow381 :where(.fx-settings-group,.th-choice-list,.fx-tabs,.lib-tabs,.sprint-index,.wxj-toc,.tj-toc){border-radius:0}
+body.hollow381 .fx-settings-group>summary{border-bottom:1px solid color-mix(in srgb,var(--gold) 28%,transparent)}
+body.hollow381 :where(.th-choice,.th-history-row){background:transparent;border-color:color-mix(in srgb,var(--gold) 22%,transparent);box-shadow:none}
+body.hollow381 :where(.th-choice[aria-pressed=true],.fx-tab[aria-selected=true],.lib-tabs .on){background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:var(--accent);box-shadow:inset 2px 0 var(--gold)}
+body.hollow381 .th-sect .th-dialog.scene-panel::after{background:transparent}
+body.hollow381 .th-sect .th-dialog.scene-panel::before{opacity:.82}
+body.hollow381 :where(.th-dialog-head,.th-actions,.cs-foot){border-color:color-mix(in srgb,var(--gold) 30%,transparent)}
+body.hollow381 :where(.th-filters,.th-practice-options,.th-actions) :where(input,select),body.hollow381 .fx-settings-section :where(input,textarea,select){background:var(--panel);color:var(--text);text-shadow:none}
+
+/* 第3条明确覆盖“人物长对话保留底板”：舞台/气泡透明，输入控件仍清楚可操作。 */
+body.hollow381 .npc-encounters{--npc381-width:114px}
+body.hollow381 .npc-encounter-body{width:var(--npc381-width);padding:var(--ds-sp-8) var(--ds-sp-4);background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+body.hollow381 .npc-encounters[data-expanded=true] .npc-drawer-toggle{left:var(--npc381-width)}
+body.hollow381 .npc-drawer-toggle{background:transparent;border-color:transparent;box-shadow:none;filter:drop-shadow(0 1px 2px var(--panel))}
+body.hollow381 .npc-encounter-heading{font-size:var(--ds-fs-12);margin:0 var(--ds-sp-4) var(--ds-sp-8);line-height:1.7;color:var(--text);text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel)}
+body.hollow381 .npc-person{padding:var(--ds-sp-4);gap:var(--ds-sp-4);border:0;background:transparent;box-shadow:none;text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel)}
+body.hollow381 .npc-person:hover{background:color-mix(in srgb,var(--panel) 16%,transparent)}
+body.hollow381 .npc-person b{font-size:var(--ds-fs-14)}
+body.hollow381 .npc-person small{max-width:none;white-space:normal;overflow:visible;overflow-wrap:anywhere;text-overflow:clip;line-height:1.6;color:var(--text)}
+body.hollow381 .npc-avatar{width:30px;height:38px;border-radius:0;background:transparent;object-fit:contain;object-position:center}
+body.hollow381 .npc-dialog :is(.npc-content,.npc-nameplate,.npc-message,.npc-user,.npc-status,.npc-composer){background:transparent;border:0;border-radius:0;box-shadow:none;backdrop-filter:none}
+body.hollow381 .npc-dialog :is(.npc-content,.npc-nameplate,.npc-status,.npc-footer){text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel),0 0 16px var(--panel)}
+body.hollow381 .npc-message{padding:var(--ds-sp-8) var(--ds-sp-4);font-weight:500;line-height:1.75}
+body.hollow381 .npc-message b,body.hollow381 .npc-nameplate h2{font-weight:700}
+body.hollow381 .npc-dialog :where(.npc-header span,.npc-status,.npc-folder,.npc-message b,.npc-send-row small){color:var(--text)}
+body.hollow381 .npc-input,body.hollow381 .npc-gift-select{background:color-mix(in srgb,var(--panel) 90%,transparent);color:var(--text);text-shadow:none;border:1px solid var(--line);border-radius:var(--ds-r-6)}
+body.hollow381 .npc-choices button{background:transparent;box-shadow:none;text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel)}
+body.hollow381 .npc-choices button[aria-pressed=true]{background:color-mix(in srgb,var(--panel) 18%,transparent)}
+body.hollow381 .npc-encounters :focus-visible,body.hollow381 .npc-dialog :focus-visible{outline:2px solid var(--accent);outline-offset:2px}

@@ -19,25 +19,71 @@ from . import wanxiang_journal
 
 PAPER = re.compile(r'卷[一二三四五六七八九十百0-9]+|第[一二三四五六七八九十0-9]+套|套卷[一二三四五六七八九十0-9]+|模拟卷[一二三四五六七八九十0-9]*')
 QUESTION = re.compile(r'^(\d{1,3})[.．、](?!\d)\s*(.*)$')
-OPTION = re.compile(r'(?<![A-Za-z])([A-D])[.．、)）]\s*')      # 行内选项之间的空格会被clean收掉（如“A.①③B.①②”），所以不要求前面有空格
+OPTION = re.compile(r'(?<![A-Za-z])([A-Da-d])[.．、)）]\s*')      # 行内选项之间的空格会被clean收掉（如“A.①③B.①②”），所以不要求前面有空格
 STATEMENT = re.compile(r'^[①②③④⑤⑥⑦⑧⑨⑩（(]')
 ANSWER_HEAD = re.compile(r'^(?:参考)?答案(?:与|及)?(?:解析)?[：:]?$|参考答案|答案与解析|答案及解析')
 ANSWER = re.compile(r'^(\d{1,3})\s*[.．、:：]?\s*(?:【答案】|答案[：:]?)?\s*([A-D](?:[A-D、，, ]*[A-D])?)(?![A-Za-z])[。.]?\s*(.*)$')
 EXPLICIT = re.compile(r'^(?:(\d{1,3})[.．、]\s*)?(?:【答案】|答案[：:])\s*([A-D](?:[A-D、，, ]*[A-D])?)[。.]?\s*(.*)$')     # 题后紧跟的“1.【答案】A。解析：…”
+LOOSE_START = re.compile(r'^([^\d\s.．、]{1,2})[.．、]\s*([【（(][^】）)]{2,14}[】）)].*)$')     # 题号被OCR认成别的字（“7.【小黑…”→“乙.（小黑…”）
+TAG = re.compile(r'^(?:[【（(][^】）)]{2,14}[】）)]|[（(](?:单选|多选|不定项)[)）])')
 SENTENCE_END = re.compile(r'[。！？；：:]$')
 SECTION = re.compile(r'^[一二三四五六七八九十]+[、．]')
 
 
-def _rows(doc):
-    """[(文字, 字号)]：整页按阅读顺序逐行，去掉页眉页脚与孤立页码。"""
+def _page_lines(page):
+    out = []
+    for block in page.get_text('dict')['blocks']:
+        for line in block.get('lines', []):
+            text = wanxiang_journal.clean(''.join(s['text'] for s in line['spans']))
+            if not text:
+                continue
+            x0, y0, _x1, y1 = line['bbox']
+            out.append({'text': text, 'size': max((s['size'] for s in line['spans']), default=11), 'x': x0, 'y0': y0, 'y1': y1})
+    return out
+
+
+def _visual_order(lines):
+    """按视觉行排序：纵向中心相差不到半个行高算同一行，同一行按x从左到右。
+    四个选项并排（A.2项  B.3项  C.4项  D.5项）时OCR给的y会有±1磅的抖动，只按y排会变成 C D B A。"""
     rows = []
-    for page in doc:
-        for block in page.get_text('dict', sort=True)['blocks']:
-            for line in block.get('lines', []):
-                text = wanxiang_journal.clean(''.join(s['text'] for s in line['spans']))
-                if not text or text in wanxiang_journal.NOISE or re.fullmatch(r'\d{1,3}', text):
-                    continue
-                rows.append((text, max((s['size'] for s in line['spans']), default=11)))
+    for line in sorted(lines, key=lambda l: (l['y0']+l['y1'])/2):
+        yc, h = (line['y0']+line['y1'])/2, line['y1']-line['y0']
+        if rows and abs(yc-rows[-1]['yc']) <= .45*max(h, rows[-1]['h']):
+            rows[-1]['items'].append(line)
+        else:
+            rows.append({'yc': yc, 'h': h, 'items': [line]})
+    return [l for row in rows for l in sorted(row['items'], key=lambda l: l['x'])]
+
+
+def _similar(a, b):
+    import difflib
+    return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= .72
+
+
+def _running_heads(pages):
+    """每页重复出现的页眉页脚（如“抖音关注公考小黑老师”“Hey，上岸吧！”“@公考小黑老师”）：位于页面上/下边缘，
+    且在另一页的同一位置带也出现（允许OCR写错几个字）。返回要丢掉的行的id集合。"""
+    band = lambda page, line: line['y0'] < page.rect.height*.09 or line['y1'] > page.rect.height*.915
+    edges = [[l for l in lines if band(page, l)] for page, lines in pages]
+    drop = set()
+    for i, lines in enumerate(edges):
+        for line in lines:
+            if any(_similar(line['text'], other['text']) for j, others in enumerate(edges) if j != i for other in others):
+                drop.add(id(line))
+    return drop
+
+
+def _rows(doc):
+    """[(文字, 字号)]：按视觉行（同行从左到右）逐行，去掉页眉页脚与孤立页码。"""
+    pages = [(page, _page_lines(page)) for page in doc]
+    drop = _running_heads(pages) if len(pages) > 1 else set()
+    rows = []
+    for page, lines in pages:
+        for line in _visual_order([l for l in lines if id(l) not in drop]):
+            text = line['text']
+            if text in wanxiang_journal.NOISE or re.fullmatch(r'\d{1,3}', text):
+                continue
+            rows.append((text, line['size']))
     return rows
 
 
@@ -55,12 +101,13 @@ def split_options(text, expect='A'):
     marks = [(m.start(), m.end(), m.group(1)) for m in OPTION.finditer(text)]
     picked = []
     for start, end, letter in marks:
+        # OCR常把大写选项字母识别成小写（“c.”）：小写只在正好接上下一个字母时才认，避免把“a.”之类当选项。
         if not picked:
-            if start != 0 or letter < expect:
+            if start != 0 or letter.upper() < expect or (letter.islower() and letter.upper() != expect):
                 return []
-        elif letter != chr(ord(picked[-1][2])+1):
+        elif letter.upper() != chr(ord(picked[-1][2].upper())+1):
             continue
-        picked.append((start, end, letter))
+        picked.append((start, end, letter.upper()))
     if not picked:
         return []
     out = []
@@ -68,6 +115,83 @@ def split_options(text, expect='A'):
         stop = picked[i+1][0] if i+1 < len(picked) else len(text)
         out.append((letter, text[end:stop].strip()))
     return out
+
+
+CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩'
+JUNK = '@＠'
+
+
+def _numbers(text):
+    return [CIRCLED.index(c)+1 if c in CIRCLED else None for c in text if c in CIRCLED or c in JUNK]
+
+
+def repair_symbols(stem, opts):
+    """OCR把①②③④里的个别圈数字认成“@”：能确定的补回去，补不准的保持原样。返回(确定补回数, 按均衡推测补回数)。
+    确定：选项里的数字必须从小到大，卡在前后数字之间只剩一个可能。
+    推测：仍有几个可能时，取在其他选项里出现最少的那个（这类“①③ ①② ②④ ③④”的选项通常每个数字出现次数一样多），并列则不补。"""
+    sure = guessed = 0
+    # 题干里的陈述编号按出现顺序重排：“@党的…”“③维护…（其实是⑤）”“5人民立场…”这类被OCR认错的编号都按顺序改回来
+    last = 0
+    for i, line in enumerate(stem):
+        if line and (line[0] in CIRCLED or line[0] in JUNK) and last < len(CIRCLED):
+            if line[0] != CIRCLED[last]:
+                stem[i] = CIRCLED[last]+line[1:]
+                sure += 1
+            last += 1
+    # 选项里整个都是数字符号的（①③ / ①②3 / 3④）：圈数字被认成普通数字时改回圈数字（题干里至少有两条圈数字陈述才这样做，避免改“A.1”之类的真数字选项）
+    if last >= 2:
+        for k, (letter, content) in enumerate(opts):
+            if re.fullmatch(r'[①-⑩@＠1-9]{1,6}', content) and re.search(r'[1-9]', content):
+                opts[k] = (letter, re.sub(r'[1-9]', lambda m: CIRCLED[int(m.group())-1], content))
+                sure += 1
+    present = sorted({CIRCLED.index(c)+1 for line in stem for c in line[:1] if c in CIRCLED}) or [1, 2, 3, 4]      # 陈述编号以题干里每条陈述开头的为准
+    contents = [list(c) for _, c in opts]
+    def used():
+        count = {}
+        for cs in contents:
+            for c in cs:
+                if c in CIRCLED:
+                    count[CIRCLED.index(c)+1] = count.get(CIRCLED.index(c)+1, 0)+1
+        return count
+    for guess in (False, True):
+        changed = True
+        while changed:
+            changed = False
+            for cs in contents:
+                for i, c in enumerate(cs):
+                    if c not in JUNK:
+                        continue
+                    before = max([CIRCLED.index(x)+1 for x in cs[:i] if x in CIRCLED] or [0])
+                    after = min([CIRCLED.index(x)+1 for x in cs[i+1:] if x in CIRCLED] or [99])
+                    options = [n for n in present if before < n < after and CIRCLED[n-1] not in cs]
+                    if not guess and len(options) == 1:
+                        pick = options[0]
+                    elif guess and len(options) > 1:
+                        count = used()
+                        low = min(count.get(n, 0) for n in options)
+                        best = [n for n in options if count.get(n, 0) == low]
+                        if len(best) != 1:
+                            continue
+                        pick = best[0]
+                    else:
+                        continue
+                    cs[i] = CIRCLED[pick-1]
+                    sure, guessed = (sure, guessed+1) if guess else (sure+1, guessed)
+                    changed = True
+    for k, cs in enumerate(contents):
+        opts[k] = (opts[k][0], ''.join(cs))
+    return sure, guessed
+
+
+_OCR_WORDS = {'进人': '进入', '收人': '收入', '加人': '加入', '融人': '融入', '纳人': '纳入', '深人': '深入', '列人': '列入', '投人': '投入',
+              '步人': '步入', '陷人': '陷入', '迈人': '迈入', '踏人': '踏入', '导人': '导入', '输人': '输入', '自已': '自己'}
+
+
+def fix_words(text):
+    """OCR常见的“入→人”“己→已”：只改这几个几乎不会是原文的词，其他识别错字不乱改。"""
+    for wrong, right in _OCR_WORDS.items():
+        text = text.replace(wrong, right)
+    return text
 
 
 def _join(a, b):
@@ -137,9 +261,15 @@ def parse(doc, name):
             q['analysis'] = (q['analysis']+' '+text).strip()
             continue
         start = QUESTION.match(text)
+        no = rest = None
         if start:
-            no = int(start.group(1))
-            tagged = bool(re.match(r'^(?:【[^】]+】|[（(](?:单选|多选|不定项)[)）])', start.group(2)))
+            no, rest = int(start.group(1)), start.group(2)
+        elif state['last_no']:
+            loose = LOOSE_START.match(text)
+            if loose:
+                no, rest = state['last_no']+1, loose.group(2)
+        if no is not None:
+            tagged = bool(TAG.match(rest))
             sequential = no == state['last_no']+1
             restart = no == 1 and state['last_no'] >= 3
             if sequential or restart or tagged:
@@ -147,12 +277,22 @@ def parse(doc, name):
                     new_paper(re.sub(r'\.pdf$', '', name, flags=re.I)[:60] or '冲刺刷题')
                 elif restart:
                     new_paper(papers[state['paper']]['title']+'（续）')
-                q = {'paper': state['paper'], 'no': no, 'stem': [start.group(2)], 'opts': [], 'answer': '', 'analysis': ''}
+                q = {'paper': state['paper'], 'no': no, 'stem': [re.sub(r'^[（(](小黑[^】）)]{0,12})[】）)]', r'【\1】', rest)], 'opts': [], 'answer': '', 'analysis': ''}
                 questions.append(q)
                 state.update(q=q, last_no=no)
                 continue
         if q is None:
             continue
+        if not q['opts'] and q['stem']:
+            # OCR把陈述编号①②…认成数字（“1坚持…”“5坚持…”）：题干里已有圈数字陈述，或这是紧跟问句的“1”，就当陈述另起一行；编号稍后统一按顺序重排
+            digit = re.match(r'^([1-9])(?=[\u4e00-\u9fff])(?![年月日个项%倍])', text)
+            if digit and (any(l[:1] in CIRCLED for l in q['stem']) or (digit.group(1) == '1' and SENTENCE_END.search(q['stem'][-1]))):
+                text = CIRCLED[int(digit.group(1))-1]+text[1:]
+        if q['opts']:
+            # 选项字母后面的“.”没认出来（“C绿色是…”）：正好接上下一个字母才算
+            nodot = re.match(r'^([B-D])(?=[\u4e00-\u9fff“（(])', text)
+            if nodot and q['opts'][-1][0] == chr(ord(nodot.group(1))-1):
+                text = nodot.group(1)+'.'+text[1:]
         options = split_options(text, chr(ord(q['opts'][-1][0])+1) if q['opts'] else 'A')
         if options:
             q['opts'].extend(options)
@@ -163,24 +303,98 @@ def parse(doc, name):
         if q['opts']:
             letter, content = q['opts'][-1]
             q['opts'][-1] = (letter, _join(content, text))
-        elif STATEMENT.match(text) or not q['stem'] or SENTENCE_END.search(q['stem'][-1]):
+        elif (STATEMENT.match(text) or (text[:1] in JUNK and any(l[:1] in CIRCLED for l in q['stem']))     # OCR把“③”认成“@”的陈述行也要另起一行
+              or not q['stem'] or SENTENCE_END.search(q['stem'][-1])):
             q['stem'].append(text)
         else:
             q['stem'][-1] = _join(q['stem'][-1], text)
     out = []
+    repaired = guessed_total = 0
     for q in questions:
+        sure, guessed = repair_symbols(q['stem'], q['opts'])
+        repaired += sure
+        guessed_total += guessed
         letters = [letter for letter, _ in q['opts']]
-        flags = []
+        flags = ['符号推测'] if guessed else []
         if len(q['opts']) < 4:
             flags.append('选项不全')
         book = answers.get(q['paper'], {})
         if q['no'] in book:
             q['answer'], q['analysis'] = book[q['no']]
-        lines = [line for line in q['stem'] if line] + [letter+'.'+content for letter, content in q['opts']]
+        lines = [fix_words(line) for line in q['stem'] if line] + [letter+'.'+fix_words(content) for letter, content in q['opts']]
         out.append({'paper': q['paper'], 'no': q['no'], 'text': '\n'.join(lines).strip(), 'answer': q['answer'],
                     'analysis': q['analysis'], 'flags': flags, 'letters': letters})
     out = [q for q in out if q['text'].strip()]
     report = {'papers': [{'title': p['title'], 'questions': sum(q['paper'] == i for q in out)} for i, p in enumerate(papers)],
               'incomplete': ['%s第%d题' % (papers[q['paper']]['title'][-12:], q['no']) for q in out if '选项不全' in q['flags']][:8],
-              'incomplete_count': sum('选项不全' in q['flags'] for q in out), 'unanswered': sum(not q['answer'] for q in out)}
+              'incomplete_count': sum('选项不全' in q['flags'] for q in out), 'unanswered': sum(not q['answer'] for q in out),
+              'repaired': repaired, 'guessed': guessed_total}
     return papers, out, report
+
+
+# ---------------------------------------------------------------- 导入答案（套卷里原PDF没有答案时，另给一份答案文字/答案页PDF）
+_KEY_ITEM = re.compile(r'(?<!\d)(\d{1,3})\s*[.．、:：)）]?\s*(?:【答案】|答案[：:]?)?\s*([A-Da-d]{1,4})(?![A-Za-z])')
+
+
+def parse_key(text):
+    """答案文字 → {题号: 'A' 或 'ABD'}。支持“1-20 BCDAB…”、每行“1.A 2.B”“3.【答案】AB”、答案页里“1.【答案】A。解析：…”。"""
+    from . import importer
+    text = str(text or '')
+    if re.search(r'\d+\s*[-~—–至]\s*\d+', text):
+        key = {k: v for k, v in importer.parse_key(text).items() if v in 'ABCD'}
+        if key:
+            return key
+    key = {}
+    for line in text.splitlines():
+        line = re.sub(r'解析[：:].*$', '', line)           # 解析里的数字不当题号
+        for m in _KEY_ITEM.finditer(line):
+            key.setdefault(int(m.group(1)), ''.join(sorted(set(m.group(2).upper()))))
+    if key:
+        return key
+    return {k: v for k, v in importer.parse_key(text).items() if v in 'ABCD'}
+
+
+def apply_answers(pp, body):
+    """给一份导入的套卷补答案（按套卷内题号）；已有答案的按新答案覆盖。只改 补充.json 里这一套的题，不动原PDF和讲义。"""
+    from . import politics
+    exam = politics.exam_id(body.get('exam'))
+    material = str(body.get('material') or '')
+    text = str(body.get('text') or '').strip()
+    if not text and body.get('pdf'):
+        from . import exam_room
+        try:
+            text = exam_room._pdf_text(str(body['pdf']))
+        except exam_room.ExamError as error:
+            raise politics.PoliticsError(str(error))
+    if not text:
+        raise politics.PoliticsError('请粘贴答案（如：1-20 BCDAB…，或每行 1.A 2.B），或选择答案文件')
+    key = parse_key(text)
+    if not key:
+        raise politics.PoliticsError('没认出答案：请写成“1-20 BCDAB…”或每行“1.A 2.B”的样子')
+    with politics._LOCK:
+        file = politics.exam_folder(pp, exam) / '补充.json'
+        extra = politics.read_json(file, {'materials': [], 'questions': [], 'imports': []})
+        paper = next((m for m in extra['materials'] if m['id'] == material and m.get('practice_only')), None)
+        if not paper:
+            raise politics.PoliticsError('请先选择要补答案的套卷')
+        questions = [q for q in extra['questions'] if q.get('material') == material and q.get('no') is not None]
+        by_no = {}
+        for q in questions:
+            by_no.setdefault(int(q['no']), q)
+        filled = changed = same = 0
+        for no, letters in key.items():
+            q = by_no.get(no)
+            if not q:
+                continue
+            if not q.get('answer'):
+                filled += 1
+            elif q['answer'] != letters:
+                changed += 1
+            else:
+                same += 1
+            q['answer'] = letters
+        unknown = sorted(n for n in key if n not in by_no)
+        if filled or changed:
+            politics.atomic_json(file, extra)
+        return {'title': paper['title'], 'filled': filled, 'changed': changed, 'same': same, 'total': len(by_no),
+                'missing': sorted(n for n, q in by_no.items() if not q.get('answer'))[:30], 'unknown': unknown[:30]}

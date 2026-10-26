@@ -27,7 +27,7 @@
     function select(id){if(!modes.some(m=>m[0]===id))return;view=id;host.dataset.csView=id;host.querySelector('#cs-title').textContent=modes.find(m=>m[0]===id)[2];host.querySelectorAll('.cs-pane').forEach(p=>p.hidden=p.dataset.csPane!==id);host.querySelector('[data-cs-save]').hidden=id!=='entry'||!host.querySelector('#mkSave')||!host.querySelector('[data-cs-fold=scores]')?.open;}
     function measure(){const r=root.getBoundingClientRect();for(const [k,v]of Object.entries({width:r.width,height:r.height,left:r.left,top:r.top}))if(dialog.style.getPropertyValue('--th-'+k)!==v+'px')dialog.style.setProperty('--th-'+k,v+'px');}
     function close(){dialog.close();(opener?.isConnected?opener:host.querySelector('[data-cs-enter='+view+']'))?.focus({preventScroll:true});}
-    dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+    dialog.addEventListener('cancel',e=>{if(e.target!==dialog)return;e.preventDefault();close();});     // 文件选择框的cancel会冒泡，不能关整个面板
     host.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.dataset.csEnter){opener=b;select(b.dataset.csEnter);measure();dialog.showModal();host.querySelector('[data-cs-close]').focus();}else if(b.hasAttribute('data-cs-close'))close();else if(b.hasAttribute('data-cs-save'))host.querySelector('#mkSave')?.click();else if(b.hasAttribute('data-cs-library')){dialog.close();go('skeleton');}});
     host.querySelectorAll('[data-cs-fold]').forEach(fold=>{fold.open=!!state?.folds?.[fold.dataset.csFold];fold.addEventListener('toggle',()=>select(view));});
     select(view);if(state?.scroll)for(const p of host.querySelectorAll('.cs-pane'))p.scrollTop=state.scroll[p.dataset.csPane]||0;

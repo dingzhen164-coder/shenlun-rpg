@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-4d511fea-d48b-4a82-b7be-6858d8596b52.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-0.png",
+      "path": "/workspace/generated_images/exec-8907e873-3da4-4b0a-aee1-1ab0b33441dd.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "1854fb37e284a7727d1978720668b63047debe92010fbf3f625a7a7d2e8e62b0"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-1.png",
+      "path": "/workspace/generated_images/exec-518400f5-f716-402c-bfa7-6a05403d7f8e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "00cf441d7f3ab1cdcdd4accc66181b55f804b6827b3690bf0e5e071a1d50a5f5"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-2.png",
+      "path": "/workspace/generated_images/exec-c3d57d97-763f-4c69-8d2a-9aa6cd5ce4c0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a5ca80f56d4f2c190bc9ccb8b2540f6e48dfa491998f62a2bd278b74bf9d5b1a"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-3.png",
+      "path": "/workspace/generated_images/exec-b1c6c700-486b-4fca-a1b6-2c766cfbc03c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "75cb950d319e50e7a83e6291f7258b357a67ed6fd22f70adf99504a074584998"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-4.png",
+      "path": "/workspace/generated_images/exec-5133b92a-8423-44de-b44b-2867a74292c0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "9d3a84548d09eee3f4c1987ed8bbd8450be9281c04fd13bb192a86f12f1c618e"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-5.png",
+      "path": "/workspace/generated_images/exec-03d43006-9377-465f-b200-33eab98625b0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "cbb7e5e21ed1b64cc6731d72ef7cc5b11742d28d35ec281e73c71d01294a166f"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-6.png",
+      "path": "/workspace/generated_images/exec-7053bdca-1413-4653-b929-52e2d3052fa5.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "783d9954aee5fa252d504ac33868369f06a62ecfb3e6f8b3593633ff12abaf5f"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-dusk/ref-7.png",
+      "path": "/workspace/generated_images/exec-08f4c23a-a232-4c1f-ae1e-f22401c34f09.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "9699e226bf46956a637ed41983572500613b6028055f49d58ff203acd0b7e018"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/bank-dusk.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3493922,
+  "sha256": "2b84dd9ca828b4909d2a1db7b69fd2878caf54b93e3f490872a15092aa2491bf"
+}

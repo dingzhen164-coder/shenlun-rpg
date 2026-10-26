@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-e361bb0f-8567-4c5e-862a-f3caa441f506.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-e4a22700-cbae-4ffc-a211-23d3de8c89fc.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "e353d2d47d072b0040687b6ad4efaa9d65002fb9d22f4f3fb10f536acd095979"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-78b4cbc7-7273-4898-8acd-a1739123cc4c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dfaa75a663dfddbe4d2c37a88f7603c3d7a6cf637cb5d5a2a0eb321485bc5797"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-fd3a91c5-98e4-4d88-93a6-3facd750ac1d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "d7a1edc46d010526b990b1a2d99629bbbd2a0cdc0db4cf3050266f46c11863c9"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-e1865685-c9e5-4c26-9f11-58d4b3fb4445.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a7629492b3379b16d5a9c798e7807d5b01a1cfe2289472f7a27aa8f6fd23760e"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-608b70c0-8753-4ba2-8773-b6a87b897deb.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "18bce0e6e33848ef11d35dea2db700c2f55314892566abb041c7b4904e7addd4"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-c0c5f8eb-f3d6-486d-9166-51c7fe1f1733.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "fbd86ebe6c4342d38ecc2d8e9722e0532b8c1056ecb113db8602b0a8352d1a12"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-46b64955-c6d4-46e2-b769-5c2f9c6e4279.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c587e2cf4adcc952b8980ebeb8e272488bcd40b035de6d2d351769d1e5989c76"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/dwelling-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-46c31d68-4537-45c8-b363-595ad83bc366.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "089c0fcee00155259bf4735dc56d61cafd57203467203c3e2e8a034d1fa245df"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/dwelling-day.webp",
+  "sha256": "c08ac747dece4d7340be037f06c0ee428f8716ede78c9a802c6d3cdae1e1f03c",
+  "bytes": 3794472,
+  "actual": [
+    3840,
+    2880
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-802d0fe4-6914-40ce-b724-5423247e03ff.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-6aed2d83-d4ef-4079-aa60-b1bc68f9624c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dc8ac4904a05b4ec748eb5be94d51aaaa4581a716f7860d3d9b865f226d65b50"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-9fb1165c-2b09-4ea4-9d09-4b37f07e5ace.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "11d5fad74efef2582a3165165b1e6b060dc45a72918117ae1ec5628635714662"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-c2eefa21-1813-4f65-aedc-ea860579551f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "98bafa3017ec21975a796bd2f2bb1cf7f9365365f9010d20c212465145b33a7d"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-b2f5ec5a-9295-4a2c-b6a9-8491b1589eb0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "581e7ba120f2677a69d9a9806df1917856413721f46fb347fb1871833a86505c"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-bf14a161-e796-484a-9437-0b2cfbd63488.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "1b58259aa48f13aaac3f052604e29325239c8f0458db25799e8606a193255d74"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-2c7e6cd8-a68c-4dfa-b461-395693316d46.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "b5add65d87215d6083ca21feed997eeb1f6249c59e283c0e024e4e041847a569"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-3c5dc7b5-f1df-4be7-98d7-6d637bb89a93.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "b992c69746e0938bec253354ce6b9ddd70cda0ed18409a59112333109184ae91"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/bank-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-ee4a6d9b-1656-4433-ad0a-d8a26eb339d3.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "5dd83cc0ea16da194cf7aabbd34da919399c3a0fd0ae065ac2ea43ee12934914"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/bank-day.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3705580,
+  "sha256": "146ee9daa1894cda9a58b4960d22446b62c667079e2657522705ede04fb817df"
+}

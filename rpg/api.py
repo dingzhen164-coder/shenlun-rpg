@@ -595,9 +595,25 @@ def exam_list(body):
 
 
 def exam_import(body):
-    from . import exam_room
-    with importer.LOCK:
-        return _exam(exam_room.import_paper, body)
+    """导入试卷分三步：占编号（拿存档锁，很快）→ 拆分/OCR（几分钟，不拿存档锁，计时心跳等请求照常）→ 登记（拿存档锁）"""
+    from . import exam_room, exam_scan
+    plan = _exam(exam_room.plan_import, body)
+    try:
+        exam_scan.set_progress("读取PDF")
+        with importer.LOCK:
+            report = exam_room.run_split(_import_paths(), plan)
+    except exam_room.ExamError as e:
+        exam_room.abort_import(plan)
+        raise ApiError(str(e))
+    except BaseException:
+        exam_room.abort_import(plan)
+        raise
+    return _exam(exam_room.finish_import, plan, report)
+
+
+def exam_progress(body):
+    from . import exam_scan
+    return dict(exam_scan.PROGRESS)
 
 
 def exam_answers(body):
@@ -1461,6 +1477,7 @@ ROUTES = {
     ("POST", "/api/exam/list"): exam_list,
     ("POST", "/api/exam/import"): exam_import,
     ("POST", "/api/exam/answers"): exam_answers,
+    ("POST", "/api/exam/progress"): exam_progress,
     ("POST", "/api/exam/begin"): exam_begin,
     ("POST", "/api/exam/save"): exam_save,
     ("POST", "/api/exam/submit"): exam_submit,

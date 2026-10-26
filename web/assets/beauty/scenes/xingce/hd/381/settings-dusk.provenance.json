@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-14cdcc2c-bb5f-4cc2-bab4-e3a2f4c3e4dc.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-0.png",
+      "path": "/workspace/generated_images/exec-26b0c03f-c351-4703-a3d8-56d69551fc2a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "0124b39d99c03d161290257689567a48219859c2cb28d16dc83d3bfa3ded7f10"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-1.png",
+      "path": "/workspace/generated_images/exec-da0cdf3c-4b0e-4b8a-8e90-35a3fb7c4fe4.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "d9f06b10f5ae85bdff81064e216f484a95abd0ae24dab2f1a68360918e2e1746"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-2.png",
+      "path": "/workspace/generated_images/exec-52c69273-33df-48fc-8eae-107f71aecb7a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "35a5144cbd2191328ec3c1a224f93ec816a2aa98919555ec69a023a94b11bd7a"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-3.png",
+      "path": "/workspace/generated_images/exec-ee7fdeb4-bda1-4548-b6ac-cb4567e16607.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "35654917e81f05885dd8274656aa7b961c2261b52e0319fce0f7a124c059590d"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-4.png",
+      "path": "/workspace/generated_images/exec-bef11a06-6a9c-431f-a8f3-e021f3a8c285.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a383b93d11c1d66b632ba314a6219e9d21eb2ed52543b9b99ad5efcad18aa175"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-5.png",
+      "path": "/workspace/generated_images/exec-1bc20188-e43a-454f-853c-ddbfb47c5793.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "905a7e1681c37edef2fa35c57e9639b841a5dc0ead76ffab3cd957b74ee822ba"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-6.png",
+      "path": "/workspace/generated_images/exec-6950dae1-ac5b-4de8-9dd7-b9718fa2c9f1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "aab0a60e440cabb8bb809d3ed1bf2d0bf9e8d05f18ab9c54c6a512747ce9eaad"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/settings-dusk/ref-7.png",
+      "path": "/workspace/generated_images/exec-fcd88908-3579-472e-841e-c85b7ac777ec.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "abfd50142460ee066c9a83d094ef2dc3d6d052f73f8a6cbe46b538f104a5ac48"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/settings-dusk.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 2838382,
+  "sha256": "639df543fb26bb4dd319056ce8c354ae221b57ee490b5ccf6b92f1ac3c16a778"
+}

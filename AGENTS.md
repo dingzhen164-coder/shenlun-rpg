@@ -3,7 +3,7 @@
 本项目是“公考模拟器”（2.0.0 起一个程序两个科目）：本地运行的公考训练网页（Python 标准库后端 + 原生 JS 前端），配合用户的 Obsidian 申论库使用。
 代码以行测版 [xingce-rpg](https://github.com/dingzhen164-coder/xingce-rpg) 3.3.0 为底座，加上申论采分点批改和“官场”风格；设置里一键切换科目（`rpg/subjects.py`）。行测仓库不再单独更新。
 
-**先读 [CLAUDE.md](CLAUDE.md)（长期规矩：流程、口令、版本号、汇报格式），再读 [DESIGN.md](DESIGN.md)**（决策、分层、数据格式、判分规则都在里面）。当前进度见 DESIGN.md 第 10 节。
+**先读 [CLAUDE.md](CLAUDE.md)（长期规矩：流程、口令、版本号、汇报格式），再读 [DESIGN.md](DESIGN.md)**（决策、分层、数据格式、判分规则都在里面）。当前进度见 DESIGN.md 第 10 节。 **踩坑记录（用户2026-10-25要求，Claude Code 与 Codex 都遵守）：每修复一个 bug，都要在 [踩坑记录.md](踩坑记录.md) 补一条“现象→根因→以后怎么做→回归测试”，与修复同一批提交；改背景图/场景美术、测试发布、界面、PDF 识别前先读对应章节。**
 
 ## 必须遵守
 
@@ -40,3 +40,5 @@
 | 题库、试炼塔、成语录、模考（行测） | `rpg/question_bank.py`、`rpg/importer.py`、`rpg/idioms.py`、`rpg/mock.py` |
 | 页面、样式（设计令牌在 `style.css` 顶部；`body.xiuxian / xuanhuan / guantu` 三套配色） | `web/app.js`、`web/shenlun.js`、`web/style.css` |
 | 测试（每个测试文件顶部 `setUpModule` 指定本文件跑在哪个科目）；假 AI | `tests/`；`tests/fake_grade_ai.py` |
+
+**多个AI并行开发与统一发布（用户2026-10-25约定）：推送开发分支≠发布；推送前先合并远端开发分支、不 force；版本号与更新记录只在发布时改一次；创建 validate 分支前必须先运行 `python3 tools/release_precheck.py --tests`，有“失败”项不得发布。详见 CLAUDE.md「多个AI并行开发与统一发布」。**

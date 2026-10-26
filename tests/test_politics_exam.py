@@ -2,7 +2,7 @@
 import os
 import unittest
 
-from rpg import politics_exam as exam
+from rpg import politics, politics_exam as exam
 from tests.test_tianji import fitz
 
 
@@ -73,6 +73,53 @@ class ExamTests(unittest.TestCase):
         self.assertEqual([q['letters'] for q in questions],[['A','B'],['A','B','C','D']])
         self.assertEqual((report['incomplete_count'],report['incomplete']),(1,['黑十专项卷一测试第1题']))
 
+    def test_ocr_noise_lowercase_options_and_at_sign_are_repaired(self):
+        """用户截图：选项行被OCR成“B.①②c.@④”“D.③@”——小写c要认成选项C，“@”按数字顺序/出现次数补回②④。"""
+        rows=[(180,'黑十专项卷一 测试'),(90,'1.【小黑政治理论】关于新时代相关论断，下列说法正确的是：'),(90,'①坚持和发展'),(90,'②党的十八大作出重大判断'),(90,'@我国社会主要矛盾的变化'),(90,'④社会主要矛盾发生转化'),
+              (90,'A.①③'),(90,'B.①②c.@④'),(90,'D.③@'),
+              (90,'2.【小黑政治理论】第二题：'),(90,'A.甲'),(90,'B.乙'),(90,'c.丙'),(90,'d.丁'),
+              (90,'3.【小黑政治理论】第三题，etc. 之类写法不应当成选项：'),(90,'A.甲'),(90,'B.乙'),(90,'C.丙'),(90,'D.丁')]
+        _,questions,report=self.parse([rows])
+        first=questions[0]
+        self.assertIn('B.①②',first['text']);self.assertIn('C.②④',first['text']);self.assertIn('D.③④',first['text'])
+        self.assertNotIn('@',first['text']);self.assertIn('③我国社会主要矛盾',first['text'],'题干里“@”开头的第三条按顺序补成③')
+        self.assertEqual(first['letters'],['A','B','C','D']);self.assertIn('符号推测',first['flags'],'C选项是按均衡推测的，要标出来')
+        self.assertEqual(questions[1]['letters'],['A','B','C','D'],'小写c./d.接在B后面认成选项')
+        self.assertEqual(questions[2]['letters'],['A','B','C','D'],'etc.不当选项')
+        self.assertEqual((report['repaired'],report['guessed']),(2,1))
+
+    def test_screenshot_ocr_pdf_noise_is_cleaned(self):
+        """用户真实的“截图转PDF+OCR文字层”冲刺卷（自编同样的错法，原文不进仓库）：页眉页脚夹在题中间、并排选项y有抖动、
+        陈述编号①被认成1/5、题号“7.”认成“乙.”、小黑标签括号不配对、“C绿色”丢了点、进人/自已。"""
+        doc=fitz.open()
+        def page(items):
+            pg=doc.new_page(width=595,height=842)
+            for x,y,text in items:pg.insert_text((x,y),text,fontname='china-s',fontsize=11)
+        page([(90,50,'Hey、上岸吧！'),(380,54,'@公考小黑老师'),(180,120,'黑十专项卷一 测试'),
+              (60,140,'1.【小黑政治理论】下列说法正确的有几项？'),(80,158,'1坚持甲'),(80,176,'②坚持乙'),(80,194,'③坚持丙'),(80,212,'④坚持丁'),(80,230,'3坚持戊，体现自已国情'),
+              (360,250,'D.5项'),(60,250.4,'A.2项'),(260,251,'C.4项'),(160,249.3,'B.3项'),
+              (90,790,'抖音关注公考小黑老师'),(300,780,'1'),(400,792,'时政要点即时学')])
+        page([(440,50,'Hey，土岸吧！'),(110,54,'@公考小黑老师'),
+              (60,100,'乙.（小黑政治理论】进人新时代，下列说法正确的有几项？'),(80,118,'①甲'),(80,136,'②乙'),(80,154,'③丙'),(80,172,'④丁'),
+              (60,190,'A.①②'),(160,190.8,'B.①②3'),(260,189.5,'c.@④'),(360,190.2,'D.3④'),
+              (60,220,'3.（小黑政治理论）第三题：'),(60,238,'A.甲'),(60,256,'B.乙'),(60,274,'C丙'),(60,292,'D.丁'),
+              (90,790,'抖音关注公考小黑老师'),(300,780,'2'),(400,792,'时政要点即时学')])
+        with doc:
+            papers,questions,report=exam.parse(doc,'x.pdf')
+        self.assertEqual(len(papers),1);self.assertEqual([q['no'] for q in questions],[1,2,3],'乙.认成第2题，第3题的小括号标签也认')
+        one,two,three=[q['text'] for q in questions]
+        self.assertNotIn('上岸',one+two+three);self.assertNotIn('抖音',one+two+three);self.assertNotIn('时政要点',one+two+three)
+        self.assertEqual(one.split('\n')[-4:],['A.2项','B.3项','C.4项','D.5项'],'并排选项按从左到右，不被y抖动打乱')
+        self.assertIn('\n①坚持甲\n',one);self.assertIn('\n⑤坚持戊',one,'1/3按顺序改回①/⑤');self.assertIn('自己国情',one)
+        self.assertTrue(two.startswith('【小黑政治理论】进入新时代'));self.assertEqual(two.split('\n')[-4:],['A.①②','B.①②③','C.@④','D.③④'],'①②③出现次数并列，没把握就保持“@”，不乱猜')
+        self.assertNotIn('符号推测',questions[1]['flags'])
+        self.assertTrue(three.startswith('【小黑政治理论】第三题'),'括号配对统一');self.assertIn('C.丙',three);self.assertEqual(questions[2]['letters'],['A','B','C','D'])
+        self.assertEqual(report['incomplete_count'],0)
+
+    def test_symbols_that_cannot_be_decided_are_left_alone(self):
+        stem=['①甲','②乙','③丙','④丁'];opts=[('A','①@'),('B','@④')]
+        self.assertEqual(exam.repair_symbols(stem,opts),(0,0));self.assertEqual(opts,[('A','①@'),('B','@④')],'并列、没把握就不补，不乱猜')
+
     def test_numbers_inside_text_do_not_split_and_missing_headings_fall_back_to_file_name(self):
         rows=[(90,'1.【小黑政治理论】增长率达到5.2%，居世界前列：'),(90,'2024年以来GDP增长'),(90,'A.1.5倍'),(90,'B.2倍'),(90,'C.3倍'),(90,'D.4倍')]
         papers,questions,_=self.parse([rows],'专项练习.pdf')
@@ -83,3 +130,49 @@ class ExamTests(unittest.TestCase):
         rows=[]
         for no in (1,2,3,4,1,2):rows+= [(90,'%d.【小黑政治理论】第%d题干：'%(no,no)),(90,'A.甲'),(90,'B.乙'),(90,'C.丙'),(90,'D.丁')]
         papers,questions,_=self.parse([rows],'无标题.pdf');self.assertEqual(len(papers),2);self.assertEqual([q['paper'] for q in questions],[0,0,0,0,1,1])
+
+
+@unittest.skipIf(fitz is None,'缺PDF组件')
+class AnswerImportTests(unittest.TestCase):
+    """导入的套卷原PDF没有答案时，另给答案文字/答案页PDF补上；按套卷内题号对应，只改这一套。"""
+    def setUp(self):
+        import base64,tempfile
+        from pathlib import Path
+        from rpg import politics_import
+        self.politics,self.base64=politics,base64
+        t=tempfile.TemporaryDirectory();self.addCleanup(t.cleanup);root=Path(t.name)
+        from rpg import paths
+        from tests.test_politics361 import atlas_data
+        self.pp=paths.Paths(root,'行测');self.pp.ensure_train_dir()
+        politics.atomic_json(self.pp.train/'时政知识地图/内容.json',atlas_data())
+        rows=PAGE1+PAGE2
+        with make([rows[:len(PAGE1)],PAGE2]) as doc:data=doc.tobytes()
+        self.report=politics_import.import_pdf(self.pp,{'mode':'practice','name':'自编十套卷.pdf','data':base64.b64encode(data).decode()})
+        self.atlas=politics.atlas(self.pp,politics.DEFAULT_EXAM)
+        self.papers=[m for m in self.atlas['materials'] if m.get('practice_only')]
+
+    def questions(self,paper):
+        return {q['no']:q for q in politics.atlas(self.pp,politics.DEFAULT_EXAM)['questions'] if q['material']==paper['id'] and q.get('no')}
+
+    def test_text_answers_fill_only_that_paper_and_report_missing(self):
+        one,two=self.papers[:2]
+        self.assertTrue(all(not q['answer'] for q in self.questions(one).values()),'原PDF没带答案')
+        out=self.politics_exam.apply_answers(self.pp,{'material':one['id'],'text':'1.A 2.B 3.AB 9.C'})
+        self.assertEqual((out['filled'],out['changed'],out['unknown'],out['missing']),(3,0,[9],[]))
+        self.assertEqual({n:q['answer'] for n,q in self.questions(one).items()},{1:'A',2:'B',3:'AB'})
+        self.assertTrue(all(not q['answer'] for q in self.questions(two).values()),'别的套卷不受影响')
+        again=self.politics_exam.apply_answers(self.pp,{'material':one['id'],'text':'1-3 ACD'})
+        self.assertEqual((again['filled'],again['changed']),(0,2),'再导入按新答案覆盖并报告改了几题')
+        part=self.politics_exam.apply_answers(self.pp,{'material':two['id'],'text':'1.B'})
+        self.assertEqual(part['missing'],[2])
+
+    def test_answer_page_pdf_and_bad_input(self):
+        one=self.papers[0]
+        with make([[(90,'1.【答案】A。解析：2025年增长。'),(90,'2.【答案】C。解析：1.5倍。'),(90,'3.【答案】D')]]) as doc:pdf=doc.tobytes()
+        out=self.politics_exam.apply_answers(self.pp,{'material':one['id'],'pdf':self.base64.b64encode(pdf).decode()})
+        self.assertEqual(out['filled'],3);self.assertEqual({n:q['answer'] for n,q in self.questions(one).items()},{1:'A',2:'C',3:'D'})
+        for body in ({'material':one['id'],'text':''},{'material':one['id'],'text':'没有答案'},{'material':'nope','text':'1.A'}):
+            with self.assertRaises(self.politics.PoliticsError):self.politics_exam.apply_answers(self.pp,body)
+
+    politics_exam=exam
+

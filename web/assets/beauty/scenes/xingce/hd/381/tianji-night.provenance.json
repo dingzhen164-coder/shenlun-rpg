@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-fd498676-0f75-4d06-81af-0fd09c508aef.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-adaef446-d5e6-4d99-b6cb-bd261da3927a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "12535ab7226aa30ee42d17d0763f95e12677165f2219f51c3fa179749340b16d"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-a7d354d9-3123-4642-8e41-72fdcc76395e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4073a91291cae800cf0e533dffd9a9982ad2c56bd80d2b18d2947feb21ac6726"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-86f9e38b-2276-40df-8812-2fa91f75cf68.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "08d42ad520a01fcd8cc61b87934228bb93ca8536028cade4cd5b6cb3529f742f"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-7f1c6653-4201-4eb7-bb6c-df26a81e4430.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3f993f45bfece76d486fcafd72f12a8388da41a77e5c753da39df685698acf98"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-76498a4e-dadb-40a2-8dbe-9c5c935f653d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "7a9e7e7328632b587ef0cdf29ce9c3634e99321c16df4cd190d57d7a13a29fa3"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-b151bcd2-c665-4667-9c0b-45e9f307ebf8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a910d69ac01366dff17e7442e8cd02f670be09dda0f098a2da5c05ffb16b2efe"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-6883b8bb-79d1-4d18-abe1-648a6843010d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4999ab95c95df845bc6da5fc660ca3245a84469e7c2f46de5811c9b00c92da86"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-cc6adb15-1677-402f-8373-b0edec76d27e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "5adce1e9052a8df35493bd681f1f79568f24e9ba1c998c5697a6344d24b12749"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/tianji-night.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3398852,
+  "sha256": "78f8f863f335f4fb1b9bc89e30c01e4d3fb0b7f74690e697bf8089967782a946"
+}

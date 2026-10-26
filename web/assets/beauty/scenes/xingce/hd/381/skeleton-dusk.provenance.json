@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-2cbb93c7-f552-4b72-a75f-5e7260204302.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-0.png",
+      "path": "/workspace/generated_images/exec-1973590f-ec46-4719-bdf8-e173971ed857.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "e977c19d2c71decb85f6bcc51f8081aac06de1a64cf74787562fef808d40e302"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-1.png",
+      "path": "/workspace/generated_images/exec-e7bc0e89-c54e-4b92-b0fb-dc9c79b3dcb2.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "6869202ee2aeb67dc664d69f77eca7e2af54184a9f98589bdaa66dbebee0e8e8"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-2.png",
+      "path": "/workspace/generated_images/exec-f32602f0-c677-4793-9c0d-e4b93bd73bd8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "233857d7b002bbd33615707f16065c48c8f9ee5c5a2a90cd6c2287f5c0f73caf"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-3.png",
+      "path": "/workspace/generated_images/exec-051f3f9b-fd2e-4e19-9622-6869c6c62053.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "bae943b0fc3fcb5e8b5cbb6d433b6f442ab9cf7a2d97e7406b0383fbf9d63ff5"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-4.png",
+      "path": "/workspace/generated_images/exec-1fe3a9a5-d35d-4550-9bbb-9302c0290f94.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f1d0af74343e1086c78afd0aa11fb6fd68ce2a80c171845aeac0b38b398b6c57"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-5.png",
+      "path": "/workspace/generated_images/exec-b8443a13-9e8b-4449-b1eb-7fda92f8f3c4.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "aef394fef5997336c6525bf50bdefb8498fe396dae66aed8dd6d9a5b89820539"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-6.png",
+      "path": "/workspace/generated_images/exec-a30b4a15-604c-4a10-ae47-820f9044fbbe.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "001e5cde168efa231bb26bf4d19e053e450c8cca08a0c6450a29655a908ba03c"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-dusk/ref-7.png",
+      "path": "/workspace/generated_images/exec-8ddfbfc7-8ad0-4a33-8c3d-aed99685b2b1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "25f4466451d0f2f2799fab24e3b90f8a3f13327183565966654a0ee15d919d04"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/skeleton-dusk.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3139072,
+  "sha256": "5798bacf6618798f59830d543308c22bb7938922d98650b04fd85f5452d61a3c"
+}

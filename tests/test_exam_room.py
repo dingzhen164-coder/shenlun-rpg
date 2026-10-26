@@ -151,24 +151,72 @@ class ExamRoomTest(unittest.TestCase):
         self.assertTrue(result['overtime']); self.assertEqual(result['minutes'], 90)
 
     def test_import_paper_names_it_and_skips_the_import_credit(self):
+        from rpg import exam_scan
         calls = []
-        def fake_split(paths_, body):
-            number = int(body['file'].split('季')[0].lstrip('第'))
-            calls.append((number, body['file']))
+        def fake_split(paths_, pdf, number, engine=None, part_sizes=None):
+            calls.append((number, Path(pdf).name))
             blank_paper(paths_.train / ('模考复盘/第%d季' % number))
-            return {'ready': 130, 'fix': 0, 'split_log': '共解析130题'}
-        with patch.object(importer, 'split_pdf', side_effect=fake_split):
+            return {'found': 130, 'total': 130, 'missing': [], 'modules': {'政治理论': 20}, 'split_log': '按版面拆分：认出 130/130 题'}
+        with patch.object(exam_scan, 'split', side_effect=fake_split):
             r = exam_room.import_paper(self.g, {'name': NAME, 'data': base64.b64encode(b'%PDF-1.4 fake').decode()})
         self.assertEqual((r['season'], r['name'], r['total'], r['keyed']), (1001, NAME, 130, 130))
         self.assertEqual(calls[0][0], 1001)
-        self.assertTrue((self.p.train / '模考试卷' / ('第1001季-%s.pdf' % NAME)).is_file())
+        self.assertTrue((self.p.train.parent / 'FB模考试卷复盘' / '模考试卷' / ('第1001季-%s.pdf' % NAME)).is_file() or any(self.p.vault.rglob('第1001季-*.pdf')))
         self.assertIn('1001', self.g.state['mock_practice'], '导入不另记120分钟')
         self.assertEqual(self.g.state['practice'], [])
         self.assertEqual(mock.season_name(self.g, 1001), NAME)
+        self.assertEqual(exam_room._PENDING, set(), '导入完成后编号不再占用')
         with self.assertRaises(exam_room.ExamError):
             exam_room.import_paper(self.g, {'name': NAME, 'data': 'x'})            # 重名
         with self.assertRaises(exam_room.ExamError):
             exam_room.import_paper(self.g, {'name': '', 'data': 'x'})
+
+    def test_scanned_paper_goes_through_the_whole_exam_flow_with_images(self):
+        """扫描卷（没有文字层）：版面拆分 → 开始考试拿到的是图片块 → 补答案 → 交卷批改。"""
+        import re
+        from rpg import exam_scan
+        from tests import test_exam_scan as ts
+        pdf = self.root / 'scan.pdf'
+        ts.make_pdf(pdf, ts.PAGES + ts.PAGES_C)
+        pages = ts.PAGES + ts.PAGES_C
+        engine = lambda f: pages[int(re.search(r'p(\d+)\.png', f).group(1))]
+        plan = exam_room.plan_import(self.g, {'name': NAME, 'data': base64.b64encode(pdf.read_bytes()).decode()})
+        report = exam_scan.split(self.g.paths, pdf, plan['season'], engine=engine)
+        done = exam_room.finish_import(self.g, plan, report)
+        self.assertEqual((done['total'], done['keyed'], done['missing']), (9, 0, []))
+        data = exam_room.begin(self.g, 1001)
+        self.assertEqual([q['num'] for q in data['questions']], list(range(1, 10)))
+        self.assertTrue(all(any(b['t'] == 'img' for b in q['blocks']) for q in data['questions']), '每题都是图片')
+        self.assertTrue(data['materials'], '资料分析的材料图')
+        self.assertIn('没有标准答案', data['warning'])
+        exam_room.import_answers(self.g, {'season': 1001, 'text': '1-9 ABCDABCDA'})
+        result = exam_room.submit(self.g, 1001, {'answers': {str(i): 'ABCDABCDA'[i - 1] for i in range(1, 10)}, 'elapsed': 600})
+        self.assertEqual((result['ok'], result['bad'], result['nokey']), (9, 0, 0))
+
+    def test_split_failure_releases_the_season_number_and_reports_the_reason(self):
+        from rpg import exam_scan
+        with patch.object(exam_scan, 'split', side_effect=exam_scan.ScanError('这份试卷PDF是扫描图片，需要系统自带OCR')):
+            with self.assertRaises(exam_room.ExamError) as ctx:
+                exam_room.import_paper(self.g, {'name': NAME, 'data': base64.b64encode(b'%PDF-1.4 fake').decode()})
+        self.assertIn('扫描图片', str(ctx.exception))
+        self.assertEqual(exam_room._PENDING, set())
+        self.assertEqual(exam_room.next_season(self.g), 1001, '失败后编号还能用')
+
+    def test_old_split_script_is_tried_first_for_text_pdfs_and_scan_is_the_fallback(self):
+        from rpg import exam_scan
+        order = []
+        def old(paths_, body):
+            order.append('old')
+            raise exam_room.importer.ImportError_('拆分完成但没找到第1001季的板块复盘')
+        def new(paths_, pdf, number, engine=None, part_sizes=None):
+            order.append('scan')
+            blank_paper(paths_.train / ('模考复盘/第%d季' % number))
+            return {'found': 130, 'total': 130, 'missing': [], 'modules': {}, 'split_log': '按版面拆分'}
+        with patch.object(exam_room.importer, 'split_script', return_value=Path('x.py')), patch.object(exam_room, '_has_text_layer', return_value=True), \
+                patch.object(exam_room.importer, 'split_pdf', side_effect=old), patch.object(exam_scan, 'split', side_effect=new):
+            r = exam_room.import_paper(self.g, {'name': NAME, 'data': base64.b64encode(b'%PDF-1.4 fake').decode()})
+        self.assertEqual(order, ['old', 'scan'])
+        self.assertIn('旧拆分脚本没认出', r['split_log'])
 
     def test_legacy_seasons_keep_their_names(self):
         blank_paper(self.p.train / '模考复盘/第39季')

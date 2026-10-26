@@ -9,6 +9,7 @@
     ["catalogOrganization", "目录组织"], ["timeline", "时间轴"], ["fishbone", "鱼骨图"]];
   let LIST = null, CUR = null, mm = null, saveT = null, dirty = false, libP = null;
   let saveP = null;
+  let enhancedTools=null;
   let opening = false, openSeq = 0, editing = false, lastRead = 0, viewMode = "map";
 
   function loadLib() {
@@ -58,12 +59,12 @@
     for(const k of ['a','b','c','d','e','f','scaleX','scaleY','shear','rotate','translateX','translateY','originX','originY','skewX','skewY'])if(typeof v.transform[k]==='number'&&Number.isFinite(v.transform[k])&&Math.abs(v.transform[k])<=1e7)transform[k]=v.transform[k];
     return Object.keys(transform).length?{state,transform}:null;
   }
-  function readPosition(c){try{const raw=localStorage.getItem(readingKey(c));if(!raw||raw.length>8000)return null;const p=JSON.parse(raw);return {view:validView(p.view),top:Math.max(0,Math.min(1e8,Number(p.top)||0)),left:Math.max(0,Math.min(1e8,Number(p.left)||0))};}catch(_){return null;}}
+  function readPosition(c){try{const raw=localStorage.getItem(readingKey(c));if(!raw||raw.length>8000)return null;const p=JSON.parse(raw);return {view:validView(p.view),mode:['map','document','split'].includes(p.mode)?p.mode:null,top:Math.max(0,Math.min(1e8,Number(p.top)||0)),left:Math.max(0,Math.min(1e8,Number(p.left)||0))};}catch(_){return null;}}
   function savePosition(){
     clearTimeout(readingTimer);if(editing||!CUR||!mm)return;
     const doc=document.getElementById('lnMarkdown');
     if(doc&&!doc.hidden)CUR.readScroll={top:doc.scrollTop,left:doc.scrollLeft};
-    try{localStorage.setItem(readingKey(CUR),JSON.stringify({view:validView(mm.view.getTransformData()),...(CUR.readScroll||{top:0,left:0})}));}catch(_){}
+    try{localStorage.setItem(readingKey(CUR),JSON.stringify({view:validView(mm.view.getTransformData()),mode:viewMode,...(CUR.readScroll||{top:0,left:0})}));}catch(_){}
   }
   function queuePosition(){clearTimeout(readingTimer);readingTimer=setTimeout(savePosition,180);}
 
@@ -159,7 +160,7 @@
     return s;
   }
   async function open(board, name, manage = false) {
-    if (CUR) { savePosition();if(!(await flush()))return; await finishReading(); try { mm?.destroy(); } catch (_) {} mm=null; CUR=null; }
+    if (CUR) { savePosition();if(!(await flush()))return; await finishReading(); enhancedTools?.destroy();enhancedTools=null;try { mm?.destroy(); } catch (_) {} mm=null; CUR=null; }
     const seq=++openSeq; opening=true; editing=manage; viewMode=manage?"map":"split";
     const s = stage();
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">${typeof VIEW !== "undefined" && VIEW === "skeleton" ? "← 返回资料库" : "← 返回分区"}</button><b class="yj-top-title">🌿 灵脉图 · ${esc(board)}</b></div><div class="yj-wait">展开灵脉…</div>`;
@@ -172,6 +173,7 @@
     const position=manage?null:readPosition(CUR);CUR.readScroll=position?{top:position.top,left:position.left}:{top:0,left:0};
     lastRead = Date.now();
     const data = d.data || {};
+    const enhanced=typeof DASH!=='undefined'&&DASH?.subject==='\u884c\u6d4b'&&!!window.MINDMAP_TOOLS381;
     s.innerHTML = `<div class="yj-top"><button class="ghost" id="lnBack">${typeof VIEW !== "undefined" && VIEW === "skeleton" ? "← 返回资料库" : "← 返回分区"}</button>
         <b class="yj-top-title">🌿 ${esc(board)} · ${manage ? `<a id="lnName" title="改名">${esc(d.name)}</a>` : esc(d.name)}</b><span class="spacer"></span><span class="small faint" id="lnSaved"></span></div>
       ${manage ? `<div class="ln-tools">
@@ -194,6 +196,11 @@
     if(!manage)s.querySelector('.yj-top').append(s.querySelector('.ln-reading-tabs'));
     document.getElementById("lnBack").onclick = close;
     const Mind = M(), palette=getComputedStyle(document.body), color=k=>palette.getPropertyValue(k).trim();
+    const defaults={backgroundColor:color('--panel'),lineColor:color('--accent'),generalizationLineColor:color('--accent'),
+      root:{fillColor:color('--accent'),color:color('--panel'),borderColor:color('--accent'),fontSize:enhanced?20:18,...(enhanced?{fontWeight:700}:{})},
+      second:{fillColor:color('--panel2'),color:color('--text'),borderColor:color('--line'),fontSize:enhanced?17:15,...(enhanced?{fontWeight:600}:{})},
+      [enhanced?'node':'general']:{fillColor:color('--panel'),color:color('--text'),borderColor:color('--line'),...(enhanced?{fontSize:16,fontWeight:500}:{})}};
+    const themeConfig={...defaults,...(data.theme?.config||{})};for(const key of ['root','second',enhanced?'node':'general'])themeConfig[key]={...defaults[key],...(data.theme?.config?.[key]||{})};
     try {
       mm = new Mind({
         el: document.getElementById("lnCanvas"),
@@ -203,15 +210,15 @@
         data: plain(data.root || { data: { text: board }, children: [] }),
         layout: data.layout || "logicalStructure",
         theme: data.theme?.template || "default",
-        themeConfig: Object.assign({ backgroundColor: color('--panel'), lineColor: color('--accent'), generalizationLineColor: color('--accent'),
-          root: { fillColor: color('--accent'), color: color('--panel'), borderColor: color('--accent'), fontSize: 18 },
-          second: { fillColor: color('--panel2'), color: color('--text'), borderColor: color('--line'), fontSize: 15 },
-          general: { fillColor: color('--panel'), color: color('--text'), borderColor: color('--line') } }, data.theme?.config || {}),
+        themeConfig,
+        ...(enhanced?{textAutoWrapWidth:260}:{}),
         viewData: manage?(data.view||null):(position?.view||null),
         disableTouchZoom: true,
         mousewheelAction: "move", mousewheelZoomActionReverse: true,
       });
       touchPan(mm,document.getElementById('lnCanvas'));
+      if(enhanced){enhancedTools=MINDMAP_TOOLS381.attach({inst:mm,Mind,root:s,context:{...CUR,manage},touchPan,onPosition:queuePosition});
+        if(!manage){let initialMode=false;const desired=position?.mode||(matchMedia('(orientation:portrait)').matches?'map':'split');mm.on('node_tree_render_end',()=>{if(!initialMode){initialMode=true;setViewMode(desired,{initial:true});}});}}
       try { mm.rainbowLines && mm.rainbowLines.updateRainLinesConfig({ open: true }); } catch (_) {}
       if(!manage||!data.view){const inst=mm,cv=document.getElementById('lnCanvas'),current=CUR;let fitted=false;
         inst.on('node_tree_render_end',()=>{if(fitted)return;fitted=true;
@@ -225,7 +232,7 @@
       s.querySelectorAll('[data-ln-mode]').forEach(b=>b.onclick=()=>setViewMode(b.dataset.lnMode));
       document.getElementById('lnReload').onclick=async()=>{const mode=viewMode;await open(board, CUR.name, false);setViewMode(mode);};
       const doc=document.getElementById('lnDocument');if(doc)doc.onclick=()=>localDocument();
-      const zoom=(direction)=>{if(!mm||viewMode==='document')return;direction>0?mm.view.enlarge():mm.view.narrow();queuePosition();};
+      const zoom=(direction)=>{if(!mm||viewMode==='document')return;const target=enhancedTools?.active()||mm;direction>0?target.view.enlarge():target.view.narrow();queuePosition();};
       document.getElementById('lnZoomIn').onclick=()=>zoom(1);
       document.getElementById('lnZoomOut').onclick=()=>zoom(-1);
       window.STUDY_LAMP?.reader(CUR?.reading_token?{key:'mindmap:'+CUR.reading_token,board:CUR.board}:null);
@@ -238,7 +245,7 @@
       sib: () => mm.renderer.activeNodeList.length ? mm.execCommand("INSERT_NODE") : toast("先点一下要在哪个节点旁边加"),
       del: () => mm.renderer.activeNodeList.length ? mm.execCommand("REMOVE_NODE") : toast("先点一下要删的节点"),
       undo: () => mm.execCommand("BACK"), redo: () => mm.execCommand("FORWARD"),
-      fit: () => mm.view.fit(), in: () => mm.view.enlarge(), out: () => mm.view.narrow(),
+      fit: () => (enhancedTools?.active()||mm).view.fit(), in: () => (enhancedTools?.active()||mm).view.enlarge(), out: () => (enhancedTools?.active()||mm).view.narrow(),
       import: () => document.getElementById("lnFile").click(),
       new: () => newMap(board),
       trash: async () => {
@@ -284,6 +291,7 @@
     if(!(await flush()))return false;
     const closing=CUR; await finishReading();
     if(CUR!==closing)return;
+    enhancedTools?.destroy();enhancedTools=null;
     try { if (mm) mm.destroy(); } catch (_) {}
     mm = null; CUR = null; editing=false; dirty=false;
     const s = document.getElementById("yjStage");
@@ -337,12 +345,14 @@
     const children=n=>(n.children||[]).length?`<ul>${n.children.map(c=>`<li><span>${esc(c.data?.text||'')}</span>${children(c)}</li>`).join('')}</ul>`:'';
     return `<h1>${esc(root.data?.text||'')}</h1>${children(root)}`;
   }
-  function setViewMode(mode){
+  function setViewMode(mode,{initial=false}={}){
     if(!['map','document','split'].includes(mode))return;
     const body=document.querySelector('.ln-reading-body');if(!body)return;
-    savePosition();const inst=mm,current=CUR,view=mm?validView(mm.view.getTransformData()):null;
+    // 初次恢复时DOM还在顶部，不能把这个临时位置覆盖已保存的阅读位置。
+    if(!initial)savePosition();const inst=mm,current=CUR,view=!initial&&mm?validView(mm.view.getTransformData()):null;
     for(const id of ['lnZoomIn','lnZoomOut'])document.getElementById(id)?.toggleAttribute('disabled',mode==='document');
     viewMode=mode;body.dataset.mode=mode;document.getElementById('lnCanvas').hidden=mode==='document';document.getElementById('lnMarkdown').hidden=mode==='map';
+    const tools=document.querySelector('.mm381-tools');if(tools)tools.hidden=mode==='document';
     document.querySelectorAll('[data-ln-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lnMode===mode)));
     requestAnimationFrame(()=>{if(mm!==inst||CUR!==current||!body.isConnected)return;try{if(mode!=='document'){inst.resize();if(view)inst.view.setTransformData(view);}const doc=document.getElementById('lnMarkdown');if(mode!=='map'){doc.scrollTop=current.readScroll?.top||0;doc.scrollLeft=current.readScroll?.left||0;}}catch(_){}});
   }
