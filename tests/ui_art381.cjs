@@ -16,6 +16,7 @@ const ready=new Promise((ok,no)=>{let output='';const timer=setTimeout(()=>no(Er
     if(scene==='bank'){
      await page.waitForFunction(phase=>document.querySelector('.th-panorama')?.src.includes('bank-'+phase+'.webp'),phase);
      assert.equal(await page.locator('.th-panorama').evaluate(e=>getComputedStyle(e).filter),'none');
+     const fill=await page.locator('.th-painted').evaluate(e=>{const s=getComputedStyle(e,'::before');return{image:s.backgroundImage,content:s.content,filter:s.filter};});assert(fill.image.includes('bank-'+phase+'.webp')&&fill.content!=='none','竖屏上下及超宽两侧都必须用新原画延展，不能留旧渐变底色');assert(!/brightness|sepia/.test(fill.filter));
      for(const mode of ['blocks','exam']){await page.locator('[data-th-enter='+mode+']').click();const selection=await page.locator('.th-dialog[open]').evaluate(async d=>{const s=getComputedStyle(d,'::before'),src=s.backgroundImage.match(/url\(["']?(.*?)["']?\)$/)[1],im=new Image();im.src=src;await im.decode();return{src,size:[im.naturalWidth,im.naturalHeight],filter:s.filter,shade:getComputedStyle(d,'::after').backgroundImage};});assert(selection.src.includes('selection-'+phase+'.webp'));assert.deepEqual(selection.size,[3840,2880]);assert.equal(selection.filter,'none');assert.equal(selection.shade,'none');await page.locator('[data-th-close]').click();}
     }
     if(phase==='day'||phase==='night'){fs.mkdirSync('ui-artifacts/381',{recursive:true});await page.screenshot({path:'ui-artifacts/381/'+scene+'-'+label+'-'+phase+'.png'});}

@@ -11,6 +11,7 @@ html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell :w
 html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-paper{background:var(--panel)!important;background:color-mix(in srgb,var(--panel) 96%,transparent)!important;backdrop-filter:none!important;text-shadow:none}
 body.hollow381 .hx381-paper :where(p,span,h1,h2,h3,label,.muted,.small){text-shadow:none!important}
 body.hollow381 #studyHud :is(.study-hud-player,.study-hud-world){--hud-ink:var(--text);--hud-soft:var(--text);--hud-metal:var(--accent);--ds-plate-ink:var(--text);--ds-plate-soft:var(--muted);text-shadow:0 1px 3px var(--panel),0 0 8px var(--panel)}
+body.hollow381 #studyHud .subpage-tools :is(button,#todayPill){--text:var(--hx381-base-text);--muted:var(--hx381-base-muted);--ds-text:var(--hx381-base-text);--ds-muted:var(--hx381-base-muted);color:var(--hx381-base-text);text-shadow:none}
 body.hollow381 :where(.fx-settings-group,.th-choice-list,.fx-tabs,.lib-tabs,.sprint-index,.wxj-toc,.tj-toc){border-radius:0}
 body.hollow381 .fx-settings-group>summary{border-bottom:1px solid color-mix(in srgb,var(--gold) 28%,transparent)}
 body.hollow381 :where(.th-choice,.th-history-row){background:transparent;border-color:color-mix(in srgb,var(--gold) 22%,transparent);box-shadow:none}
