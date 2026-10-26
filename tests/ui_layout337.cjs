@@ -54,7 +54,8 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.evaluate(async r=>{STUDY_REGIONS.select(r);await go('train');},region);
   await p.locator('[data-ln]').first().click();await p.locator('#lnCanvas svg>g').first().waitFor();assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),subject==='行测'&&viewport.height>viewport.width?'map':'split');if(subject==='行测'&&viewport.height>viewport.width)await p.locator('[data-ln-mode=split]').click();assert(await p.locator('#lnMarkdown').isVisible());assert.equal(await p.locator('#lnFile,#lnLayout').count(),0);assert.equal(await p.locator('.yj-top>.ln-reading-tabs').count(),1,'阅读工具并入图名同一栏');assert(await p.locator('.yj-top').evaluate(e=>{const a=e.getBoundingClientRect(),b=e.querySelector('.ln-reading-tabs').getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom+1;}));
   const reader=await p.locator('.ln-stage').boundingBox();
-  assert.equal(await p.locator('.mm381-tools').count(),subject==='行测'?1:0,'行测专属工具不能被申论文案替换误启用');
+  assert.equal(await p.locator('.ln-stage.mm381-reading').count(),subject==='行测'?1:0,'行测阅读增强不能被申论文案替换误启用');
+  assert.equal(await p.locator('.mm381-tools').count(),0,'额外工具整排已经移除，不再占据画布');
   const hudBottom=await p.locator('#studyHud').evaluate(e=>e.getBoundingClientRect().bottom);
   assert(reader.width>=viewport.width-2&&Math.abs(reader.y-hudBottom)<2&&Math.abs(reader.y+reader.height-viewport.height)<2,'实际阅读器用满顶栏下工作区 '+JSON.stringify(reader));
   await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop=850);const canvas=await p.locator('#lnCanvas').boundingBox();await p.mouse.move(canvas.x+canvas.width*.5,canvas.y+canvas.height*.5);await p.mouse.wheel(0,-350);
