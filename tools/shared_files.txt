@@ -6,7 +6,6 @@
 # 3.8.1行测专属视觉与导图增强；法考保留既有独立美术/阅读器。
 diverged tests/test_skill_teachers.py
 diverged tests/ui_skill_teachers.cjs
-diverged tests/test_static_cache.py
 diverged web/hollow381.js
 diverged web/hollow381.css
 diverged web/scenes381.css
