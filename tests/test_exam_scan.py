@@ -144,6 +144,33 @@ class ScanTests(unittest.TestCase):
         report = scan.split(pp, pdf, 1002, engine=lambda f: self.fail("有文字层不该走OCR"))
         self.assertEqual((report["found"], report["total"]), (2, 2))
 
+    def test_pre_ocred_pdf_works_without_a_local_ocr_even_with_a_few_picture_pages(self):
+        """用户先用别的软件OCR成带文字层的PDF：本机没有OCR也能导入；个别纯图片页（没有文字）跳过，不报错。"""
+        doc = fitz.open()
+        rows = [(80, "第一部分  政治理论"), (80, "（共2题，参考时间：12分钟）"), (60, "1．第一题题干，下列说法正确的是："), (80, "A．甲"), (80, "B．乙"), (80, "C．丙"), (80, "D．丁"),
+                (60, "2．第二题题干，下列说法错误的是："), (80, "A．甲"), (80, "B．乙"), (80, "C．丙"), (80, "D．丁")]
+        for chunk in (rows[:7], rows[7:]):
+            page = doc.new_page(width=595, height=842)
+            y = 100
+            for x, text in chunk:
+                page.insert_text((x, y), text, fontname="china-s", fontsize=11)
+                y += 22
+        page = doc.new_page(width=595, height=842)           # 纯图片页：没有任何文字
+        page.draw_rect(fitz.Rect(100, 100, 300, 300), color=None, fill=(0, 0, 0))
+        for k in range(3):
+            doc.new_page(width=595, height=842).insert_text((80, 100), "第%d页的一些文字，不少于三十个字的内容，用来表示这一页有文字层。" % k, fontname="china-s", fontsize=11)
+        pdf = self.root/"先OCR过的卷.pdf"
+        doc.save(str(pdf))
+        old = scan.ocr_engine_name
+        scan.ocr_engine_name = lambda: ""
+        try:
+            report = scan.split(SimpleNamespace(train=self.root/"训练"), pdf, 1004)
+        finally:
+            scan.ocr_engine_name = old
+        self.assertEqual((report["found"], report["total"]), (2, 2))
+        self.assertEqual(report["skipped_pages"], [3])
+        self.assertIn("第3页没有文字", report["split_log"])
+
     def test_no_ocr_gives_a_clear_message(self):
         pdf = self.root/"扫描.pdf"
         make_pdf(pdf, PAGES[:1])

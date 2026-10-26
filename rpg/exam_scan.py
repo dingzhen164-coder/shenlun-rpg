@@ -22,6 +22,7 @@ DPI = 150
 DEFAULT_PARTS = [("政治理论", 20), ("常识判断", 15), ("言语理解", 30), ("数量关系", 10), ("判断推理", 35), ("资料分析", 20)]
 PART_BOARD = {"政治": "政治理论", "常识": "常识判断", "言语": "逻辑填空", "数量": "数量关系", "判断": "论证逻辑", "资料": "资料分析"}
 
+SKIPPED = []                                                                     # 本次没有文字行的页（0起）
 PROGRESS = {"stage": "", "page": 0, "total": 0, "question": 0}        # 网页轮询用：当前做到哪一步
 
 
@@ -182,6 +183,7 @@ def ocr_pages(doc, engine=None, only=None):
     n = len(doc)
     pages = [None]*n
     need = []
+    SKIPPED[:] = []
     for i, page in enumerate(doc):
         if only is not None and i not in only:
             pages[i] = []
@@ -200,6 +202,14 @@ def ocr_pages(doc, engine=None, only=None):
             doc[i].get_pixmap(dpi=DPI).save(f)
             files[i] = f
         kind = "custom" if engine else ocr_engine_name()
+        if not kind and len(need) <= .4*n:
+            # 用户已经先用别的软件做过文字识别（带文字层的PDF）：个别纯图片页（图形题）没有文字，本机又没有OCR时，这些页当作没有文字行，
+            # 它们仍会被包含在相邻题目的图片范围里，只是不能在这几页上找题号。
+            for i in need:
+                pages[i] = []
+            SKIPPED[:] = need
+            set_progress("识别页面文字", n, n)
+            return pages
         if not kind:
             raise ScanError("这份试卷PDF是扫描图片（没有文字层），需要系统自带OCR来认题号：Mac 需要 Mac App 版（自带Vision），Windows 需要装中文OCR；"
                             "其他环境请先把PDF转成带文字的PDF再导入")
@@ -575,4 +585,6 @@ def split(paths, pdf_file, season, engine=None, part_sizes=None):
         modules[mock.MODULE_OF.get(board, board)] = modules.get(mock.MODULE_OF.get(board, board), 0)+len(nums)
     return {"season": season, "total": result["total"], "found": len(result["questions"]), "missing": result["missing"],
             "modules": modules, "boards": {b: len(n) for b, n in written.items()}, "materials": len(result["materials"]),
-            "split_log": "按版面拆分：认出 %d/%d 题，%d 组材料" % (len(result["questions"]), result["total"], len(result["materials"]))}
+            "skipped_pages": [i+1 for i in SKIPPED],
+            "split_log": "按版面拆分：认出 %d/%d 题，%d 组材料%s" % (len(result["questions"]), result["total"], len(result["materials"]),
+                                                    ("；第%s页没有文字（本机也没有文字识别），这些页上的题号没法认" % "、".join(str(i+1) for i in SKIPPED)) if SKIPPED else "")}
