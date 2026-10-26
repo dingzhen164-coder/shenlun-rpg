@@ -219,6 +219,27 @@ class DigestTests(unittest.TestCase):
         data=self.get();self.assertEqual(len(data['items']),1)
         self.assertEqual(data['progress'][item['id']],'remember')
 
+    def test_notice_tag_lines_are_dropped_on_import_but_the_text_after_them_stays(self):
+        """讲义每篇都夹着“【重要提醒】”标签：单独一行的整行去掉；标签后面跟着正文的只去标签。"""
+        out=digest.parse_pdf(self.pdf(['【重要提醒】','1.在________布局产能。','【重要提醒】','【重要提醒】这一句是正文，要保留。','2.支持____发展。']).read_bytes())
+        texts=[x['text'] for x in out]
+        self.assertFalse(any('重要提醒' in t for t in texts),texts)
+        self.assertIn('这一句是正文，要保留。',' '.join(texts))
+        self.assertEqual(len(digest.BLANK.findall(''.join(texts))),2)
+        self.assertGreaterEqual(digest.RV,5,'识别规则升级后，旧版导入过的同一份PDF再导入会按新规则重新识别')
+
+    def test_reset_clears_only_the_check_marks_of_this_list(self):
+        file=self.pdf(['1.在____布局产能。','2.自编未知政策提出________要求。']);self.send(file)
+        first,second=self.get()['items']
+        api.ROUTES[('POST','/api/wanxiang/digest/fill')]({'target':self.target,'id':second['id'],'text':'自编答案'})
+        second=self.get()['items'][1];self.mark(first);self.mark(second,'forgot')
+        data=self.get();self.assertEqual((data['counts']['seen'],data['counts']['forgot']),(2,1))
+        result=api.ROUTES[('POST','/api/wanxiang/digest/reset')]({'target':self.target})
+        self.assertEqual(result['counts']['seen'],0);self.assertEqual(result['counts']['forgot'],0)
+        self.assertEqual([p['a'] for p in result['items']],['主产区','自编答案'],'重置不动原文答案，也不动你补全的答案')
+        self.assertEqual(len(result['paragraphs']),len(self.get()['paragraphs']))
+        self.mark(result['items'][0]);self.assertEqual(self.get()['counts']['seen'],1,'重置后可以接着再核对')
+
     def test_highlight_cancel_does_not_remove_pdf_blank_or_progress(self):
         self.send(self.pdf(['1.在____布局产能。']));item=self.get()['items'][0];self.mark(item)
         with api.open_game(save=False) as g:text=politics.source(g.paths,dict(source='atlas',material='m1'))['text']

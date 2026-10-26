@@ -142,7 +142,7 @@ function render(){
  if(journal){$('#atlasSearchBar').hidden=true;parent.STUDY_LAMP?.reader(null);const kind=view;WX_JOURNAL.render(app,kind,()=>view===kind&&!!window.frameElement?.isConnected);return;}
  if(window.frameElement?.isConnected)parent.STUDY_LAMP?.reader(!query&&(view==='material'||view==='practice')?{key:'atlas:'+EXAM+':'+(view==='material'?selected:'practice'),board:'政治理论'}:null);
  app.innerHTML=query?searchView():({sprint:sprintView,category:categoryView,theme:themeView,material:materialView,materials:sprintView,practice:practiceView}[view]||sprintView)();
- if(view==='material'&&tab==='original'&&!query){const material=mat(selected);WORD_NOTES.mount(app.querySelector('.original'),{source:'atlas',exam:EXAM,material:selected},{highlights:true,onChange:reading=>{material.reading=reading;}});}
+ if(view==='material'&&tab==='original'&&!query){const material=mat(selected);WORD_NOTES.mount(app.querySelector('.original'),{source:'atlas',exam:EXAM,material:selected},{highlights:true,bulkHost:app.querySelector('.atlas-reading-tools'),bulkBefore:app.querySelector('.atlas-status-inline'),onChange:reading=>{material.reading=reading;}});}
  if(view==='material'&&tab==='understand'&&!query){
   const current=mat(selected);
   if(current.digestData)WANXIANG_DIGEST.bind(app.querySelector('.sprint-digest'),current.digestData,data=>{const y=scrollY;current.digestData=data;render();scrollTo(0,y);});

@@ -337,7 +337,7 @@
     const v = ROOT, $$ = (s) => v.querySelectorAll(s), $1 = (s) => v.querySelector(s);
     window.WORD_NOTES?.close();
     if(MODE==='cloze'){const current=CUR;WANXIANG_DIGEST.bind(v.querySelector('.sprint-digest'),CUR.data.digest,async data=>{if(CUR!==current)return;const fresh=await api('/api/wanxiang/journal/get',{kind:current.kind,id:current.id});if(CUR===current){current.data=fresh.data;current.progress=fresh.progress;current.stat=fresh.stat;keepScroll(renderIssue);}});}
-    if(MODE==='read'){const current=CUR,index=NEWS;window.WORD_NOTES?.mount($1('.wxj-news-body'),{source:'wanxiang_journal',kind:CUR.kind,id:CUR.id,news:NEWS},{highlights:true,onChange:async reading=>{if(CUR!==current)return;current.data.reading[index]=reading;const fresh=await api('/api/wanxiang/journal/get',{kind:current.kind,id:current.id});if(CUR===current){current.data=fresh.data;current.stat=fresh.stat;}}});}
+    if(MODE==='read'){const current=CUR,index=NEWS;window.WORD_NOTES?.mount($1('.wxj-news-body'),{source:'wanxiang_journal',kind:CUR.kind,id:CUR.id,news:NEWS},{highlights:true,bulkHost:$1('.wxj-news-head'),onChange:async reading=>{if(CUR!==current)return;current.data.reading[index]=reading;const fresh=await api('/api/wanxiang/journal/get',{kind:current.kind,id:current.id});if(CUR===current){current.data=fresh.data;current.stat=fresh.stat;}}});}
     $1("#wxjBack").onclick = close;
     $1("#wxjContents").onclick=()=>{TOC_OPEN=!TOC_OPEN;renderIssue();};
     $$("[data-mode]").forEach((a) => (a.onclick = () => { MODE = a.dataset.mode; store.set("mode", MODE); renderIssue(); window.scrollTo(0, 0); }));

@@ -89,7 +89,7 @@ def reading(pp, src):
     custom = politics.read_json(pp.train/'时政重点'/(politics.identity(src)+'.json'), {'added': [], 'removed': []}) if pp is not None else {}
     valid = lambda rows: [r for r in rows if isinstance(r, list) and len(r) == 2 and all(type(x) is int for x in r) and 0 <= r[0] < r[1] <= len(whole)]
     spans = subtract(valid(spans)+valid(custom.get('added', [])), valid(custom.get('removed', [])))
-    return {'ranges': spans}
+    return {'ranges': spans, 'edited': bool(valid(custom.get('added', [])) or valid(custom.get('removed', [])))}
 
 
 def mark(pp, src, body):
@@ -103,5 +103,20 @@ def mark(pp, src, body):
         own, other = ('added', 'removed') if body['enabled'] else ('removed', 'added')
         data[own] = merge(data.get(own, [])+[span])
         data[other] = subtract(data.get(other, []), [span])
+        politics.atomic_json(file, data)
+        return reading(pp, src)
+
+
+def clear(pp, src, on):
+    """这一篇一键取消全部红标记（on=True）或恢复成原来的红标记（on=False）。
+    只改“训练/时政重点”里的added/removed，不动原文、批注、消化清单的空和进度，不发奖励、不调AI。"""
+    from . import politics
+    with politics._LOCK:
+        file = pp.train/'时政重点'/(politics.identity(src)+'.json')
+        if on:
+            data = politics.read_json(file, {'added': [], 'removed': []})
+            data = {'added': [], 'removed': merge(list(data.get('removed', [])) + reading(pp, src)['ranges'])}
+        else:
+            data = {'added': [], 'removed': []}
         politics.atomic_json(file, data)
         return reading(pp, src)
