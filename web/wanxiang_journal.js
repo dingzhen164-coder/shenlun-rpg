@@ -366,10 +366,12 @@
     $$("[data-news]").forEach((a) => (a.onclick = () => { NEWS = +a.dataset.news; renderIssue(); window.scrollTo(0, 0); }));
     const rd = $1("#wxjRead");
     if (rd) rd.onclick = async () => {
-      const was = CUR.progress.read.includes(NEWS);
+      const current=CUR,index=NEWS,was=current.progress.read.includes(index);
       try {
-        await mark({ read: NEWS, off: was ? 1 : 0 });
-        if (!was && NEWS < CUR.data.news.length - 1) NEWS++;
+        await mark({ read: index, off: was ? 1 : 0 });
+        // 保存期间已切页/换条目时，不重建新页面（会吞掉正在按下的空位点击）。
+        if(CUR!==current||MODE!=='read'||NEWS!==index)return;
+        if (!was && NEWS < current.data.news.length - 1) NEWS++;
         renderIssue(); window.scrollTo(0, 0);
       } catch (e) { showError(e); }
     };
