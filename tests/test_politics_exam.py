@@ -88,6 +88,34 @@ class ExamTests(unittest.TestCase):
         self.assertEqual(questions[2]['letters'],['A','B','C','D'],'etc.不当选项')
         self.assertEqual((report['repaired'],report['guessed']),(2,1))
 
+    def test_screenshot_ocr_pdf_noise_is_cleaned(self):
+        """用户真实的“截图转PDF+OCR文字层”冲刺卷（自编同样的错法，原文不进仓库）：页眉页脚夹在题中间、并排选项y有抖动、
+        陈述编号①被认成1/5、题号“7.”认成“乙.”、小黑标签括号不配对、“C绿色”丢了点、进人/自已。"""
+        doc=fitz.open()
+        def page(items):
+            pg=doc.new_page(width=595,height=842)
+            for x,y,text in items:pg.insert_text((x,y),text,fontname='china-s',fontsize=11)
+        page([(90,50,'Hey、上岸吧！'),(380,54,'@公考小黑老师'),(180,120,'黑十专项卷一 测试'),
+              (60,140,'1.【小黑政治理论】下列说法正确的有几项？'),(80,158,'1坚持甲'),(80,176,'②坚持乙'),(80,194,'③坚持丙'),(80,212,'④坚持丁'),(80,230,'3坚持戊，体现自已国情'),
+              (360,250,'D.5项'),(60,250.4,'A.2项'),(260,251,'C.4项'),(160,249.3,'B.3项'),
+              (90,790,'抖音关注公考小黑老师'),(300,780,'1'),(400,792,'时政要点即时学')])
+        page([(440,50,'Hey，土岸吧！'),(110,54,'@公考小黑老师'),
+              (60,100,'乙.（小黑政治理论】进人新时代，下列说法正确的有几项？'),(80,118,'①甲'),(80,136,'②乙'),(80,154,'③丙'),(80,172,'④丁'),
+              (60,190,'A.①②'),(160,190.8,'B.①②3'),(260,189.5,'c.@④'),(360,190.2,'D.3④'),
+              (60,220,'3.（小黑政治理论）第三题：'),(60,238,'A.甲'),(60,256,'B.乙'),(60,274,'C丙'),(60,292,'D.丁'),
+              (90,790,'抖音关注公考小黑老师'),(300,780,'2'),(400,792,'时政要点即时学')])
+        with doc:
+            papers,questions,report=exam.parse(doc,'x.pdf')
+        self.assertEqual(len(papers),1);self.assertEqual([q['no'] for q in questions],[1,2,3],'乙.认成第2题，第3题的小括号标签也认')
+        one,two,three=[q['text'] for q in questions]
+        self.assertNotIn('上岸',one+two+three);self.assertNotIn('抖音',one+two+three);self.assertNotIn('时政要点',one+two+three)
+        self.assertEqual(one.split('\n')[-4:],['A.2项','B.3项','C.4项','D.5项'],'并排选项按从左到右，不被y抖动打乱')
+        self.assertIn('\n①坚持甲\n',one);self.assertIn('\n⑤坚持戊',one,'1/3按顺序改回①/⑤');self.assertIn('自己国情',one)
+        self.assertTrue(two.startswith('【小黑政治理论】进入新时代'));self.assertEqual(two.split('\n')[-4:],['A.①②','B.①②③','C.@④','D.③④'],'①②③出现次数并列，没把握就保持“@”，不乱猜')
+        self.assertNotIn('符号推测',questions[1]['flags'])
+        self.assertTrue(three.startswith('【小黑政治理论】第三题'),'括号配对统一');self.assertIn('C.丙',three);self.assertEqual(questions[2]['letters'],['A','B','C','D'])
+        self.assertEqual(report['incomplete_count'],0)
+
     def test_symbols_that_cannot_be_decided_are_left_alone(self):
         stem=['①甲','②乙','③丙','④丁'];opts=[('A','①@'),('B','@④')]
         self.assertEqual(exam.repair_symbols(stem,opts),(0,0));self.assertEqual(opts,[('A','①@'),('B','@④')],'并列、没把握就不补，不乱猜')

@@ -1124,4 +1124,5 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 ### 冲刺刷题：OCR符号容错与导入答案（2026-10-26，开发分支，版本号未定，待统一验证发布）
 - `politics_exam.split_options`认小写“c.”（须正好接上下一个选项字母）；`repair_symbols`把OCR错成“@”的①–⑩补回：先按“选项内数字递增且卡在前后之间只剩一个可能”确定，再按“各数字出现次数均衡”推测（标`符号推测`），没把握不补；题干里以“@”开头的陈述按前一条编号顺延。导入报告增加`repaired/guessed`；题目flags随题存入`补充.json`，卡片显示“选项不全/符号推测”提示。
 - 导入答案：`POST /api/politics/answers {exam, material, text|pdf}` → `politics_exam.apply_answers`，答案按套卷内题号（`no`）写回`补充.json`中这一套的题（`answer`），已有答案覆盖；返回`filled/changed/same/missing/unknown`。界面在冲刺刷题页（`atlas.js answerImport`）：选套卷、粘贴或选.txt/答案页PDF。判分沿用原有`q.answer`。
+- 冲刺刷题对“截图转PDF+OCR”文字层的容错（2026-10-26，用户原件验证）：`_rows`改为视觉行排序、自动识别跨页重复的页眉页脚；`LOOSE_START`识别“乙.（小黑…】”这类被OCR改掉的题号；陈述编号按顺序重排、数字陈述/选项还原为圈数字；缺点的选项字母补点；`fix_words`修“进人/自已”。详见踩坑记录.md。
 
