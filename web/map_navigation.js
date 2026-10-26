@@ -75,7 +75,7 @@
     if(e.key==='Escape'&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!e.metaKey&&closeTransient()){e.preventDefault();e.stopImmediatePropagation();return;}
     const id=Object.keys(bindings).find(id=>bindings[id]===chord(e));if(!id)return;
     if(e.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])')&&e.key!=='Escape')return;
-    if(document.querySelector('.narrative-dialog,.xc-guide-dialogue,dialog[open],[role="dialog"],.modal:not(.hidden),.img-zoom')||document.documentElement.classList.contains('drawing'))return;
+    if(document.querySelector('.narrative-dialog,.xc-guide-dialogue,.ln-stage,dialog[open],[role="dialog"],.modal:not(.hidden),.img-zoom')||document.documentElement.classList.contains('drawing'))return;
     // 输入、临时层保留Tab；普通页面（含设置）返回地图，Shift+Tab继续移动焦点。
     e.preventDefault();e.stopImmediatePropagation();toggle(id).catch(err=>actions.error(err));
   },true);

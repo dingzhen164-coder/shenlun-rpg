@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-615c34f6-0829-4da7-9adb-eb0981964d23.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-0.png",
+      "path": "/workspace/generated_images/exec-06fad3f8-1003-4ba3-9f86-9d8ece2a2cb1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3bd191adc28f8a8cf6f4dbb1ca408ea7f1d46e1b9ce0ef9a7744430e3d010732"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-1.png",
+      "path": "/workspace/generated_images/exec-bfffab7a-d74b-4610-ad61-60e423e29492.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2f622cd5c78e6160fad323cf34ae3fedfd62836800126c81aa134ed181792459"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-2.png",
+      "path": "/workspace/generated_images/exec-9a56f365-53d1-468f-aeec-6ed7d9aec5d2.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "efc12a69ecba3df664dd213458ff166befba857c0bad9bec0f98dd3c4c4773ae"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-3.png",
+      "path": "/workspace/generated_images/exec-f8b63eba-61fd-449f-b9f9-69da41d79893.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "d72323a9e792d2d7781c04239cf9d7a95e229eb5baaaac8a9ec0446dcfe49c4a"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-4.png",
+      "path": "/workspace/generated_images/exec-d22de125-4eca-4d15-b5df-5c0c27a6acdb.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "b25e1418dcdc676aeb9dc3d6502c573b257ce4eb1b06095e67870e8258e9cabe"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-5.png",
+      "path": "/workspace/generated_images/exec-7cd30fe5-7e0b-4b1a-90be-f25e9c487c31.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "8dccf77e9dd348d1d115d72d465b26818a2612adac9f19a9b7f31ca02d096bc6"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-6.png",
+      "path": "/workspace/generated_images/exec-bf1ea9b0-1c7a-40bd-a902-4ba21a09c8ac.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "086d4870b58111d7229fbcf205e96d60c58ef40d2048b6c8cad8c85e8903f356"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/tianji-dusk/ref-7.png",
+      "path": "/workspace/generated_images/exec-c8e6b184-22bf-4bf6-8c5e-94c598946a61.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "5f99e8f2ca3ef27277713c0376a68dd7859df5579c30dfd0fd4b9f9aa5e05c44"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/tianji-dusk.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3085710,
+  "sha256": "b8068f1c24f8fb5bb5fc7ec9a2e06c2caf8277eeebcaefae880d83de1eb058fa"
+}

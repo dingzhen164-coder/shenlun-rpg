@@ -43,9 +43,9 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   assert.deepEqual(await p.evaluate(()=>[...document.querySelectorAll('[data-portal-go]')].map(e=>[e.dataset.portalGo,e.style.cssText])),await p.evaluate(()=>__positions));
   // 只截本次变更外观，页面离开后不得有孤立画布继续绘制。
   const out=path.resolve('ui-artifacts/scene364');fs.mkdirSync(out,{recursive:true});if(label==='desktop')await p.screenshot({path:path.join(out,subject+'-home-night.png')});
-  await p.evaluate(()=>go('dwelling'));await p.waitForFunction(()=>getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('dwelling-growth-night.webp'));
+  await p.evaluate(()=>go('dwelling'));await p.waitForFunction(subject=>getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes(subject==='行测'?'dwelling-night.webp':'dwelling-growth-night.webp'),subject);
   const frames=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(100);assert.equal(await p.evaluate(()=>__fx.clear),frames);assert.equal(await p.evaluate(()=>__fx.detached),0);
-  await p.evaluate(()=>{window.__content=document.querySelector('#view').firstElementChild;localStorage.setItem('scene-time','day');SCENE_FX.apply();});await p.waitForFunction(()=>getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes('dwelling-growth.webp'));
+  await p.evaluate(()=>{window.__content=document.querySelector('#view').firstElementChild;localStorage.setItem('scene-time','day');SCENE_FX.apply();});await p.waitForFunction(subject=>getComputedStyle(document.querySelector('#bgLayer')).backgroundImage.includes(subject==='行测'?'dwelling-day.webp':'dwelling-growth.webp'),subject);
   assert(await p.evaluate(()=>__content===document.querySelector('#view').firstElementChild));
   await p.evaluate(()=>{localStorage.setItem('scene-time','night');SCENE_FX.apply();});
   for(const v of ['train','skeleton','notes','tianji','settings',...(subject==='行测'?['bank','contest']:[])]){

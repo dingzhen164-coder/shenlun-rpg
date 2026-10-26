@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-0141a349-5c02-475b-8f4b-9fa686eae6b4.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-0.png",
+      "path": "/workspace/generated_images/exec-95836d5f-6308-4355-b8a0-c3ca8c9363c0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "924e4917fc06d413729a34c9ddf418fdf4b90f7731b40f70610d1d952b0db2d1"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-1.png",
+      "path": "/workspace/generated_images/exec-c22182c4-efe8-445f-a2ae-6141194bbd06.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a66b7f23291c6b5dec0c4e0a6a12c9535170b79cb3b2d4c178b58f3ecc5b2714"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-2.png",
+      "path": "/workspace/generated_images/exec-d449f55a-3e06-4f6b-a9e5-3e13e87981be.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "581eded944b2d9f18a7d4e8c5f79eb8cc32e66d9b03f77ab03895403aa92c7eb"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-3.png",
+      "path": "/workspace/generated_images/exec-b0a09fca-3c06-42a5-98dd-5761ba3815ac.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "46a2825e136a2fd44cf125b37d6ac1bc97d4885f47e98352ebea5d2096960171"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-4.png",
+      "path": "/workspace/generated_images/exec-c2dddd4f-5cce-47ba-b92a-4a77b98656e1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3025141df6496f61ace7def639e4a80658d82ec77711c986f56bd1e1f3561275"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-5.png",
+      "path": "/workspace/generated_images/exec-7f91594a-250a-4f1c-bc91-c9c21801533b.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dcefa508407d367f082b8ce4d31a1852353061d35b1d816a151988123035218b"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-6.png",
+      "path": "/workspace/generated_images/exec-11639261-7de6-453e-925b-fa4cf5e3c173.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "04e55568ff1d55eeacbdee49c5c7e1f5fcf604626aca9e9b9b1393534a921b2d"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/contest-dusk/ref-7.png",
+      "path": "/workspace/generated_images/exec-b71a12c8-bdd0-48e1-8d99-290bd5ea59ec.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2100b817a3cf480dbcb69a01679b9752c4f17be7a39bf78dde9abdf6b804af64"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/contest-dusk.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3347164,
+  "sha256": "6eb1e0a6d4bdf0e252bfb7b6ead879a17120d0fa7a4c58193ca41e55720f6e8c"
+}

@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-8d13f33c-323e-4941-b8a2-f3085025461d.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-77e820b3-0389-457a-918d-2e6f82d45ed5.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ba283ee35114f42a63aada40fd99be56f43d91a05e610f52ea2791f4bea2c1d4"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-0bf65ad1-ed4d-4f24-beb2-8f5d3ed93437.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "a5ff8c6d0c0187c67f2873cb55ee201cedd4f827050c274635d892af3fe5fc8a"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-266cefb7-d8e3-492a-a4cb-4638947ded5c.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "e5a22d4994fe290e84f735a1ed43946df86131c36eb7d1d5897e28a2dc968780"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-e9ab2eca-40d8-4e94-9849-e88d88ab28d0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "37c911f41f30ee01b2acc876ae392d753ae2f918f1303bc48300a7a79abeee53"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-f19aff08-1f43-4f11-89a6-1dd0cbe54576.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "57cd9064c21451bd008b1ed7f8eb243fa57748ad66b94b944855e11be4d2c50a"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-517d6ccc-682d-438f-9568-e46ad678ef20.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3b6a07312b63753a6fd98484ce9c3884dcd04caa09df52a81ee5851ffab64e24"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-185fbb1b-8218-4c60-8465-6841d4f8c88a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "1fba7561083a16e6885444ef8494d35138ccfcc245d43f80954e5368b5c081f3"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art381-work/skeleton-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-74eb309a-6108-4965-8acd-59a2c8f4d176.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "aea479167c24888ce945dd3657a4356e9b25970a0b7df47ed011495c1ddadbc5"
+    }
+  ],
+  "method": "native-portrait-tiles-rgb-low-frequency-alignment",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "/workspace/shenlun-rpg/web/assets/beauty/scenes/xingce/hd/381/skeleton-day.webp",
+  "actual": [
+    3840,
+    2880
+  ],
+  "bytes": 3175198,
+  "sha256": "43012245fb14d80c3013c369845b67cbfa1112d51004504b15c187b39fa55d36"
+}

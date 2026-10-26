@@ -3,6 +3,17 @@
 # 开发顺序：先在 shenlun-rpg 开发验证，一个功能批次完成后用 --pull 转到 fakao-rpg。
 
 # ---- shared ----
+# 3.8.1行测专属视觉与导图增强；法考保留既有独立美术/阅读器。
+diverged web/hollow381.js
+diverged web/hollow381.css
+diverged web/scenes381.css
+diverged web/mindmap_tools381.js
+diverged web/mindmap381.css
+diverged tests/ui_art381.cjs
+diverged tests/ui_hollow381.cjs
+diverged tests/ui_mindmap381.cjs
+diverged tests/test_art381.py
+diverged tools/art381_pack.cjs
 diverged rpg/politics_digest.py
 diverged web/wanxiang_digest.js
 diverged tests/test_politics_digest.py
