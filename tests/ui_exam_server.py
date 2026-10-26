@@ -30,14 +30,16 @@ def main():
                 vaults[subject] = str(v)
             paths.save_settings({'subject': '行测', 'vaults': vaults})
 
-            def fake_split(paths_, body):
-                if '拆分失败' in body['file']:
-                    raise importer.ImportError_('拆分失败：\n共解析0题（自编日志：这份PDF的版式拆分脚本不认识）')
-                number = int(body['file'].split('季')[0].lstrip('第'))
+            from rpg import exam_scan
+
+            def fake_split(paths_, pdf, number, engine=None, part_sizes=None):
+                if '拆分失败' in Path(pdf).name:
+                    raise exam_scan.ScanError('拆分失败：\n共解析0题（自编日志：这份PDF的版式拆分脚本不认识）')
+                exam_scan.set_progress('识别页面文字', 3, 10)
                 blank_paper(paths_.train/('模考复盘/第%d季' % number), unknown={5, 6})
-                return {'ready': 130, 'fix': 0}
-            importer.split_pdf = fake_split
-            importer.split_script = lambda p: True
+                return {'found': 130, 'total': 130, 'missing': [], 'modules': {'政治理论': 20, '常识判断': 15, '言语理解': 30, '数量关系': 10, '判断推理': 35, '资料分析': 20},
+                        'split_log': '按版面拆分：认出 130/130 题'}
+            exam_scan.split = fake_split
             importer.has_pymupdf = lambda: True
             with api.open_game() as g:
                 blank_paper(g.paths.train/'模考复盘/第1001季')

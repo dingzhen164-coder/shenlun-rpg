@@ -1126,3 +1126,9 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - 导入答案：`POST /api/politics/answers {exam, material, text|pdf}` → `politics_exam.apply_answers`，答案按套卷内题号（`no`）写回`补充.json`中这一套的题（`answer`），已有答案覆盖；返回`filled/changed/same/missing/unknown`。界面在冲刺刷题页（`atlas.js answerImport`）：选套卷、粘贴或选.txt/答案页PDF。判分沿用原有`q.answer`。
 - 冲刺刷题对“截图转PDF+OCR”文字层的容错（2026-10-26，用户原件验证）：`_rows`改为视觉行排序、自动识别跨页重复的页眉页脚；`LOOSE_START`识别“乙.（小黑…】”这类被OCR改掉的题号；陈述编号按顺序重排、数字陈述/选项还原为圈数字；缺点的选项字母补点；`fix_words`修“进人/自已”。详见踩坑记录.md。
 
+### 整卷模考：扫描版试卷拆分（`rpg/exam_scan.py`，2026-10-26，随3.8.1）
+- 流程：`api.exam_import` 分三步——`exam_room.plan_import`（占编号，拿存档锁）→ `run_split`（几分钟，不拿存档锁；有文字层且装了旧脚本先走旧脚本，失败或没有文字层改走 `exam_scan.split`）→ `finish_import`（登记名称）；`/api/exam/progress` 给网页轮询（`exam_scan.PROGRESS`）。
+- `exam_scan.ocr_pages`：每页文字行 `{t,x0,y0,x1,y1}`（0~1）。文字层 ≥30字直接读；否则OCR：Mac `_ocr_mac`（Vision，行级框）、Windows `_ocr_windows`（一次PowerShell处理全部页面图，逐页JSON）、开发机 `_ocr_rapid`；都没有给出明确提示。
+- `analyze(pages)`：忽略页脚；按视觉行排序；识别 PART（第N部分+共M题）、SUB（图形推理/定义判断/…）、GROUP（根据所给材料回答a～b题）、MARK（请回答a～b题）、END（※※※…结束）、题号（顺序接续，容许丢1~2个）；`_fill_gaps` 补丢失的题号；`segments` 为每题/每组材料的裁剪段（页、y0、y1）。
+- 写出：`训练/模考复盘/第N季/NN-板块.md` + `attachments/Q001-1.jpg`、`M111-115-1.jpg`；格式与旧拆分一致，所以答题/批改/大比/复盘全部沿用。已有复盘文件的季不覆盖。
+

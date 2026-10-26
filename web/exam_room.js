@@ -31,8 +31,8 @@
    <form class="er-answers" data-er-answer-form="${p.season}" hidden><label><span>粘贴答案（如 <code>1-20 BCDAB…</code> 或每行 <code>1.A 2.B</code>）</span><textarea rows="4" data-er-answer-text></textarea></label><label><span>或选择答案文件（.txt / 答案页 PDF）</span><input type="file" accept=".txt,.pdf,text/plain,application/pdf" data-er-answer-file></label><div class="er-form-row"><button type="submit" class="primary">保存答案</button><span class="er-note" role="status"></span></div></form></article>`;
  }
  function homeHtml(d){
-  const ready=d.split_ready&&d.pymupdf;
-  const importer=`<details class="er-import"><summary>＋ 导入模拟试卷</summary><form data-er-import-form><label><span>试卷名称（会原样显示在宗门大比里）</span><input type="text" maxlength="40" placeholder="如：花生26下模拟卷第一套" data-er-name></label><label><span>试卷 PDF（题目 + 选项，约 130 题）</span><input type="file" accept=".pdf,application/pdf" data-er-pdf></label>${ready?'':`<p class="er-warn">${!d.split_ready?'PDF 拆分需先安装 xingce-mokao-split。':'PDF 缺少 pymupdf 组件。'}也可以先到“宗门大比 → 录入”导入。</p>`}<div class="er-form-row"><button type="submit" class="primary" ${ready?'':'disabled'}>导入并拆分</button><span class="er-note" role="status" data-er-import-note></span></div></form></details>`;
+  const ready=d.pymupdf;
+  const importer=`<details class="er-import"><summary>＋ 导入模拟试卷</summary><form data-er-import-form><label><span>试卷名称（会原样显示在宗门大比里）</span><input type="text" maxlength="40" placeholder="如：花生26下模拟卷第一套" data-er-name></label><label><span>试卷 PDF（题目 + 选项，约 130 题）</span><input type="file" accept=".pdf,application/pdf" data-er-pdf></label><p class="er-note">${ready?(d.ocr?'支持带文字的 PDF，也支持整页是图片的扫描卷（会用本机的文字识别找题号，约 1～3 分钟）。':'这台电脑没有可用的文字识别，只能导入带文字的 PDF；扫描图片版需要 Mac App 或装了中文 OCR 的 Windows。'):'PDF 缺少 pymupdf 组件，请使用完整电脑安装包。'}</p><div class="er-form-row"><button type="submit" class="primary" ${ready?'':'disabled'}>导入并拆分</button><span class="er-note" role="status" data-er-import-note></span></div></form></details>`;
   return `<p class="er-error" data-er-error role="alert" hidden></p><div class="er-intro"><h3>整卷模拟考试</h3><p>限时 <b>${d.minutes}</b> 分钟，全卷连续作答；交卷后批改并给分，成绩按试卷名称记进“宗门大比”，同时记一次模拟训练。分模块练习请走右边的“板块”。</p></div>${importer}
    <div class="er-list" aria-label="试卷列表">${d.papers.map(paperRow).join('')||'<p class="er-empty">还没有可考的试卷。先用上面的“导入模拟试卷”导入一份 PDF。</p>'}</div>`;
  }
@@ -59,12 +59,14 @@
     if(form.hasAttribute('data-er-import-form')){
      const name=form.querySelector('[data-er-name]').value.trim(),file=form.querySelector('[data-er-pdf]').files[0],note=form.querySelector('[data-er-import-note]');
      if(!name)return void(note.textContent='先给试卷起个名字');if(!file)return void(note.textContent='先选择试卷 PDF');
-     btn.disabled=true;homeError('');note.textContent='上传并拆分中，一份约需一两分钟，请稍候…';
+     btn.disabled=true;homeError('');note.textContent='上传中…';
+     const poll=setInterval(async()=>{try{const p=await hooks.api('/api/exam/progress',{});if(p.stage)note.textContent=p.stage+(p.total?` ${p.page}/${p.total}`:'')+(p.question?` · 第${p.question}题`:'')+'（请稍候，别关这个面板）';}catch(_){}},1200);
      try{const data=await readFile(file,40*1048576),r=await hooks.api('/api/exam/import',{name,data});
-      note.textContent='';await load();const row=home.querySelector(`[data-er-season="${r.season}"] .er-paper-main small`);
-      const msg=home.querySelector('.er-intro');msg?.insertAdjacentHTML('afterend',`<p class="er-ok" role="status">已导入「${esc(r.name)}」：${r.total} 题，其中 ${r.keyed} 题带答案${r.keyed<r.total?'。缺答案的题可在下面“导入答案”补上，也可以先考，交卷时这些题不判分':''}。</p>`);void row;
+      note.textContent='';await load();
+      const mods=Object.entries(r.modules||{}).map(([k,v])=>k+' '+v).join(' · '),gaps=(r.missing||[]).length;
+      home.querySelector('.er-intro')?.insertAdjacentHTML('afterend',`<p class="er-ok" role="status">已导入「${esc(r.name)}」：共 ${r.total} 题${mods?'（'+esc(mods)+'）':''}，其中 ${r.keyed} 题带答案${r.keyed<r.total?'。这份试卷没带答案，可在下面“导入答案”补上，也可以先考，交卷时这些题不判分':''}。${gaps?` <b>有 ${gaps} 道题没认出来（第 ${r.missing.slice(0,12).join('、')} 题），请对照原卷。</b>`:''}${r.total&&r.total!==130?` 注意：不是 130 题，成绩估分会按“题量不一致”处理。`:''}</p>`);
      }catch(error){note.textContent='';homeError('导入「'+name+'」失败：'+failText(error));}
-     finally{if(btn.isConnected)btn.disabled=false;}
+     finally{clearInterval(poll);if(btn.isConnected)btn.disabled=false;}
      return;
     }
     if(form.hasAttribute('data-er-answer-form')){
