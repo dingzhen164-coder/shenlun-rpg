@@ -328,8 +328,8 @@ def start(g, task):
         if last:
             if g.resting():
                 raise TrainError(f"{g.T('qi')}预警：还需调息 {g.resting()} 分钟。去喝口水、走两步，回来再修炼。")
-            return peak_tutors.attach(g, _resume(g, task, last), ALL)
-    r = peak_tutors.attach(g, _start(g, task), ALL)
+            return _teacher_response(g, peak_tutors.attach(g, _resume(g, task, last), ALL))
+    r = _teacher_response(g, peak_tutors.attach(g, _start(g, task), ALL))
     s = ALL.get(r.get("session"))
     if s and s["type"] in LOG_TYPES and s.get("iid"):
         _log(g, s["id"], "", r)
@@ -340,15 +340,89 @@ def start(g, task):
 
 
 def reply(g, sid, text):
-    r = peak_tutors.attach(g, _reply(g, sid, text), ALL)
+    r = _teacher_response(g, peak_tutors.attach(g, _reply(g, sid, text), ALL))
     _log(g, sid, (text or "").strip(), r)
     return r
 
 
 def action(g, sid, act):
-    r = peak_tutors.attach(g, _action(g, sid, act), ALL)
+    if str(act).startswith("skill_teacher:"):
+        s = ALL.get(sid)
+        if not s or g.subject != "行测":
+            raise TrainError("会话已结束，请重新打开复盘")
+        board = peak_tutors.session_board(g, s)
+        who = act[len("skill_teacher:"):]
+        if who not in [r["name"] for r in skillbook.teachers(g.paths, board)]:
+            raise TrainError("这位老师没有当前板块的心法，请重新选择")
+        run = g.state.get("bank", {}).get("runs", {}).get(s.get("board"), {})
+        if s["type"] in ("bank", "bank_review") and run.get("phase") != "review":
+            raise TrainError("请在交卷复盘后选择老师")
+        s.setdefault("skill_teachers", {})[board] = who
+        # 不重新讲题、不调用AI、不清空历史，也不结算奖励。
+        if s["type"] in ("bank", "bank_review"):
+            r = _review_show(g, s, run, head=True)
+        elif s["type"] == "mock_review":
+            r = _mreview_show(g, s, head=True)
+        else:
+            r = _resp(s, [], input=s.get("last_input") or {"mode": "none"})
+    else:
+        r = _action(g, sid, act)
+    r = _teacher_response(g, peak_tutors.attach(g, r, ALL))
     _log(g, sid, "", r)
     return r
+
+
+def _selected_teacher(g, s, board):
+    rows = skillbook.teachers(g.paths, board) if g.subject == "行测" else []
+    selected = s.get("skill_teachers", {}).get(board)
+    if selected and not any(r['name'] == selected for r in rows):
+        raise TrainError("所选老师的心法已不存在，请重新进入复盘选择老师；未自动改用其他老师")
+    return selected if any(r["name"] == selected for r in rows) else (rows[0]["name"] if rows else None)
+
+
+def _teacher_brief(name, board):
+    return {"id": "skill:" + name, "name": name, "role": board + "心法老师", "avatar": skillbook.teacher_avatar(name)}
+
+
+def _teacher_persona(g, board, teacher=None):
+    import copy
+    original = peak_tutors.persona(g, board)
+    if not teacher or teacher == skillbook.LEGACY_TEACHER:
+        return original
+    result = copy.copy(original)
+    result.d = dict(original.d, 导师名=teacher, 导师人设="你是游戏中代表所选心法的Q版学习助手，依据%s提供的文档讲题；不冒充现实老师，不编造其经历或原话。" % teacher)
+    return result
+
+
+def _teacher_response(g, response):
+    if g.subject != "行测":
+        return response
+    s = ALL.get(response.get("session"), {})
+    if not s or s.get("type") not in ("bank", "bank_review", "mock_review", "wrong"):
+        return response
+    # 正式答题阶段不展示选择器，不能让选老师遮住试卷。
+    if response.get("battle", {}).get("phase") not in (None, "review"):
+        return response
+    board = peak_tutors.session_board(g, s)
+    rows = skillbook.teachers(g.paths, board)
+    selected = _selected_teacher(g, s, board)
+    response["skill_teachers"] = {"board": board, "selected": selected, "options": [{k: r[k] for k in ("name", "avatar")} for r in rows]}
+    for msg in response.get('messages', []):
+        if msg.get('skill_mentor'):
+            msg['mentor'] = {k:msg['skill_mentor'].get(k,'') for k in ('id','name','role','avatar')}
+            if msg.get('fold') == '🧙 师傅解惑' and str(msg['mentor'].get('id','')).startswith('skill:'):
+                msg['fold'] = '🧙 ' + msg['mentor']['name'] + '解惑'
+    if selected and selected != skillbook.LEGACY_TEACHER:
+        brief = _teacher_brief(selected, board)
+        old = response.get("mentor", {}).get("name", "师傅")
+        response["mentor"] = brief
+        for msg in response.get("messages", []):
+            if msg.get("who") == "npc" and not msg.get("history"):
+                if not msg.get('skill_mentor'):
+                    msg["mentor"] = brief
+        for b in (response.get("input") or {}).get("buttons", []):
+            b["label"] = b["label"].replace(old, selected)
+    return response
 
 
 def _start(g, task):
@@ -628,13 +702,13 @@ def _skill_name(g, board):
     return g.boards.get(board, {}).get("skill") or SIDE_SKILLS.get(board) or ""
 
 
-def _tutor_material(g, board):
+def _tutor_material(g, board, teacher=None):
     """讲题资料 (文字, 读到的清单)：只读藏经阁·心法里这个板块自己的文件；板块是空的就没有 skill 可依据"""
-    return skillbook.tutor_material(g.paths, board) or ("", [])
+    return skillbook.tutor_material(g.paths, board, teacher) or ("", [])
 
 
-def _skill_digest(g, board):
-    return _tutor_material(g, board)[0]
+def _skill_digest(g, board, teacher=None):
+    return _tutor_material(g, board, teacher)[0]
 
 
 def _plain_digest(g, board):
@@ -644,18 +718,24 @@ def _plain_digest(g, board):
 
 def _discuss_ask(g, s, text, independent=False):
     d = s["discuss"]
+    teacher = _selected_teacher(g, s, d['board'])
+    # 切换老师保留旧对话，但AI只接到当前老师的追问链。
+    ctx = dict(d, history=d.get('teacher_history', {}).get(teacher, []) if teacher not in (None, skillbook.LEGACY_TEACHER) else d.get('history', []))
     if not ai.available():
         return [_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。") +
                      "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题、回答追问。）")]
     try:
-        messages = (prompts.bank_explain(peak_tutors.persona(g,d['board']), {'stem':d.get('question',''), 'options':{}, 'board':d['board']},
-                    digest=_skill_digest(g,d['board']),skill=_skill_name(g,d['board']))
-                    if independent else prompts.discuss(peak_tutors.persona(g,d['board']),d,_skill_digest(g,d['board']),text))
+        messages = (prompts.bank_explain(_teacher_persona(g,d['board'],teacher), {'stem':d.get('question',''), 'options':{}, 'board':d['board']},
+                    digest=_skill_digest(g,d['board'],teacher),skill=teacher or _skill_name(g,d['board']))
+                    if independent else prompts.discuss(_teacher_persona(g,d['board'],teacher),ctx,_skill_digest(g,d['board'],teacher),text))
         r = prompts.plain_math(ai.chat(messages, temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
-    d["history"] += [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
-    d["history"] = d["history"][-10:]
+    history = ctx['history'] + [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
+    if teacher not in (None, skillbook.LEGACY_TEACHER):
+        d.setdefault('teacher_history', {})[teacher] = history[-10:]
+    else:
+        d["history"] = history[-10:]
     return [_msg("npc", r, fold="🧙 师傅解惑" if independent else None)]
 
 
@@ -1392,11 +1472,17 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
         if line:
             msgs.append(_msg('npc', line))
     if str(i) in run.get('explain', {}):
-        msgs.append(_msg('npc', run['explain'][str(i)],fold='🧙 师傅解惑'))
+        msg = _msg('npc', run['explain'][str(i)],fold='🧙 师傅解惑')
+        author = run.get('explain_teacher', {}).get(str(i))
+        msg['skill_mentor'] = _teacher_brief(author, q['board']) if author and author != skillbook.LEGACY_TEACHER else (peak_tutors.profile(g, q['board']) or {})
+        msgs.append(msg)
     elif question_bank.TUTOR_HEAD not in (q['analysis'] or '') and q['id'] in question_bank.tutor_notes(g.paths):   # 旧版存在单独文件里的
         msgs.append(_msg('sys', question_bank.tutor_notes(g.paths)[q['id']], fold='🧙 上次的师傅解惑'))
     for h in run.get('chat', {}).get(str(i), []):          # 这道题上追问师傅的对话
-        msgs.append(_msg('me' if h['role'] == 'user' else 'npc', h['content']))
+        msg = _msg('me' if h['role'] == 'user' else 'npc', h['content'])
+        if h.get('teacher'):
+            msg['skill_mentor'] = _teacher_brief(h['teacher'], q['board'])
+        msgs.append(msg)
     msgs += extra or []
     wrong_after = [k for k in range(i + 1, len(qs)) if not res[k]['ok']]
     btns = [('exam_explain:%s' % i, '🧙 师傅解惑' if str(i) not in run.get('explain', {}) else '🧙 再问师傅')]
@@ -1435,8 +1521,9 @@ def _review_action(g, s, run, act):
         mat = split_stem(qs[i]['board'], qs[i]['stem'])[0] if qs[i]['board'] in GROUP_BOARDS else ''
         if mat:                  # 一拖五：这段条件下的几道题一起讲，讲解存进每一道
             return _bank_group_explain(g, s, run, i, mat)
-        text, skill, used = _explain(g, qs[i], res[i])
+        text, skill, used = _explain(g, qs[i], res[i], _selected_teacher(g, s, qs[i]['board']))
         run.setdefault('explain', {})[str(i)] = text
+        run.setdefault('explain_teacher', {})[str(i)] = _selected_teacher(g, s, qs[i]['board'])
         question_bank.save_tutor_note(g.paths, qs[i], text, g.t)        # 备份一份（历年题库重新转换时不丢）
         where = question_bank.save_tutor_to_bank(g.paths, qs[i], text, g.t)
         note = ('📌 已写进 训练/题库/%s 这道题的解析末尾（原解析保留；再问一次会换成新的）' % where if where
@@ -1458,12 +1545,12 @@ def _review_action(g, s, run, act):
 GROUP_BOARDS = ("一拖五",)      # 一段条件管几道题：师傅解惑整组一起讲，几道题共用一份讲解
 
 
-def _explain_group(g, board, material, items):
+def _explain_group(g, board, material, items, teacher=None):
     """一拖五：材料 + 这组几道题一起交给师傅（按板块 skill）。items 见 prompts.group_explain。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, board)
-    digest, used = _tutor_material(g, board)
+    digest, used = _tutor_material(g, board, teacher) if teacher is not None else _tutor_material(g, board)
     try:
-        text = prompts.plain_math(ai.chat(prompts.group_explain(peak_tutors.persona(g, board), material, items, digest=digest, skill=skill, board=board), temperature=0.5, max_tokens=2800))
+        text = prompts.plain_math(ai.chat(prompts.group_explain(_teacher_persona(g, board, teacher), material, items, digest=digest, skill=teacher or skill, board=board), temperature=0.5, max_tokens=2800))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
@@ -1489,10 +1576,11 @@ def _bank_group_explain(g, s, run, i, mat):
         group = [q for q in qs if same(q)]
     items = [{"label": q['id'], "stem": split_stem(board, q['stem'])[1] + "\n" + "\n".join("%s. %s" % kv for kv in q['options'].items()),
               "answer": q['answer'], "mine": mine.get(q['id']) or "（这次没做）"} for q in group]
-    text, skill, used = _explain_group(g, board, mat, items)
+    text, skill, used = _explain_group(g, board, mat, items, _selected_teacher(g, s, board))
     for k, q in enumerate(qs):
         if same(q):
             run.setdefault('explain', {})[str(k)] = text
+            run.setdefault('explain_teacher', {})[str(k)] = _selected_teacher(g, s, board)
     saved = 0
     for q in group:
         question_bank.save_tutor_note(g.paths, q, text, g.t)
@@ -1502,12 +1590,12 @@ def _bank_group_explain(g, s, run, i, mat):
     return _review_show(g, s, run, extra=[_msg('sys', note)], scroll_bottom=True)
 
 
-def _explain(g, q, r):
+def _explain(g, q, r, teacher=None):
     """师傅解惑：按这道题所属板块的 skill 讲题。返回 (讲解, skill 名, 读到的 skill 文件)"""
     skill = _skill_name(g, q['board'])
-    digest, used = _tutor_material(g, q['board'])
+    digest, used = _tutor_material(g, q['board'], teacher) if teacher is not None else _tutor_material(g, q['board'])
     try:
-        text = prompts.plain_math(ai.chat(prompts.bank_explain(peak_tutors.persona(g, q['board']), q, digest=digest, skill=skill), temperature=0.5, max_tokens=2400))
+        text = prompts.plain_math(ai.chat(prompts.bank_explain(_teacher_persona(g, q['board'], teacher), q, digest=digest, skill=teacher or skill), temperature=0.5, max_tokens=2400))
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     idioms.from_explanation(g,q,text)
@@ -1534,17 +1622,18 @@ def _review_chat(g, s, run, text):
     i = run.get("rpos", 0)
     q, r = run["questions"][i], run["results"][i]
     hist = run.setdefault("chat", {}).setdefault(str(i), [])
+    teacher = _selected_teacher(g, s, q['board'])
     if not ai.available():
         return _review_show(g, s, run, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
                                                                     + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
-    ctx = {"kind": "试炼复盘", "title": q["id"], "board": q["board"], "history": hist[-10:],
+    ctx = {"kind": "试炼复盘", "title": q["id"], "board": q["board"], "history": [{"role":h['role'],"content":h['content']} for h in hist if h.get('teacher') == teacher][-10:],
            "question": q["stem"] + "\n" + "\n".join("%s. %s" % kv for kv in q["options"].items()),
            "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
     try:
-        reply = prompts.plain_math(ai.chat(prompts.discuss(peak_tutors.persona(g, q["board"]), ctx, _skill_digest(g, q["board"]), text), temperature=0.6, max_tokens=1500))
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, q["board"],teacher), ctx, _skill_digest(g, q["board"],teacher), text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
-    hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+    hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
     return _review_show(g, s, run, scroll_bottom=True)
 
 
@@ -1678,9 +1767,15 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         if line:
             msgs.append(_msg("npc", line))
     if str(i) in s["explain"]:
-        msgs.append(_msg("npc", s["explain"][str(i)],fold="🧙 师傅解惑"))
+        msg = _msg("npc", s["explain"][str(i)],fold="🧙 师傅解惑")
+        author = s.get('explain_teacher', {}).get(str(i))
+        msg['skill_mentor'] = _teacher_brief(author, s['board'] or s['source']) if author and author != skillbook.LEGACY_TEACHER else (peak_tutors.profile(g, s['board'] or s['source']) or {})
+        msgs.append(msg)
     for h in s["chat"].get(str(i), []):
-        msgs.append(_msg("me" if h["role"] == "user" else "npc", h["content"]))
+        msg = _msg("me" if h["role"] == "user" else "npc", h["content"])
+        if h.get('teacher'):
+            msg['skill_mentor'] = _teacher_brief(h['teacher'], s['board'] or s['source'])
+        msgs.append(msg)
     msgs += extra or []
     btns = [("mr_explain:%d" % i, "🧙 师傅解惑" if str(i) not in s["explain"] else "🧙 再问师傅")]
     if i > 0:
@@ -1741,8 +1836,9 @@ def _mreview_action(g, s, act):
         q = qs[i]
         if s["source"] in GROUP_BOARDS and q.get("material"):     # 一拖五：整组一起讲
             return _mreview_group_explain(g, s, i)
-        text, skill, used = _explain(g, _mreview_pq(s, q), {"answer": q["mine"] or "未作答"})
+        text, skill, used = _explain(g, _mreview_pq(s, q), {"answer": q["mine"] or "未作答"}, _selected_teacher(g, s, s["board"] or s["source"]))
         s["explain"][str(i)] = text
+        s.setdefault("explain_teacher", {})[str(i)] = _selected_teacher(g, s, s["board"] or s["source"])
         where = vault.save_tutor_note(g.paths, q["key"], text, g.t)
         note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
                 else "📌 没找到这道题的复盘文件，讲解没存下来")
@@ -1773,11 +1869,12 @@ def _mreview_group_explain(g, s, i):
             for x in vault.parse_board_file(vault.board_file(d, s["source"]))]
     group = [x for x in allq if x["material"] == q["material"]] or [q]
     items = [{"label": "第%s题" % x["num"], "stem": x["body"], "answer": x["correct"], "mine": x["mine"] or "未作答"} for x in group]
-    text, skill, used = _explain_group(g, s["board"] or s["source"], vault.material_text(q), items)
+    text, skill, used = _explain_group(g, s["board"] or s["source"], vault.material_text(q), items, _selected_teacher(g, s, s["board"] or s["source"]))
     nums = {x["num"] for x in group}
     for k, x in enumerate(s["qs"]):
         if x["num"] in nums:
             s["explain"][str(k)] = text
+            s.setdefault('explain_teacher', {})[str(k)] = _selected_teacher(g, s, s['board'] or s['source'])
     saved = [x["num"] for x in group if vault.save_tutor_note(g.paths, x["key"], text, g.t)]
     note = ("📌 一拖五整组讲解：第 %s 题共用这一份，已写进这 %d 道题的复盘笔记（再问一次会换成新的）" % (
         "、".join(str(n) for n in sorted(nums)), len(saved))) + _skill_note(skill, used)
@@ -1792,11 +1889,12 @@ def _mreview_chat(g, s, text):
         return _mreview_show(g, s, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
                                                                  + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
     pq = _mreview_pq(s, q)
-    ctx = {"kind": "大比复盘", "title": "%s 第%s题" % (_sname(g, s["season"]), q["num"]), "board": pq["board"], "history": hist[-10:],
+    teacher = _selected_teacher(g, s, pq['board'])
+    ctx = {"kind": "大比复盘", "title": "%s 第%s题" % (_sname(g, s["season"]), q["num"]), "board": pq["board"], "history": [{"role":h['role'],"content":h['content']} for h in hist if h.get('teacher') == teacher][-10:],
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
-        reply = prompts.plain_math(ai.chat(prompts.discuss(peak_tutors.persona(g, pq["board"]), ctx, _skill_digest(g, pq["board"]), text), temperature=0.6, max_tokens=1500))
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, _skill_digest(g, pq["board"],teacher), text), temperature=0.6, max_tokens=1500))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
-    hist += [{"role": "user", "content": text}, {"role": "assistant", "content": reply}]
+    hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
     return _mreview_show(g, s, scroll_bottom=True)

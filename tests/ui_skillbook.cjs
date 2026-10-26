@@ -30,7 +30,7 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   assert.equal(await page.locator('.skb-tome').count(),view.length,'一个板块一本书');
   assert.equal(view.filter(b=>b.n_files>0).length,1,'只有预置的一个板块有内容，其余为空');
   assert.equal(await page.locator('.skb-tome.none').count(),view.length-1,'空板块的书是灰的');
-  assert.match(await page.locator('.skb-zj-card').textContent(),/总诀/);
+  assert.equal(await page.locator('.skb-zj-card,.skb-tip').count(),0,'移除教学说明和总诀');assert.equal(await page.locator('[data-skb="teachers-import"]').count(),subject==='行测'?1:0);
   if(subject==='行测')assert((await page.locator('.skb-tome').first().evaluate(e=>getComputedStyle(e).animationName)).includes('tome-float'),'有浮动动画');
   // 内容先渲染，场景容器由后续RAF建立；确认容器可见后再测量，不放宽铺满断言。
   await page.locator('#view .scene-panel').waitFor();
@@ -97,21 +97,11 @@ async function fit(page,tag){assert.deepEqual(await page.evaluate(()=>{const e=[
   await page.setInputFiles('#skbPick',skill);await page.locator('.skb-note').filter({hasText:/已导入：新增 3 个、覆盖 0 个/}).waitFor();
   assert.equal(await page.locator('.skb-chip').count(),3);
   const after=await page.evaluate(()=>api('/api/skillbook'));assert.equal(after.boards.filter(b=>b.n_files>0).length,2);
-  // 8 心法总诀：四份文件、复制、下载
-  await page.locator('[data-skb="shelf"]').click();await page.waitForSelector('.skb-root.shelf .skb-zj-card');
-  await page.locator('.skb-zj-card').click();await page.waitForSelector('.skb-zj-text');
-  assert.equal(await page.locator('[data-skb-zj]').count(),5,'五份文件');
-  assert.match(await page.locator('.skb-zj-text').textContent(),/提取|例题/);
-  await page.locator('[data-skb-zj="使用流程.md"]').click();await page.waitForFunction(()=>/导入 skill/.test(document.querySelector('.skb-zj-text')?.textContent||''));
-  await page.locator('[data-skb-zj="配置-空白模板.md"]').click();await page.waitForFunction(()=>/固定清单/.test(document.querySelector('.skb-zj-text')?.textContent||''));
-  await fit(page,label+' 总诀');
-  await page.locator('[data-skb="zj-copy"]').click();await page.locator('.skb-note').filter({hasText:/已复制|复制失败/}).waitFor();
-  const [dl]=await Promise.all([page.waitForEvent('download'),page.locator('a.skb-dl').click()]);
-  assert.match(decodeURIComponent(dl.url()),/\/zongjue-file\?f=配置-空白模板\.md/);   // 文件名由服务端 Content-Disposition 给（无头浏览器不一定显示中文名，这里只核对地址和内容）
-  const txt=fs.readFileSync(await dl.path(),'utf8');assert.match(txt,/固定清单/);
+  // 总诀入口、复制/下载功能均已删除。
   await page.locator('[data-skb="shelf"]').click();await page.waitForSelector('.skb-root.shelf .skb-tome');
+  assert.equal(await page.locator('[data-skb-zj],.skb-zj-text,.skb-zj-card').count(),0);
   const t0=Date.now();await page.evaluate(()=>{go('home')});await page.evaluate(()=>{LIB.tab='skillbook';go('skeleton');});await page.waitForSelector('.skb-tome');
   assert(Date.now()-t0<2500,'再次进入立即出书架');
-  assert.deepEqual(errors,[]);await page.close();service.kill();console.log(subject+' '+label+'：空板块/看/改/历史/冲突/新建改名删除/导入/总诀 通过');
+  assert.deepEqual(errors,[]);await page.close();service.kill();console.log(subject+' '+label+'：空板块/看/改/历史/冲突/新建改名删除/导入/旧总诀移除 通过');
  }
 }catch(e){if(active&&!active.isClosed()){fs.mkdirSync(out,{recursive:true});await active.screenshot({path:path.join(out,'failure-'+subject+'.png')}).catch(()=>{});}throw e;}finally{await browser?.close();service?.kill();}})().catch(e=>{console.error(e);process.exit(1);});

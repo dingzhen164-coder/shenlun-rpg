@@ -13,7 +13,7 @@ for key in ('DEEPSEEK_API_KEY', 'SHENLUN_AI_BASE_URL', 'SHENLUN_SUBJECT', 'XINGC
 
 def install(g):
     from rpg import question_bank as bank
-    names = bank.boards(g)[:2]
+    names = ['逻辑填空', '片段阅读'] if '--teachers-fixture' in sys.argv else bank.boards(g)[:2]
     for board in names:
         text = ''
         for paper in range(1, 31):
@@ -57,7 +57,18 @@ def main():
             paths.save_settings({'subject': '行测', 'vaults': vaults})
             with api.open_game() as g:
                 install(g)
-            api.ai.available = lambda: False
+            api.ai.available = lambda: '--teachers-fixture' in sys.argv
+            if '--teachers-fixture' in sys.argv:
+                def fake_chat(messages, **kwargs):
+                    text = str(messages)
+                    if '猫专属标记' in text and '句号专属标记' in text:
+                        raise AssertionError('不能混入两位老师的心法/历史')
+                    if '猫专属标记' in text:
+                        return '猫专属讲解：按所选完整文档核对条件。'
+                    if '句号专属标记' in text:
+                        return '句号专属讲解：按所选完整文档核对条件。'
+                    return '自编测试回复'
+                api.ai.chat = fake_chat
             server = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
             api.RUNTIME.update(port=server.server_port, lan=False)
             print('UI-READY http://127.0.0.1:%d' % server.server_port, flush=True)

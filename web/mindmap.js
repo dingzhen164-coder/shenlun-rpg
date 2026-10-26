@@ -352,7 +352,6 @@
     if(!initial)savePosition();const inst=mm,current=CUR,view=!initial&&mm?validView(mm.view.getTransformData()):null;
     for(const id of ['lnZoomIn','lnZoomOut'])document.getElementById(id)?.toggleAttribute('disabled',mode==='document');
     viewMode=mode;body.dataset.mode=mode;document.getElementById('lnCanvas').hidden=mode==='document';document.getElementById('lnMarkdown').hidden=mode==='map';
-    const tools=document.querySelector('.mm381-tools');if(tools)tools.hidden=mode==='document';
     document.querySelectorAll('[data-ln-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lnMode===mode)));
     requestAnimationFrame(()=>{if(mm!==inst||CUR!==current||!body.isConnected)return;try{if(mode!=='document'){inst.resize();if(view)inst.view.setTransformData(view);}const doc=document.getElementById('lnMarkdown');if(mode!=='map'){doc.scrollTop=current.readScroll?.top||0;doc.scrollLeft=current.readScroll?.left||0;}}catch(_){}});
   }

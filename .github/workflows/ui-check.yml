@@ -131,6 +131,7 @@ jobs:
               ['node', 'tests/ui_tablet_shell.cjs', '--subject=行测'],
               ['node', 'tests/ui_tablet_shell.cjs', '--subject=申论'],
               ['node', 'tests/ui_skillbook.cjs', '--subject=行测'],
+              ['node', 'tests/ui_skill_teachers.cjs'],
               ['node', 'tests/ui_skillbook.cjs', '--subject=申论'],
               ['node', 'tests/ui_tutor_format.cjs', '--subject=行测'],
               ['node', 'tests/ui_tutor_format.cjs', '--subject=申论'],

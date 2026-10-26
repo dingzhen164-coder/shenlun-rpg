@@ -1,11 +1,11 @@
-/* 行测外壳镂空分类：只标记界面容器，正文/图表/输入与做题/书写工作区受保护。
+/* 行测轻透框分类：只标记有实际面板的容器，不给布局骨架层层叠磨砂；学习区受保护。
  * 不替换DOM，不改事件/存档；异步模块重绘后重新分类。index.html调用，其他科目不启用。
  */
 (() => {
  'use strict';
  const blocked='.train,.tj-q,.yj-stage:not(.ln-stage),.exam-room,.er-run,.er-stage,.er-dialog,.ex-paper,.sl-writing,.nt-book,.nt-pages,.draw-wrap,.wn-pop,.msgs,.question,.wxj-q,.sprint-document-body:has(.question)';
  const paper='.original,.sprint-document-body,.sprint-digest,.wxj-news,.wxj-digest-paper,.tj-news,.tj-cloze,.tj-cl,.an-conv,.ctable,table,.mods,.skb-read,.skb-preview,.skb-editor,.ln-canvas,.ln-document,.ln-reading-body,.yj-slip,.id-detail,.id-content,.chart,.mk-table,.tbl,.roots,.conds,.narrative-paper,.xc-guide-paper,.mock-rewards .fold,.warn,.error,.nt-reader,.ar-body,.ar-text,.md';
- const shells='.fx-shell,.fx-panel,.fx-frame,.fx-region-detail,.subpage-heading,.card,.stat,.study-hud-player,.study-hud-world,.lib-head,.lib-tabs,.fx-tabs,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.tome-slot,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.th-dialog,.cs-dialog,.th-selection,.th-block-notes,.th-stele,.th-heading,.th-dialog-head,.th-filters,.th-stats,.cs-heading,.cs-foot,.th-actions,.th-panels,.th-pane,.cs-pane,.task-board,.narrative-quests,.narrative-chapters';
+ const shells='.fx-panel,.fx-frame,.subpage-heading,.card,.stat,.study-hud-player,.study-hud-world,.lib-head,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.tome-slot,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.th-dialog,.cs-dialog,.th-block-notes,.th-stele,.task-board,.narrative-quests,.narrative-chapters';
  let pending=false;
  function mount(){
   pending=false;const body=document.body;if(!body)return;

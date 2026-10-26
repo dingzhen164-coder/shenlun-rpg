@@ -762,7 +762,7 @@ def skillbook_view(body):
 def skillbook_plan(body):
     """打开某个板块时才算的“解惑会读到什么”（慢，带缓存）"""
     with open_game(save=False) as g:
-        return _skill_call(skillbook.plan, g.paths, _skill_board(g, body.get("board")))
+        return _skill_call(skillbook.plan, g.paths, _skill_board(g, body.get("board")), body.get("teacher"))
 
 
 def skillbook_file(body):
@@ -823,11 +823,18 @@ def skillbook_import(body):
         return _skill_call(skillbook.import_package, g.paths, board, str(body.get("name") or ""), data)
 
 
-def skillbook_zongjue(body):
-    """心法总诀：{file?}；不带 file 返回清单，带 file 返回那一份的全文（随程序发布，只读）"""
-    if body.get("file"):
-        return _skill_call(skillbook.zongjue_read, str(body["file"]))
-    return {"files": skillbook.zongjue_list()}
+def skillbook_import_teachers(body):
+    """按文件名分发多老师文档；preview只报告、不写文件。"""
+    import base64
+    try:
+        data = base64.b64decode(str(body.get("data") or "").split(",")[-1], validate=True)
+    except (ValueError, TypeError):
+        raise ApiError("文件数据不对")
+    with open_game(save=False) as g:
+        if g.subject != "行测":
+            raise ApiError("多老师心法目前只用于行测")
+        return _skill_call(skillbook.import_teachers, g.paths, _skill_boards(g),
+                           str(body.get("name") or ""), data, body.get("preview") is True)
 
 
 def skeletons(body):
@@ -1458,7 +1465,7 @@ ROUTES = {
     ("POST", "/api/skillbook/restore"): skillbook_restore,
     ("POST", "/api/skillbook/plan"): skillbook_plan,
     ("POST", "/api/skillbook/import"): skillbook_import,
-    ("POST", "/api/skillbook/zongjue"): skillbook_zongjue,
+    ("POST", "/api/skillbook/teachers/import"): skillbook_import_teachers,
     ("GET", "/api/wrong"): wrong,
     ("POST", "/api/heartbeat"): heartbeat,
     ("POST", "/api/study-lamp/start"): study_lamp_start,
@@ -2181,22 +2188,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", mimetypes.guess_type(p.name)[0] or "application/octet-stream")
                 self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % quote(p.name))
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-                return True
-        if url.path == "/zongjue-file" and method == "GET":     # 心法总诀的四份文件（随程序发布，只读）：给“下载 .md”按钮用，平板 App 里也能下载
-            if lan.authorized(addr, self.headers.get("Cookie")):
-                try:
-                    f = skillbook.zongjue_read(unquote(parse_qs(url.query).get("f", [""])[0]))
-                except skillbook.SkillError as e:
-                    self._send(404, {"error": str(e)})
-                    return True
-                from urllib.parse import quote
-                data = f["text"].encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "text/markdown; charset=utf-8")
-                self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % quote(f["file"]))
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)

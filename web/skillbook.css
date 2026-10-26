@@ -62,11 +62,15 @@
 .md .md-table th,.md .md-table td{border:1px solid var(--line);padding:var(--ds-sp-4) var(--ds-sp-8);text-align:left;vertical-align:top}
 .md .md-table th{background:var(--panel2)}
 .md hr{border:0;border-top:1px solid var(--line);margin:1em 0}
-.skb-zj-card{display:flex;flex-direction:column;gap:var(--ds-sp-4);align-items:flex-start;text-align:left;width:min(560px,92%);margin:var(--ds-sp-4) auto var(--ds-sp-8);padding:var(--ds-sp-12) var(--ds-sp-16);border:1px solid var(--accent);border-radius:var(--ds-r-8);background:var(--panel);color:var(--text);font:inherit}
-.skb-zj-text{margin:0;padding:var(--ds-sp-12);border-radius:var(--ds-r-6);background:var(--panel2);white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:var(--ds-fs-13);line-height:1.7;user-select:text}
-.skb-dl{display:inline-block;padding:var(--ds-sp-4) var(--ds-sp-12);border:1px solid var(--line);border-radius:var(--ds-r-6);background:var(--panel);color:var(--text);text-decoration:none;font-size:var(--ds-fs-13)}
 .tutor-md{line-height:1.75;font-size:inherit}
 .tutor-md p{margin:.5em 0}
 .tutor-md .md-tablewrap{margin:.5em 0}
 .tutor-md .md-table{min-width:100%;font-size:.95em}
 .tutor-md .md-table th{white-space:nowrap}
+/* 多老师选择与批量导入；控制宽度，不占用整排教学说明。 */
+.skb-import-bar{display:flex;align-items:center;gap:var(--ds-sp-12);flex-wrap:wrap;padding:var(--ds-sp-8)}
+.skb-teacher-label{display:grid;gap:var(--ds-sp-4);margin:var(--ds-sp-12) 0;font-size:var(--ds-fs-13)}
+.skb-teacher-label select{width:100%;max-width:100%;min-height:var(--ds-touch)}
+.review-skill-teacher{display:flex;align-items:center;gap:var(--ds-sp-8);flex-wrap:wrap;margin-bottom:var(--ds-sp-4);font-size:var(--ds-fs-13)}
+.review-skill-teacher select{min-height:var(--ds-touch);max-width:min(320px,100%)}
+.review-teacher-avatar{display:block;width:40px;height:40px;object-fit:contain;flex:none;border-radius:var(--ds-r-6)}

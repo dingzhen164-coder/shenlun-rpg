@@ -19,6 +19,7 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
 
   }
   let f=await enter();await page.locator('.npc-encounters').waitFor({state:'detached'});await columns(f,'.sprint-welcome');assert.equal(await f.locator('.sprint-group').count(),4);
+  await f.locator('.sprint-index.hx381-shell').waitFor();const frost=await f.locator('.sprint-index').evaluate(e=>{const s=getComputedStyle(e);return{bg:s.backgroundColor,blur:s.backdropFilter||s.webkitBackdropFilter,border:s.borderTopWidth,edge:s.borderTopColor};});assert.notEqual(frost.bg,'rgba(0, 0, 0, 0)','目录必须有轻透底板');assert.match(frost.blur,/blur\(/,'目录保留背景虚化');assert.equal(frost.border,'1px');assert.notEqual(frost.edge,'rgba(0, 0, 0, 0)','目录保留细边线');
   await f.locator('[data-material=m1]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();await columns(f,'.sprint-document-body');
   { // 所有标题不加红：标题块不渲染标红且用正文墨色；正文标红保持。目录条目下显示字数而不是“未学·N题”。
    await f.locator('[data-material=m3]').click();await f.locator('.original[data-highlights-ready=true]').waitFor();

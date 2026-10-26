@@ -79,6 +79,8 @@
   }
   function bind(root,hooks){
     const host=root.querySelector('.trial-hall'),m=model;if(!host||!m||host.dataset.thBound)return;host.dataset.thBound='1';
+    const painted=host.querySelector('.th-painted');
+    if(painted)painted.insertAdjacentHTML('afterbegin','<div class="th-edge-fill" aria-hidden="true"><i class="th-edge-top"></i><i class="th-edge-bottom"></i><i class="th-edge-left"></i><i class="th-edge-right"></i></div>');
     const dialog=host.querySelector('.th-dialog');let opener=null;
     function close(){dialog.close();opener?.focus({preventScroll:true});}
     dialog.addEventListener('cancel',e=>{if(e.target!==dialog)return;e.preventDefault();close();});     // 文件选择框取消时的cancel事件会冒泡上来，不能把整个面板关掉（踩坑记录 2026-10-26）
@@ -126,7 +128,9 @@
         // 横向铺满：把4:3塔景放大到贴住左右两边，只裁掉底部多出的石阶；塔尖到两座山门一定留在画面内（保留上方78%）。
         // 竖屏等本来就比4:3窄的窗口仍整幅显示；超宽屏幕放大到保留78%为止，剩下的缝由同图模糊延伸补上。
         w=Math.max(contain,Math.min(bounds.width,bounds.height/(0.78*0.75)));
-      painting.style.width=w+'px';painting.style.height=w*3/4+'px';painting.classList.toggle('th-fill',w*3/4>bounds.height+1);const side=w<bounds.width-1&&w*3/4>=bounds.height-1;painting.classList.toggle('th-gap',side);painting.parentElement.classList.toggle('th-side-gap',side);}
+      painting.style.width=w+'px';painting.style.height=w*3/4+'px';painting.classList.toggle('th-fill',w*3/4>bounds.height+1);const side=w<bounds.width-1&&w*3/4>=bounds.height-1;painting.classList.toggle('th-gap',side);painting.parentElement.classList.toggle('th-side-gap',side);
+      const vertical=Math.max(0,(bounds.height-w*3/4)/2),horizontal=Math.max(0,(bounds.width-w)/2);
+      painting.parentElement.style.setProperty('--th-gap-y',vertical+'px');painting.parentElement.style.setProperty('--th-gap-x',horizontal+'px');painting.parentElement.classList.toggle('th-vertical-gap',vertical>1);}
       for(const [k,v]of Object.entries({width:r.width,height:r.height,left:r.left,top:r.top}))if(dialog.style.getPropertyValue('--th-'+k)!==v+'px')dialog.style.setProperty('--th-'+k,v+'px');
       dialog.classList.toggle('th-compact',r.height<520);
     }

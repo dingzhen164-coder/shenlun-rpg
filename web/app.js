@@ -619,7 +619,7 @@ const views = {
     else if (T.finished) composer = `<div class="row"><button class="primary" id="nextTask">下一项功课</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
     return `<div class="train">
       <div class="card chat ${MAT_OPEN && currentMaterial() ? "with-mat" : ""}">${sessionHead()}${materialPane()}<div class="msgs" id="msgs">${T.msgs.map(msgHtml).join("")}</div>
-        <div class="composer">${composer}</div></div></div>`;
+        <div class="composer">${T.skillTeachers?.options?.length?`<label class="review-skill-teacher">${T.mentor?.avatar?`<img class="review-teacher-avatar" src="${esc(T.mentor.avatar)}" alt="${esc(T.mentor.name)}的心法头像">`:''}心法老师<select id="reviewSkillTeacher" aria-label="复盘心法老师" ${T.busy?'disabled':''}>${T.skillTeachers.options.map(t=>`<option value="${esc(t.name)}" ${t.name===T.skillTeachers.selected?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`:''}${composer}</div></div></div>`;
   },
 
   async skeleton() {
@@ -1054,7 +1054,7 @@ function mountGuide() {
 async function startTask(body) {
   window.XC_GUIDE?.close();
   SESSION_SNAP = window.SETTLE ? SETTLE.snap() : null;
-  Object.assign(T, { session: null, title: "准备中…", mentor: null, msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
+  Object.assign(T, { session: null, title: "准备中…", mentor: null, skillTeachers:null, msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
   TRAIN_ROUTE = ["bank", "bank_review"].includes(body.task?.type) ? "bank" : "train";
   await go(TRAIN_ROUTE);
   try { applyResp(await api("/api/session/start", body)); }
@@ -1063,6 +1063,7 @@ async function startTask(body) {
 }
 let ASK_OPEN = false;     // 复盘时“师傅求助”打字框开着没有（换题就收起，追问中保持打开）
 function applyResp(r) {
+  T.skillTeachers=r.skill_teachers||null;
   T.mentor = r.mentor || null;
   T.session = r.session; T.title = r.title; T.busy = false; T_TYPE = r.type;
   if (r.replace && r.scroll !== 'bottom') ASK_OPEN = false;
@@ -1143,6 +1144,7 @@ function bindTrain() {
     $("#answer").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitText(); };
   }
   document.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => doAction(b.dataset.act)));
+  const teacher=document.getElementById('reviewSkillTeacher');if(teacher)teacher.onchange=()=>doAction('skill_teacher:'+teacher.value);
   const nx = $("#nextTask");
   if (nx) nx.onclick = () => {
     const t = (DASH?.plan?.tasks || []).find((x) => !x.done);
