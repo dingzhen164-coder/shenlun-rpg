@@ -153,7 +153,7 @@
       : q.material_source==='whole'&&(q.all_materials||[]).length>1 ? `<p class="small muted sl-material-notice">本题使用全部给定资料（题干没限定具体材料）<button class="ghost small" id="slMaterialPick">调整</button></p>`
       : (q.all_materials||[]).length>1 ? `<p class="small muted sl-material-notice">本题材料：${q.materials.map(m=>esc(m.label)).join('、')}（${source}）<button class="ghost small" id="slMaterialPick">调整</button></p>` : '';
     const tabs=q.materials.length>1?`<div class="sl-material-tabs row" role="tablist" aria-label="本题材料">${q.materials.map((m,i)=>`<button class="ghost small${(q.suggested_material_ids||[]).includes(m.id)?' sl-suggested':''}" role="tab" data-mat-tab="${i}" aria-selected="${i===0}">${esc(m.label)}</button>`).join('')}</div>`:'';
-    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span><button class="ghost small" id="slSplit" title="调整左右分栏宽度">⇔ 分栏</button><button class="ghost small" id="slStemToggle" aria-expanded="false">展开题干</button></div><div class="sl-task-scroll sl-stem-collapsed"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'').replace(/\n/g,'<br>')}</p>${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
+    return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span>${q.type==='大作文'?'<button class="ghost small" id="slEssay" title="审题立意、提纲点评">大作文助手</button>':''}<button class="ghost small" id="slSplit" title="调整左右分栏宽度">⇔ 分栏</button><button class="ghost small" id="slStemToggle" aria-expanded="false">展开题干</button></div><div class="sl-task-scroll sl-stem-collapsed"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'').replace(/\n/g,'<br>')}</p>${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
       <div class="sl-full-grid"><section class="card sl-materials${tabs||notice?' sl-has-label':''}"><div class="sl-material-toolbar">${SL_MATERIALS.toolbar()}<div class="sl-material-labels">${tabs}${notice}</div></div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article data-mat-article="${i}"${i?' class="sl-mat-off"':''}><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
       <section class="card sl-writing"><div class="row sl-write-top"><h3>我的作答</h3><b id="slElapsed" class="small">作答用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button><span class="spacer"></span><span class="small muted" id="slSaveStatus">已保存 · 有效编辑${Math.floor(B.seconds/60)}分钟</span><button class="ghost small" id="slDraftSave">保存</button>${SL_CARD.tools()}</div>
@@ -168,6 +168,37 @@
   const SPLITS=[['40:60','40%'],['50:50','50%'],['30:70','30%'],['60:40','60%']];
   const splitIndex=()=>{try{return Math.max(0,SPLITS.findIndex(x=>x[0]===localStorage.getItem('sl.split')));}catch(_){return 0;}};
   function applySplit(root,i){const v=SPLITS[i];root.style.setProperty('--sl-split',v[1]);const b=root.querySelector('#slSplit');if(b)b.textContent='⇔ 分栏 '+v[0];}
+  // 大作文助手：立意拆解 → 提纲点评；只给方向和判断，全文仍用原来的作答与综合批改。
+  function essayAnglesHtml(a) {
+    if(!a)return '<p class="small muted">还没拆解过。点下面按钮，AI会依据题干和材料列出几个可行的立意方向和易写偏的地方（不写范文）。</p>';
+    return `<p class="small"><b>任务：</b>${esc(a.task)}</p>${a.angles.map(x=>`<div class="sl-pt"><b>${esc(x.title)}</b><p>${esc(x.thesis)}</p><blockquote class="sl-ev">${esc(x.basis)}</blockquote><p class="small muted">易偏：${esc(x.risk||'—')}</p></div>`).join('')}${a.avoid.length?`<p class="small warn">避免：${a.avoid.map(esc).join('；')}</p>`:''}`;
+  }
+  function essayReviewHtml(r) {
+    if(!r)return '';
+    return `<div class="sl-pt"><b>中心论点：${esc(r.thesis.status)}</b><p class="small">${esc(r.thesis.reason)}</p></div>${r.parts.map(x=>`<div class="sl-pt"><blockquote class="sl-ev">${esc(x.quote)}</blockquote><p class="small">${esc(x.comment)}</p></div>`).join('')}${r.material_use.map(x=>`<div class="sl-pt"><blockquote class="sl-ev">${esc(x.quote)}</blockquote>${x.material_quote?`<p class="small muted">材料：${esc(x.material_quote)}</p>`:''}<p class="small">${esc(x.comment)}</p></div>`).join('')}<p><b>先改这一点：</b>${esc(r.next)}</p>`;
+  }
+  function bindEssay(root) {
+    const btn=root.querySelector('#slEssay');if(!btn)return;
+    btn.onclick=async()=>{
+      const dlg=document.createElement('dialog');dlg.className='sl-essay-dialog card';
+      dlg.innerHTML=`<div class="row"><h3>大作文助手</h3><span class="spacer"></span><button class="ghost small" data-essay-close>关闭</button></div>
+        <p class="small muted">先审题立意，再写提纲让AI点评，最后写全文。只给方向和判断，不代写；每一步会调用一次AI。</p>
+        <section><h4>1. 立意拆解</h4><div id="slEssayAngles" class="small muted">加载中……</div><button class="ghost small" id="slEssayAnglesRun">生成立意拆解</button></section>
+        <section><h4>2. 我的提纲</h4><textarea id="slEssayOutline" rows="7" spellcheck="false" placeholder="写出中心论点和各分论点，每条一两句话，不用写成文章。"></textarea>
+        <div class="row"><span class="small muted" id="slEssayStatus"></span><span class="spacer"></span><button class="ghost small" id="slEssaySave">保存提纲</button><button class="primary small" id="slEssayReview">提纲点评</button></div><div id="slEssayReviewBox"></div></section>`;
+      document.body.append(dlg);dlg.showModal();
+      const $=sel=>dlg.querySelector(sel),close=()=>{dlg.close();dlg.remove();};
+      dlg.querySelector('[data-essay-close]').onclick=close;dlg.addEventListener('cancel',()=>setTimeout(()=>dlg.remove(),0));
+      const run=async(button,action,extra,done)=>{button.disabled=true;const old=button.textContent;button.textContent='处理中……';try{done(await post('/api/shenlun/essay',{qid:S.qid,action,...extra}));}catch(e){toast(e.message);}button.disabled=false;button.textContent=old;};
+      const showState=d=>{$('#slEssayAngles').innerHTML=essayAnglesHtml(d.angles);$('#slEssayAnglesRun').textContent=d.angles?'重新生成':'生成立意拆解';$('#slEssayAnglesRun').dataset.again=d.angles?'1':'';$('#slEssayOutline').value=d.outline.text||'';$('#slEssayReviewBox').innerHTML=essayReviewHtml(d.outline.review);};
+      try{showState(await post('/api/shenlun/essay',{qid:S.qid}));}catch(e){$('#slEssayAngles').textContent=e.message;}
+      $('#slEssayAnglesRun').onclick=e=>run(e.target,'angles',{force:!!$('#slEssayAnglesRun').dataset.again},d=>{$('#slEssayAngles').innerHTML=essayAnglesHtml(d.angles);$('#slEssayAnglesRun').textContent='重新生成';$('#slEssayAnglesRun').dataset.again='1';});
+      $('#slEssaySave').onclick=e=>run(e.target,'outline_save',{text:$('#slEssayOutline').value},d=>{$('#slEssayStatus').textContent='已保存';$('#slEssayReviewBox').innerHTML=essayReviewHtml(d.outline.review);});
+      $('#slEssayReview').onclick=async e=>{const b=e.target;b.disabled=true;const old=b.textContent;b.textContent='点评中……';
+        try{await post('/api/shenlun/essay',{qid:S.qid,action:'outline_save',text:$('#slEssayOutline').value});const d=await post('/api/shenlun/essay',{qid:S.qid,action:'outline_review'});$('#slEssayReviewBox').innerHTML=essayReviewHtml(d.outline.review);$('#slEssayStatus').textContent='已点评';}
+        catch(err){toast(err.message);}b.disabled=false;b.textContent=old;};
+    };
+  }
   function bindLayout(root) {
     const $=s=>root.querySelector(s);
     const toggle=$('#slStemToggle'),box=$('.sl-task-scroll');
@@ -192,7 +223,7 @@
   function calibrationHtml(c,refs) {
     const run=refs?`<button class="ghost small" id="slCalibrateRun">${c?'重新校准':'开始校准'}</button> <span class="small muted">会让AI批改${Math.min(refs,2)}份参考答案，不计成绩、不给奖励。</span>`:'<span class="small muted">这道题没有参考答案，无法校准。</span>';
     if(!c)return `<p class="small muted">还没有校准过。评分标准由AI根据材料生成，非官方细则；校准能看出它对这道题偏严还是偏松。</p>${run}`;
-    return `<p><b>${esc(c.verdict)}</b></p>${c.results.map(x=>x.error?`<p class="small bad">${esc(x.source)}：试批失败（${esc(x.error)}）</p>`:`<p class="small">${esc(x.source)}：${x.total}/${x.full}（得分率${Math.round(x.rate*100)}%，${x.words}字）${x.missed.length?' · 未覆盖：'+x.missed.map(esc).join('、'):''}</p>`).join('')}<p class="small muted">校准于 ${esc(c.created)}</p>${run}`;
+    return `<p><b>${esc(c.verdict)}</b></p>${c.results.map(x=>x.error?`<p class="small bad">${esc(x.source)}：试批失败（${esc(x.error)}）</p>`:`<p class="small">${esc(x.source)}：${x.total}/${x.full}（得分率${Math.round(x.rate*100)}%，${x.words}字）${x.missed.length?' · 未覆盖：'+x.missed.map(esc).join('、'):''}</p>`).join('')}<p class="small muted">校准于 ${esc(c.created.replace("T"," "))}</p>${run}`;
   }
   function bindCalibration(box) {
     box.addEventListener('toggle',async e=>{
@@ -238,6 +269,7 @@
     ta.value=S.draftText||'';
     const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
     bindLayout(root);
+    bindEssay(root);
     bindCalibration(root.querySelector('#slRes'));
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
     B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);});

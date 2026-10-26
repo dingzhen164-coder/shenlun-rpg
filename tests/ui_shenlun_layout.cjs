@@ -43,7 +43,7 @@ async function main(){
  assert.equal(await page.locator('.sl-card-expanded').count(),0);
  const focus=await page.evaluate(()=>({m:document.querySelector('.sl-materials').getBoundingClientRect().width,w:document.querySelector('.sl-writing').getBoundingClientRect().width,vw:innerWidth}));
  assert.ok(focus.m<5&&focus.w>focus.vw*.9,'专注书写应收起材料栏 '+JSON.stringify(focus));
- assert.ok(await page.locator('[data-card="pen"]').isVisible());
+ assert.ok(await page.locator('[data-card="pen"]').isVisible());await shot('5-focus');
  await page.locator('[data-card="expand"]').click();
  assert.ok((await page.locator('.sl-materials').boundingBox()).width>200);
  // 手指默认滚动红格、不画笔；勾选后才书写
@@ -73,7 +73,14 @@ async function main(){
  assert.ok((await page.locator('#slViewResult').textContent()).includes('返回作答'));
  await page.locator('#slViewResult').click();await page.locator('#slAns').waitFor();assert.ok((await page.locator('#slViewResult').textContent()).includes('查看批改'));
  await page.locator('#slViewResult').click();await page.locator('.sl-calibrate summary').click();await page.locator('#slCalibrateRun').click();
- await page.locator('.sl-calibrate-body').filter({hasText:'得分率'}).waitFor();
+ await page.locator('.sl-calibrate-body').filter({hasText:'得分率'}).waitFor();await shot('6-calibrate');
+ // 大作文助手：立意拆解 + 提纲点评；小题没有入口
+ assert.equal(await page.locator('#slEssay').count(),0);
+ await page.locator('#slBack').click();await open(3);
+ await page.locator('#slEssay').click();await page.locator('#slEssayAnglesRun').click();await page.locator('#slEssayAngles').filter({hasText:'以人为本'}).waitFor();
+ await page.locator('#slEssayOutline').fill('中心论点：服务要以居民需求为中心。\n分论点：简化流程。');await page.locator('#slEssayReview').click();
+ await page.locator('#slEssayReviewBox').filter({hasText:'先补全中心论点'}).waitFor();
+ await shot('4-essay');await page.locator('[data-essay-close]').click();
  assert.deepEqual(errors,[]);
  }finally{await browser?.close();server.kill();}
 }

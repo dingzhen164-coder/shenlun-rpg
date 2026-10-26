@@ -73,7 +73,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -991,6 +991,19 @@ def shenlun_calibrate(body):
     return {"saved": _sl_bank(shenlun_review.calibrate, qid, rules, lambda msgs: ai.chat_json(msgs, max_tokens=6000))}
 
 
+def shenlun_essay_api(body):
+    """大作文写作支架：state / angles(+force) / outline_save(text) / outline_review。"""
+    qid, action = str(body.get("qid") or ""), body.get("action") or "state"
+    chat = lambda msgs: ai.chat_json(msgs, max_tokens=4000)
+    if action == "angles":
+        return {"angles": _sl_bank(shenlun_essay.angles, qid, chat, bool(body.get("force")))}
+    if action == "outline_save":
+        return {"outline": _sl_bank(shenlun_essay.outline_save, qid, body.get("text"))}
+    if action == "outline_review":
+        return {"outline": _sl_bank(shenlun_essay.outline_review, qid, chat)}
+    return _sl_bank(shenlun_essay.state, qid)
+
+
 def shenlun_history(body):
     return {"history": _sl_bank(shenlun_review.history, body.get("qid"))}
 
@@ -1381,6 +1394,7 @@ ROUTES = {
     ("POST", "/api/study/schedule"): schedule_settings,
     ("POST", "/api/shenlun/materials"): shenlun_materials,
     ("POST", "/api/shenlun/calibrate"): shenlun_calibrate,
+    ("POST", "/api/shenlun/essay"): shenlun_essay_api,
     ("POST", "/api/shenlun/history"): shenlun_history,
     ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
     ("POST", "/api/shenlun/question"): shenlun_question,

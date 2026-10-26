@@ -267,3 +267,8 @@ html.in-sl-exam.sl-focus-write #slSplit { display:none; }
 @media(max-width:820px) and (min-width:700px) and (min-height:900px) {
   html.in-sl-exam.sl-focus-write .sl-full-grid,html.in-sl-exam.sl-focus-write.fixed-app .sl-full-grid { grid-template-columns:minmax(0,1fr); grid-template-rows:0 minmax(0,1fr); gap:0; }
 }
+/* 大作文助手 */
+.sl-essay-dialog { width:min(92vw,640px); max-height:86dvh; overflow:auto; }
+.sl-essay-dialog section { margin-top:12px; }
+.sl-essay-dialog h4 { margin:0 0 6px; }
+.sl-essay-dialog textarea { width:100%; box-sizing:border-box; }
