@@ -40,3 +40,5 @@
 | 题库、试炼塔、成语录、模考（行测） | `rpg/question_bank.py`、`rpg/importer.py`、`rpg/idioms.py`、`rpg/mock.py` |
 | 页面、样式（设计令牌在 `style.css` 顶部；`body.xiuxian / xuanhuan / guantu` 三套配色） | `web/app.js`、`web/shenlun.js`、`web/style.css` |
 | 测试（每个测试文件顶部 `setUpModule` 指定本文件跑在哪个科目）；假 AI | `tests/`；`tests/fake_grade_ai.py` |
+
+**多个AI并行开发与统一发布（用户2026-10-25约定）：推送开发分支≠发布；推送前先合并远端开发分支、不 force；版本号与更新记录只在发布时改一次；创建 validate 分支前必须先运行 `python3 tools/release_precheck.py --tests`，有“失败”项不得发布。详见 CLAUDE.md「多个AI并行开发与统一发布」。**

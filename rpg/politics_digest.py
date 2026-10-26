@@ -19,7 +19,7 @@ BLANK = re.compile(r'(?:[_＿﹍﹎][ \t]*){2,}|（[ \u3000]*）|\([ \u3000]{2,}
 NUMBER = re.compile(r'^\s*(\d+)[.．、]\s*')
 
 
-RV = 3          # 识别规则版本（3：整份保留全文——标题、没有空的段落、加粗都留下）：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
+RV = 4          # 识别规则版本（4：同一行里不同字体的基线差零点几磅不再拆行、描边加粗认得出；3：整份保留全文——标题、没有空的段落、加粗都留下）：同一份PDF在旧版本导入的，再次导入时按新规则重新识别（见import_pdf）
 _ASCII_PUNCT = {'(': '（', ')': '）', ',': '，', ';': '；', ':': '：', '!': '！', '?': '？'}
 
 
@@ -85,6 +85,21 @@ def _bold(span):
     return bool(span['flags']&16) or bool(re.search(r'bold|black|heavy|黑体|粗',span.get('font',''),re.I))
 
 
+def _stroked(page):
+    """“描边加粗”的字：不少导出软件（PDFium/浏览器打印、Word 的仿粗体）不换粗体字库，而是把同一个字再描一遍边。
+    PyMuPDF 的 rawdict 只给一份字，粗细信息藏在 get_texttrace 的 type==1（描边）里；返回这些字的外框，用来判断哪些字是加粗。"""
+    try:
+        trace=page.get_texttrace()
+    except Exception:
+        return []
+    return [c[3] for span in trace if span.get('type')==1 for c in span['chars'] if len(c)>3 and c[0]>32]
+
+
+def _in_boxes(bbox,boxes):
+    cx,cy=(bbox[0]+bbox[2])/2,(bbox[1]+bbox[3])/2
+    return any(b[0]-.5<=cx<=b[2]+.5 and b[1]-.5<=cy<=b[3]+.5 for b in boxes)
+
+
 def _pdf_lines(doc):
     """逐字提取，返回 [(这一行的文字, 加粗字符占比)]；绘制下划线按下面的规则认成空：
     贴着基线下方，不压在有字的地方（空格不算有字，被下划线盖住的空格整段换成一个空）；
@@ -92,15 +107,20 @@ def _pdf_lines(doc):
     from .wanxiang_journal import NOISE
     result=[]
     for page in doc:
-        rows={}
+        rows={};strokes=_stroked(page)
+        def row_for(y):
+            # 同一行里不同字体的基线常差零点几个点（如宋体的字和 Times 字体的“____”），按0.1取整会拆成两行、空被甩到行尾；
+            # 基线相差不到1.5磅就算同一行。
+            key=next((k for k in rows if abs(k-y)<=1.5),None)
+            return rows.setdefault(round(y,1) if key is None else key,[])
         for block in page.get_text('rawdict')['blocks']:
             for line in block.get('lines', []):
                 for span in line['spans']:
                     chars=span.get('chars',[])
                     if ''.join(c['c'] for c in chars).strip() in NOISE:
                         continue
-                    row=rows.setdefault(round(span['origin'][1],1),[]);bold=_bold(span)
-                    for c in chars:row.append([c['bbox'][0],c['bbox'][2],c['c'],bold,False])     # x0,x1,字,加粗,是否被下划线盖住的空格
+                    row=row_for(span['origin'][1]);bold=_bold(span)
+                    for c in chars:row.append([c['bbox'][0],c['bbox'][2],c['c'],bold or (bool(strokes) and c['c'].strip()!='' and _in_boxes(c['bbox'],strokes)),False])     # x0,x1,字,加粗,是否被下划线盖住的空格
         for left,right,line_y in _underlines(page):
             candidates=[y for y in rows if -1<=line_y-y<=5.5]
             if not candidates:continue
