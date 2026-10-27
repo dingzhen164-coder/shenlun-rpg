@@ -1,6 +1,6 @@
 /* 六场景/选择厅原生4K，真实HTTP解码、时段原位切图和实际CSS层；三设备。 */
 const assert=require('node:assert/strict'),fs=require('node:fs'),{spawn}=require('node:child_process'),{chromium}=require('playwright');
-const service=spawn(process.env.PYTHON||'python3',['tests/ui_trial_server.py'],{env:process.env});let logs='',browser,page;service.stderr.on('data',b=>logs+=b);
+const service=spawn(process.env.PYTHON||'python3',['tests/ui_trial_server.py','--old-room-exports'],{env:process.env});let logs='',browser,page;service.stderr.on('data',b=>logs+=b);
 const ready=new Promise((ok,no)=>{let output='';const timer=setTimeout(()=>no(Error(logs)),20000);service.stdout.on('data',b=>{output+=b;const m=output.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);ok(m[1]);}});service.on('exit',()=>{clearTimeout(timer);no(Error(logs));});});
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});

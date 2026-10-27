@@ -24,7 +24,7 @@ const ready=new Promise((ok,no)=>{let text='';const timer=setTimeout(()=>no(Erro
   await f.locator('[data-action="next"]').click();await f.locator('.question .chip').filter({hasText:'第3题'}).waitFor();assert((await f.locator('.qtext').innerText()).includes('D.4项'));
   await picker.selectOption({index:2});await f.locator('.section-title h2').filter({hasText:'当前 1 / 2'}).waitFor();assert.equal((await f.locator('.question .chip').first().innerText()).trim(),'第1题');
   if(size==='desktop'){        // 3.8.1：导入答案——按套卷内题号补/改答案，别的套卷不动
-   await f.locator('#answerImport>summary').click();await f.locator('#answerPaper').selectOption({index:0});await f.locator('#answerText').fill('1.C 2.D');
+   assert.equal(await f.locator('#answerImport').isVisible(),false,'答题页不放答案导入');await f.locator('#nav [data-go=\"sprint\"]').click();await f.locator('#answerImport>summary').click();await f.locator('#answerPaper').selectOption({index:0});await f.locator('#answerText').fill('1.C 2.D');
    await f.locator('[data-import-answers]').click();const status=f.locator('#answerStatus').filter({hasText:'补上'});await status.waitFor();
    const said=await status.innerText();assert(said.includes('改了 2 题')&&said.includes('黑十专项卷一'),said);
   }

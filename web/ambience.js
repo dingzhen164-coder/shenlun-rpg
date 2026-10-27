@@ -116,10 +116,10 @@ const AMB = (() => {
 
   // ---------------------------------------------------------------- 设置页
   function settingsHtml() {
-    if (!DATA?.current) return `<div class="card"><h3>🌄 外观与音乐</h3><p class="small muted">先在下面设置好行测库路径。</p></div>`;
+    if (!DATA?.current) return `<div class="card"><h3>🌄 外观与音乐</h3>${window.INTERFACE_GLASS?.settingsHtml()||''}<p class="small muted">先在下面设置好行测库路径。</p></div>`;
     const c = DATA.current, esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
     const qOpt = (v, t) => `<option value="${v}" ${c.quote === v ? "selected" : ""}>${t}</option>`;
-    return `<div class="card"><h3>语录与声音</h3>
+    return `<div class="card"><h3>语录与声音</h3>${window.INTERFACE_GLASS?.settingsHtml()||''}
       <div class="row"><label style="flex:1">语录 <select id="ambQuote">${qOpt("daily", "每日一句")}${qOpt("random", "每次打开随机")}${qOpt("fixed", "固定一句")}${qOpt("off", "不显示")}</select></label>
         <label style="flex:2">固定显示哪一句 <select id="ambFixed">${DATA.quotes.map((q) => `<option ${q === c.fixed ? "selected" : ""}>${esc2(q)}</option>`).join("")}</select></label></div>
       <div class="row" style="align-items:center;gap:12px;margin-top:6px"><label style="flex:1">语录大小 <b id="ambQSizeV">${Math.round((c.quote_size ?? 1) * 100)}%</b>

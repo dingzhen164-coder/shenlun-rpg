@@ -23,11 +23,9 @@
   let view = '', applied='';
   function findHit(page, dn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime || 'day') {
     if(isXingce()&&ROOMS381.includes(page)){
-      const p=page==='bank'&&phase()==='dawn'?'dawn':dn,tk=page==='dwelling'?TAB_KEY[tabLabel()]:'';
-      const exact=[...(tk?[`beauty/page/dwelling-${tk}-${p}.webp`]:[]),`beauty/page/${page}-${p}.webp`];
-      const generic=[...(tk?[`beauty/page/dwelling-${tk}.webp`]:[]),`beauty/page/${page}.webp`];
+      const p=page==='bank'&&phase()==='dawn'?'dawn':dn;
       // 明确的专用覆盖仍优先；旧内置洞府页签不能抢过新整体分时场景。
-      const own=[...exact,...generic].find(r=>custom.has(r)&&has(r));
+      const own=[`beauty/page/${page}-${p}.webp`].find(r=>custom.has(r)&&has(r));
       if(own)return own;
       if(has(`beauty/page/${page}-${p}.webp`))return `beauty/page/${page}-${p}.webp`;
     }

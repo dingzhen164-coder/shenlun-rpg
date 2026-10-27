@@ -1,0 +1,26 @@
+/* 外壳背景透明度与字重独立；布局容器永远不画连接左右牌的长框。 */
+:root{--interface-panel-alpha:32%;--interface-inner-alpha:19.2%;--interface-dialog-alpha:42%}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.interface-glass .ig-shell{background:color-mix(in srgb,var(--panel) var(--interface-panel-alpha),transparent)!important;border:1px solid color-mix(in srgb,var(--line) 65%,transparent)!important;box-shadow:inset 0 1px color-mix(in srgb,var(--panel) 30%,transparent),var(--ds-shadow-1)!important;-webkit-backdrop-filter:blur(10px) saturate(1.08)!important;backdrop-filter:blur(10px) saturate(1.08)!important;font-weight:600}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.interface-glass .ig-shell .ig-shell{background:color-mix(in srgb,var(--panel) var(--interface-inner-alpha),transparent)!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.interface-glass .ig-shell :where(h1,h2,h3,strong,b){font-weight:700}
+body.interface-glass .ig-shell :where(label,small,.muted,.small){font-weight:600}
+body.interface-glass .ig-paper{background:color-mix(in srgb,var(--panel) 96%,transparent)!important;text-shadow:none;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.interface-glass #studyHud,html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.interface-glass #studyHud.hx381-shell{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.interface-glass #studyHud::before,body.interface-glass #studyHud::after{background:none!important;border:0!important;box-shadow:none!important}
+body.interface-glass #studyHud :is(.study-hud-player,.study-hud-world,.subpage-place,.subpage-tools){border-radius:var(--ds-r-8);font-weight:600;text-shadow:none}
+body.interface-glass #studyHud :is(.subpage-place,.subpage-tools){padding:5px 8px;box-sizing:border-box}
+body.interface-glass #studyHud :is(.subpage-place h2,.study-hud-name strong,.study-hud-stat b){font-weight:700}
+body.interface-glass #studyHud .subpage-nav{background:transparent;border:0;box-shadow:none;backdrop-filter:none}
+body.interface-glass .npc-drawer-toggle,body.hollow381.interface-glass .npc-drawer-toggle{background:transparent!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;color:var(--green,var(--ds-accent))}
+body.interface-glass .npc-drawer-toggle:hover{background:transparent!important}
+body.interface-glass .npc-dialog :is(.npc-content,.npc-nameplate,.npc-status:not(:empty)){background:color-mix(in srgb,var(--panel) var(--interface-dialog-alpha),transparent)}
+.interface-glass-setting{padding:8px 0}.interface-glass-setting label{display:flex;gap:12px;align-items:center}.interface-glass-setting output{font-weight:700}.interface-glass-setting input{width:100%;box-sizing:border-box}
+
+/* 藏经阁内部页面沿原嵌入式布局，不套外壳磨砂框；焦点/输入/表格语义仍保留。 */
+body.interface-glass:has(#view[data-fx-route="skeleton"]) #view :is(.ig-shell,.ig-paper,.hx381-shell,.hx381-paper,.fx-panel,.fx-frame,.card,.lib-head,.lib-tabs,.skb-banner,.skb-note,.skb-preview,.skb-tip,.tome-cap,.ln-hall,.yj-hub,.yj-hall,.study-region-heading,.ln-reading-body,.ln-document,.ln-canvas),
+body.interface-glass:has(#view[data-fx-route="skeleton"]) :is(.ln-stage,.yj-stage) :is(.ig-shell,.ig-paper,.hx381-shell,.hx381-paper,.ln-reading-body,.ln-document,.ln-canvas,.yj-slip){background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+
+/* 无底板的藏经阁文字跟随实际场景光线；不把夜景浅字带进实底输入控件。 */
+body.interface-glass:has(#view[data-fx-route="skeleton"]){--ig-library-ink:var(--ds-trial-day-ink,var(--text));--ig-library-halo:var(--ds-trial-day-paper,var(--panel))}
+html:is([data-scene-phase="night"],[data-scene-phase="dusk"]) body.interface-glass:has(#view[data-fx-route="skeleton"]){--ig-library-ink:var(--ds-scene-night-ink);--ig-library-halo:var(--ds-trial-night-sky)}
+body.interface-glass:has(#view[data-fx-route="skeleton"]) #view :is(.lib-head,.lib-tabs button,.ig-paper,.card,.small,.muted,.skb-banner,.skb-note,.skb-preview,.skb-tip,.tome-cap,.subpage-place h2){color:var(--ig-library-ink)!important;font-weight:600;text-shadow:0 1px 2px var(--ig-library-halo)}

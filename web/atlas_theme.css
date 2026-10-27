@@ -25,3 +25,6 @@ body{background:var(--bg);color:var(--text)}.sidebar{background:var(--panel2);bo
 .question .answer-options button{min-width:48px;min-height:44px;font-size:var(--ds-fs-18)}
 .atlas-related{margin-top:18px;border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel)}.atlas-related summary{padding:10px 16px;color:var(--muted);font-size:var(--ds-fs-12);cursor:pointer}.atlas-related aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px}.atlas-related .panel{padding:14px}
 @media(max-width:1100px){.main{padding:0 14px 20px}.atlas-reading-tools{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}.atlas-toolbar{padding-left:6px;padding-right:6px;gap:4px}.atlas-toolbar .nav{gap:3px}.atlas-toolbar .nav button{padding-left:11px;padding-right:11px}.map-top{margin-bottom:14px}.panel{padding:16px}.source-columns{padding:12px 6px}}
+
+/* 答案在地图导入，默认折叠；展开内容独立滚动，不挤占做题区域。 */
+#answerImportHost{flex:none;max-height:45dvh;overflow:auto;padding:0 12px}#answerImportHost:empty{display:none}#answerImportHost .answer-import{margin:6px 0}

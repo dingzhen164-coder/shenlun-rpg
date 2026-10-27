@@ -1,11 +1,11 @@
 /* 行测轻透磨砂框：保留面板轮廓、圆角与层次，不把“镂空”做成无框。
  * 不进入做题、整卷考场和灵台手札书写工作区，控件的选中/焦点/风险状态沿原实现。
  */
-body.hollow381{--hx381-base-text:var(--text);--hx381-base-muted:var(--muted);--hx381-glass:color-mix(in srgb,var(--panel) 58%,transparent);--hx381-edge:color-mix(in srgb,var(--line) 65%,transparent);--hx381-glow:color-mix(in srgb,var(--panel) 45%,transparent)}
+body.hollow381{--hx381-base-text:var(--text);--hx381-base-muted:var(--muted);--hx381-glass:color-mix(in srgb,var(--panel) var(--interface-panel-alpha,32%),transparent);--hx381-edge:color-mix(in srgb,var(--line) 65%,transparent);--hx381-glow:color-mix(in srgb,var(--panel) 45%,transparent)}
 body.hollow381 .hx381-paper,body.hollow381 .hx381-shell :is(input,textarea,select){--text:var(--hx381-base-text);--muted:var(--hx381-base-muted);--ds-text:var(--hx381-base-text);--ds-muted:var(--hx381-base-muted);color:var(--hx381-base-text)}
 html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell{background:var(--panel)!important;background:var(--hx381-glass)!important;border:1px solid var(--hx381-edge)!important;box-shadow:inset 0 1px var(--hx381-glow),var(--ds-shadow-1)!important;-webkit-backdrop-filter:blur(10px) saturate(1.08)!important;backdrop-filter:blur(10px) saturate(1.08)!important}
 /* 已有磨砂外框内不再层层模糊；内层仍有淡底与细边，不会变成整块厚白板。 */
-html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell .hx381-shell{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;box-shadow:inset 0 1px var(--hx381-glow)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-shell .hx381-shell{background:color-mix(in srgb,var(--panel) var(--interface-inner-alpha,19.2%),transparent)!important;box-shadow:inset 0 1px var(--hx381-glow)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 html:not(.in-chat):not(.in-sl-exam):not(.drawing) body.hollow381 .hx381-paper{background:var(--panel)!important;background:color-mix(in srgb,var(--panel) 96%,transparent)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;text-shadow:none}
 body.hollow381 .hx381-paper :where(p,span,h1,h2,h3,label,.muted,.small){text-shadow:none!important}
 body.hollow381 #studyHud :is(.study-hud-player,.study-hud-world){--hud-ink:var(--text);--hud-soft:var(--muted);--hud-metal:var(--accent);--ds-plate-ink:var(--text);--ds-plate-soft:var(--muted);color:var(--text);text-shadow:none}

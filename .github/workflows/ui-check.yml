@@ -29,6 +29,10 @@ jobs:
           pip install pymupdf pillow
           npm install --no-save playwright jsdom
           npx playwright install --with-deps chromium
+      - name: Interface transparency and embedded library
+        run: |
+          node tests/ui_interface383.cjs --subject=行测
+          node tests/ui_interface383.cjs --subject=申论
       - name: Political atlas and contextual word annotations (fake AI)
         shell: python
         run: |

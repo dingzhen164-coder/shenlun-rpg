@@ -729,7 +729,7 @@ def _discuss_ask(g, s, text, independent=False):
         messages = (prompts.bank_explain(_teacher_persona(g,d['board'],teacher), {'stem':d.get('question',''), 'options':{}, 'board':d['board']},
                     digest=digest,skill=teacher or _skill_name(g,d['board']))
                     if independent else prompts.discuss(_teacher_persona(g,d['board'],teacher),ctx,digest,text))
-        r = prompts.plain_math(ai.chat(messages, temperature=0.6, max_tokens=1500))
+        r = prompts.plain_math(ai.chat(messages, temperature=0.6, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     history = ctx['history'] + [{"role": "user", "content": text}, {"role": "assistant", "content": r}]
@@ -1552,7 +1552,7 @@ def _explain_group(g, board, material, items, teacher=None):
     question=material+'\n'+'\n'.join(str(x.get('stem','')) for x in items)
     digest, used = _tutor_material(g, board, teacher, question) if teacher is not None else _tutor_material(g, board)
     try:
-        text = prompts.plain_math(ai.chat(prompts.group_explain(_teacher_persona(g, board, teacher), material, items, digest=digest, skill=teacher or skill, board=board), temperature=0.5, max_tokens=2800))
+        text = prompts.plain_math(ai.chat(prompts.group_explain(_teacher_persona(g, board, teacher), material, items, digest=digest, skill=teacher or skill, board=board), temperature=0.5, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     return text, skill, used
@@ -1603,7 +1603,7 @@ def _explain(g, q, r, teacher=None):
     question=str(q.get('stem',''))+'\n'+'\n'.join(str(v) for v in q.get('options',{}).values())
     digest, used = _tutor_material(g, q['board'], teacher, question) if teacher is not None else _tutor_material(g, q['board'])
     try:
-        text = prompts.plain_math(ai.chat(prompts.bank_explain(_teacher_persona(g, q['board'], teacher), q, digest=digest, skill=teacher or skill), temperature=0.5, max_tokens=2400))
+        text = prompts.plain_math(ai.chat(prompts.bank_explain(_teacher_persona(g, q['board'], teacher), q, digest=digest, skill=teacher or skill), temperature=0.5, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
     idioms.from_explanation(g,q,text)
@@ -1639,7 +1639,7 @@ def _review_chat(g, s, run, text):
            "answer": q["answer"], "mine": r["answer"], "reference": q.get("analysis", "")[:3000]}
     try:
         digest,used=_tutor_material(g,q['board'],teacher,ctx['question']+'\n'+text)
-        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, q["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=1500))
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, q["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
@@ -1903,7 +1903,7 @@ def _mreview_chat(g, s, text):
            "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
     try:
         digest,used=_tutor_material(g,pq['board'],teacher,ctx['question']+'\n'+text)
-        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=1500))
+        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError("师傅没回话：%s" % e)
     hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]

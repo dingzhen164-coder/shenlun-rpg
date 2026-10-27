@@ -691,3 +691,9 @@ shared tools/release_precheck.py
 shared tests/test_release_precheck.py
 diverged tools/release_acked_branches.txt
 diverged tests/test_static_cache.py
+
+# 透明度为本机偏好，两个项目使用同一实现和回归。
+shared web/interface_glass.js
+shared web/interface_glass.css
+shared tests/ui_interface383.cjs
+shared tests/test_explanations383.py

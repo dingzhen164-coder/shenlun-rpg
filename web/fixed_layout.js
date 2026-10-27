@@ -76,7 +76,7 @@
         else group('other','成长记录',n);
       }else if(route==='settings'){
         if(has('.shortcut-settings,.portal-settings'))group('navigation','地图与操作',n,true);
-        else if(has('#baBgm,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
+        else if(has('#baBgm,#interfaceTransparency,#xcSize,#slCursorToggle,[data-style]'))group('appearance','外观与声音',n,true);
         else if(has('#sSave'))group('ai','AI与资料',n);
         else if(has('#scheduleSave,[data-subject],.qb-settings,.cc-settings')||/改规则/.test(name))group('learning','学习与成长',n);
         else if(has('#updCheck')||/版本/.test(name))group('updates','版本与更新',n);
