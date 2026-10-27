@@ -24,3 +24,9 @@ body.interface-glass:has(#view[data-fx-route="skeleton"]) :is(.ln-stage,.yj-stag
 body.interface-glass:has(#view[data-fx-route="skeleton"]){--ig-library-ink:var(--ds-trial-day-ink,var(--text));--ig-library-halo:var(--ds-trial-day-paper,var(--panel))}
 html:is([data-scene-phase="night"],[data-scene-phase="dusk"]) body.interface-glass:has(#view[data-fx-route="skeleton"]){--ig-library-ink:var(--ds-scene-night-ink);--ig-library-halo:var(--ds-trial-night-sky)}
 body.interface-glass:has(#view[data-fx-route="skeleton"]) #view :is(.lib-head,.lib-tabs button,.ig-paper,.card,.small,.muted,.skb-banner,.skb-note,.skb-preview,.skb-tip,.tome-cap,.subpage-place h2){color:var(--ig-library-ink)!important;font-weight:600;text-shadow:0 1px 2px var(--ig-library-halo)}
+
+/* 地图信息牌透出真实夜景时改用浅墨，进度纸条不在此范围内。 */
+body.interface-glass #studyHud:not(.subpage-heading){--ig-hud-ink:var(--ds-trial-day-ink,var(--text));--ig-hud-halo:var(--ds-trial-day-paper,var(--panel))}
+html:is([data-scene-phase="night"],[data-scene-phase="dusk"]) body.interface-glass #studyHud:not(.subpage-heading){--ig-hud-ink:var(--ds-scene-night-ink);--ig-hud-halo:var(--ds-trial-night-sky)}
+body.interface-glass #studyHud:not(.subpage-heading) :is(.study-hud-name,.study-hud-profile>small,.study-hud-stat,.study-hud-location){color:var(--ig-hud-ink)!important;text-shadow:0 1px 2px var(--ig-hud-halo)}
+body.interface-glass #studyHud:not(.subpage-heading) :is(.study-hud-name,.study-hud-stat,.study-hud-location) :is(strong,span,b,small){color:var(--ig-hud-ink)!important;text-shadow:0 1px 2px var(--ig-hud-halo)}

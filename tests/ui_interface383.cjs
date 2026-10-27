@@ -22,6 +22,8 @@ async function alpha(locator){return locator.evaluate(e=>{const c=document.creat
    await page.evaluate(()=>go('home'));await page.locator('.study-hud-player').waitFor();await separate();
   }
   const player=page.locator('.study-hud-player');assert(Number(await player.evaluate(e=>getComputedStyle(e).fontWeight))>=600);
+  await page.evaluate(()=>{localStorage.setItem('scene-time','night');window.SCENE_CLOCK?.apply();});
+  assert(await page.locator('.study-hud-name strong').evaluate(e=>{const probe=document.createElement('span');probe.style.color='var(--ds-scene-night-ink)';document.body.append(probe);const expected=getComputedStyle(probe).color;probe.remove();return getComputedStyle(e).color===expected;}),'透明夜景信息牌必须使用清晰浅字');
   if(await page.locator('.npc-drawer-toggle').count())assert.deepEqual(await page.locator('.npc-drawer-toggle').evaluate(e=>{const s=getComputedStyle(e);return[s.backgroundColor,s.borderTopWidth,s.boxShadow];}),['rgba(0, 0, 0, 0)','0px','none']);
   await page.evaluate(()=>go('settings'));await page.locator('#interfaceTransparency').waitFor({state:'attached'});
   assert(await page.locator('#interfaceTransparency').evaluate(e=>e.closest('[data-fx-group="appearance"]')!==null||e.closest('.fx-settings-group')?.textContent.includes('外观与声音')));
