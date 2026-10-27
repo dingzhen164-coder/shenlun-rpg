@@ -33,7 +33,12 @@ async function reveal(selector){
  const routes=['home','dwelling','train','bank','tianji','skeleton','notes','contest','log','settings'];let checked=0;
  for(const size of [{width:1280,height:860},{width:800,height:1280},{width:1024,height:600}])for(const theme of ['light','dark']){
   await page.setViewportSize(size);await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
-  for(const route of routes){await page.evaluate(v=>go(v),route);await page.waitForTimeout(100);await fits(`${size.width}/${theme}/${route}`);checked++;
+  for(const route of routes){
+   // 行测已取消群峰选择页，必须从具体峰进入；否则go(train)会异步回地图，残留洞府标签不能点击。
+   await page.evaluate(async v=>{if(v==='train'&&window.SUBJECT0==='行测')STUDY_REGIONS.select('yan');await go(v);},route);
+   await page.waitForFunction(v=>{const expected=v==='log'&&window.SUBJECT0==='行测'?'dwelling':v;return VIEW===expected&&document.querySelector('#view')?.dataset.fxRoute===expected;},route);
+   if(route==='train'&&subject==='行测'){await page.locator('.study-region-heading[aria-label="辨言峰"]').waitFor({state:'attached'});assert.equal(await page.locator('#studyHud .subpage-place h2').innerText(),'辨言峰','布局回归必须进入真实山峰');}
+   await fits(`${size.width}/${theme}/${route}`);checked++;
    const labels=await page.locator('.subpage-nav>.fx-tabs>.fx-tab').allTextContents();
    for(let i=0;i<labels.length;i++){await page.locator('.subpage-nav>.fx-tabs>.fx-tab').nth(i).click();await fits(route+'/'+labels[i]);assert.ok((await page.locator('.fx-panel:not([hidden])').innerText()).trim().length>0,'标签内容保留');}
   }
