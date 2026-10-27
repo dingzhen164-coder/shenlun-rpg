@@ -64,6 +64,10 @@ async function openRoom(page){
   assert((await page.locator('[data-er-pos]').textContent()).includes('第 1/130 题'));
   const bar=await page.evaluate(()=>{const c=document.querySelector('[data-er-card]').getBoundingClientRect();return {right:innerWidth-c.right,top:c.top};});assert(bar.right<40&&bar.top<20,'答题卡按钮在右上角');
   await fits(page,'dialog.er-run');await shot('run');
+  // 文字题旁边的“对照原图”：默认收起，点开显示原图，再点收起
+  assert.equal(await page.locator('[data-er-original]').isHidden(),true);
+  await page.locator('[data-er-orig]').click();assert.equal(await page.locator('[data-er-original] img').isVisible(),true);
+  await page.locator('[data-er-orig]').click();assert.equal(await page.locator('[data-er-original]').isHidden(),true);
   await page.locator('[data-er-choice=A]').click();assert.equal(await page.locator('[data-er-choice=A]').getAttribute('aria-pressed'),'true');
   await page.keyboard.press('B');assert.equal(await page.locator('[data-er-choice=B]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-er-choice=A]').getAttribute('aria-pressed'),'false');
   await page.keyboard.press('ArrowRight');assert((await page.locator('[data-er-pos]').textContent()).includes('第 2/130 题'));

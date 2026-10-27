@@ -43,6 +43,10 @@ def main():
             importer.has_pymupdf = lambda: True
             with api.open_game() as g:
                 blank_paper(g.paths.train/'模考复盘/第1001季')
+                att = g.paths.train/'模考复盘/第1001季/attachments'
+                att.mkdir(parents=True, exist_ok=True)
+                from PIL import Image
+                Image.new('RGB', (600, 120), 'white').save(att/'O001-1.jpg')        # 第1题按“文字题”处理时留的原图
                 g.state.setdefault('mocks', {})['1001'] = {'name': NAME}
             api.ai.available = lambda: False
             server = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)

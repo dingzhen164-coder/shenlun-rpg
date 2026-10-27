@@ -1154,3 +1154,8 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - 评分标准校准：`shenlun_review.calibrate` 用 `references` 前2份按同一标准走 `grade`（不 record），结果存 `rubrics/综合/校准/<qid>.json`（含 standard_hash，标准更新即作废）；接口 `/api/shenlun/calibrate`。
 - 大作文支架：`shenlun_essay.py`，数据 `训练/大作文/立意|提纲/<qid>.json`，接口 `/api/shenlun/essay`；立意拆解按题干+材料指纹缓存，所有引用必须能在材料/提纲里逐字找到；参考答案不发给AI。
 - 清理：删除 shenlun_analysis/grader/rubric、采分点草稿/审定/解析文档导入接口与页面；`LOST_CODES`、`count_words` 并入 shenlun_review。
+
+### 3.8.2开发：扫描版试卷按题转文字、图形题单独裁图（2026-10-27，开发分支，待统一验证发布）
+- `exam_scan.write_review` 每题先判断：板块是图形推理 → 整题原图；否则取题目各段范围内的OCR行，`split_choices` 要求题干≥6字且A~D四个选项按序出现，认不全就回退原图；`has_figure` 在 60dpi 灰度图里数“文字框以外的深色像素”，占比>0.5%（文字题实测<0.2%，示意图>1.2%）视为有图/表/没认出的公式，整题保留原图。资料分析的材料一律是原图。
+- 文字题写成与粉笔版相同的格式（题干段落 + `- **A.** …`），折行按句末标点和①②/(1)/1.等条目合并；同时存原图 `O题号-n.jpg`（110dpi），`exam_room.payload` 返回 `original`，答题页“对照原图”切换。已有的整卷不会被改，需删除后重新导入才会转成文字。
+- 局限：OCR会把破折号认成“一”等，错字不会被程序发现，所以才保留对照原图；公式/上下标多的数量关系多数会因文字框外有深色内容而回退为原图。

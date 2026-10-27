@@ -172,7 +172,7 @@ class ExamRoomTest(unittest.TestCase):
             exam_room.import_paper(self.g, {'name': '', 'data': 'x'})
 
     def test_scanned_paper_goes_through_the_whole_exam_flow_with_images(self):
-        """扫描卷（没有文字层）：版面拆分 → 开始考试拿到的是图片块 → 补答案 → 交卷批改。"""
+        """扫描卷（没有文字层）：版面拆分 → 文字题 + 图片题（图形推理等）→ 补答案 → 交卷批改。"""
         import re
         from rpg import exam_scan
         from tests import test_exam_scan as ts
@@ -186,7 +186,14 @@ class ExamRoomTest(unittest.TestCase):
         self.assertEqual((done['total'], done['keyed'], done['missing']), (9, 0, []))
         data = exam_room.begin(self.g, 1001)
         self.assertEqual([q['num'] for q in data['questions']], list(range(1, 10)))
-        self.assertTrue(all(any(b['t'] == 'img' for b in q['blocks']) for q in data['questions']), '每题都是图片')
+        by_num = {q['num']: q for q in data['questions']}
+        for n in (4, 5, 7):
+            self.assertTrue(any(b['t'] == 'img' for b in by_num[n]['blocks']), '图形推理/没有题干的题仍是图片')
+        for n in (1, 2, 3, 6, 8, 9):
+            self.assertFalse(any(b['t'] == 'img' for b in by_num[n]['blocks']), '题干+四个选项认出来的题是文字')
+            self.assertTrue(by_num[n]['original'] and by_num[n]['original'][0]['t'] == 'img', '文字题带原图，页面上“对照原图”用')
+            self.assertEqual(by_num[n]['choices'], list('ABCD'))
+        self.assertNotIn('original', by_num[4])
         self.assertTrue(data['materials'], '资料分析的材料图')
         self.assertIn('没有标准答案', data['warning'])
         exam_room.import_answers(self.g, {'season': 1001, 'text': '1-9 ABCDABCDA'})

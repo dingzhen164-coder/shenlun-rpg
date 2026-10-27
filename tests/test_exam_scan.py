@@ -132,16 +132,53 @@ class ScanTests(unittest.TestCase):
         qs = {q["num"]: q for f in folder.glob("[0-9][0-9]-*.md") for q in vault.parse_board_file(f)}
         self.assertEqual(sorted(qs), list(range(1, 10)))
         self.assertTrue(all(q["icon"] == "⚪" and q["correct"] == "" for q in qs.values()), "答案都还没有")
-        self.assertEqual(len(re.findall(r"!\[\[Q003-\d\.jpg\]\]", qs[3]["body"])), 2, "跨页的题两张图")
+        # 题干+四个选项都认出来的题写成文字（跨页的第3题也是）；图形推理、题干为空（第7题）的题仍是整题原图
+        for n in (1, 2, 3, 6, 8, 9):
+            self.assertIn("- **D.** 丁", qs[n]["body"], n)
+            self.assertNotIn("![[Q", qs[n]["body"])
+        self.assertEqual(report["texted"], 6)
+        for n in (4, 5, 7):
+            self.assertTrue(re.search(r"!\[\[Q00%d-\d\.jpg\]\]" % n, qs[n]["body"]), n)
+        self.assertEqual(len(list((folder/"attachments").glob("O003-*.jpg"))), 2, "跨页的文字题留两张原图，页面上对照原图用")
         self.assertEqual(qs[8]["material"], (8, 9))
         self.assertTrue(re.search(r"!\[\[M008-009-1\.jpg\]\]", "\n".join(qs[8]["material_lines"])))
         images = list((folder/"attachments").glob("*.jpg"))
-        self.assertEqual(len(images), 11, '9题+跨页多1张+材料1张')
+        self.assertTrue(len(images) >= 11, '每题至少一张图（文字题是原图）+材料1张')
         self.assertTrue(all(i.stat().st_size > 300 for i in images))
         self.assertEqual(mock.MODULE_OF["图形推理"], "判断推理")
         self.assertEqual(scan.PROGRESS["stage"], "完成")
         with self.assertRaises(scan.ScanError):
             scan.split(pp, pdf, 1001, engine=engine)       # 已有复盘文件：不覆盖笔记
+
+    def test_text_question_with_a_figure_keeps_the_picture(self):
+        """文字框以外还有深色内容（图、表、没认出的公式）：整题用原图，不显示可能认错的文字"""
+        pages = [list(p) for p in self.pages]
+        pdf = self.root/"带图卷.pdf"
+        make_pdf(pdf, pages)
+        doc = fitz.open(str(pdf))
+        page = doc[0]                                    # 第2题的选项后面画一张图（OCR没有这一块的文字）
+        page.draw_rect(fitz.Rect(.30*595, .495*842, .80*595, .56*842), color=None, fill=(0, 0, 0))
+        doc.saveIncr()
+        doc.close()
+        def engine(path):
+            return pages[int(re.search(r"p(\d+)\.png", path).group(1))]
+        pp = SimpleNamespace(train=self.root/"训练")
+        report = scan.split(pp, pdf, 1005, engine=engine)
+        folder = pp.train/"模考复盘/第1005季"
+        qs = {q["num"]: q for f in folder.glob("[0-9][0-9]-*.md") for q in vault.parse_board_file(f)}
+        self.assertTrue(re.search(r"!\[\[Q002-1\.jpg\]\]", qs[2]["body"]))
+        self.assertIn("- **A.**", qs[1]["body"])
+        self.assertEqual(report["texted"], 5)
+
+    def test_split_choices_needs_all_four_options_and_a_stem(self):
+        lines = [L("1．关于两个确立，下列表述正确的是：", .1, .1), L("A．甲", .1, .13), L("B．乙", .1, .16), L("C．丙", .1, .19), L("D．丁", .1, .22)]
+        stem, options = scan.split_choices(lines)
+        self.assertEqual((stem, list(options)), (["关于两个确立，下列表述正确的是："], ["A", "B", "C", "D"]))
+        self.assertIsNone(scan.split_choices(lines[:4]))                       # 少一个选项
+        self.assertIsNone(scan.split_choices([L("1．", .1, .1)]+lines[1:]))    # 没有题干
+        wrapped = [L("1．这六个方面相互联系、彼此", .1, .1), L("支撑，贯通了唯物论。以下表述正确的有：", .1, .13), L("①人民至上", .1, .16), L("②自信自立", .1, .19)]
+        stem, options = scan.split_choices(wrapped+lines[1:])
+        self.assertEqual(stem, ["这六个方面相互联系、彼此支撑，贯通了唯物论。以下表述正确的有：", "①人民至上", "②自信自立"])   # 折行合并，①②各自成行
 
     def test_text_layer_pages_do_not_need_ocr(self):
         doc = fitz.open()
