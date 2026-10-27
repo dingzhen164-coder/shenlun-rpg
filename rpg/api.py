@@ -11,7 +11,7 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     GET  /api/notes …              灵台手札：本子列表；POST get {id} / save / delete / compile（师傅编纂）；GET tree（库里的 md、pdf）；POST md {p}（读一篇）
                                    POST pdfopen {p}（调阅 PDF → 批注本）/ pdfexport {id, overlays}；GET /notes-pdfpage?p=&n=（PDF 一页的底图）
     GET  /api/subject              当前科目和可选科目；POST {"subject": "行测"|"申论"} 切换（网页随后重新加载）
-    GET  /api/shenlun/questions    申论题库（训练/采分点/）；POST question / finalize / import / draft / install_pdf / active / grade 见 rpg/shenlun.py
+    /api/shenlun/*  完整真题题库、作答、批改，见 rpg/shenlun_bank.py、shenlun_review.py；作答活动记录见 rpg/shenlun.py
     GET  /api/app/latest           平板 App 的最新版本（电脑替平板去 GitHub 下安装包）；/app/xingce-xiuxian.apk 拿安装包
     POST /api/retreat/start        {"board", "minutes"}  闭关；POST /api/retreat/end 提前出关
     POST /api/plan/regenerate      重新生成今日任务
@@ -73,7 +73,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -929,14 +929,7 @@ def heartbeat(body):
                 "rest": g.resting(), "retreat_on": bool(g.state.get("retreat"))}
 
 
-# ---------------------------------------------------------------- 申论：题库与批改（逻辑在 rpg/shenlun.py）
-def _sl(fn, *a, **kw):
-    try:
-        return fn(*a, **kw)
-    except shenlun.ShenlunError as e:
-        raise ApiError(str(e))
-
-
+# ---------------------------------------------------------------- 申论：题库与批改（rpg/shenlun_bank.py、shenlun_review.py）
 def _sl_bank_paths():
     with open_game(save=False) as g:
         if g.subject != "申论" or not g.paths.vault:
@@ -983,7 +976,32 @@ def shenlun_answer(body):
 
 
 def shenlun_materials(body):
+    if body.get("auto"):
+        return _sl_bank(shenlun_bank.material_auto, str(body["auto"]))
     return dict(_sl_bank(shenlun_bank.material_pick, body), complete_bank=True)
+
+
+def shenlun_calibrate(body):
+    """body.run 为真才调用AI试批参考答案；否则只返回上次校准结果（没有则 saved 为空）。"""
+    qid = str(body.get("qid") or "")
+    if not body.get("run"):
+        return {"saved": _sl_bank(shenlun_review.calibration, qid, body.get("standard_hash") or None)}
+    with open_game(save=False) as g:
+        rules = g.rules
+    return {"saved": _sl_bank(shenlun_review.calibrate, qid, rules, lambda msgs: ai.chat_json(msgs, max_tokens=6000))}
+
+
+def shenlun_essay_api(body):
+    """大作文写作支架：state / angles(+force) / outline_save(text) / outline_review。"""
+    qid, action = str(body.get("qid") or ""), body.get("action") or "state"
+    chat = lambda msgs: ai.chat_json(msgs, max_tokens=4000)
+    if action == "angles":
+        return {"angles": _sl_bank(shenlun_essay.angles, qid, chat, bool(body.get("force")))}
+    if action == "outline_save":
+        return {"outline": _sl_bank(shenlun_essay.outline_save, qid, body.get("text"))}
+    if action == "outline_review":
+        return {"outline": _sl_bank(shenlun_essay.outline_review, qid, chat)}
+    return _sl_bank(shenlun_essay.state, qid)
 
 
 def shenlun_history(body):
@@ -1037,58 +1055,20 @@ def shenlun_comprehensive(body):
             return shenlun_review.record(g, q, result, answer, sid)
 
 
-def shenlun_questions(body):
-    with open_game(save=False) as g:
-        return {"questions": shenlun.list_questions(g.paths), "recent": list(reversed(g.state.get("grades", [])[-10:]))}
-
-
 def shenlun_question(body):
     with open_game(save=False) as g:
-        if str(body.get("qid") or "").startswith("slq-"):
-            try:
-                if g.subject != "申论":
-                    raise ApiError("完整申论题库仅在申论科目使用")
-                return dict(shenlun_bank.question(g.paths, body["qid"]), complete_bank=True)
-            except shenlun_bank.BankError as e:
-                raise ApiError(str(e))
-        return _sl(shenlun.question, g.paths, str(body.get("qid") or ""))
-
-
-def shenlun_finalize(body):
-    with open_game(save=False) as g:
-        return _sl(shenlun.finalize, g.paths, str(body.get("qid") or ""))
-
-
-def shenlun_import(body):
-    with open_game(save=False) as g:
-        return _sl(shenlun.import_doc, g.paths, body.get("name"), body.get("data"))
-
-
-def shenlun_draft(body):
-    with open_game(save=False) as g:
-        paths = g.paths
-    return _sl(shenlun.draft, paths, body.get("file"), body.get("prefix"), body.get("no"), ai.chat_json, bool(body.get("overwrite")))
-
-
-def shenlun_install_pdf(body):
-    return _sl(shenlun.install_pdf)
+        if g.subject != "申论":
+            raise ApiError("完整申论题库仅在申论科目使用")
+        try:
+            return dict(shenlun_bank.question(g.paths, str(body.get("qid") or "")), complete_bank=True)
+        except shenlun_bank.BankError as e:
+            raise ApiError(str(e))
 
 
 def shenlun_active(body):
     """作答页敲键盘时调（节流后）：只有最近 2 分钟内敲过键盘，作答才计时"""
     shenlun.touch()
     return {"ok": True}
-
-
-def shenlun_grade(body):
-    qid, answer = str(body.get("qid") or ""), str(body.get("answer") or "")
-    with open_game(save=False) as g:
-        paths = g.paths
-    r, res = _sl(shenlun.judge, paths, qid, answer, ai.chat_json)          # AI 判断：不占存档锁
-    with open_game() as g:
-        res = shenlun.record(g, r, res, answer)
-        res["events"] = tutor.enrich(g, res["events"])
-        return res
 
 
 def subject_get(body):
@@ -1413,16 +1393,12 @@ ROUTES = {
     ("POST", "/api/shenlun/card/recognize"): shenlun_card_recognize,
     ("POST", "/api/study/schedule"): schedule_settings,
     ("POST", "/api/shenlun/materials"): shenlun_materials,
+    ("POST", "/api/shenlun/calibrate"): shenlun_calibrate,
+    ("POST", "/api/shenlun/essay"): shenlun_essay_api,
     ("POST", "/api/shenlun/history"): shenlun_history,
     ("POST", "/api/shenlun/comprehensive"): shenlun_comprehensive,
-    ("GET", "/api/shenlun/questions"): shenlun_questions,
     ("POST", "/api/shenlun/question"): shenlun_question,
-    ("POST", "/api/shenlun/finalize"): shenlun_finalize,
-    ("POST", "/api/shenlun/import"): shenlun_import,
-    ("POST", "/api/shenlun/draft"): shenlun_draft,
-    ("POST", "/api/shenlun/install_pdf"): shenlun_install_pdf,
     ("POST", "/api/shenlun/active"): shenlun_active,
-    ("POST", "/api/shenlun/grade"): shenlun_grade,
     ("GET", "/api/appearance"): appearance_get,
     ("POST", "/api/lecture"): lecture_add,
     ("POST", "/api/lecture/delete"): lecture_delete,

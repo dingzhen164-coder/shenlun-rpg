@@ -159,13 +159,24 @@ def papers(p):
     return out
 
 
+def _listing_source(p, paper, q, picked):
+    if len(paper['materials'])<2:
+        return 'single'
+    source=material_choice(p,paper,q,picked)[1]
+    if source=='all' and suggest_materials(q['stem'],paper['materials'],q['qid'])[1]=='quote':
+        return 'quote'
+    return source
+
+
 def listing(p):
     out=[]
+    picked=_picked(p)
     for d in papers(p):
         out.append({k:d[k] for k in ('id','title','year','region','source','edition')})
         out[-1].update(count=len(d['questions']), materials=len(d['materials']), questions=[
             {'qid':q['qid'],'no':q['no'],'type':q['type'],'total':q['total'],'words':q['words'],
-             'stem':q['stem'],'complete':bool(d['materials']) and q['total']>0} for q in d['questions']])
+             'stem':q['stem'],'complete':bool(d['materials']) and q['total']>0,
+             'material_source':_listing_source(p,d,q,picked)} for q in d['questions']])
     from . import shenlun_training
     shenlun_training.classify(p,papers(p),out)
     return sorted(out,key=lambda x:(x['year'],x['region'],x['title']),reverse=True)
@@ -180,7 +191,7 @@ def question(p,qid, reveal=False):
                 ids,source=material_choice(p,paper,q)
                 d['material_ids'],d['material_source']=ids,source
                 d['all_materials']=[{'id':m['id'],'label':m['label']} for m in paper['materials']]
-                d['suggested_material_ids']=suggest_materials(q['stem'],paper['materials']) if source=='all' else []
+                d['suggested_material_ids'],d['suggest_kind']=suggest_materials(q['stem'],paper['materials'],q['qid']) if source=='all' else ([],'')
                 d['materials']=[dict(m,text=text(m['text'])) for m in paper['materials'] if not ids or m['id'] in ids]
                 d['material_mark_keys']=[hashlib.sha256((str(m['id'])+'\n'+m['text']).encode('utf-8')).hexdigest() for m in d['materials']]
                 d['complete']=bool(d['materials']) and d['total']>0
@@ -246,26 +257,77 @@ def infer_material_ids(stem, mats):
     return ids if ids and len(ids)<len(mats) else []
 
 
-def suggest_materials(stem, mats):
-    """题干没写明材料时按用词重合度给出推测，只用于界面提示，不改变批改用的材料。"""
-    stem=re.sub(r'\[materialid\]\d+\[/materialid\]|[请根据概括分析提出要求不超过字全面准确有条理分]|给定资料|材料','',str(stem))
+_TAG = re.compile(r'\[materialid\]\d+\[/materialid\]')
+
+
+def mentions_specific(stem):
+    """题干是否指明了具体材料（编号或标签）。没有的话“给定资料”就是整套，显示全卷是对的。"""
+    return bool(_TAG.search(stem) or re.search(r'(?:资料|材料)\s*(?:\d{1,2}|[一二三四五六七八九十]{1,3})(?![\d年月日%％])',stem))
+
+
+_QUOTE = re.compile(r'[“"「『]([^”"」』]{6,200})[”"」』]')
+_SQUASH = re.compile(r'[\s，。、；：！？,.;:!?“”‘’"\'（）()\[\]《》…—\-]')
+
+
+def _squash(value):
+    return _SQUASH.sub('', unicodedata.normalize('NFKC', str(value or '')))
+
+
+_SUGGEST = {}
+
+
+def suggest_materials(stem, mats, key=None):
+    """题干没写明材料时给出推测，只用于界面提示，不改变批改用的材料。
+    先看题干引号里的原文片段（逐字出现在某则材料里最可靠），再按用词重合度。返回 (材料id列表, 'quote'|'overlap'|'')。"""
+    if key and key in _SUGGEST:
+        return _SUGGEST[key]
+    out=_suggest(stem,mats)
+    if key:
+        if len(_SUGGEST)>20000:
+            _SUGGEST.clear()
+        _SUGGEST[key]=out
+    return out
+
+
+def _suggest(stem, mats):
+    stem=re.sub(r'\[materialid\]\d+\[/materialid\]','',str(stem))
+    if len(mats)<2:
+        return [],''
+    body=[(m['id'],_squash(text(m['text']))) for m in mats]
+    hit=[]
+    for q in _QUOTE.findall(stem):
+        key=_squash(q)
+        if len(key)<6:
+            continue
+        found=[i for i,t in body if key in t]
+        if len(found)==1 and found[0] not in hit:
+            hit.append(found[0])
+    if hit:
+        return [i for i,_ in body if i in hit],'quote'
+    stem=re.sub(r'[请根据概括分析提出要求不超过字全面准确有条理分]|给定资料|材料','',stem)
     grams={stem[i:i+2] for i in range(len(stem)-1) if not re.search(r'[\s，。、；：“”（）()\d]',stem[i:i+2])}
-    if len(grams)<3 or len(mats)<2:
-        return []
+    if len(grams)<3:
+        return [],''
     scores=[(sum(1 for g in grams if g in text(m['text'])),m['id']) for m in mats]
     best=max(scores)[0]
-    return [i for n,i in scores if best>=3 and n>=best*0.6]
+    ids=[i for n,i in scores if best>=3 and n>=best*0.6]
+    return (ids,'overlap') if ids and len(ids)<len(mats) else ([],'')
 
 
 def _pick_file(p,qid):
     return p.reviews/'材料选择'/(_safe(qid)+'.json')
 
 
-def material_choice(p, paper, q):
+def _picked(p):
+    d=p.reviews/'材料选择'
+    return {f.stem for f in d.glob('*.json')} if d.exists() else set()
+
+
+def material_choice(p, paper, q, picked=None):
     """(材料id列表, 来源)。来源：manual 用户选定 / import 题目自带 / stem 题干写明 / all 整卷未确认。"""
     known={m['id'] for m in paper['materials']}
     f=_pick_file(p,q['qid'])
-    if f.exists():
+    if (picked is None or q['qid'] in picked) and f.exists():
         try:
             ids=[x for x in json.loads(f.read_text(encoding='utf-8')).get('ids',[]) if x in known]
             if ids:
@@ -275,7 +337,9 @@ def material_choice(p, paper, q):
     if q['material_ids']:
         return q['material_ids'],'import'
     ids=infer_material_ids(q['stem'],paper['materials'])
-    return (ids,'stem') if ids else ([],'all')
+    if ids:
+        return ids,'stem'
+    return ([],'all') if mentions_specific(q['stem']) else ([],'whole')
 
 
 def material_pick(p, body):
@@ -291,6 +355,22 @@ def material_pick(p, body):
         elif f.exists():
             f.unlink()
     return question(p,qid)
+
+
+def material_auto(p, paper_id):
+    """把整套卷里“题干引用的原文逐字出现在某则材料”的题批量定为对应材料；已手动选定的不动。"""
+    paper=next((x for x in papers(p) if x['id']==paper_id),None)
+    if paper is None:
+        raise BankError('试卷不存在')
+    picked=_picked(p); done=0
+    with _IMPORT_LOCK:
+        for q in paper['questions']:
+            if q['qid'] in picked or material_choice(p,paper,q,picked)[1]!='all':
+                continue
+            ids,kind=suggest_materials(q['stem'],paper['materials'],q['qid'])
+            if kind=='quote' and ids:
+                _write(_pick_file(p,q['qid']),{'qid':q['qid'],'ids':ids,'auto':'quote'}); done+=1
+    return {'done':done}
 
 
 def answer_file(p,qid):

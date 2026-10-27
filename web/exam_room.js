@@ -111,7 +111,7 @@
   const q=r.questions[r.idx],body=r.root.querySelector('[data-er-body]');
   const mat=q.material&&r.materials[q.material];
   const same=q.material&&r.lastMaterial===q.material;
-  body.innerHTML=`${mat?`<section class="er-material" tabindex="0" aria-label="共用材料">${blocksHtml(mat,true)}</section>`:''}<section class="er-question" tabindex="0" aria-label="第 ${q.num} 题"><div class="er-qhead"><span class="er-qnum">第 ${q.num} 题</span><span class="er-qmodule">${esc(q.board)}</span><button type="button" class="er-mark${r.marks.has(q.num)?' on':''}" data-er-mark aria-pressed="${r.marks.has(q.num)}">${r.marks.has(q.num)?'★ 已标记':'☆ 标记'}</button></div>${blocksHtml(q.blocks,false,true)}</section>`;
+  body.innerHTML=`${mat?`<section class="er-material" tabindex="0" aria-label="共用材料">${blocksHtml(mat,true)}</section>`:''}<section class="er-question" tabindex="0" aria-label="第 ${q.num} 题"><div class="er-qhead"><span class="er-qnum">第 ${q.num} 题</span><span class="er-qmodule">${esc(q.board)}</span><button type="button" class="er-mark${r.marks.has(q.num)?' on':''}" data-er-mark aria-pressed="${r.marks.has(q.num)}">${r.marks.has(q.num)?'★ 已标记':'☆ 标记'}</button>${q.original?.length?'<button type="button" class="er-orig-btn" data-er-orig aria-expanded="false">对照原图</button>':''}</div>${blocksHtml(q.blocks,false,true)}${q.original?.length?`<div class="er-original" data-er-original hidden><p class="er-orig-note">识别出的文字可能有误，以原图为准。</p>${blocksHtml(q.original)}</div>`:''}</section>`;
   body.classList.toggle('er-split',!!mat);
   const mp=body.querySelector('.er-material');if(mp&&same&&r.matScroll)mp.scrollTop=r.matScroll;
   mp?.addEventListener('scroll',()=>{r.matScroll=mp.scrollTop;r.lastMaterial=q.material;},{passive:true});
@@ -233,6 +233,7 @@
   if(b.hasAttribute('data-er-choice'))return pick(r,b.dataset.erChoice);
   if(b.hasAttribute('data-er-prev'))return go(r,r.idx-1);
   if(b.hasAttribute('data-er-next'))return go(r,r.idx+1);
+  if(b.hasAttribute('data-er-orig')){const box=r.root.querySelector('[data-er-original]');if(box){box.hidden=!box.hidden;b.setAttribute('aria-expanded',String(!box.hidden));b.textContent=box.hidden?'对照原图':'收起原图';}return;}
   if(b.hasAttribute('data-er-mark')){const n=r.questions[r.idx].num;r.marks.has(n)?r.marks.delete(n):r.marks.add(n);touch(r);return renderQuestion(r);}
   if(b.hasAttribute('data-er-jump')){const i=r.questions.findIndex(q=>q.num===Number(b.dataset.erJump));openSheet(r,false);return go(r,i);}
   if(b.hasAttribute('data-er-continue'))return resetConfirm(r);

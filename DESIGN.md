@@ -1151,3 +1151,17 @@ POST /api/journey动作claim/deliver/place携world/id/revision，领取每日功
 - trainer会话内按板块保存skill_teachers，`skill_teacher:<name>`只切选择，不调用AI/不发奖励；正式答题不显示选择器。独立解惑和追问只读取所选老师，追问历史按老师隔离；旧讲解带原作者头像，不改冒为新老师。老师身份是文档对应的游戏助手，不假扮现实本人；判分/奖励不变。三张原创头像见web/assets/teachers/README.md，其余等用户实际ZIP。
 - 删除总诀/蒸馏模板/流程的前端、API、下载路由和程序内置五份资源，用户库不动。试炼塔仅绘一幅主画，关闭全局重复塔图及整图cover补边，四侧仅延展外缘5%，不改变门/塔几何和点击热区。电脑与平板横竖屏验证。
 
+
+### 3.8.2开发：申论作答页改版（2026-10-26，开发分支，待统一验证发布）
+
+- 布局：`.sl-full-grid` 列宽由 `--sl-split`（40%/50%/30%/60%，localStorage `sl.split`）控制；平板竖屏（宽700–820、高≥900）改上下分栏。`html.sl-focus-write` 把材料栏收到0宽（取代旧全屏层 `.sl-card-expanded`，已删）。顶部“材料与作答/批改与复盘”页签条仍由 fixed_layout.js 创建但 CSS 隐藏，题干栏 `#slViewResult` 代为切换。
+- 红格：笔/橡皮/撤销/重做/手指写字/纸张/专注书写在 `.sl-write-top`（固定顶栏）。画布始终 `touch-action:none`；触摸且未勾“手指写字”时手动拖动外层 `.fx-scroll` 与 `.sl-card-viewport`（不会让笔失效，故取消“滚动模式”）。手指开关存 `sl.finger`。
+- 材料对应（`shenlun_bank.material_choice`）：manual（`训练/…/材料选择/<qid>.json`）> import（题目自带 material_ids）> stem（题干明写资料X/范围，`infer_material_ids`）> whole（题干没点名具体材料=整套）> all（点名了但对不上，显示全卷，批改按全卷）。`suggest_materials`：先看引号原文逐字出现在唯一材料（quote），再看用词重合（overlap），只做提示，用户“采用推测/选定”后才写入 manual。**来源库 `[materialid]N` 的N与材料先后无关（用整库数据验证过），不能按大小排名对应。**
+- 评分标准校准：`shenlun_review.calibrate` 用 `references` 前2份按同一标准走 `grade`（不 record），结果存 `rubrics/综合/校准/<qid>.json`（含 standard_hash，标准更新即作废）；接口 `/api/shenlun/calibrate`。
+- 大作文支架：`shenlun_essay.py`，数据 `训练/大作文/立意|提纲/<qid>.json`，接口 `/api/shenlun/essay`；立意拆解按题干+材料指纹缓存，所有引用必须能在材料/提纲里逐字找到；参考答案不发给AI。
+- 清理：删除 shenlun_analysis/grader/rubric、采分点草稿/审定/解析文档导入接口与页面；`LOST_CODES`、`count_words` 并入 shenlun_review。
+
+### 3.8.2开发：扫描版试卷按题转文字、图形题单独裁图（2026-10-27，开发分支，待统一验证发布）
+- `exam_scan.write_review` 每题先判断：板块是图形推理 → 整题原图；否则取题目各段范围内的OCR行，`split_choices` 要求题干≥6字且A~D四个选项按序出现，认不全就回退原图；`has_figure` 在 60dpi 灰度图里数“文字框以外的深色像素”，占比>0.5%（文字题实测<0.2%，示意图>1.2%）视为有图/表/没认出的公式，整题保留原图。资料分析的材料一律是原图。
+- 文字题写成与粉笔版相同的格式（题干段落 + `- **A.** …`），折行按句末标点和①②/(1)/1.等条目合并；同时存原图 `O题号-n.jpg`（110dpi），`exam_room.payload` 返回 `original`，答题页“对照原图”切换。已有的整卷不会被改，需删除后重新导入才会转成文字。
+- 局限：OCR会把破折号认成“一”等，错字不会被程序发现，所以才保留对照原图；公式/上下标多的数量关系多数会因文字框外有深色内容而回退为原图。

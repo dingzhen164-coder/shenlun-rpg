@@ -49,6 +49,21 @@ class CompleteTest(unittest.TestCase):
         self.assertNotIn('answer',self.calls[0]);self.assertEqual(r['standard_hash'],r2['standard_hash'])
         self.assertEqual(len(review.history(self.p,self.qid)),2)
         self.assertIn(ANSWER,(self.v/r2['review_file']).read_text(encoding='utf-8'))
+    def test_calibrate_with_reference_answers_does_not_record(self):
+        with api.open_game(save=False) as g:rules=g.rules
+        before=copy.deepcopy(self.state());count=len(self.state()['grades'])
+        out=review.calibrate(self.p,self.qid,rules,self.fake)
+        self.assertTrue(out['results'] and 'rate' in out['results'][0])
+        self.assertEqual(len(self.state()['grades']),count);self.assertEqual(self.state()['xp'],before['xp'])
+        self.assertNotIn('answer',json.dumps(out,ensure_ascii=False).replace('answer_',''))  # 不回传参考答案原文
+        self.assertEqual(review.calibration(self.p,self.qid,out['standard_hash'])['average_rate'],out['average_rate'])
+        self.assertIsNone(review.calibration(self.p,self.qid,'0'*64))
+        self.assertEqual(review.history(self.p,self.qid),[])
+    def test_calibrate_needs_reference(self):
+        paper=copy.deepcopy(PACKAGE);paper['title']='无参考答案卷';paper['questions'][0].pop('references',None)
+        bank.import_packages(self.p,paper);qid=[q['qid'] for x in bank.listing(self.p) if x['title']=='无参考答案卷' for q in x['questions']][0]
+        with api.open_game(save=False) as g:rules=g.rules
+        with self.assertRaises(review.ReviewError):review.calibrate(self.p,qid,rules,self.fake)
     def test_hide_references_duplicate_and_validation_atomic(self):
         self.assertNotIn('references',api.shenlun_question({'qid':self.qid}))
         self.assertNotIn('隐藏的机构参考答案',json.dumps(api.shenlun_papers({}),ensure_ascii=False))
