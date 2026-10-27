@@ -14,23 +14,24 @@ async function alpha(locator){return locator.evaluate(e=>{const c=document.creat
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  for(const [name,width,height]of [['desktop',1280,860],['portrait',800,1280],['landscape',1280,800]])for(const theme of ['light','dark']){
   page=await browser.newPage({viewport:{width,height}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(t=>localStorage.setItem('xrpg-theme',t),theme);await page.goto(base);await page.locator('.study-hud-player').waitFor();await separate();
+  await page.addInitScript(t=>localStorage.setItem('xrpg-theme',t),theme);await page.goto(base);await page.locator('.study-hud-player.ig-shell').waitFor();await separate();
   for(const route of ['settings','dwelling']){
    await page.evaluate(v=>go(v),route);await page.locator('#studyHud.subpage-heading .subpage-place').waitFor();await separate();
    await page.waitForFunction(()=>document.querySelector('.subpage-place')?.classList.contains('ig-shell'));
    assert((await alpha(page.locator('.subpage-place')))>.2&&(await alpha(page.locator('.subpage-place')))<.5);
-   await page.evaluate(()=>go('home'));await page.locator('.study-hud-player').waitFor();await separate();
+   await page.evaluate(()=>go('home'));await page.locator('.study-hud-player.ig-shell').waitFor();await separate();
   }
   const player=page.locator('.study-hud-player');assert(Number(await player.evaluate(e=>getComputedStyle(e).fontWeight))>=600);
   await page.evaluate(()=>{localStorage.setItem('scene-time','night');window.SCENE_CLOCK?.apply();});
   assert(await page.locator('.study-hud-name strong').evaluate(e=>{const probe=document.createElement('span');probe.style.color='var(--ds-scene-night-ink)';document.body.append(probe);const expected=getComputedStyle(probe).color;probe.remove();return getComputedStyle(e).color===expected;}),'透明夜景信息牌必须使用清晰浅字');
   if(await page.locator('.npc-drawer-toggle').count())assert.deepEqual(await page.locator('.npc-drawer-toggle').evaluate(e=>{const s=getComputedStyle(e);return[s.backgroundColor,s.borderTopWidth,s.boxShadow];}),['rgba(0, 0, 0, 0)','0px','none']);
   await page.evaluate(()=>go('settings'));await page.locator('#interfaceTransparency').waitFor({state:'attached'});
+  await page.waitForFunction(()=>{const e=document.querySelector('#interfaceTransparency');return e&&(e.closest('[data-fx-group="appearance"]')!==null||e.closest('.fx-settings-group')?.textContent.includes('外观与声音'));});
   assert(await page.locator('#interfaceTransparency').evaluate(e=>e.closest('[data-fx-group="appearance"]')!==null||e.closest('.fx-settings-group')?.textContent.includes('外观与声音')));
   await page.locator('#interfaceTransparency').evaluate(e=>{e.value='85';e.dispatchEvent(new Event('input',{bubbles:true}));});
-  await page.evaluate(()=>go('home'));await page.locator('.study-hud-player').waitFor();await separate();
+  await page.evaluate(()=>go('home'));await page.locator('.study-hud-player.ig-shell').waitFor();await separate();
   assert(Math.abs(await alpha(player)-.15)<.02,'透明度仅应用于背景框');assert.equal(await player.evaluate(e=>getComputedStyle(e).opacity),'1');
-  await page.reload();await player.waitFor();assert(Math.abs(await alpha(player)-.15)<.02,'刷新保留本机透明度');
+  await page.reload();await page.locator('.study-hud-player.ig-shell').waitFor();assert(Math.abs(await alpha(player)-.15)<.02,'刷新保留本机透明度');
   await page.evaluate(()=>go('settings'));await page.locator('#interfaceTransparency').waitFor({state:'attached'});assert.equal(await page.locator('#interfaceTransparency').inputValue(),'85');
   await page.evaluate(()=>{const wrap=document.createElement('div');wrap.id='protect383';wrap.innerHTML='<div class="train"><div class="card" id="answer383">答题</div></div><div class="original" id="reading383">正文</div>';document.querySelector('#view').append(wrap);});
   await page.waitForFunction(()=>document.querySelector('#reading383')?.classList.contains('ig-paper'));
