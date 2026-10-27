@@ -23,10 +23,25 @@ def merge(ranges):
 
 
 def subtract(ranges, cuts):
-    result = merge(ranges)
-    for a, b in merge(cuts):
-        result = [part for x, y in result for part in ([x, min(y, a)], [max(x, b), y]) if part[0] < part[1]]
-    return merge(result)
+    """ranges里去掉cuts覆盖的部分。两边都先合并排序再一次扫过，O(n+m)；
+    取消标红后cuts会和ranges一样多，不能再对每个cut整表重算（曾经是O(n×m)，标一次红要算上百毫秒到秒）。"""
+    base, cut = merge(ranges), merge(cuts)
+    out, j = [], 0
+    for x, y in base:
+        while j < len(cut) and cut[j][1] <= x:
+            j += 1
+        start, k = x, j
+        while k < len(cut) and cut[k][0] < y:
+            a, b = cut[k]
+            if a > start:
+                out.append([start, a])
+            start = max(start, b)
+            if b >= y:
+                break
+            k += 1
+        if start < y:
+            out.append([start, y])
+    return out
 
 
 def raw_ranges(text, ranges):
@@ -41,7 +56,7 @@ def raw_ranges(text, ranges):
     return merge(result)
 
 
-def anchor_range(text, anchor):
+def anchor_range(text, anchor, whole=None):
     """选词必须属于同一真实段落；block_offset区分内容完全相同的重复段落。"""
     from .politics import PoliticsError
     paragraph = anchor.get('paragraph', '')
@@ -50,7 +65,7 @@ def anchor_range(text, anchor):
         raise PoliticsError('选词位置无效，请重新选择')
     if paragraph[start:end] != anchor.get('word') or not normalized(anchor.get('word', '')):
         raise PoliticsError('选词位置已变化，请重新选择')
-    whole, block = normalized(text), normalized(paragraph)
+    whole, block = whole if whole is not None else normalized(text), normalized(paragraph)
     hint = anchor.get('block_offset')
     offset = whole.find(block) if hint is None else hint
     if type(offset) is not int or offset < 0 or whole[offset:offset+len(block)] != block:
@@ -83,7 +98,7 @@ def reading(pp, src):
     spans = list(src.get('emphasis', []))
     for note in (politics.list_notes(pp, src).values() if pp is not None else []):
         try:
-            spans.append(anchor_range(text, note))
+            spans.append(anchor_range(text, note, whole))
         except (politics.PoliticsError, TypeError, AttributeError):
             continue
     custom = politics.read_json(pp.train/'时政重点'/(politics.identity(src)+'.json'), {'added': [], 'removed': []}) if pp is not None else {}
@@ -107,16 +122,13 @@ def mark(pp, src, body):
         return reading(pp, src)
 
 
-def clear(pp, src, on):
-    """这一篇一键取消全部红标记（on=True）或恢复成原来的红标记（on=False）。
-    只改“训练/时政重点”里的added/removed，不动原文、批注、消化清单的空和进度，不发奖励、不调AI。"""
+def clear(pp, src):
+    """这一篇一键取消全部红标记：把当前的红色区间记进“训练/时政重点”的removed，之后自己重新标。
+    只改这个文件，不动原文、批注、消化清单的空和进度，不发奖励、不调AI。"""
     from . import politics
     with politics._LOCK:
         file = pp.train/'时政重点'/(politics.identity(src)+'.json')
-        if on:
-            data = politics.read_json(file, {'added': [], 'removed': []})
-            data = {'added': [], 'removed': merge(list(data.get('removed', [])) + reading(pp, src)['ranges'])}
-        else:
-            data = {'added': [], 'removed': []}
+        data = politics.read_json(file, {'added': [], 'removed': []})
+        data = {'added': [], 'removed': merge(list(data.get('removed', [])) + reading(pp, src)['ranges'])}
         politics.atomic_json(file, data)
         return reading(pp, src)
