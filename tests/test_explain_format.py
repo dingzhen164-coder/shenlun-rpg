@@ -22,7 +22,7 @@ class ExplainFormatTest(unittest.TestCase):
         independent=str(messages[0])
         for secret in ['答案秘密标记','旧解析秘密标记','学员秘密标记']:
             self.assertNotIn(secret,independent)
-        self.assertIn('禁止搜索答案',independent)
+        self.assertIn('禁止搜索正确答案',independent)
         self.assertIn('不要用 LaTeX',independent)
 
     def test_plain_math_turns_latex_into_readable_text(self):
