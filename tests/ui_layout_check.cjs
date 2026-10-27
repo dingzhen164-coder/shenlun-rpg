@@ -68,8 +68,18 @@ function inspect() {
     if ((r.right > vw + 2 || r.left < -2) && !clipped(el)) { if (sticking++ < 3) out.push(`伸出屏幕：${name(el)}（${Math.round(r.left)}–${Math.round(r.right)} / ${vw}）`); }
   }
   if (sticking > 3) out.push(`……还有 ${sticking - 3} 个元素伸出屏幕`);
+  // 横向滚动的分类标签只有裁切后的部分可见，隐藏部分不能被误判为压住右侧工具。
+  // 仍比较可见交集；真正伸入工具区的控件依旧报错。
+  const visibleRect = (el) => {
+    const r=el.getBoundingClientRect();let left=Math.max(0,r.left),right=Math.min(innerWidth,r.right),top=Math.max(0,r.top),bottom=Math.min(innerHeight,r.bottom);
+    for(let p=el.parentElement;p&&p!==document.body;p=p.parentElement){const s=getComputedStyle(p),b=p.getBoundingClientRect();
+      if(/auto|scroll|hidden|clip/.test(s.overflowX)){left=Math.max(left,b.left);right=Math.min(right,b.right);}
+      if(/auto|scroll|hidden|clip/.test(s.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom);}
+    }
+    return {left,right,top,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
+  };
   const ctrls = [...document.querySelectorAll('header button, header a, #view button, #view a, #view input, #view select, #view textarea')]
-    .filter(visible).slice(0, 400).map((el) => [el, el.getBoundingClientRect()]);
+    .filter(visible).slice(0, 400).map((el) => [el, visibleRect(el)]).filter(([,r])=>r.width>0&&r.height>0);
   let overlaps = 0;
   for (let i = 0; i < ctrls.length; i++) for (let j = i + 1; j < ctrls.length; j++) {
     const [a, ra] = ctrls[i], [b, rb] = ctrls[j];

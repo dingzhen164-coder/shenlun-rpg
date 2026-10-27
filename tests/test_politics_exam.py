@@ -174,5 +174,25 @@ class AnswerImportTests(unittest.TestCase):
         for body in ({'material':one['id'],'text':''},{'material':one['id'],'text':'没有答案'},{'material':'nope','text':'1.A'}):
             with self.assertRaises(self.politics.PoliticsError):self.politics_exam.apply_answers(self.pp,body)
 
+    def test_batch_answers_keep_paper_numbers_separate_and_repeat_safely(self):
+        out=exam.apply_answers(self.pp,{'material':'all','text':'1.A 2.B 3.C\n1.D 2.A'})
+        self.assertEqual(out['filled'],5)
+        self.assertEqual([self.questions(p)[1]['answer'] for p in self.papers[:2]],['A','D'])
+        again=exam.apply_answers(self.pp,{'material':'all','text':'1.A 2.B 3.C\n1.D 2.A'})
+        self.assertEqual((again['filled'],again['changed'],again['same']),(0,0,5))
+
+    def test_batch_files_match_titles_in_any_order_and_fail_atomically(self):
+        one,two=self.papers[:2]
+        out=exam.apply_answers(self.pp,{'material':'all','batches':[{'name':two['title']+'.txt','text':'1.D 2.C'}, {'name':one['title']+'.txt','text':'1.A 2.B 3.C'}]})
+        self.assertEqual(out['filled'],5)
+        self.assertEqual(self.questions(two)[1]['answer'],'D')
+        before=self.questions(one)
+        with self.assertRaises(politics.PoliticsError):
+            exam.apply_answers(self.pp,{'material':'all','batches':[{'name':one['title']+'.txt','text':'1.B'}, {'name':one['title']+'.txt','text':'1.C'}]})
+        self.assertEqual(self.questions(one),before)
+        with self.assertRaises(politics.PoliticsError):
+            exam.apply_answers(self.pp,{'material':one['id'],'text':'1.B 2.C\n1.D'})
+        self.assertEqual(self.questions(one),before)
+
     politics_exam=exam
 

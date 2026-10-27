@@ -23,11 +23,9 @@
   let view = '', applied='';
   function findHit(page, dn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime || 'day') {
     if(isXingce()&&ROOMS381.includes(page)){
-      const p=page==='bank'&&phase()==='dawn'?'dawn':dn,tk=page==='dwelling'?TAB_KEY[tabLabel()]:'';
-      const exact=[...(tk?[`beauty/page/dwelling-${tk}-${p}.webp`]:[]),`beauty/page/${page}-${p}.webp`];
-      const generic=[...(tk?[`beauty/page/dwelling-${tk}.webp`]:[]),`beauty/page/${page}.webp`];
+      const p=page==='bank'&&phase()==='dawn'?'dawn':dn;
       // 明确的专用覆盖仍优先；旧内置洞府页签不能抢过新整体分时场景。
-      const own=[...exact,...generic].find(r=>custom.has(r)&&has(r));
+      const own=[`beauty/page/${page}-${p}.webp`].find(r=>custom.has(r)&&has(r));
       if(own)return own;
       if(has(`beauty/page/${page}-${p}.webp`))return `beauty/page/${page}-${p}.webp`;
     }
@@ -70,7 +68,8 @@
     try{if(navigator.connection?.saveData)return;}catch(_){}
     const idle=fn=>(window.requestIdleCallback?requestIdleCallback(fn,{timeout:4000}):setTimeout(fn,300));
     const queue=[...WARM_PAGES.map(pg=>()=>prepare(pg,true)),
-      ()=>Promise.all(PEAK_NAMES.map(n=>{const r=`beauty/page/train-${REGION_KEY[n]}-${phase()}.webp`;return has(r)?decode(url(r)):null;})),
+      // 五峰没有清晨专图，预加载与实际显示一样回退白天；试炼塔仍用自己的清晨图。
+      ()=>Promise.all(PEAK_NAMES.map(n=>{const imagePhase=phase()==='dawn'?'day':phase(),r=`beauty/page/train-${REGION_KEY[n]}-${imagePhase}.webp`;return has(r)?decode(url(r)):null;})),
       ()=>fetch('political_atlas.html').then(r=>r.text()).then(t=>Promise.all([...t.matchAll(/(?:src|href)="([^":]+\.(?:js|css))"/g)].map(m=>fetch(m[1]).then(r=>r.arrayBuffer())))).catch(()=>0)];
     const step=()=>{if(warmed!==key)return;const job=queue.shift();if(!job)return;idle(()=>{Promise.resolve().then(job).catch(()=>0).then(()=>setTimeout(step,400));});};
     step();

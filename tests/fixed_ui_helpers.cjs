@@ -13,7 +13,7 @@ async function reveal(page,locator){
     }
   }
   const ids=await locator.first().evaluate(el=>{const ids=[];for(let p=el;p;p=p.parentElement)if(p.hidden&&getComputedStyle(p).display==='none'&&p.getAttribute('role')==='tabpanel')ids.unshift(p.id);return ids;});
-  for(const id of ids){const tab=page.locator(`[role="tab"][aria-controls="${id}"]`);if(await tab.count())await tab.click();}
+  for(const id of ids){const tab=page.locator(`[role="tab"][aria-controls="${id}"]`);if(await tab.count()){if(await tab.isVisible())await tab.click();else await tab.evaluate(el=>el.click());}}
 }
 function install(page){
   const proto=Object.getPrototypeOf(page.locator('body'));

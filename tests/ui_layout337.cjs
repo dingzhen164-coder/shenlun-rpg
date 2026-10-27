@@ -7,6 +7,12 @@ const ready=new Promise((ok,no)=>{let text='';const timer=setTimeout(()=>no(Erro
 const out=path.resolve('ui-artifacts/layout337');
 async function position(p){return p.evaluate(()=>{const k=Object.keys(localStorage).find(k=>k.startsWith('mindmap-reading-v1:')&&k.includes(encodeURIComponent('自编阅读导图')));return k?JSON.parse(localStorage[k]):null;});}
 async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute('transform');}
+// 直接等待实际画布和SVG绘制几何，避免只依赖g包装层的可见性轮询。
+async function waitGraph(p){
+ await p.locator('#lnCanvas').waitFor();
+ await p.waitForFunction(()=>{const g=document.querySelector('#lnCanvas svg>g');if(!g||!g.querySelector('text'))return false;const r=g.getBoundingClientRect(),b=g.getBBox();return r.width>0&&r.height>0&&b.width>0&&b.height>0&&getComputedStyle(g).visibility==='visible';});
+}
+
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  const sizes=process.argv.find(a=>a.startsWith('--sizes='))?.split('=')[1]?.split(',');
@@ -52,7 +58,7 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.evaluate(async r=>{STUDY_REGIONS.select(r);await go('train');},secondRegion);releaseCards();await p.evaluate(()=>__oldPeak);await p.unroute('**/api/cards');
   await p.locator('button[data-yjgo=""]').click();await p.locator('#yjShow').waitFor();assert((await p.locator('.yj-stage').textContent()).includes('自编第二分区'),'当前峰温简不得串到旧峰');await p.locator('#yjBack').click();await p.locator('.yj-stage').waitFor({state:'detached'});
   await p.evaluate(async r=>{STUDY_REGIONS.select(r);await go('train');},region);
-  await p.locator('[data-ln]').first().click();await p.locator('#lnCanvas svg>g').first().waitFor();assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),subject==='行测'&&viewport.height>viewport.width?'map':'split');if(subject==='行测'&&viewport.height>viewport.width)await p.locator('[data-ln-mode=split]').click();assert(await p.locator('#lnMarkdown').isVisible());assert.equal(await p.locator('#lnFile,#lnLayout').count(),0);assert.equal(await p.locator('.yj-top>.ln-reading-tabs').count(),1,'阅读工具并入图名同一栏');assert(await p.locator('.yj-top').evaluate(e=>{const a=e.getBoundingClientRect(),b=e.querySelector('.ln-reading-tabs').getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom+1;}));
+  await p.locator('[data-ln]').first().click();await waitGraph(p);assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),subject==='行测'&&viewport.height>viewport.width?'map':'split');if(subject==='行测'&&viewport.height>viewport.width)await p.locator('[data-ln-mode=split]').click();assert(await p.locator('#lnMarkdown').isVisible());assert.equal(await p.locator('#lnFile,#lnLayout').count(),0);assert.equal(await p.locator('.yj-top>.ln-reading-tabs').count(),1,'阅读工具并入图名同一栏');assert(await p.locator('.yj-top').evaluate(e=>{const a=e.getBoundingClientRect(),b=e.querySelector('.ln-reading-tabs').getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom+1;}));
   const reader=await p.locator('.ln-stage').boundingBox();
   assert.equal(await p.locator('.ln-stage.mm381-reading').count(),subject==='行测'?1:0,'行测阅读增强不能被申论文案替换误启用');
   assert.equal(await p.locator('.mm381-tools').count(),0,'额外工具整排已经移除，不再占据画布');
@@ -62,9 +68,9 @@ async function graph(p){return p.locator('#lnCanvas svg>g').first().getAttribute
   await p.waitForFunction(()=>Object.keys(localStorage).some(k=>k.startsWith('mindmap-reading-v1:')&&JSON.parse(localStorage[k]).top>100));
   await p.waitForTimeout(230);const saved=await position(p),matrix=await graph(p);assert(saved.view&&saved.top>100);
   await p.locator('[data-ln-mode=document]').click();await p.locator('[data-ln-mode=split]').click();await p.waitForTimeout(100);assert.equal(await graph(p),matrix,'切换显示方式不重新适应整幅图');
-  await p.locator('#lnBack').click();await p.locator('.ln-stage').waitFor({state:'detached'});await p.locator('[data-ln]').first().click();await p.locator('#lnCanvas svg>g').first().waitFor();await p.waitForTimeout(200);
+  await p.locator('#lnBack').click();await p.locator('.ln-stage').waitFor({state:'detached'});await p.locator('[data-ln]').first().click();await waitGraph(p);await p.waitForTimeout(200);
   assert.equal(await p.locator('.ln-reading-body').getAttribute('data-mode'),'split');assert(Math.abs(await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop)-saved.top)<2,'重开恢复文档位置');assert.equal(await graph(p),matrix,'重开恢复导图位置与缩放');
-  await p.reload();await p.waitForFunction(()=>!!window.DASH_REF?.());await p.evaluate(async board=>MINDMAP.open(board,'自编阅读导图',false),board);await p.locator('#lnCanvas svg>g').first().waitFor();await p.waitForTimeout(200);assert(Math.abs(await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop)-saved.top)<2,'刷新应用也保留阅读位置');assert.equal(await graph(p),matrix);
+  await p.reload();await p.waitForFunction(()=>!!window.DASH_REF?.());await p.locator('.portal-stage').waitFor();await p.locator('#splash').waitFor({state:'hidden'});await p.evaluate(async board=>MINDMAP.open(board,'自编阅读导图',false),board);await waitGraph(p);await p.waitForTimeout(200);assert(Math.abs(await p.locator('#lnMarkdown').evaluate(e=>e.scrollTop)-saved.top)<2,'刷新应用也保留阅读位置');assert.equal(await graph(p),matrix);
   if(process.argv.includes('--shots')&&size==='tablet'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-split.png')});}
   assert.deepEqual(errors,[]);await p.close();console.log((subject||'法考')+' '+size+'：地图保留、后台心跳、慢请求竞态、选择页布局、全屏阅读、双栏及阅读位置恢复通过');
  }

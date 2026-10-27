@@ -6,6 +6,7 @@ import tempfile
 import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -53,8 +54,13 @@ def main():
             api.ai.chat=fake_chat
             server=ThreadingHTTPServer(('127.0.0.1',0),api.Handler)
             api.RUNTIME.update(port=server.server_port,lan=False)
-            print('UI-READY http://127.0.0.1:%d'%server.server_port,flush=True)
-            server.serve_forever()
+            # 闭环用例会刷新并打开同一人物的历史，只固定相遇模块的时钟。
+            # 跨真实半小时时，正式程序应换人；此处不让墙钟改变测试前置条件。
+            # 其他模块时间与fake_chat的真实延迟保留；换时段另由test_characters覆盖。
+            encounter_now = time.time()
+            with patch.object(characters, 'time', SimpleNamespace(time=lambda: encounter_now)):
+                print('UI-READY http://127.0.0.1:%d'%server.server_port,flush=True)
+                server.serve_forever()
 
 
 if __name__=='__main__':main()

@@ -1742,18 +1742,7 @@ details.card-fold > summary small { font-family: system-ui, sans-serif; font-wei
 .sl-stem.big { display: block; color: var(--text); font-family: var(--display); font-size: var(--ds-fs-16); line-height: 1.9; }
 .sl-stem-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sl-empty { text-align: center; padding: 36px 20px; }
-.sl-empty-ico { font-size: 36px; opacity: .7; }
-.sl-ans-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.sl-left, .sl-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .sl-ta { min-height: 340px; font-family: var(--display); font-size: var(--ds-fs-16); line-height: 2; background: var(--panel); }
-.sl-score { display: flex; gap: 18px; align-items: center; border-left: 4px solid var(--accent); }
-.sl-score.trial { border-left-color: var(--faint); }
-.sl-ring { --p: 0; width: 96px; height: 96px; border-radius: 50%; flex: none; display: grid; place-items: center;
-  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--panel2) 0); position: relative; }
-.sl-ring::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--panel); }
-.sl-ring > div { position: relative; text-align: center; line-height: 1.1; }
-.sl-ring b { font-size: var(--ds-fs-26); font-family: var(--display); color: var(--accent); }
-.sl-ring small { display: block; color: var(--faint); }
 .sl-pct { color: var(--muted); font-size: var(--ds-fs-13); }
 .sl-pt { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--ds-r-10); padding: 9px 12px; margin-bottom: 8px; background: var(--panel); }
 .sl-pt.full { border-left-color: var(--green); }
@@ -1766,10 +1755,6 @@ details.card-fold > summary small { font-family: system-ui, sans-serif; font-wei
 .sl-rec { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
 .sl-rate { flex: 1; height: 6px; border-radius: var(--ds-r-3); background: var(--panel2); overflow: hidden; }
 .sl-rate i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); }
-.sl-lib-row { border: 1px solid var(--line); border-radius: var(--ds-r-10); padding: 10px 12px; margin-bottom: 8px; background: var(--panel); }
-.sl-rec-list { list-style: none; padding: 0; margin: 8px 0; }
-.sl-rec-list li { padding: 8px 0; border-bottom: 1px dashed var(--line); }
-@media (max-width: 900px) { .sl-ans-grid { grid-template-columns: 1fr; } }
 
 /* ===================================================================================
    官场（申论科目）· 机关公文风格：红头 + 藏青 + 白底，方正、平整、少装饰。
@@ -1860,7 +1845,6 @@ html[data-theme="dark"] body.guantu {
 .guantu .toc-chip.on, .guantu .toc-chip:hover { border-color: var(--accent); color: var(--accent); }
 /* 实操 · 批改结果 */
 .guantu .sl-q { border-top-color: var(--accent); }
-.guantu .sl-ring::before { inset: 10px; }
 /* 升职 / 结算弹窗：去掉山水、灵鱼、月亮、法阵、道袍人物，只留一块红头通知 */
 .guantu .cer-moon, .guantu .cer-mount, .guantu .cer-fish, .guantu .cer-mist, .guantu .cer-ridge, .guantu .cer-ring, .guantu .cer-stage > b, .guantu .cer-stage > i { display: none; }
 .guantu .cer-sky { background: linear-gradient(#1b2b46, #0e1827); }
@@ -2025,9 +2009,6 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 .sl-transcription .sl-ta { min-height: 160px; }
 .sl-exam-clock { margin: 10px 0; font-variant-numeric: tabular-nums; }
 
-.sl-card-expanded { position: fixed; z-index: 2000; inset: 12px; overflow-y: auto; margin: 0; background: var(--panel); }
-.sl-card-expanded .sl-card-tools { position: sticky; top: 0; z-index: 1; padding: 8px 0; background: var(--panel); }
-.sl-card-expanded .sl-card-paper { max-width: 1040px; margin: 10px auto; }
 
 /* 2.6.1：申论专注作答，材料与答题卡占满窗口。 */
 html.in-sl-exam .topbar, html.in-sl-exam #banner, html.in-sl-exam #quoteLayer { display: none !important; }
@@ -2055,8 +2036,7 @@ html.in-sl-exam #slRes { margin-top:16px; }
   html.in-sl-exam .sl-materials, html.in-sl-exam .sl-writing { height:100%; min-height:0; }
 }
 
-html.in-sl-exam .sl-writing.sl-card-expanded { height:auto; }
-
+html.in-sl-exam .sl-writing
 html.in-sl-exam button.ghost:not(:disabled) { color:var(--text); }
 html.in-sl-exam .sl-marks-tools button[aria-pressed="true"] { color:#fff; }
 html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }

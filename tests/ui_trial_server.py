@@ -54,6 +54,13 @@ def main():
                     (v/'FB模考试卷复盘/板块复盘').mkdir(parents=True)
                 paths.Paths(v, subject).ensure_train_dir()
                 vaults[subject] = str(v)
+            if '--old-room-exports' in sys.argv:
+                from rpg import art
+                folder = art.art_dir(paths.Paths(Path(vaults['行测']), '行测')) / '子地图背景'
+                folder.mkdir(parents=True, exist_ok=True)
+                image = (paths.WEB_DIR / 'assets/beauty/scenes/xingce/hd/381/settings-day.webp').read_bytes()
+                for name in ['洞府', '洞府-修为与突破', '试炼塔', '宗门大比', '藏经阁', '天机台', '设置']:
+                    (folder / (name + '.webp')).write_bytes(image)
             paths.save_settings({'subject': '行测', 'vaults': vaults})
             with api.open_game() as g:
                 install(g)

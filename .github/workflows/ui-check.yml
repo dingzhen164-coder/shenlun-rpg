@@ -29,6 +29,17 @@ jobs:
           pip install pymupdf pillow
           npm install --no-save playwright jsdom
           npx playwright install --with-deps chromium
+      - name: Interface transparency and embedded library
+        shell: python
+        run: |
+          import subprocess
+          for subject in ['行测', '申论']:
+              result = subprocess.run(['node', 'tests/ui_interface383.cjs', '--subject=' + subject], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+              print(result.stdout, flush=True)
+              if result.returncode:
+                  message = result.stdout[-10000:].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error title=Interface regression::' + message, flush=True)
+                  raise SystemExit(result.returncode)
       - name: Political atlas and contextual word annotations (fake AI)
         shell: python
         run: |

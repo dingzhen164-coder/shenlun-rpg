@@ -10,8 +10,6 @@ import re
 import threading
 import uuid
 from . import shenlun_bank as bank
-from . import shenlun_grader as legacy
-from . import shenlun_rubric as rubric
 from .paths import DEFAULTS_DIR
 
 _LOCK = threading.Lock()
@@ -41,6 +39,20 @@ level大于0必须引用答案原句。不要重复把内容漏点扣到结构�
 revisions最多3条，只修改确实影响任务完成或表达的句子，不做装饰性扩写。quote必须在答案中只出现一次，各quote不能重叠。
 所有rewrite同时替换原句后，整篇必须不超过question.words（0表示无上限）；需要补充时同时压缩冗余。可以将一段原句替换成精炼短句，不能单纯追加案例。没有必要修改时返回空列表。
 字数由程序计算，不在checks、reason、summary里估算答案字数，字数专项检查交给程序。'''
+
+
+# 失分类型（只记类型，不记具体错误，才能跨题累积）
+LOST_CODES = {
+    "A1": "漏采分点", "A2": "找错位置", "A3": "自我脑补", "A4": "未用材料原词",
+    "B1": "概括词不统一", "B2": "分类逻辑混乱",
+    "C1": "表述口语化", "C2": "条理不清", "C3": "篇幅失控",
+    "D1": "格式缺失",
+}
+
+
+def count_words(text):
+    """申论字数：含标点，不含空白和换行"""
+    return len(re.sub(r"\s", "", text or ""))
 
 
 class ReviewError(Exception):
@@ -132,7 +144,7 @@ def revision_plan(revisions,answer,limit=0):
         spans.append((start,end,x['rewrite']))
     revised=answer
     for start,end,value in sorted(spans,reverse=True):revised=revised[:start]+value+revised[end:]
-    words=rubric.count_words(revised)
+    words=count_words(revised)
     if revisions and limit and words>limit:
         raise ReviewError('应用全部修改后为%d字，超过%d字；请压缩改写、同时删减冗余，不能追加案例' % (words,limit))
     return words
@@ -179,7 +191,7 @@ def grade(p,qid,answer,rules,chat):
     s=standard(p,q,rules,chat)
     names=[x['name'] for x in s['weights'] if x['name']!='内容覆盖']
     d=_call(chat,REVIEW_SYSTEM,{'question':q,'standard':s,'dimension_names':names,'answer':answer},lambda d:validate(d,s,answer,q['words']))
-    words=rubric.count_words(answer)
+    words=count_words(answer)
     # AI不估算字数，覆盖旧模型可能返回的字数专项检查。
     d['checks']=[x for x in d['checks'] if '字数' not in str(x.get('name',''))]
     if q['words']:
@@ -199,14 +211,68 @@ def grade(p,qid,answer,rules,chat):
         parts.append({'name':w['name'],'earned':round(value,3),'full':round(maxscore,3)})
     # 新题不套旧版的默认超字数扣分；超限明确提示，由结构表达判断，不再重复扣分。
     total=min(full,max(0,round(sum(x['earned'] for x in parts)*2)/2))
-    res={'qid':qid,'type':q['type'],'total':total,'full':full,'rate':round(total/full,4),'words':rubric.count_words(answer),
+    res={'qid':qid,'type':q['type'],'total':total,'full':full,'rate':round(total/full,4),'words':count_words(answer),
          'word_limit':q['words'],'revision_words':d['revision_words'],'revision_verified':True,
          'parts':parts,'points':d['points'],'dimensions':d['dimensions'],'checks':d['checks'],'revisions':d['revisions'],
-         'lost':[{'code':x['code'],'name':legacy.LOST_CODES[x['code']],'note':str(x.get('note') or '')} for x in d.get('lost') or [] if isinstance(x,dict) and x.get('code') in legacy.LOST_CODES],
+         'lost':[{'code':x['code'],'name':LOST_CODES[x['code']],'note':str(x.get('note') or '')} for x in d.get('lost') or [] if isinstance(x,dict) and x.get('code') in LOST_CODES],
          'summary':d['summary'],'task':s['task'],'method':s['method'],'standard_hash':_hash(s),
-         'scoring_note':s['source'],'draft':False,'deductions':[], 'word_warning':'超过题目字数上限' if q['words'] and rubric.count_words(answer)>q['words'] else '',
+         'scoring_note':s['source'],'draft':False,'deductions':[], 'word_warning':'超过题目字数上限' if q['words'] and count_words(answer)>q['words'] else '',
          'references':q['references'],'analysis':q['analysis']}
     return q,res
+
+
+CALIBRATE_LIMIT = 2
+
+
+def _calibration_file(p, qid):
+    return p.rubrics/'综合'/'校准'/(bank._safe(qid)+'.json')
+
+
+def calibration(p, qid, standard_hash=None):
+    """上次校准结果；评分标准已更新（hash对不上）就视为没有。"""
+    f=_calibration_file(p,qid)
+    if not f.exists():
+        return None
+    try:
+        d=json.loads(f.read_text(encoding='utf-8'))
+    except (OSError,ValueError):
+        return None
+    return d if standard_hash is None or d.get('standard_hash')==standard_hash else None
+
+
+def calibrate(p, qid, rules, chat):
+    """用来源库附带的参考答案按同一份评分标准试批，看标准是否偏严或偏松。
+    只调用批改，不记成绩、不给奖励、不写复盘；参考答案不发给页面，只回得分率。"""
+    q=bank.question(p,qid,reveal=True)
+    refs=[x for x in q['references'] if str(x.get('answer') or '').strip()][:CALIBRATE_LIMIT]
+    if not refs:
+        raise ReviewError('这道题没有参考答案，无法校准评分标准')
+    results=[]
+    standard_hash=None
+    for ref in refs:
+        item={'source':str(ref.get('source') or '参考答案')}
+        try:
+            _,res=grade(p,qid,str(ref['answer']).strip(),rules,chat)
+            standard_hash=res['standard_hash']
+            item.update(total=res['total'],full=res['full'],rate=res['rate'],words=res['words'],
+                        missed=[x['name'] for x in res['points'] if x['hit']=='none'][:6])
+        except ReviewError as e:
+            item.update(error=str(e))
+        results.append(item)
+    if standard_hash is None:
+        raise ReviewError('参考答案试批没有成功：'+'；'.join(x.get('error','') for x in results))
+    rates=[x['rate'] for x in results if 'rate' in x]
+    avg=sum(rates)/len(rates)
+    if avg>=0.85:
+        verdict='参考答案得分率较高，评分标准与参考答案基本一致。'
+    elif avg>=0.6:
+        verdict='参考答案只拿到一部分分数：可能是参考答案本身没写全，或标准比参考答案更严。你的分数可作参考，不必追求满分。'
+    else:
+        verdict='参考答案得分率偏低：这套自动生成的标准对本题可能偏严或要点不全，本题分数仅供参考，更看重逐点对照里的缺口。'
+    out={'qid':qid,'standard_hash':standard_hash,'created':dt.datetime.now().isoformat(timespec='seconds'),
+         'results':results,'average_rate':round(avg,4),'verdict':verdict}
+    bank._write(_calibration_file(p,qid),out)
+    return out
 
 
 def history(p,qid):

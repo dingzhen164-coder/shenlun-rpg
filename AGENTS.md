@@ -33,10 +33,10 @@
 | 申论科目下网页和提示词里的措辞改写 | `rpg/wording.py`（`MAP`、`WEB_EXTRA`；只改程序写的字，不改用户内容） |
 | 游戏规则逻辑（政绩、职级、打卡、周例会、批改成绩计入）| `rpg/engine.py`（`on_grade`、`_grade_accuracy`） |
 | 训练流程（要点 / 汇报 / 整改 / 晋升考核……的对话步骤） | `rpg/trainer.py`、`rpg/prompts.py` |
-| 采分点文件格式、校验、分值分配、程序算分 | `rpg/shenlun_rubric.py` |
-| 从解析文档起草采分点 | `rpg/shenlun_analysis.py` |
-| 批改提示词、AI 返回校验、重试、标定 | `rpg/shenlun_grader.py` |
-| 申论服务层 / 接口 | `rpg/shenlun.py` / `rpg/api.py` 里的 `/api/shenlun/*` |
+| 申论完整真题题库、材料对应、作答草稿 | `rpg/shenlun_bank.py` |
+| 综合批改（标准、提示词、校验、校准、复盘） | `rpg/shenlun_review.py` |
+| 大作文写作支架（立意拆解、提纲点评） | `rpg/shenlun_essay.py` |
+| 申论作答计时活动记录 / 接口 | `rpg/shenlun.py` / `rpg/api.py` 里的 `/api/shenlun/*` |
 | 题库、试炼塔、成语录、模考（行测） | `rpg/question_bank.py`、`rpg/importer.py`、`rpg/idioms.py`、`rpg/mock.py` |
 | 页面、样式（设计令牌在 `style.css` 顶部；`body.xiuxian / xuanhuan / guantu` 三套配色） | `web/app.js`、`web/shenlun.js`、`web/style.css` |
 | 测试（每个测试文件顶部 `setUpModule` 指定本文件跑在哪个科目）；假 AI | `tests/`；`tests/fake_grade_ai.py` |

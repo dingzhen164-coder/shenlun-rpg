@@ -32,8 +32,8 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
    { // 一键取消这一篇的红标记（再恢复）：不改批注、不动消化清单的空
     const bulk=f.locator('.wn-bulk-btn');assert.equal((await bulk.textContent()).includes('一键取消红标记'),true);
     page.once('dialog',d=>d.accept());await bulk.click();await f.locator('.source-emphasis').waitFor({state:'detached'});
-    assert.equal((await bulk.textContent()).includes('恢复红标记'),true);assert.equal(explainCalls,0);
-    await bulk.click();await f.locator('.source-emphasis').waitFor();assert.equal(await f.locator('.source-emphasis').count(),1,'恢复后红标记回来');
+    assert.equal(await bulk.isVisible(),false,'取消后没有红标记，按钮隐藏，也没有“恢复红标记”');assert.equal(explainCalls,0);
+    await select(f,'主产区');await f.locator('.wn-highlight').click();await f.locator('.source-emphasis').waitFor();assert.equal(await f.locator('.source-emphasis').count(),1,'取消后自己重新标红');
     assert.equal((await bulk.textContent()).includes('一键取消红标记'),true);
    }
    assert.equal(await f.locator('.source-emphasis').count(),1);await select(f,'主产区');assert.equal(await f.locator('.wn-highlight').textContent(),'取消标红');await f.locator('.wn-highlight').click();await f.locator('.source-emphasis').waitFor({state:'detached'});assert.equal(explainCalls,0);

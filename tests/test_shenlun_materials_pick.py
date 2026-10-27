@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault('SHENLUN_SUBJECT', '申论')
 from rpg import paths, api, shenlun_bank as bank
 
-MATS = [{'id': str(i), 'label': '材料%d' % i, 'text': '材料%d：社区便民服务改革，居民办事需求增长。' % i} for i in range(1, 6)]
+MATS = [{'id': str(i), 'label': '材料%d' % i, 'text': '材料%d：社区便民服务改革，居民办事需求增长。' % i + ('独有的引文句子出现在第四则。' if i == 4 else '')} for i in range(1, 6)]
 
 
 class InferTest(unittest.TestCase):
@@ -37,9 +37,10 @@ class PickTest(unittest.TestCase):
         self.p = paths.Paths(v, '申论'); self.p.ensure_train_dir()
         bank.import_packages(self.p, {'title': '自编选材料卷', 'region': '自编', 'year': '2026', 'materials': MATS, 'questions': [
             {'type': '归纳概括', 'text': '请根据给定资料2，概括做法。', 'score': 15, 'limit': 200},
-            {'type': '提出对策', 'text': '请提出对策。', 'score': 20, 'limit': 300}]})
+            {'type': '提出对策', 'text': '请提出对策。', 'score': 20, 'limit': 300},
+            {'type': '提出对策', 'text': '“给定资料[materialid]123[/materialid]”提到：“独有的引文句子出现在第四则。”请谈对策。', 'score': 20, 'limit': 300}]})
         qs = bank.listing(self.p)[0]['questions']
-        self.q1, self.q2 = qs[0]['qid'], qs[1]['qid']
+        self.q1, self.q2, self.q3 = qs[0]['qid'], qs[1]['qid'], qs[2]['qid']
 
     def tearDown(self):
         paths.SETTINGS_DIR, paths.SETTINGS_FILE, paths.LEGACY_SETTINGS = self.old; self.env.stop(); self.tmp.cleanup()
@@ -48,14 +49,26 @@ class PickTest(unittest.TestCase):
         q = bank.question(self.p, self.q1)
         self.assertEqual([m['id'] for m in q['materials']], ['2']); self.assertEqual(q['material_source'], 'stem')
         q = bank.question(self.p, self.q2)
-        self.assertEqual(len(q['materials']), 5); self.assertEqual(q['material_source'], 'all')
+        self.assertEqual(len(q['materials']), 5); self.assertEqual(q['material_source'], 'whole')  # 没点名具体材料=整套
+        q = bank.question(self.p, self.q3)
+        self.assertEqual(q['material_source'], 'all'); self.assertEqual(len(q['materials']), 5)  # 点名了但对不上，先显示全卷
+        self.assertEqual((q['suggested_material_ids'], q['suggest_kind']), (['4'], 'quote'))
+
+    def test_listing_and_auto_by_quote(self):
+        sources = {x['qid']: x['material_source'] for x in bank.listing(self.p)[0]['questions']}
+        self.assertEqual([sources[self.q1], sources[self.q2], sources[self.q3]], ['stem', 'whole', 'quote'])
+        paper = bank.listing(self.p)[0]['id']
+        self.assertEqual(bank.material_auto(self.p, paper), {'done': 1})
+        q = bank.question(self.p, self.q3)
+        self.assertEqual((q['material_source'], [m['id'] for m in q['materials']]), ('manual', ['4']))
+        self.assertEqual(bank.material_auto(self.p, paper), {'done': 0})
 
     def test_manual_pick_overrides_and_resets(self):
         q = bank.material_pick(self.p, {'qid': self.q2, 'ids': ['4', '5']})
         self.assertEqual([m['id'] for m in q['materials']], ['4', '5']); self.assertEqual(q['material_source'], 'manual')
         self.assertEqual([m['id'] for m in bank.question(self.p, self.q2)['materials']], ['4', '5'])
         q = bank.material_pick(self.p, {'qid': self.q2, 'ids': []})
-        self.assertEqual(q['material_source'], 'all')
+        self.assertEqual(q['material_source'], 'whole')
         with self.assertRaises(bank.BankError):
             bank.material_pick(self.p, {'qid': self.q2, 'ids': ['99']})
 

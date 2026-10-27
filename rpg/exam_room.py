@@ -280,6 +280,19 @@ def _blocks(g, item):
     return vault.render_blocks(g.paths, body, material=False), vault.render_material(g.paths, q)
 
 
+def _originals(g, item):
+    out = []
+    for k in range(1, 8):
+        found = vault.find_image(g.paths, item["dir"], "O%03d-%d.jpg" % (item["num"], k))
+        if not found:
+            break
+        try:
+            out.append({"t": "img", "v": found.resolve().relative_to(g.paths.vault.resolve()).as_posix()})
+        except ValueError:
+            break
+    return out
+
+
 def payload(g, n):
     """给答题页的整份试卷：不含标准答案和解析"""
     qs, d = _questions(g, n)
@@ -292,8 +305,12 @@ def payload(g, n):
             key = "%d-%d" % tuple(q["material"])
             mats.setdefault(key, material)
         letters = "".join(sorted(set(re.findall(r"^\s*[-*]?\s*\*{0,2}([A-D])[.．、)]", q["body"], re.M)))) or LETTERS
-        items.append({"num": item["num"], "board": item["board"], "module": item["module"], "blocks": blocks,
-                      "material": key, "choices": list(letters)})
+        entry = {"num": item["num"], "board": item["board"], "module": item["module"], "blocks": blocks,
+                 "material": key, "choices": list(letters)}
+        original = _originals(g, item)
+        if original:
+            entry["original"] = original              # 按版面拆分时留的原图：文字版旁边“对照原图”用
+        items.append(entry)
     return {"questions": items, "materials": mats,
             "modules": [{"name": m, "display": DISPLAY.get(m, m)} for m in mock.MODULE_NAMES if any(x["module"] == m for x in qs)]}
 

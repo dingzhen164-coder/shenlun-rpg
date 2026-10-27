@@ -5,7 +5,7 @@
  'use strict';
  const blocked='.train,.tj-q,.yj-stage:not(.ln-stage),.exam-room,.er-run,.er-stage,.er-dialog,.ex-paper,.sl-writing,.nt-book,.nt-pages,.draw-wrap,.wn-pop,.msgs,.question,.wxj-q,.sprint-document-body:has(.question)';
  const paper='.original,.sprint-document-body,.sprint-digest,.wxj-news,.wxj-digest-paper,.tj-news,.tj-cloze,.tj-cl,.an-conv,.ctable,table,.mods,.skb-read,.skb-preview,.skb-editor,.ln-canvas,.ln-document,.ln-reading-body,.yj-slip,.id-detail,.id-content,.chart,.mk-table,.tbl,.roots,.conds,.narrative-paper,.xc-guide-paper,.mock-rewards .fold,.warn,.error,.nt-reader,.ar-body,.ar-text,.md';
- const shells='.fx-panel,.fx-frame,.subpage-heading,.card,.stat,.study-hud-player,.study-hud-world,.lib-head,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.tome-slot,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.th-dialog,.cs-dialog,.th-block-notes,.th-stele,.task-board,.narrative-quests,.narrative-chapters';
+ const shells='.fx-panel,.fx-frame,.subpage-place,.subpage-tools,.card,.stat,.study-hud-player,.study-hud-world,.lib-head,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.tome-slot,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.th-dialog,.cs-dialog,.th-block-notes,.th-stele,.task-board,.narrative-quests,.narrative-chapters';
  let pending=false;
  function mount(){
   pending=false;const body=document.body;if(!body)return;
@@ -13,7 +13,7 @@
   const enabled=dash?.subject==='\u884c\u6d4b';
   body.classList.toggle('hollow381',enabled);if(!enabled)return;
   const root=document.body;
-  for(const el of root.querySelectorAll(shells+','+paper)){
+  for(const el of root.querySelectorAll(shells+','+paper+',.hx381-shell,.hx381-paper')){
    const excluded=!!el.closest(blocked),isPaper=!excluded&&el.matches(paper);
    el.classList.toggle('hx381-paper',isPaper);
    el.classList.toggle('hx381-shell',!excluded&&!isPaper&&el.matches(shells));

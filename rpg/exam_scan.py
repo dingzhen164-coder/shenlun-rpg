@@ -7,7 +7,9 @@
   3. 题的范围 = 从本题题号行到下一个边界（下一题/小节/材料/部分结尾）；跨页就分段。每段从页面上裁成图，空白裁掉。
   4. 写成和旧拆分一样的 训练/模考复盘/第N季/NN-板块.md：每题 `### N. ⚪` + 图片 + 答案栏（正确答案未知），
      资料分析的材料写成 `## 材料（第a-b题）` + 图片。答题、批改、记大比全都沿用原来的文件格式。
-OCR认不准的字不影响使用（页面上显示的是原图）；它只用来找题号、标题的位置。题号按顺序接续，认不出的题号会在报告里列出来。
+题干和A~D四个选项都认出来、题目区域里没有文字框以外的深色内容（图、表、没识别出的公式）的题，写成文字（和粉笔模考卷一样），
+同时留一份原图（O题号-n.jpg），答题页“对照原图”可看；图形推理、资料分析材料、带图/表/公式的题、没认全选项的题仍整题裁成原图。
+题号按顺序接续，认不出的题号会在报告里列出来。
 """
 import json
 import os
@@ -505,7 +507,7 @@ def analyze(pages, part_sizes=None):
     found = {q["num"] for q in questions}
     last = max(found)
     total = parts[-1]["end"] if parts and parts[-1]["end"] else last
-    return {"questions": questions, "materials": materials, "parts": parts, "total": total,
+    return {"questions": questions, "materials": materials, "parts": parts, "total": total, "seq": seq,
             "missing": [n for n in range(1, total+1) if n not in found]}
 
 
@@ -542,6 +544,81 @@ def crop_segments(doc, segments, folder, stem, dpi=DPI):
     return names
 
 
+# ---------------------------------------------------------------- 文字题 / 图片题
+OPTION = re.compile(r"^[（(]?([A-D])\s*[.．、:：)）]\s*(.*)$")
+ITEM = re.compile(r"^(?:[①-⑩⑴-⒇]|[（(]\s*\d+\s*[）)]|\d+\s*[.．、]|[一二三四五六七八九十]+\s*[、.．]|[甲乙丙丁][.．、:：])")
+SENTENCE_END = re.compile(r"[。！？；：:?!）)”’]$")
+FIGURE_RATIO = .005                # 文字框以外的深色像素占题目区域的比例超过它，认为题里有图/表/公式没识别出来
+MIN_STEM = 6
+
+
+def segment_lines(seq, segments):
+    """题目各段范围内的文字行（按阅读顺序）"""
+    out = []
+    for pi, a, b in segments:
+        out += [l for l in seq if l["page"] == pi and a-.004 <= (l["y0"]+l["y1"])/2 <= b+.004]
+    return out
+
+
+def split_choices(lines):
+    """文字行 → (题干段落, {A..D: 文字})；认不全 A~D 四个选项、或题干太短就返回None（改用原图）。"""
+    texts = [l["t"] for l in lines]
+    if texts and (m := QSTART.match(texts[0])):
+        texts[0] = m.group(2)
+    stem, options, label = [], {}, None
+    for t in texts:
+        if not t.strip():
+            continue
+        m = OPTION.match(t)
+        want = "ABCD"[len(options)] if len(options) < 4 else None
+        if m and m.group(1) == want:
+            label = m.group(1)
+            options[label] = m.group(2).strip()
+            continue
+        if label:
+            options[label] = (options[label]+t).strip()
+        else:
+            stem.append(t)
+    paragraphs = []
+    for t in stem:
+        if paragraphs and not ITEM.match(t) and not SENTENCE_END.search(paragraphs[-1]):
+            paragraphs[-1] += t
+        else:
+            paragraphs.append(t)
+    if len(options) < 4 or any(not v for v in options.values()) or len("".join(paragraphs)) < MIN_STEM:
+        return None
+    return paragraphs, options
+
+
+def has_figure(doc, seq, segments, dpi=60):
+    """题目区域里有没有“文字框以外”的深色内容（图形、表格、没识别出来的公式）。有就整题保留原图，宁可用图也不显示识别错的字。"""
+    import pymupdf as fitz
+    dark = total = 0
+    for pi, a, b in segments:
+        page = doc[pi]
+        rect = fitz.Rect(page.rect.x0, page.rect.y0+a*page.rect.height, page.rect.x1, page.rect.y0+b*page.rect.height)
+        pix = page.get_pixmap(clip=rect, dpi=dpi, colorspace=fitz.csGRAY, alpha=False)
+        w, h, data, stride = pix.width, pix.height, pix.samples, pix.stride
+        covered = bytearray(w*h)
+        for l in seq:
+            if l["page"] != pi or not a-.004 <= (l["y0"]+l["y1"])/2 <= b+.004:
+                continue
+            x0, x1 = max(0, int(l["x0"]*w)-3), min(w, int(l["x1"]*w)+3)
+            y0, y1 = max(0, int((l["y0"]-a)/(b-a)*h)-3), min(h, int((l["y1"]-a)/(b-a)*h)+3)
+            for y in range(y0, y1):
+                covered[y*w+x0:y*w+x1] = b"\x01"*(x1-x0)
+        for y in range(h):
+            row = data[y*stride:y*stride+w]
+            base = y*w
+            dark += sum(1 for x in range(w) if row[x] < 150 and not covered[base+x])
+        total += w*h
+    return total > 0 and dark/total > FIGURE_RATIO
+
+
+def text_body(paragraphs, options):
+    return "\n".join(paragraphs+["- **%s.** %s" % (k, v) for k, v in options.items()])
+
+
 # ---------------------------------------------------------------- 写成复盘文件
 BOARD_ORDER = ("政治理论", "常识判断", "逻辑填空", "片段阅读", "语句排序", "数量关系", "图形推理", "定义判断", "类比推理", "论证逻辑", "资料分析")
 
@@ -555,6 +632,7 @@ def write_review(folder, doc, result):
     for q in sorted(result["questions"], key=lambda q: q["num"]):
         by_board.setdefault(q["board"] or "政治理论", []).append(q)
     written = {}
+    texted = result.setdefault("texted", [])
     ordered = sorted(by_board, key=lambda b: (min(q["num"] for q in by_board[b])))
     for k, board in enumerate(ordered, 1):
         text = []
@@ -564,8 +642,18 @@ def write_review(folder, doc, result):
             if mat:
                 names = crop_segments(doc, mat["segments"], att, "M%03d-%03d" % (mat["a"], mat["b"]))
                 text.append("## 材料（第%d-%d题）\n%s\n" % (mat["a"], mat["b"], "\n".join("![[%s]]" % n for n in names)))
-            names = crop_segments(doc, q["segments"], att, "Q%03d" % q["num"])
-            body = "\n".join("![[%s]]" % n for n in names) or "（这题没有截到图，请对照原卷）"
+            parsed = None
+            if q["board"] != "图形推理":
+                parsed = split_choices(segment_lines(result.get("seq", []), q["segments"]))
+                if parsed and has_figure(doc, result["seq"], q["segments"]):
+                    parsed = None
+            if parsed:
+                crop_segments(doc, q["segments"], att, "O%03d" % q["num"], dpi=110)     # 留一份原图，页面上“对照原图”用
+                body = text_body(*parsed)
+                texted.append(q["num"])
+            else:
+                names = crop_segments(doc, q["segments"], att, "Q%03d" % q["num"])
+                body = "\n".join("![[%s]]" % n for n in names) or "（这题没有截到图，请对照原卷）"
             text.append("### %d. ⚪\n%s\n> [!check]- 答案\n> 正确答案：**?**　我的答案：**—**　未作答\n---\n" % (q["num"], body))
         with open(os.path.join(folder, "%02d-%s.md" % (k, board)), "w", encoding="utf-8", newline="\n") as f:
             f.write("\n".join(text))
@@ -598,6 +686,6 @@ def split(paths, pdf_file, season, engine=None, part_sizes=None):
         modules[mock.MODULE_OF.get(board, board)] = modules.get(mock.MODULE_OF.get(board, board), 0)+len(nums)
     return {"season": season, "total": result["total"], "found": len(result["questions"]), "missing": result["missing"],
             "modules": modules, "boards": {b: len(n) for b, n in written.items()}, "materials": len(result["materials"]),
-            "skipped_pages": [i+1 for i in SKIPPED],
-            "split_log": "按版面拆分：认出 %d/%d 题，%d 组材料%s" % (len(result["questions"]), result["total"], len(result["materials"]),
+            "skipped_pages": [i+1 for i in SKIPPED], "texted": len(result.get("texted", [])),
+            "split_log": "按版面拆分：认出 %d/%d 题（%d 题转成文字，其余保留原图），%d 组材料%s" % (len(result["questions"]), result["total"], len(result.get("texted", [])), len(result["materials"]),
                                                     ("；第%s页没有文字（本机也没有文字识别），这些页上的题号没法认" % "、".join(str(i+1) for i in SKIPPED)) if SKIPPED else "")}

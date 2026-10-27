@@ -354,47 +354,135 @@ def parse_key(text):
     return {k: v for k, v in importer.parse_key(text).items() if v in 'ABCD'}
 
 
+def _answer_sections(text, name=''):
+    """保留套卷边界：标题或题号重新从1开始分组，重复/冲突题号不静默丢弃。"""
+    from . import politics
+    sections, current, title = [], {}, ''
+    for line in str(text or '').splitlines():
+        heading = paper_title(line.strip())
+        if heading:
+            if current:
+                sections.append((title, current))
+                current = {}
+            title = heading[0]
+            continue
+        line = re.sub(r'解析[：:].*$', '', line)
+        if re.search(r'\d+\s*[-~—–至]\s*\d+', line):
+            pairs = sorted(parse_key(line).items())
+        else:
+            pairs = [(int(m.group(1)), ''.join(sorted(set(m.group(2).upper())))) for m in _KEY_ITEM.finditer(line)]
+        for no, letters in pairs:
+            if no == 1 and 1 in current:
+                sections.append((title, current))
+                current, title = {}, ''
+            if no in current:
+                raise politics.PoliticsError('同一套答案中题号%d重复，请检查后再导入' % no)
+            current[no] = letters
+    if current:
+        sections.append((title, current))
+    if not sections:
+        key = parse_key(text)
+        if key:
+            sections.append(('', key))
+    if len(sections) == 1 and not sections[0][0]:
+        sections[0] = (str(name or ''), sections[0][1])
+    return sections
+
+
+def _answer_title(text):
+    """优先按套卷编号匹配，其他标题只去扩展名、空白及答案标记。"""
+    match = PAPER.search(text)
+    if match:
+        return re.sub(r'\s+', '', match.group())
+    text = re.sub(r'\.(?:txt|pdf)$', '', text, flags=re.I)
+    return re.sub(r'[\s·_—-]+|参考答案|答案及解析|答案与解析|答案|解析', '', text)
+
+
 def apply_answers(pp, body):
-    """给一份导入的套卷补答案（按套卷内题号）；已有答案的按新答案覆盖。只改 补充.json 里这一套的题，不动原PDF和讲义。"""
+    """单套/全部套卷批量补答案，先校验整批再原子保存；不动原PDF、学习记录或奖励。"""
     from . import politics
     exam = politics.exam_id(body.get('exam'))
     material = str(body.get('material') or '')
-    text = str(body.get('text') or '').strip()
-    if not text and body.get('pdf'):
-        from . import exam_room
-        try:
-            text = exam_room._pdf_text(str(body['pdf']))
-        except exam_room.ExamError as error:
-            raise politics.PoliticsError(str(error))
-    if not text:
-        raise politics.PoliticsError('请粘贴答案（如：1-20 BCDAB…，或每行 1.A 2.B），或选择答案文件')
-    key = parse_key(text)
-    if not key:
-        raise politics.PoliticsError('没认出答案：请写成“1-20 BCDAB…”或每行“1.A 2.B”的样子')
+    batches = body.get('batches', [])
+    if not isinstance(batches, list) or len(batches) > 100:
+        raise politics.PoliticsError('答案文件最多一次100份')
+    entries = ([body] if body.get('text') or body.get('pdf') else []) + batches
+    sections = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise politics.PoliticsError('答案文件格式无效')
+        text = str(entry.get('text') or '').strip()
+        if not text and entry.get('pdf'):
+            from . import exam_room
+            try:
+                text = exam_room._pdf_text(str(entry['pdf']))
+            except exam_room.ExamError as error:
+                raise politics.PoliticsError(str(error))
+        if not text:
+            raise politics.PoliticsError('请粘贴答案或选择答案文件，文件内容不能为空')
+        parsed = _answer_sections(text, entry.get('name', ''))
+        if not parsed:
+            raise politics.PoliticsError('没认出答案：请写成“1-20 BCDAB…”或每行“1.A 2.B”的样子')
+        sections.extend(parsed)
+    if not sections:
+        raise politics.PoliticsError('请粘贴答案或选择答案文件')
     with politics._LOCK:
         file = politics.exam_folder(pp, exam) / '补充.json'
         extra = politics.read_json(file, {'materials': [], 'questions': [], 'imports': []})
-        paper = next((m for m in extra['materials'] if m['id'] == material and m.get('practice_only')), None)
-        if not paper:
-            raise politics.PoliticsError('请先选择要补答案的套卷')
-        questions = [q for q in extra['questions'] if q.get('material') == material and q.get('no') is not None]
-        by_no = {}
-        for q in questions:
-            by_no.setdefault(int(q['no']), q)
-        filled = changed = same = 0
-        for no, letters in key.items():
-            q = by_no.get(no)
-            if not q:
-                continue
-            if not q.get('answer'):
-                filled += 1
-            elif q['answer'] != letters:
-                changed += 1
-            else:
-                same += 1
-            q['answer'] = letters
-        unknown = sorted(n for n in key if n not in by_no)
-        if filled or changed:
+        papers = [m for m in extra['materials'] if m.get('practice_only')]
+        assignments = []
+        if material == 'all':
+            used = set()
+            for title, key in sections:
+                matches = [m for m in papers if title and _answer_title(m['title']) == _answer_title(title)]
+                if len(matches) == 1:
+                    paper = matches[0]
+                elif len(matches) > 1:
+                    raise politics.PoliticsError('套卷标题不唯一，请分开选择套卷导入')
+                else:
+                    if title:
+                        raise politics.PoliticsError('未找到与“%s”对应的套卷，请核对标题或单独选择套卷' % title)
+                    # 没有明确标题时必须有完整的一套一组对应，不能悄悄写入第一套。
+                    if len(sections) != len(papers):
+                        raise politics.PoliticsError('答案分组数与套卷数不一致，请补上套卷标题或单独选择套卷')
+                    paper = papers[len(assignments)]
+                if paper['id'] in used:
+                    raise politics.PoliticsError('同一套卷在本批答案中重复，请检查套卷标题')
+                used.add(paper['id'])
+                assignments.append((paper, key))
+        else:
+            paper = next((m for m in papers if m['id'] == material), None)
+            if not paper:
+                raise politics.PoliticsError('请先选择要补答案的套卷')
+            if len(sections) > 1:
+                raise politics.PoliticsError('识别到多套答案，请选择“全部套卷”后导入，避免同题号串卷')
+            assignments = [(paper, sections[0][1])]
+        results = []
+        for paper, key in assignments:
+            questions = [q for q in extra['questions'] if q.get('material') == paper['id'] and q.get('no') is not None]
+            by_no = {int(q['no']): q for q in questions}
+            if len(by_no) != len(questions):
+                raise politics.PoliticsError('套卷题号重复，无法安全匹配答案')
+            filled = changed = same = 0
+            for no, letters in key.items():
+                q = by_no.get(no)
+                if not q:
+                    continue
+                if not q.get('answer'):
+                    filled += 1
+                elif q['answer'] != letters:
+                    changed += 1
+                else:
+                    same += 1
+                q['answer'] = letters
+            results.append({'title': paper['title'], 'filled': filled, 'changed': changed, 'same': same, 'total': len(by_no),
+                            'missing': sorted(n for n, q in by_no.items() if not q.get('answer')), 'unknown': sorted(n for n in key if n not in by_no)})
+        if any(r['filled'] or r['changed'] for r in results):
             politics.atomic_json(file, extra)
-        return {'title': paper['title'], 'filled': filled, 'changed': changed, 'same': same, 'total': len(by_no),
-                'missing': sorted(n for n, q in by_no.items() if not q.get('answer'))[:30], 'unknown': unknown[:30]}
+        if len(results) == 1:
+            return dict(results[0], papers=results)
+        return dict(title='共%d套卷' % len(results), papers=results,
+                    filled=sum(r['filled'] for r in results), changed=sum(r['changed'] for r in results),
+                    same=sum(r['same'] for r in results), total=sum(r['total'] for r in results),
+                    missing=['%s：%s' % (r['title'], '、'.join(map(str, r['missing']))) for r in results if r['missing']],
+                    unknown=['%s：%s' % (r['title'], '、'.join(map(str, r['unknown']))) for r in results if r['unknown']])

@@ -8,31 +8,22 @@ PERSONA = {"导师名": "导师", "导师人设": "严厉", "称呼": "弟子", 
 
 
 class ExplainFormatTest(unittest.TestCase):
-    def test_bank_explain_asks_for_structured_format(self):
-        q = {"board": "逻辑填空", "stem": "题干", "options": {"A": "甲", "B": "乙"}, "answer": "B", "analysis": ""}
-        msgs = prompts.bank_explain(PERSONA, q, "A", "资料", "skill")
-        text = msgs[-1]["content"]
-        for need in ("**结论：选 X**", "| 选项 | 判断 | 理由 |", "一招", "不要写成一整大段"):
-            self.assertIn(need, text)
-        self.assertNotIn("不用 Markdown 标题。", text)
-
-    def test_group_and_discuss_prompts_ask_for_paragraphs_and_tables(self):
-        g = prompts.group_explain(PERSONA, "条件", [{"label": "第1题", "stem": "题", "answer": "A", "mine": "B"}], "资料", "skill")
-        self.assertIn("| 选项 | 判断 | 理由 |", g[-1]["content"])
-        d = prompts.discuss(PERSONA, {"question": "题", "answer": "A"}, "资料", "为什么")
-        self.assertIn("表格", d[0]["content"])
-
-    def test_quantitative_explain_skips_option_table_and_forbids_latex(self):
-        q = {"board": "数量关系", "stem": "某数加3等于5，求该数", "options": {"A": "1", "B": "2"}, "answer": "B", "analysis": ""}
-        text = prompts.bank_explain(PERSONA, q, None, "资料", "数量关系")[-1]["content"]
-        self.assertIn("不要逐项分析选项，不要画表格", text)
-        self.assertNotIn("| 选项 | 判断 | 理由 |", text)
-        self.assertIn("不要用 LaTeX", text)
-        logic = prompts.bank_explain(PERSONA, dict(q, board="论证逻辑"), None, "资料", "论证逻辑")[-1]["content"]
-        self.assertIn("| 选项 | 判断 | 理由 |", logic)           # 其他板块仍逐项用表格
-        self.assertIn("不要用 LaTeX", logic)
-        # 板块只在 skill 名里时也认（试炼复盘走这条）
-        self.assertIn("不要画表格", prompts.bank_explain(PERSONA, {"stem": "题", "options": {}}, None, "资料", "数量关系")[-1]["content"])
+    def test_explanations_follow_skill_without_word_count_or_template(self):
+        q={"board":"逻辑填空","stem":"题干独立标记","options":{"A":"甲","B":"乙"},"answer":"答案秘密标记","analysis":"旧解析秘密标记"}
+        messages=[prompts.bank_explain(PERSONA,q,"学员秘密标记","心法专属标记","skill"),
+                  prompts.group_explain(PERSONA,"条件",[{"label":"第1题","stem":"题"}],"心法专属标记","skill"),
+                  prompts.discuss(PERSONA,{"question":"题"},"心法专属标记","为什么")]
+        for msgs in messages:
+            text='\n'.join(m['content'] for m in msgs)
+            self.assertIn('心法专属标记',text)
+            self.assertIn('完整、不重复',text)
+            self.assertNotRegex(text,r'\d+\s*字以内|每段.{0,8}句|必须用表格')
+            self.assertNotIn('**结论：选 X**',text)
+        independent=str(messages[0])
+        for secret in ['答案秘密标记','旧解析秘密标记','学员秘密标记']:
+            self.assertNotIn(secret,independent)
+        self.assertIn('禁止搜索正确答案',independent)
+        self.assertIn('不要用 LaTeX',independent)
 
     def test_plain_math_turns_latex_into_readable_text(self):
         raw = r"设总人数为 \(100a+10b+c\)。得 \(90(a-b)=270\)，所以 \(b=a-3\)；\(x\equiv3\pmod4\)，\(x\le12\)，\(\frac{5x+4y}{2}\)，\(x^2\times y^{10}\)；价格$5和$6不变"
