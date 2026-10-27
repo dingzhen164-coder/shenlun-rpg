@@ -45,4 +45,11 @@ async function alpha(locator){return locator.evaluate(e=>{const c=document.creat
   if(process.argv.includes('--shots')){fs.mkdirSync('ui-artifacts/interface383',{recursive:true});await page.screenshot({path:`ui-artifacts/interface383/${subject}-${name}-${theme}.png`});}
   await page.close();console.log(`${subject} ${name} ${theme}: 导航往返/独立框/透明度记忆/字重/正文保护/藏经阁嵌入通过`);
  }
+ // 检查器本身也需守住：裁切外的控件不误报，真实可见重叠必须仍然失败。
+ page=await browser.newPage();await page.setContent('<div id="view"><div id="clip383" style="position:relative;width:100px;height:50px;overflow:hidden"><button style="position:absolute;left:120px;top:0;width:70px;height:40px">裁切按钮</button></div><button style="position:absolute;left:130px;top:8px;width:70px;height:40px">可见按钮</button></div>');
+ const source=fs.readFileSync('tests/ui_layout_check.cjs','utf8');const inspector=source.slice(source.indexOf('function inspect()'),source.indexOf('\n(async () =>'));
+ const inspectPage='()=>{'+inspector+';return inspect();}';
+ assert(!(await page.evaluate(inspectPage)).some(p=>p.includes('互相压住')),'裁切之外的部分不参与重叠');
+ await page.locator('#clip383').evaluate(e=>e.style.overflow='visible');
+ assert((await page.evaluate(inspectPage)).some(p=>p.includes('互相压住')),'真实可见重叠不能被过滤掉');await page.close();
 }finally{await browser?.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
