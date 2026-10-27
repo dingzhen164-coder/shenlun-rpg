@@ -61,8 +61,53 @@ class MindmapDocumentTest(unittest.TestCase):
         rich = {'root':{'data':{'text':'<p>根</p>','richText':True}, 'children':[{'data':{'text':'<p>甲</p><p>乙</p>','richText':True},'children':[]}]}}
         mindmap.save(self.p, '资料分析', '旧图', rich)
         r = mindmap.document(self.p, '资料分析', '旧图', False)
-        self.assertEqual(r['markdown'], '# 根\n\n- 甲\n  乙\n')
+        parsed = mindmap.from_markdown(r['markdown'], '备用')
+        self.assertEqual(parsed['data']['text'], '根')
+        self.assertEqual(parsed['children'][0]['data']['text'], '甲\n乙')
         self.assertEqual(mindmap.get(self.p, '资料分析', '旧图')['data'], rich)
+    def test_inline_format_and_symbols_survive_document_roundtrip(self):
+        root = {'data': {'text': '**自编标题** → 条件'}, 'children': [
+            {'data': {'text': r'**重点**、*斜体*、$A \rightarrow B$、x < y、\*字面星号\*'}, 'children': []}]}
+        text = mindmap.to_markdown(root)
+        self.assertIn('**重点**', text)
+        self.assertIn(r'$A \rightarrow B$', text)
+        self.assertEqual(mindmap.from_markdown(text, '备用'), root)
+    def test_old_escaped_companion_keeps_json_and_format_until_explicit_save(self):
+        root = {'data': {'text': '自编'}, 'children': [{'data': {'text': '**旧重点** → 条件'}, 'children': []}]}
+        r = mindmap.create(self.p, '资料分析', '旧格式', {'root': root})
+        f = mindmap._file(self.p, '资料分析', r['name'])
+        md = f.with_suffix('.md')
+        legacy = mindmap.to_markdown(root, legacy=True)
+        md.write_text(legacy, encoding='utf-8')
+        before = f.read_bytes(), f.stat().st_mtime_ns, md.read_bytes()
+        d = mindmap.document(self.p, '资料分析', r['name'], False)
+        self.assertEqual(d['data']['root'], root)
+        self.assertEqual((f.read_bytes(), f.stat().st_mtime_ns, md.read_bytes()), before)
+        mindmap.save_document(self.p, '资料分析', r['name'], d['data'], d['document_revision'])
+        self.assertIn('**旧重点**', md.read_text(encoding='utf-8'))
+    def test_removing_bold_in_external_document_is_not_mistaken_for_legacy(self):
+        root = {'data': {'text': '自编'}, 'children': [{'data': {'text': '**重点**'}, 'children': []}]}
+        r = mindmap.create(self.p, '资料分析', '移除格式', {'root': root})
+        f = mindmap._file(self.p, '资料分析', r['name'])
+        md = f.with_suffix('.md')
+        md.write_text(md.read_text(encoding='utf-8').replace('**重点**', '重点'), encoding='utf-8')
+        before = f.read_bytes(), md.read_bytes()
+        data = mindmap.document(self.p, '资料分析', r['name'], False)
+        self.assertEqual(data['data']['root']['children'][0]['data']['text'], '重点')
+        self.assertEqual((f.read_bytes(), md.read_bytes()), before)
+
+    def test_markdown_import_uses_source_without_stripping_inline_format(self):
+        with patch.object(api, '_mm', side_effect=lambda fn, board, name, data: data):
+            data = api.mm_create({'board': '资料分析', 'name': '自编导入', 'markdown': '\ufeff# **标题**\n- **重点** $A \\rightarrow B$\n'})
+        self.assertEqual(data['root']['data']['text'], '**标题**')
+        self.assertEqual(data['root']['children'][0]['data']['text'], r'**重点** $A \rightarrow B$')
+
+    def test_rich_text_document_keeps_emphasis_and_decodes_arrows(self):
+        root = {'data': {'text': '<p><strong>重点</strong> &rarr; 条件</p>', 'richText': True}, 'children': []}
+        text = mindmap.to_markdown(root)
+        self.assertIn('**重点** → 条件', text)
+        self.assertNotIn('<strong>', text)
+        self.assertEqual(root['data']['richText'], True)
     def test_companion_rename_delete_and_collision(self):
         r = self.create()
         target = mindmap._file(self.p, '资料分析', '保留文档').with_suffix('.md')

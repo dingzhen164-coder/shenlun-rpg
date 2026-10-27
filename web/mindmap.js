@@ -35,18 +35,8 @@
       if (["richText","scrollbar"].includes(Mind.pluginList[i].instanceName)) Mind.pluginList.splice(i,1);
     return Mind;
   };
-  // 以前（或别处）存的富文本节点 "<p>增长</p>" → 纯文字
-  function plain(node) {
-    if (!node || !node.data) return node;
-    if (node.data.richText || /<[a-z][^>]*>/i.test(node.data.text || "")) {
-      const d = document.createElement("div");
-      d.innerHTML = String(node.data.text || "").replace(/<\/p>\s*<p[^>]*>/gi, "\n").replace(/<br\s*\/?>/gi, "\n");
-      node.data.text = d.textContent.trim();
-      delete node.data.richText;
-    }
-    (node.children || []).forEach(plain);
-    return node;
-  }
+  // 旧富文本转安全Markdown；渲染样式不写回用户节点。
+  const plain = node => MINDMAP_TEXT.normalize(node);
 
   // 只读阅读位置仅存本机，按科目/库/板块/文件隔离，不写导图正文。
   let readingTimer=0;
@@ -190,7 +180,7 @@
         <button data-ln-mode="map" aria-pressed="false">灵脉图</button><button data-ln-mode="document" aria-pressed="false">分级文档</button><button data-ln-mode="split" aria-pressed="true">双栏对照</button><button id="lnZoomIn" type="button" aria-label="放大左侧思维导图" title="放大左侧思维导图">🔍＋</button><button id="lnZoomOut" type="button" aria-label="缩小左侧思维导图" title="缩小左侧思维导图">🔍－</button><span class="spacer"></span><button id="lnReload">↻ 重新载入</button>
         ${d.document_path ? `<button id="lnDocument" title="${esc(d.document_path)}">本地文档</button>` : ''}</div>`}
       <div class="ln-reading-body" data-mode="${manage?'map':'split'}"><div class="ln-canvas" id="lnCanvas"></div><article class="ln-document" id="lnMarkdown" ${manage?'hidden':''}>${outline(plain(JSON.parse(JSON.stringify(data.root || {data:{text:board}}))))}</article></div>
-      ${manage ? '<div class="ln-tip small faint">点节点选中 · 双击改字 · 拖动节点换位置 · 改了自动保存</div>' : ''}`;
+      ${manage ? '<div class="ln-tip small faint">点节点选中 · 双击改字 · 拖动节点换位置 · 改了自动保存 · 支持 **加粗**、*斜体*、箭头和常见公式符号</div>' : ''}`;
     // 只读工具与返回/图名共用一栏；移动原节点，保留按钮和阅读视口。
     s.classList.toggle('ln-compact',!manage);
     if(!manage)s.querySelector('.yj-top').append(s.querySelector('.ln-reading-tabs'));
@@ -205,6 +195,7 @@
       mm = new Mind({
         el: document.getElementById("lnCanvas"),
         readonly: !manage,
+        isUseCustomNodeContent: true, customCreateNodeContent: MINDMAP_TEXT.installNode,
         // 等完整节点绘制后适应画布，不能用固定100ms猜测慢浏览器的渲染完成时间。
         fit: false,   // 库自带的绘制后适应在画布已关闭/隐藏时会抛错，改成下面带保护的版本
         data: plain(data.root || { data: { text: board }, children: [] }),
@@ -311,7 +302,13 @@
       else {
         const text = await f.text();
         if (ext === "json" || ext === "smm") { const o = JSON.parse(text); root = o.root || o; }
-        else root = Mind.markdown.transformMarkdownTo(text);
+        else {
+          // 随包库的Markdown解析会丢掉strong/emphasis；与本地配对文档共用后端解析。
+          const current=CUR;if(!current||!(await flush()))return;
+          const r=await api('/api/mindmap/create',{board:current.board,name:f.name.replace(/\.[^.]+$/, '')||'导入文档',markdown:text});
+          if(CUR===current)return open(current.board,r.name,true);
+          return;
+        }
       }
       plain(root);
       if (!root || !root.data) throw new Error("没认出内容（XMind 要 .xmind 文件；Markdown 用 # 标题或 - 列表分层）");
@@ -342,8 +339,8 @@
 
   // 只读文档用文本节点生成层级，用户HTML不进入页面；双栏只移动视图，不触发保存。
   function outline(root) {
-    const children=n=>(n.children||[]).length?`<ul>${n.children.map(c=>`<li><span>${esc(c.data?.text||'')}</span>${children(c)}</li>`).join('')}</ul>`:'';
-    return `<h1>${esc(root.data?.text||'')}</h1>${children(root)}`;
+    const children=n=>(n.children||[]).length?`<ul>${n.children.map(c=>`<li><span>${MINDMAP_TEXT.html(c.data?.text||'')}</span>${children(c)}</li>`).join('')}</ul>`:'';
+    return `<h1>${MINDMAP_TEXT.html(root.data?.text||'')}</h1>${children(root)}`;
   }
   function setViewMode(mode,{initial=false}={}){
     if(!['map','document','split'].includes(mode))return;

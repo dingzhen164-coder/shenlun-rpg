@@ -56,6 +56,9 @@ jobs:
         run: |
           import subprocess
           for command in [
+              ['node', 'tests/test_mindmap_text.cjs'],
+              ['node', 'tests/ui_mindmap_format.cjs', '--subject=行测'],
+              ['node', 'tests/ui_mindmap_format.cjs', '--subject=申论'],
               ['node', 'tests/ui_mindmap381.cjs'],
               ['node', 'tests/ui_hollow381.cjs'],
               ['node', 'tests/ui_art381.cjs'],
