@@ -1801,7 +1801,10 @@ def mm_save(body):
 
 
 def mm_create(body):
-    return _mm(mindmap.create, body.get("board"), body.get("name"), body.get("data"))
+    data = body.get("data")
+    if isinstance(body.get("markdown"), str):
+        data = {"root": mindmap.from_markdown(body["markdown"], body.get("name") or "导入文档")}
+    return _mm(mindmap.create, body.get("board"), body.get("name"), data)
 
 
 def mm_rename(body):

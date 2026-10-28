@@ -1251,6 +1251,17 @@ def _bank_action(g, s, act):
     run = question_bank.state(g)['runs'].get(s['board'])
     if not run or run['token'] != s['token']:
         raise TrainError('本组已经结束，请重新进入实战')
+    if act in ('exam_rest', 'exam_resume'):
+        if not run.get('exam') or run['phase'] == 'review':
+            raise TrainError('当前不在答题计时中')
+        if act == 'exam_rest' and not run.get('resting'):
+            _tick(run)
+            run['resting'] = True
+        elif act == 'exam_resume' and run.get('resting'):
+            run['resting'] = False
+        return _exam_show(g, s, run)
+    if run.get('resting') and act not in ('bank_pause', 'skip'):
+        raise TrainError('请先结束休息再继续答题')
     if act in ('bank_pause', 'skip'):
         if run.get('exam') and run['phase'] != 'review':
             _tick(run)      # 暂离不计时
@@ -1383,11 +1394,14 @@ def _exam_show(g, s, run, events=None, extra=None):
     picks = run.setdefault('picks', {})
     pos = run['pos']
     q = qs[pos]
-    run['shown'] = [pos, time.time()]
+    run['shown'] = None if run.get('resting') else [pos, time.time()]
     left = [str(i + 1) for i in range(len(qs)) if str(i) not in picks]
     msg = '%s · 第 %s/%s 题 · 编号 %s' % (question_bank.label(run['board']), pos + 1, len(qs), q['id'])
     blocks, mat = _bank_q(g, q)
-    sheet = '答题卡：' + ' '.join('%d%s' % (i + 1, '·' + picks[str(i)] if str(i) in picks else '·_') for i in range(len(qs)))
+    sheet = '答题卡：\n' + '\n'.join(
+        '%d-%d  %s' % (start + 1, min(start + 5, len(qs)), '  '.join(
+            '%d·%s' % (i + 1, picks.get(str(i), '_')) for i in range(start, min(start + 5, len(qs)))))
+        for start in range(0, len(qs), 5))
     mine = picks.get(str(pos))
     btns = [('exam_pick:%s:%s' % (pos, k), ('✓ ' if k == mine else '') + k) for k in 'ABCD']
     if pos > 0:
@@ -1621,7 +1635,7 @@ def _bank_resp(g, s, run, messages, events, inp):
                    'mode': run['mode'], 'phase': run['phase'], 'tower': question_bank.tower(g)}
     if exam:   # 计时：网页按这两个数接着走秒（时间以程序记录为准）
         times = run.get('times', {})
-        r['battle']['timer'] = {'total': round(sum(times.values())), 'question': round(times.get(str(run['pos']), 0))}
+        r['battle']['timer'] = {'total': round(sum(times.values())), 'question': round(times.get(str(run['pos']), 0)), 'paused': bool(run.get('resting'))}
     return r
 
 

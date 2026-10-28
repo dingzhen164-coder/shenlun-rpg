@@ -64,6 +64,18 @@ async function openRoom(page){
   assert((await page.locator('[data-er-pos]').textContent()).includes('第 1/130 题'));
   const bar=await page.evaluate(()=>{const c=document.querySelector('[data-er-card]').getBoundingClientRect();return {right:innerWidth-c.right,top:c.top};});assert(bar.right<40&&bar.top<20,'答题卡按钮在右上角');
   await fits(page,'dialog.er-run');await shot('run');
+  // 点击时钟暂停，休息期间倒计时冻结、快捷键不作答；刷新后仍在休息。
+  const remaining=await page.locator('[data-er-clock]').textContent();
+  const pausedSave=page.waitForResponse(r=>r.url().endsWith('/api/exam/save')&&r.request().postDataJSON()?.paused===true);
+  await page.locator('[data-er-clock]').click();await page.locator('[data-er-resume]').waitFor();await pausedSave;
+  for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await fits(page,'.er-rest-card');}
+  await page.evaluate(()=>document.documentElement.dataset.theme='light');await shot('rest');await page.clock.fastForward(125000);
+  assert.equal(await page.locator('[data-er-clock]').textContent(),remaining);
+  await page.keyboard.press('A');assert.equal(await page.locator('[data-er-choice=A]').getAttribute('aria-pressed'),'false');
+  if(fresh){await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await openRoom(page);await page.locator('[data-er-start="1001"]').click();await page.locator('[data-er-resume]').waitFor();assert.equal(await page.locator('[data-er-clock]').textContent(),remaining);}
+  await page.locator('[data-er-resume]').click();await page.locator('[data-er-rest]').waitFor({state:'hidden'});
+  await page.clock.fastForward(3000);assert.notEqual(await page.locator('[data-er-clock]').textContent(),remaining);
+
   // 文字题旁边的“对照原图”：默认收起，点开显示原图，再点收起
   assert.equal(await page.locator('[data-er-original]').isHidden(),true);
   await page.locator('[data-er-orig]').click();assert.equal(await page.locator('[data-er-original] img').isVisible(),true);
