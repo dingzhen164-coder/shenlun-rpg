@@ -88,7 +88,7 @@
       if(svg?.isConnected)svg.appendChild(result.node.node);
       const box=result.node.bbox();
       if(svg?.isConnected)result.node.node.remove();
-      result.width=Math.ceil(box.width)+1;result.height=Math.ceil(box.height);result.node.attr('data-width',result.width);result.node.attr('data-height',result.height);return result;
+      result.width=Math.ceil(box.width*1.03)+2;result.height=Math.ceil(box.height);result.node.attr('data-width',result.width);result.node.attr('data-height',result.height);return result;
     };
     return null;
   }
