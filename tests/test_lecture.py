@@ -54,10 +54,10 @@ class LectureTest(unittest.TestCase):
     def test_old_default_rule_migrated_but_custom_kept(self):
         f = self.p.rules
         f.write_text(f.read_text(encoding="utf-8").replace("- 每日目标分钟: 300", "- 每日目标分钟: 120")
-                     .replace("- 周常.修炼分钟: 1500", "- 周常.修炼分钟: 600"), encoding="utf-8")
+                     .replace("- 周常.修炼分钟: 840", "- 周常.修炼分钟: 1500").replace("- 周常.斩心魔: 0", "- 周常.斩心魔: 20"), encoding="utf-8")
         self.p.ensure_train_dir()
         r = config.Rules(f.read_text(encoding="utf-8"))
-        self.assertEqual((r.num("每日目标分钟"), r.num("周常.修炼分钟")), (300, 1500))
+        self.assertEqual((r.num("每日目标分钟"), r.num("周常.修炼分钟"), r.num("周常.斩心魔")), (300, 840, 0))   # 旧默认值迁到新默认
         self.assertTrue(paths.NOTICES)
         f.write_text(f.read_text(encoding="utf-8").replace("- 每日目标分钟: 300", "- 每日目标分钟: 240"), encoding="utf-8")
         self.p.ensure_train_dir()
