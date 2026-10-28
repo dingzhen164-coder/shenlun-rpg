@@ -1,4 +1,4 @@
-"""3.6.5：最高分基准、奖惩边界、境界保留与首次录分幂等；隔离自编数据。"""
+"""模考悟道：近3次均分基准、退步不罚只提醒、境界保留与首次录分幂等；隔离自编数据。"""
 import copy
 import datetime as dt
 import math
@@ -32,33 +32,29 @@ class Updates365Test(unittest.TestCase):
         reward.offer(g, '未越线', 52, g.raw_score())
         self.assertEqual(reward.ledger(g)['records'][reward.exam_key('未越线')]['status'], 'neutral')
 
-    def test_penalty_exact_boundaries_and_no_demotion(self):
-        for gap, rate in [(5.01,.1),(5.99,.1),(6,.2),(6.99,.2),(7,.4),(8,.6),(9,.8),(9.99,.8),(10,1),(20,1)]:
+    def test_regression_never_penalizes_xp_or_realm(self):
+        for gap in [5.01, 6, 7, 9.99, 10, 20, 60]:
             with self.subTest(gap=gap):
-                g, base = self.make(); old_realm = g.realm_info()['name']; claimed = g.claimed()
-                reward.offer(g, '新场', 80-gap, g.raw_score())
+                g, base = self.make(); old_realm = g.realm_info()['name']; claimed = g.claimed(); before = g.state['xp']
+                ev = reward.offer(g, '新场', 80-gap, g.raw_score())
                 rec = reward.ledger(g)['records'][reward.exam_key('新场')]
-                self.assertEqual(rec['penalty_rate'], rate)
-                self.assertEqual(rec['penalty'], math.ceil(1000*rate))
-                self.assertEqual(g.state['xp'], base+1000-math.ceil(1000*rate))
-                self.assertEqual(g.claimed(), claimed)
-                self.assertEqual(g.realm_info()['name'], old_realm)
-                state = copy.deepcopy(g.state)
-                self.assertEqual(reward.offer(g, '新场', 10, 90), [])
-                self.assertEqual(g.state, state)
-        g, base = self.make(progress=0)
-        reward.offer(g, '已无进度', 60, g.raw_score())
-        self.assertEqual(g.state['xp'], base)
+                self.assertEqual(rec['status'], 'neutral')
+                self.assertNotIn('penalty', rec)
+                self.assertEqual(g.state['xp'], before)          # 修为一分不扣
+                self.assertEqual((g.claimed(), g.realm_info()['name']), (claimed, old_realm))
+                self.assertTrue(any('道心' in e.get('msg', '') for e in ev))
+                self.assertFalse([e for e in g.state['events'] if e.get('reward_model') == 'best-score-penalty-v1'])
 
-    def test_current_stage_clear_preserves_all_realms_and_overflow(self):
-        for score in [51,52,59,60,62,64,65,70,80]:
-            with self.subTest(stage=score):
-                g, _ = self.make(); g.state.update(gates=g.gates(), claimed=score, xp=math.ceil(g.xp_at(score))+500)
-                start = g.realm_info()['name']; claim = g.claimed()
-                reward.offer(g, '清空', 60, g.raw_score())
-                self.assertEqual(g.claimed(), claim)
-                self.assertEqual(g.realm_info()['name'], start)
-                self.assertEqual(reward.stage_progress(g)[2], 0)
+    def test_reference_is_recent_three_by_date_not_peak(self):
+        g, _ = self.make()
+        g.state['boss'] = [{'name': 'A', 'd': '2026-09-01', 'score': 90, 'kind': '大比'},   # 很久以前的高峰
+                           {'name': 'B', 'd': '2026-10-01', 'score': 60, 'kind': '大比'},
+                           {'name': 'C', 'd': '2026-10-05', 'score': 64, 'kind': '大比'},
+                           {'name': 'D', 'd': '2026-10-10', 'score': 62, 'kind': '大比'},
+                           {'name': '补录旧卷', 'd': '2026-08-01', 'score': 30, 'kind': '大比'}]  # 补录的旧卷不算最近
+        self.assertEqual(reward.reference(g, '新场'), 62)
+        self.assertEqual(reward.prior_best(g, '新场'), 90)
+        self.assertEqual([b['name'] for b in g.contests()][-2:], ['C', 'D'])        # 按日期而不是录入顺序
 
     def test_edited_history_and_current_exam_excluded(self):
         g, _ = self.make()
@@ -68,25 +64,15 @@ class Updates365Test(unittest.TestCase):
         reward.offer(g,'第134季',70,g.raw_score())
         self.assertEqual(reward.ledger(g)['records'][reward.exam_key('第134季')]['status'],'pending')
 
-    def test_report_first_score_only_and_dates_do_not_repeat_penalty(self):
+    def test_report_first_score_only_and_dates_do_not_repeat(self):
         g, base = self.make(); before = g.state['xp']
         mock.save(g, {'season':41,'score':69,'date':'2026-10-22'})
         key = reward.exam_key('第41季'); r = reward.ledger(g)['records'][key]
-        self.assertEqual(r['status'],'penalized'); self.assertEqual(g.state['xp'],base)
-        penalties = [e for e in g.state['events'] if e.get('reward_model')=='best-score-penalty-v1']
-        self.assertEqual(len(penalties),1)
+        self.assertEqual(r['status'],'neutral'); self.assertGreaterEqual(g.state['xp'], before)
         state = copy.deepcopy(g.state)
         mock.save(g, {'season':41,'score':99,'date':'2026-10-10'})
         self.assertEqual(g.state['xp'], state['xp'])
         self.assertEqual(reward.ledger(g),state['mock_rewards'])
-        self.assertEqual(len([e for e in g.state['events'] if e.get('reward_model')=='best-score-penalty-v1']),1)
-
-    def test_penalty_removes_stale_ready_notification(self):
-        g, _ = self.make()
-        g.state['xp'] = math.ceil(g.xp_at(53))-1
-        events = g.add_boss('新低分', 69)
-        self.assertFalse(g.realm_info()['ready'])
-        self.assertFalse(any(e.get('kind') == 'ready' for e in events))
 
     def test_historical_migration_never_punishes(self):
         g, _ = self.make(); g.state.pop('mock_rewards'); g.state['boss'].append({'name':'旧低分','score':50,'d':g.t})
@@ -94,9 +80,7 @@ class Updates365Test(unittest.TestCase):
         self.assertEqual(g.state['xp'],before)
         self.assertEqual(reward.view(g),[])
 
-    def test_rules_and_other_subject_unchanged(self):
-        g, _ = self.make(); g.rules.raw['模考悟道.退步扣除比例']='0.05, 0.1, 0.2, 0.3, 0.4'
-        reward.offer(g,'按配置',74,g.raw_score());self.assertEqual(reward.ledger(g)['records'][reward.exam_key('按配置')]['penalty'],100)
+    def test_other_subject_unchanged(self):
         g, _ = self.make('申论'); before=g.state['xp'];reward.offer(g,'申论不罚',55,54)
         self.assertEqual(g.state['xp'],before)
         self.assertEqual(reward.ledger(g)['records'][reward.exam_key('申论不罚')]['status'],'pending')

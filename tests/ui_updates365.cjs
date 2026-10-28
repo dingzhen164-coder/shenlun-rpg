@@ -41,14 +41,14 @@ const out=path.resolve('ui-artifacts/updates365');fs.mkdirSync(out,{recursive:tr
    if(viewport.width===800&&theme==='light'&&peak==='yan')await p.screenshot({path:path.join(out,'peak-tablet.png')});
   }
  }
- // 首次录分之后的低分即时结算，修改旧季不会重复扣除。
+ // 退步只提醒、不扣修为；修改旧季不会重复结算。
  const result=await p.evaluate(async()=>{
   await api('/api/mock/save',{season:41,score:80,date:'2026-10-22'});
   await api('/api/mock/save',{season:42,score:69,date:'2026-10-22'});const first=await api('/api/dashboard');
   await api('/api/mock/save',{season:42,score:99,date:'2026-10-10'});const second=await api('/api/dashboard');
   return {first,second};
  });
- const penalty=result.first.mock_rewards.find(r=>r.status==='penalized');assert(penalty&&penalty.penalty_rate===1);assert.equal(result.first.xp,result.second.xp);assert.equal(result.first.realm.name,result.second.realm.name);
- await p.evaluate(async()=>{await refresh();await go('contest');});await p.locator('[data-cs-enter=overview]').click();await p.locator('.mock-rewards').waitFor();assert((await p.locator('.mock-rewards').textContent()).includes('走火入魔'));assert((await p.locator('.mock-rewards').textContent()).includes('当前小境界'));assert.deepEqual(errors,[]);
+ assert(!result.first.mock_rewards.some(r=>r.status==='penalized'));assert.equal(result.first.xp,result.second.xp);assert.equal(result.first.realm.name,result.second.realm.name);
+ await p.evaluate(async()=>{await refresh();await go('contest');});await p.locator('[data-cs-enter=overview]').click();await p.locator('.mock-rewards').waitFor();assert((await p.locator('.mock-rewards').textContent()).includes('不扣修为'));assert((await p.locator('.mock-rewards').textContent()).includes('当前小境界'));assert.deepEqual(errors,[]);
  console.log('3.6.5：八图/随机/重载/不移地标，三色小Q版多人曲线，四峰三尺寸明暗留景，录分奖惩与幂等通过');
 }catch(e){if(p&&!p.isClosed())await p.screenshot({path:path.join(out,'failure.png')}).catch(()=>{});throw e;}finally{await browser?.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

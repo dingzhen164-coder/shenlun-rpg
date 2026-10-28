@@ -750,7 +750,8 @@ class Game:
 
     # ================================================================ 渡劫
     def contests(self, kind="大比"):
-        return [b for b in self.state["boss"] if b.get("kind", "大比") == kind]
+        # 按考试日期排（稳定排序，同日保持录入顺序）：补录旧卷不能被当成“最近两次”。
+        return sorted((b for b in self.state["boss"] if b.get("kind", "大比") == kind), key=lambda b: str(b.get("d") or ""))
 
     def tribulation_status(self):
         g = self.pending_gate()
