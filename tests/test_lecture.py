@@ -36,7 +36,7 @@ class LectureTest(unittest.TestCase):
         xp = g.state["xp"]
         ev = g.add_lecture(240, "粉笔 判断推理")         # 听道 240 分钟 → 合计 300 达标
         self.assertEqual((g.study_minutes(g.t), g.lecture_minutes(g.t), g.minutes(g.t)), (60, 240, 300))
-        self.assertEqual(g.state["xp"] - xp, 120)       # 0.5 修为 / 分钟，不吃加成
+        self.assertEqual(g.state["xp"] - xp, 240)       # 1 修为 / 分钟（与修炼同汇率），不吃加成
         self.assertTrue(any(e.get("scene") == "今日达标" for e in ev))
         m = g.dashboard()["minutes"]
         self.assertEqual((m["today"], m["goal"], m["study"], m["lecture"]), (300, 300, 60, 240))
@@ -49,7 +49,7 @@ class LectureTest(unittest.TestCase):
             g.add_lecture(6000)                          # 手滑多打 0
         lid = g.state["lectures"][0]["id"]
         g.delete_lecture(lid)
-        self.assertEqual((g.lecture_minutes(g.t), g.state["xp"]), (0, xp + 15))
+        self.assertEqual((g.lecture_minutes(g.t), g.state["xp"]), (0, xp + 30))
 
     def test_old_default_rule_migrated_but_custom_kept(self):
         f = self.p.rules
