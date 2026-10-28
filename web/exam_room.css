@@ -115,6 +115,6 @@ dialog.er-run::backdrop{background:var(--ds-mask-opaque)}
 .er-orig-note{margin:0 0 var(--ds-sp-8);font-size:var(--ds-fs-12);color:var(--ds-muted)}
 
 /* 整卷模考休息窗口：覆盖题目并保持倒计时暂停 */
-.er-rest{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:24px;background:rgba(13,20,29,.65)}
-.er-rest[hidden]{display:none}.er-rest-card{width:min(380px,100%);box-sizing:border-box;padding:32px 26px;text-align:center;background:var(--ds-surface);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:18px;box-shadow:var(--ds-shadow-3)}
-.er-rest-symbol{font-size:42px}.er-rest-card h2{margin:8px 0 12px}.er-rest-card p{line-height:1.6}.er-rest-card [role=alert]{color:var(--ds-danger-text)}.er-rest-card button{min-height:var(--ds-touch)}
+.er-rest{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:24px;background:var(--ds-scrim)}
+.er-rest[hidden]{display:none}.er-rest-card{width:min(380px,100%);box-sizing:border-box;padding:32px 26px;text-align:center;background:var(--ds-surface);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-r-12);box-shadow:var(--ds-shadow-3)}
+.er-rest-symbol{font-size:calc(var(--ds-fs-26)*1.6)}.er-rest-card h2{margin:8px 0 12px}.er-rest-card p{line-height:1.6}.er-rest-card [role=alert]{color:var(--ds-danger-text)}.er-rest-card button{min-height:var(--ds-touch)}
