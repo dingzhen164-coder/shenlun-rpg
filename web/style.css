@@ -2122,3 +2122,9 @@ html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
 .tj-chapter-parts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
 .tj-chapter-parts .on{background:var(--accent);color:var(--panel)}
 @media(max-width:1100px){.wx-exam-list{grid-template-columns:1fr}.wx-exam-list .wx-atlas-entry{flex-direction:row;align-items:center}.wx-source-counts{margin-top:7px}}
+
+/* 真题试炼：计时入口与休息窗口 */
+.exam-rest-clock { font: inherit; color: var(--text); font-variant-numeric: tabular-nums; border: 1px solid var(--line); border-radius: var(--ds-r-pill); padding: 3px 10px; background: var(--panel2); cursor: pointer; }
+.exam-rest-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; background: rgba(13,20,29,.65); }
+.exam-rest-card { width: min(380px,100%); box-sizing: border-box; text-align: center; padding: 32px 26px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 50px #0005; }
+.exam-rest-symbol { font-size: 42px; } .exam-rest-card h2 { margin: 8px 0 12px; } .exam-rest-card p { line-height: 1.6; } .exam-rest-card button { margin-top: 8px; }

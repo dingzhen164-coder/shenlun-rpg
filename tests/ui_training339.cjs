@@ -8,7 +8,7 @@ const out=path.resolve('ui-artifacts/training339');
 async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(document.documentElement.scrollWidth>innerWidth+2||document.documentElement.scrollHeight>innerHeight+2||scrollY)bad.push('页面溢出');for(const e of document.querySelectorAll('#studyHud,.cs-calendar,.train,.composer')){const r=e.getBoundingClientRect();if(r.width&&r.height&&(r.left<0||r.right>innerWidth+2||r.bottom>innerHeight+2))bad.push(e.className+'越界');}return bad;}),[]);}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
- for(const [size,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}]].filter(([size])=>!process.argv.some(x=>x.startsWith('--sizes='))||process.argv.find(x=>x.startsWith('--sizes=')).split('=')[1].split(',').includes(size))){
+ for(const [size,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['landscape',{width:1280,height:800}]].filter(([size])=>!process.argv.some(x=>x.startsWith('--sizes='))||process.argv.find(x=>x.startsWith('--sizes=')).split('=')[1].split(',').includes(size))){
   const p=await browser.newPage({viewport});active=p;const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());
   await p.evaluate(()=>go('settings'));await p.locator('#ccName').waitFor({state:'attached'});
   const group=p.locator('.fx-settings-group').filter({has:p.locator('#ccSave')});await group.locator(':scope>summary').click();
@@ -23,6 +23,15 @@ async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(do
    await p.evaluate(()=>go('bank'));await p.locator('.trial-hall').waitFor();assert.equal(await p.locator('[data-th-motion]').count(),0);
    const board=await p.evaluate(async subject=>{const b=subject==='行测'?'资料分析':DASH.tree[0].board;for(let i=0;i<25;i++)await api('/api/bank/add',{board:b,topic:'自编',source:'隔离测试',stem:(subject==='行测'?'自编材料组'+Math.floor(i/5)+'：这一段数据仅用于隔离测试，甲乙丙丁各有不同的统计结果。\n\n![[训练/题库/图片/题目图/自编大图.png]]\n\n':'')+'自编第'+i+'题：哪项符合条件？',options:{A:'符合',B:'不符',C:'无关',D:'未说明'},answer:'A',analysis:'核对条件。'});await api('/api/bank/count',{count:20});return b;},subject);
    await p.evaluate(b=>startTask({task:{type:'bank',board:b}}),board);await p.locator('.subpage-nav .bank-head').waitFor();assert.equal(await p.evaluate(()=>T.battle.total),20);assert.equal(await p.locator('.chat>.review-head').count(),0);
+   assert.equal(await p.locator('.bank-head .rh-stats').evaluate(e=>e.parentElement.firstElementChild===e),true);
+   await p.evaluate(t=>document.documentElement.dataset.theme=t,size==='tablet'?'dark':'light');
+   await p.locator('#examTimer').click();await p.locator('#examRestResume').waitFor();
+   const bounds=await p.locator('.exam-rest-card').boundingBox();assert(bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=viewport.width&&bounds.y+bounds.height<=viewport.height);
+   if(process.argv.includes('--shots')&&size==='desktop'){fs.mkdirSync(out,{recursive:true});await p.screenshot({path:path.join(out,(subject||'法考')+'-rest.png')});}
+   const paused=await p.locator('#tT').textContent();await p.waitForTimeout(2200);assert.equal(await p.locator('#tT').textContent(),paused);
+   assert(await p.locator('#examRestOverlay').isVisible());await p.locator('#examRestResume').click();await p.locator('#examRestOverlay').waitFor({state:'detached'});
+   await p.waitForFunction(t=>document.getElementById('tT')?.textContent!==t,paused);
+   assert((await p.locator('#msgs').innerText()).includes('1-5'));assert((await p.locator('#msgs').innerText()).includes('16-20'));
    const timer=await p.locator('#tT').textContent();await p.waitForFunction(t=>document.getElementById('tT')?.textContent!==t,timer);
    const timeNode=await p.locator('#tT').evaluate(e=>{window.__timeNode=e;STUDY_HUD.refresh();return e===document.getElementById('tT');});assert(timeNode,'同值HUD刷新保留计时节点');
    if(subject==='行测'){

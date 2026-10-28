@@ -1129,6 +1129,7 @@ async function renderTrain() {
   fitChat();
   const box = $("#msgs"); if (box) box.scrollTop = T.top ? 0 : box.scrollHeight;
   startTimer();
+  mountExamRest();
   const ta = $("#answer"); if (ta) ta.focus();
 }
 function bindTrain() {
@@ -1144,6 +1145,7 @@ function bindTrain() {
     $("#answer").onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitText(); };
   }
   document.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => doAction(b.dataset.act)));
+  const timer=$("#examTimer"); if(timer) timer.onclick=()=>doAction("exam_rest");
   const teacher=document.getElementById('reviewSkillTeacher');if(teacher)teacher.onchange=()=>doAction('skill_teacher:'+teacher.value);
   const nx = $("#nextTask");
   if (nx) nx.onclick = () => {
@@ -1584,7 +1586,7 @@ let lastActive = Date.now();
 let T_TYPE = "";
 ["mousemove", "keydown", "click", "scroll", "input"].forEach((ev) => addEventListener(ev, () => (lastActive = Date.now()), { passive: true }));
 function studyingNow() {
-  return window.STUDY_LAMP?.allows()!==false && !window.MINDMAP?.isOpen() && !window.CARDS?.isOpen() && VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
+  return !T.battle?.timer?.paused && window.STUDY_LAMP?.allows()!==false && !window.MINDMAP?.isOpen() && !window.CARDS?.isOpen() && VIEW === TRAIN_ROUTE && !!T.session && STUDY.includes(T_TYPE) && document.visibilityState === "visible"
     && (T.busy || Date.now() - lastActive < 120000);
 }
 // 在 🪶 手札里写字也算复习：按秒累计“1 分钟内写过字”的时间，心跳时连同本子编号一起报（服务器核对这本最近真的存过笔迹）
@@ -1668,7 +1670,7 @@ let TIMER = null;
 function startTimer() {
   clearInterval(TIMER);
   const t = T.battle?.timer;
-  if (!t || T.finished) return;
+  if (!t || T.finished || t.paused) return;
   const t0 = Date.now();
   TIMER = setInterval(() => {
     const q = $('#tQ'), a = $('#tT');
@@ -1698,11 +1700,23 @@ function bankHead(b) {
   const t = b.tower;
   const tower = !t ? "" : t.summit ? `<span title="${t.layers} 层已全部登顶">🗼 已登顶</span>`
     : `<span title="本层 ${t.floor_done}/${t.floor_total} 道 · 再做 ${t.remaining} 道升层">🗼 第 ${t.current} 层 ${t.floor_done}/${t.floor_total}</span>`;
-  return headRow(T.title, [
+  const tags = [
+    b.timer ? `<button type="button" id="examTimer" class="exam-rest-clock" aria-label="暂停答题计时">⏱ 本题 <b id="tQ">${clock(b.timer.question)}</b> · 总 <b id="tT">${clock(b.timer.total)}</b></button>` : "",
     `<span>${b.phase === "review" ? "复盘 " : ""}第 ${b.position}/${b.total} 关</span>`, tower, `<span>已作答 ${b.answered}</span>`,
-    b.timer ? `<span>⏱ 本题 <b id="tQ">${clock(b.timer.question)}</b> · 总 <b id="tT">${clock(b.timer.total)}</b></span>` : "",
     b.correct === null ? "" : `<span class="ok">破关 ${b.correct}</span><span class="bad">${esc(W("bank_wrong"))} ${b.answered - b.correct}</span>`,
-  ], b.answered / b.total).replace('class="review-head"', 'class="review-head bank-head"');
+  ];
+  return `<div class="review-head bank-head"><span class="rh-stats">${tags.filter(Boolean).join("")}</span><b>${esc(T.title)}</b><i class="rh-bar" style="width:${Math.round(100 * Math.max(0, Math.min(1, b.answered / b.total)))}%"></i></div>`;
+}
+
+// 休息窗口随服务端暂停状态恢复，点击按钮继续计时。
+function mountExamRest() {
+  document.getElementById('examRestOverlay')?.remove();
+  if (!T.battle?.timer?.paused || VIEW !== TRAIN_ROUTE) return;
+  const overlay=document.createElement('div'); overlay.id='examRestOverlay'; overlay.className='exam-rest-overlay';
+  overlay.innerHTML=`<div class="exam-rest-card" role="dialog" aria-modal="true" aria-labelledby="examRestTitle"><div class="exam-rest-symbol" aria-hidden="true">☕</div><h2 id="examRestTitle">稍作休息</h2><p>已作答 ${T.battle.answered} / ${T.battle.total} 题</p><p>答题计时已暂停，调整好状态再继续。</p><button type="button" class="primary" id="examRestResume">继续答题</button></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#examRestResume').onclick=()=>{overlay.querySelector('button').disabled=true;doAction('exam_resume');};
+  overlay.querySelector('button').focus();
 }
 
 function towerProgress(t) {

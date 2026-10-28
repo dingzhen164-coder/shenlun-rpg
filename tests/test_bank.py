@@ -303,6 +303,34 @@ class BankTest(unittest.TestCase):
         r = trainer.action(self.g, sid, 'exam_rnext')
         self.assertIn('整组讲解：先排表。', str(r))                      # 第 2 题直接显示同一份
 
+    def test_exam_rest_excludes_pause_and_groups_answers(self):
+        f = self.paths.train / '题库/类比推理真题.md'
+        f.write_text(''.join(question('%02d' % n) for n in range(1, 13)), encoding='utf-8')
+        task = {'type': 'bank', 'board': '类比推理', 'title': '实战', 'target': '类比推理', 'id': 'bank:类比推理'}
+        with patch.object(trainer.time, 'time', return_value=100):
+            r = trainer.start(self.g, task)
+        sid = r['session']
+        self.assertIn('1-5  1·_  2·_  3·_  4·_  5·_', str(r))
+        self.assertIn('6-10  6·_  7·_  8·_  9·_  10·_', str(r))
+        with patch.object(trainer.time, 'time', return_value=112):
+            r = trainer.action(self.g, sid, 'exam_rest')
+        self.assertEqual(r['battle']['timer']['question'], 12)
+        self.assertTrue(r['battle']['timer']['paused'])
+        with self.assertRaises(trainer.TrainError):
+            trainer.action(self.g, sid, 'exam_next')
+        with patch.object(trainer.time, 'time', return_value=400):
+            reopened = trainer.start(self.g, task)
+        self.assertTrue(reopened['battle']['timer']['paused'])
+        self.assertEqual(reopened['battle']['timer']['total'], 12)
+        sid = reopened['session']
+        with patch.object(trainer.time, 'time', return_value=512):
+            r = trainer.action(self.g, sid, 'exam_resume')
+        self.assertFalse(r['battle']['timer']['paused'])
+        with patch.object(trainer.time, 'time', return_value=515):
+            r = trainer.action(self.g, sid, 'exam_pick:0:A')
+        self.assertEqual(r['battle']['timer']['total'], 15)
+        self.assertIn('1·A', str(r))
+
     def test_exam_submit_review_explain(self):
         f = self.paths.train / '题库/类比推理真题.md'
         f.write_text(''.join(question(x) for x in ('01', '02', '03')), encoding='utf-8')
@@ -320,7 +348,7 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_pick:0:A')                   # 回去改答案
         trainer.action(self.g, sid, 'exam_pick:1:A')
         r = trainer.action(self.g, sid, 'exam_pick:2:C')
-        self.assertIn('答题卡：1·A 2·A 3·C', str(r))
+        self.assertIn('1-3  1·A  2·A  3·C', str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
         self.assertEqual((r['battle']['correct'], r['battle']['total']), (2, 3))
         self.assertTrue(r['messages'][0]['pin'])
@@ -528,7 +556,7 @@ class BankTest(unittest.TestCase):
             sid = r['session']
             now[0] += 30
             r = trainer.action(self.g, sid, 'exam_pick:0:A')        # 第 1 题 30 秒
-            self.assertEqual(r['battle']['timer'], {'total': 30, 'question': 0})
+            self.assertEqual(r['battle']['timer'], {'total': 30, 'question': 0, 'paused': False})
             now[0] += 45
             trainer.action(self.g, sid, 'bank_pause')                # 第 2 题看了 45 秒后暂离
             now[0] += 5000                                            # 暂离期间不计时
