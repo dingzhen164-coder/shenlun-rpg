@@ -34,8 +34,8 @@ dialog.er-run::backdrop{background:var(--ds-mask-opaque)}
 .er-title small{font-size:var(--ds-fs-12);color:var(--ds-muted)}
 .er-clock{flex:none;font:500 var(--ds-fs-20)/1 Georgia,serif;font-variant-numeric:tabular-nums;padding:var(--ds-sp-8) var(--ds-sp-12);border:1px solid var(--ds-line);border-radius:var(--ds-r-6)}
 .er-pen{flex:none;white-space:nowrap}
-.er-pen[aria-pressed=true]{background:var(--ds-accent,#2a8c82);color:#fff}
-.er-pen.has::after{content:'';display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:#e53935;vertical-align:middle}
+.er-pen[aria-pressed=true]{background:var(--ds-accent);color:var(--ds-on-accent)}
+.er-pen.has::after{content:'';display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:var(--ds-danger);vertical-align:middle}
 .er-clock.low{color:var(--ds-warn);border-color:var(--ds-warn)}
 .er-clock.over{color:var(--ds-danger);border-color:var(--ds-danger)}
 .er-card-btn small{margin-left:var(--ds-sp-4);color:var(--ds-muted)}

@@ -120,6 +120,7 @@ async function openRoom(page){
   await page.locator('[data-er-submit]').click();await page.locator('[data-er-submit]').click();
   await page.locator('.er-score-num').waitFor();
   const score=Number(await page.locator('.er-score-num').textContent());assert(Number.isFinite(score)&&score>=0);
+  assert((await page.locator('.er-result').textContent()).includes('用时最长的题'),'结果页显示每题用时');
   assert((await page.locator('.er-meta').textContent()).includes(NAME));assert((await page.locator('.er-meta').textContent()).includes('超时'));
   assert.equal(await page.locator('.er-table tbody tr').count(),6);
   await fits(page,'dialog.er-run');
