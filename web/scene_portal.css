@@ -57,3 +57,11 @@ html:not([data-theme="dark"]) .portal-landscape.portal-night{display:none}
 /* 五峰单字图标：书法家Yuji片冈的毛笔手写字形，仅内置五个繁体字，离线加载。 */
 @font-face{font-family:PeakCalligraphy;src:url('assets/beauty/fonts/peak-calligraphy.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 .portal-ic .portal-calligraphy{font-family:PeakCalligraphy,serif;font-weight:400;font-style:normal;font-synthesis:none;font-size:1.4em;line-height:1;display:inline-block}
+
+/* 地图类全景（config.fit，法考首页）：图片按原比例居中，地点放进同比例 .portal-frame，名牌按图片坐标定位；舞台两侧、上下用同图模糊衬底。尺寸由 scene_portal.js 的 fitFrames() 按舞台大小算出。 */
+.portal-stage[data-fit]{overflow:hidden}
+.portal-stage[data-fit]>.portal-landscape-fill{display:block;position:absolute;inset:-20px;background-image:var(--portal-fill-day);background-position:center;background-size:cover;filter:blur(18px);opacity:.6;pointer-events:none}
+html[data-scene-time="night"] .portal-stage[data-fit]>.portal-landscape-fill{background-image:var(--portal-fill-night)}
+.portal-stage[data-fit]>.portal-frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%}
+.portal-stage[data-fit] .portal-frame>.portal-landscape{object-fit:contain}
+.portal-stage[data-fit] .portal-frame>.portal-place{top:var(--py);left:var(--px)}

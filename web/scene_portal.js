@@ -8,11 +8,14 @@
   const clamp = n => Math.round(Math.max(5,Math.min(95,n))*10)/10;
   function normalize(source, places) {
     const result={desktop:{},narrow:{},names:{}};
+    // 地图换了新插画（config.desktopVersion）：旧版本保存的横屏位置对不上新图，按新默认值；竖屏和名称不受影响。
+    const keepDesktop=!config?.desktopVersion||source?.desktopVersion===config.desktopVersion;
+    if(config?.desktopVersion)result.desktopVersion=config.desktopVersion;
     places.forEach(p=>{const value=source?.names?.[p.id];if(typeof value==='string'){const name=value.replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,24);if(name)result.names[p.id]=name;}});
     for(const profile of ['desktop','narrow'])places.forEach((p,i)=>{
       const fallback=profile==='desktop'?{x:p.x,y:p.y}:(typeof p.nx==='number'?{x:p.nx,y:p.ny}:{x:28+(i%2)*44,y:18+Math.floor(i/2)*(64/Math.max(1,Math.ceil(places.length/2)-1))});   // 竖屏只显示全景中间一条：地点可自带nx/ny竖屏默认位置
       // 内置地点可用0%靠近地图上缘；保存其他地点时也应保留这些未动过的默认值。
-      const v=source?.[profile]?.[p.id];
+      const v=profile==='desktop'&&!keepDesktop?undefined:source?.[profile]?.[p.id];
       result[profile][p.id]={x:typeof v?.x==='number'&&Number.isFinite(v.x)?(v.x===fallback.x?fallback.x:clamp(v.x)):fallback.x,
                             y:typeof v?.y==='number'&&Number.isFinite(v.y)?(v.y===fallback.y?fallback.y:clamp(v.y)):fallback.y};
     });return result;
@@ -65,12 +68,13 @@
       }
     });
   }
-  function landscapeHtml() {
+  function landscapeHtml() {const parts=landscapeParts();return parts.fill+parts.imgs;}
+  function landscapeParts() {
     const alt = esc(config.title) + '全景';
     const images=sceneImages();
     const fill=`<div class="portal-landscape-fill" aria-hidden="true" style="--portal-fill-day:url(&quot;${esc(images?.day||config.image)}&quot;);--portal-fill-night:url(&quot;${esc(images?.night||config.image)}&quot;)"></div>`;
-    if (!images) return fill+`<img class="portal-landscape" src="${esc(config.image)}" alt="${alt}">`;
-    return fill+`<img class="portal-landscape portal-day" src="${esc(images.day)}" alt="${alt}"><img class="portal-landscape portal-night" src="${esc(images.night)}" alt="" aria-hidden="true" loading="lazy">`;
+    if (!images) return {fill,imgs:`<img class="portal-landscape" src="${esc(config.image)}" alt="${alt}">`};
+    return {fill,imgs:`<img class="portal-landscape portal-day" src="${esc(images.day)}" alt="${alt}"><img class="portal-landscape portal-night" src="${esc(images.night)}" alt="" aria-hidden="true" loading="lazy">`};
   }
   function geometry(device) {
     const current=device===profile(),width=current?window.innerWidth:device==='desktop'?1280:800,height=current?window.innerHeight:device==='desktop'?860:1280;
@@ -79,10 +83,27 @@
   }
   function stageHtml(layout, device, editing=false) {
     const geo=geometry(device);
-    const stage=`<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}"${config.framing==='extended'?' data-framing="extended"':''} data-map-height="${geo.height}" data-map-top="${geo.top}" data-map-span="${geo.span}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${landscapeHtml()}${config.places.map(p=>{
+    // 地图类全景（config.fit）：横屏时图片按原比例居中，地点放进同比例的 .portal-frame，名牌按图片坐标定位，不随屏幕比例漂移；两侧用同图模糊衬底。
+    const fit=!!config.fit&&device==='desktop';
+    const art=landscapeParts();
+    const places=config.places.map(p=>{
       const pos=layout[device][p.id];return `<button class="portal-place" style="--px:${pos.x}%;--py:${pos.y}%;--portal-y:${pos.y/100}" ${editing?`data-portal-point="${esc(p.id)}" aria-pressed="${p.id===edit.selected}"`:`data-portal-go="${esc(p.id)}"`}><span class="portal-ic" aria-hidden="true">${placeIcon(p)}</span>${signHtml(placeName(p,layout))}</button>`;
-    }).join('')}</div>`;
+    }).join('');
+    const stage=`<div class="portal-stage ${editing?'portal-stage-editor':''}" data-profile="${device}" data-portal-stage="${editing?'edit':'home'}"${fit?' data-fit="1"':''}${config.framing==='extended'?' data-framing="extended"':''} data-map-height="${geo.height}" data-map-top="${geo.top}" data-map-span="${geo.span}" data-world-stage="${editing?0:config.progress?.stage||0}">${editing?'':'<div class="portal-atmosphere" aria-hidden="true"><i class="portal-cloud"></i><i class="portal-glow"></i></div>'}${fit?`${art.fill}<div class="portal-frame" data-portal-frame>${art.imgs}${places}</div>`:`${art.fill}${art.imgs}${places}`}</div>`;
     return editing?`<div class="portal-preview-frame portal-${esc(config.id)}" style="aspect-ratio:${geo.width}/${geo.height};--preview-width:${geo.width}px;--preview-height:${geo.height}px">${stage}</div>`:stage;
+  }
+  let fitObserver;
+  function fitFrames() {
+    const a=config?.fit?.aspect||4/3;
+    document.querySelectorAll('.portal-stage[data-fit] .portal-frame').forEach(f=>{
+      const stage=f.parentElement,w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;
+      const fw=Math.min(w,h*a);f.style.width=Math.round(fw)+'px';f.style.height=Math.round(fw/a)+'px';
+    });
+  }
+  function watchFit() {
+    fitObserver?.disconnect();fitFrames();
+    const stages=document.querySelectorAll('.portal-stage[data-fit]');
+    if(typeof ResizeObserver==='function'&&stages.length){fitObserver=new ResizeObserver(fitFrames);stages.forEach(s=>fitObserver.observe(s));}
   }
   function homeHtml() {return `<section class="portal-world portal-${esc(config.id)}" aria-label="${esc(config.title)}">${stageHtml(load(),profile())}</section>`;}
   function motionHtml() {return `<button class="portal-motion" data-portal-motion aria-pressed="${motionOff()}">减少动画：${motionOff()?'已开启':'未开启'}</button>`;}
@@ -103,7 +124,7 @@
   function sizePreview() {
     previewResize?.disconnect();const frame=document.querySelector('.portal-preview-frame');if(!frame)return;
     const update=()=>{if(!frame.isConnected)return previewResize?.disconnect();const stage=frame.querySelector('.portal-stage'),width=parseFloat(frame.style.getPropertyValue('--preview-width'));stage.style.setProperty('--preview-scale',frame.clientWidth/width);};
-    previewResize=new ResizeObserver(update);previewResize.observe(frame);update();
+    previewResize=new ResizeObserver(update);previewResize.observe(frame);update();watchFit();
   }
   function redrawEditor() {const slot=document.querySelector('[data-portal-preview]');if(slot)slot.innerHTML=stageHtml(edit.layout,edit.device,true);syncEditor();sizePreview();}
   function cancelDrag() {if(drag){if(edit)edit.layout[edit.device][drag.id]=drag.before;drag=null;syncEditor();}}
@@ -113,6 +134,7 @@
     const sidebar=r&&r.height>window.innerHeight*.7&&r.width<300;
     document.documentElement.style.setProperty('--portal-top',sidebar?'0px':Math.max(0,r?.bottom||0)+'px');
     if(view==='settings'){syncEditor();sizePreview();}else previewResize?.disconnect();
+    watchFit();
   }
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-portal-motion]')){
@@ -142,8 +164,8 @@
   document.addEventListener('pointerdown',e=>{
     const point=e.target.closest('[data-portal-point]');if(!point||!edit||e.button!==0)return;
     edit.selected=point.dataset.portalPoint;syncEditor();
-    const stage=point.closest('[data-portal-stage]'),r=point.getBoundingClientRect?.();
-    drag={id:edit.selected,pointer:e.pointerId,before:{...edit.layout[edit.device][edit.selected]},rect:stage.getBoundingClientRect(),map:stage.dataset?(()=>{const g=geometry(edit.device);return {mapHeight:g.height,mapTop:g.top,mapSpan:g.span};})():null,grab:r?{x:e.clientX-(r.left+r.width/2),y:e.clientY-(r.top+r.height/2)}:{x:0,y:0}};point.setPointerCapture(e.pointerId);e.preventDefault();
+    const stage=point.closest('[data-portal-stage]'),r=point.getBoundingClientRect?.(),fitFrame=stage.dataset?.fit?stage.querySelector('.portal-frame'):null;
+    drag={id:edit.selected,pointer:e.pointerId,before:{...edit.layout[edit.device][edit.selected]},rect:(fitFrame||stage).getBoundingClientRect(),map:fitFrame?null:stage.dataset?(()=>{const g=geometry(edit.device);return {mapHeight:g.height,mapTop:g.top,mapSpan:g.span};})():null,grab:r?{x:e.clientX-(r.left+r.width/2),y:e.clientY-(r.top+r.height/2)}:{x:0,y:0}};point.setPointerCapture(e.pointerId);e.preventDefault();
   });
   document.addEventListener('pointermove',e=>{
     if(!drag||e.pointerId!==drag.pointer)return;
