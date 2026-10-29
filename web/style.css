@@ -759,8 +759,9 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 .id-word { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: .12em; color: var(--text); }
 .id-letter { font-size: var(--ds-fs-11); color: var(--faint); border: 1px solid var(--line); border-radius: var(--ds-r-4); padding: 0 5px; }
 .id-src + .id-src { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
-.id-k { display: inline-block; font-size: var(--ds-fs-11); color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: var(--ds-r-4);
-  padding: 0 5px; margin-right: 6px; vertical-align: 1px; }
+.id-k { display: inline-block; font-size: var(--ds-fs-11); font-weight: 600; color: var(--text); border: 1px solid var(--accent2); border-radius: var(--ds-r-4);
+  border-color: color-mix(in srgb, var(--accent2) 65%, transparent); background: color-mix(in srgb, var(--accent2) 14%, transparent);
+  padding: 0 5px; margin-right: 6px; vertical-align: 1px; }    /* 小标签用深色字 + 蓝灰底：以前是金色字压在米黄底上，看不清 */
 .id-mean { font-size: var(--ds-fs-14); line-height: 1.6; }
 .id-others { margin-top: 6px; font-size: var(--ds-fs-13); line-height: 1.7; }
 .id-other { display: inline-block; margin: 2px 8px 2px 0; padding: 1px 8px; border-radius: var(--ds-r-6); background: var(--panel2); }
@@ -772,7 +773,7 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 .id-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
 .id-tutor { margin-left: auto; border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--gold); }
 .id-cmp-short { margin-top: 6px; font-size: var(--ds-fs-13); line-height: 1.7; padding: 6px 8px; border-radius: var(--ds-r-8);
-  background: color-mix(in srgb, var(--gold) 9%, transparent); }
+  background: color-mix(in srgb, var(--accent2) 9%, transparent); }
 .id-card.editing { border-left-color: var(--accent); }
 .id-card.editing label { display: block; margin-top: 6px; }
 .id-card.editing textarea, .id-card.editing input { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; resize: vertical; }
@@ -1056,7 +1057,9 @@ html.no-cmix .st-btn { background: var(--st) !important; }
 .opts.measure .opt { white-space: nowrap; width: max-content; }
 
 /* 成语实词录 · 师傅答疑：逐字、出处 */
-.id-detail { margin: 6px 0 4px; padding: 8px 12px; border-radius: var(--ds-r-8); background: var(--panel2); border-left: 3px solid var(--gold); font-size: var(--ds-fs-14); line-height: 1.8; }
+.id-detail { margin: 6px 0 4px; padding: 8px 12px; border-radius: var(--ds-r-8); background: var(--panel2); border-left: 3px solid var(--accent2); font-size: var(--ds-fs-14); line-height: 1.8; }
+/* 轻透界面会把 .id-detail 当“阅读纸面”铺成和卡片一样的米黄底；这里用更高优先级压回蓝灰淡底，和金色卡片拉开 */
+html:not(.in-chat):not(.in-sl-exam):not(.drawing) body .id-card .id-detail.id-detail { background: var(--panel2) !important; background: color-mix(in srgb, var(--accent2) 12%, var(--panel)) !important; }
 .id-chars, .id-origin { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .id-origin { margin-top: 4px; }
 .id-char i, .id-onote { font-style: normal; color: var(--muted); }
