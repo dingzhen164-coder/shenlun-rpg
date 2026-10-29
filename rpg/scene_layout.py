@@ -25,6 +25,9 @@ def save(state, body):
             if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 100 for v in xy):
                 raise ValueError('地点坐标需在0到100之间')
             result[profile][key] = dict(zip(('x', 'y'), xy))
+    version = source.get('desktopVersion')           # 地图换新插画时前端用它丢弃旧版本的横屏位置
+    if isinstance(version, str) and re.fullmatch(r'[a-zA-Z0-9_.-]{1,20}', version):
+        result['desktopVersion'] = version
     names = source.get('names', {})
     if not isinstance(names, dict) or len(names) > 40:
         raise ValueError('地点名称格式不正确')
