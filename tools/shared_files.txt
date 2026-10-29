@@ -701,3 +701,5 @@ shared web/interface_glass.js
 shared web/interface_glass.css
 shared tests/ui_interface383.cjs
 shared tests/test_explanations383.py
+shared web/legacy_css.js
+shared tests/ui_legacy_css.cjs
