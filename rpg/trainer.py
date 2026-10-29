@@ -1725,10 +1725,14 @@ def _mreview_load(g, s, src):
         raise TrainError("%s没有「%s」的复盘" % (_sname(g, s["season"]), src))
     qs = [dict(q, season=s["season"], source=src, dir=str(d), key="%s|%s|%s" % (s["season"], src, q["num"]))
           for q in vault.parse_board_file(vault.board_file(d, src))]
-    times=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_seconds') or {}
+    mrec=g.state.get('mocks',{}).get(str(s['season']),{})
+    # 每题用时：自己在整卷考场里作答记下的优先，其次是导入的粉笔报告
+    times=dict((mrec.get('html_import') or {}).get('question_seconds') or {}); times.update((mrec.get('exam') or {}).get('qtimes') or {})
     rates=(g.state.get('mocks',{}).get(str(s['season']),{}).get('html_import') or {}).get('question_accuracy') or {}
     for q in qs:
-        if q.get('seconds') is None and str(q['num']) in times:q['seconds']=times[str(q['num'])]
+        own=(mrec.get('exam') or {}).get('qtimes') or {}
+        if str(q['num']) in own:q['seconds'],q['seconds_own']=own[str(q['num'])],True
+        elif q.get('seconds') is None and str(q['num']) in times:q['seconds']=times[str(q['num'])]
         if q.get('source_accuracy') is None and str(q['num']) in rates:q['source_accuracy']=rates[str(q['num'])]
     picked = [q for q in qs if q["icon"] != "✅"] if s["only_wrong"] else qs
     s["all_correct"] = s["only_wrong"] and not picked
@@ -1777,7 +1781,7 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         i + 1, len(qs), _sname(g, s["season"]) if re.fullmatch(r"第\d+季", _sname(g, s["season"])) else _sname(g, s["season"]) + " · ", q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
         vault.render_blocks(g.paths, _fill_body(g, q), material=False), pin=True, material=vault.render_material(g.paths, q),
         qkey="mock:" + q["key"]))
-    duration=('\n原答题用时：'+_clock(q['seconds'])) if q.get('seconds') is not None else ''
+    duration=('\n%s：%s' % ('本题用时' if q.get('seconds_own') else '原答题用时', _clock(q['seconds']))) if q.get('seconds') is not None else ''
     if q.get('source_accuracy') is not None:
         duration += '\n原题正确率：%g%%' % q['source_accuracy']
     if q["analysis"]:

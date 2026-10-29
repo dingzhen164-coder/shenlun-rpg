@@ -212,7 +212,8 @@ def summary(g):
                         **{k: rec.get(k) for k in FIELDS[1:]},
                         "ok": ok_all, "total": total_q, "acc": ok_all / total_q,
                         "minutes": sum(mins) if mins else None, "modules": mods,
-                        "imported": str(n) in g.state.get("mock_practice", []), "review": review})
+                        "imported": str(n) in g.state.get("mock_practice", []), "review": review,
+                        "exam": __import__("rpg.exam_room", fromlist=["x"]).season_exam_info(rec) if g.subject == "行测" else None})
     seasons.sort(key=chronological_key)
     scored = [s for s in seasons if s["score"] is not None]
     mean = lambda xs: round(sum(xs) / len(xs), 1) if xs else None

@@ -1053,12 +1053,19 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(g.dao(), 36)                               # 近 14 天：开始前 4 天 + 告假 1 天 = 5/14
 
     def test_weekly_quests(self):
+        """周常只看学习时间和模考：默认只剩“功行分钟”和“宗门大比”两项，按行为类型计数的项不设。"""
         g = self.make(dt.date(2026, 10, 7))
+        self.assertEqual([q["key"] for q in g.weekly()], ["修炼分钟", "宗门大比"])
         for _ in range(20):
             g._award(15, "wrong", "论证逻辑", "", True, "斩", bonus=False)
+        self.assertFalse(any("周常完成" in e.get("msg", "") for e in g.housekeeping()))
+        g.add_seconds(840 * 60)
         ev = g.housekeeping()
-        self.assertTrue(any("周常完成：斩心魔" in e.get("msg", "") for e in ev))
+        self.assertTrue(any("周常完成" in e.get("msg", "") for e in ev))
         self.assertNotIn("all", g.state["weekly"][g.week_key()])
+        g.add_boss("周赛", 60)
+        g.housekeeping()
+        self.assertIn("all", g.state["weekly"][g.week_key()])
 
 
 if __name__ == "__main__":

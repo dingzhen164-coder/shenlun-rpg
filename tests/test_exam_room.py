@@ -101,6 +101,43 @@ class ExamRoomTest(unittest.TestCase):
         again = exam_room.result(self.g, self.n)
         self.assertEqual((again['score'], again['attempts']), (result['score'], 1))
 
+    def test_per_question_times_saved_merged_shown_in_contest_and_review(self):
+        """每题用时：暂存时只增不减、只收本卷题号；交卷后进结果、大比战绩小结、模块用时和复盘逐题显示"""
+        self.install()
+        exam_room.begin(self.g, self.n)
+        exam_room.save_run(self.g, self.n, {'qtimes': {'1': 40, '2': 95, '999': 5, 'x': 3, '3': -2}})
+        exam_room.save_run(self.g, self.n, {'qtimes': {'1': 30, '2': 100}})                  # 重试/续考不会把已记的改小
+        run = self.g.state['exam_runs'][str(self.n)]
+        self.assertEqual(run['qtimes'], {'1': 40, '2': 100})
+        answers = self.answers(wrong={1})
+        result = exam_room.submit(self.g, self.n, {'answers': answers, 'elapsed': 5400, 'qtimes': {'3': 20}})
+        self.assertEqual(self.g.state['mocks'][str(self.n)]['exam']['qtimes'], {'1': 40, '2': 100, '3': 20})
+        rows = {r['num']: r for r in exam_room.result(self.g, self.n)['rows']}
+        self.assertEqual((rows[1]['sec'], rows[2]['sec'], rows[4]['sec']), (40, 100, None))
+        s = next(x for x in mock.summary(self.g)['seasons'] if x['season'] == self.n)
+        self.assertEqual((s['exam']['timed'], s['exam']['avg_sec'], s['exam']['slowest'][0]), (3, 53, {'num': 2, 'sec': 100}))
+        self.assertTrue(s['minutes'])                                                         # 模块用时由每题用时汇总
+        from rpg import trainer
+        st = {'season': self.n, 'only_wrong': False}
+        trainer._mreview_load(self.g, st, '政治理论')
+        q1 = next(q for q in st['qs'] if q['num'] == 1)
+        self.assertEqual((q1['seconds'], q1.get('seconds_own')), (40, True))
+
+    def test_wrong_and_blank_go_to_bank_review_without_touching_tower_or_xp(self):
+        from rpg import question_bank
+        self.install()
+        bank = self.p.train / '题库'; bank.mkdir(parents=True, exist_ok=True)
+        def block(num):
+            return ('## 题目 粉笔%d季-%03d\n\n### 知识点\n测试\n\n### 题干\n第%d题\n\n### 选项\nA. 甲\nB. 乙\nC. 丙\nD. 丁\n\n### 答案\n%s\n\n' % (self.n, num, num, key_of(num)))
+        (bank / '政治理论真题.md').write_text(''.join(block(i) for i in range(1, 6)), encoding='utf-8')
+        tower_before = question_bank.tower(self.g)['cleared']
+        result = self.take(self.answers(wrong={1}, blank={2}))
+        self.assertEqual(result['to_review'], {'政治理论': 2})
+        recs = question_bank.state(self.g)['records']
+        self.assertEqual(sorted(k for k, r in recs.items() if r['wrong']), ['政治理论::粉笔%d季-001' % self.n, '政治理论::粉笔%d季-002' % self.n])
+        self.assertTrue(all(not r['history'] for r in recs.values()))                       # 不写作答历史：塔层数、首次奖励不变
+        self.assertEqual(question_bank.tower(self.g)['cleared'], tower_before)
+
     def test_reward_once_and_retake_updates_score(self):
         self.install()
         first = self.take(self.answers(wrong=set(range(1, 21))))

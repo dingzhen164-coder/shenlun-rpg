@@ -13,9 +13,10 @@
   const PREFIX = 'xrpg-draw:', INDEX = 'xrpg-draw-index', KEEP = 300;
 
   // ---------------------------------------------------------------- 按题存笔记
-  const keyNow = () => { try { return (window.DRAW_KEY && window.DRAW_KEY()) || 'page'; } catch (e) { return 'page'; } };
-  const mkeyNow = () => { try { return (window.DRAW_MKEY && window.DRAW_MKEY()) || ''; } catch (e) { return ''; } };
-  const inMat = (x, y) => { try { return !!(window.DRAW_IN_MAT && window.DRAW_IN_MAT(x, y)); } catch (e) { return false; } };
+  // 整卷考场等“自带笔”的页面用 DRAW.open({key, mkey, host, button, inMat})：笔迹按它给的题号存，画布挂进它的 <dialog>（否则会被顶层弹窗盖住）
+  const keyNow = () => { if (st.ext) return st.ext.key || 'page'; try { return (window.DRAW_KEY && window.DRAW_KEY()) || 'page'; } catch (e) { return 'page'; } };
+  const mkeyNow = () => { if (st.ext) return st.ext.mkey || ''; try { return (window.DRAW_MKEY && window.DRAW_MKEY()) || ''; } catch (e) { return ''; } };
+  const inMat = (x, y) => { if (st.ext) return !!(st.ext.inMat && st.ext.inMat(x, y)); try { return !!(window.DRAW_IN_MAT && window.DRAW_IN_MAT(x, y)); } catch (e) { return false; } };
   function visible(strokes) {           // 最后一次“清空”之后的笔画才算数
     let from = 0;
     strokes.forEach((s, i) => { if (s.clear) from = i + 1; });
@@ -54,11 +55,13 @@
     refresh();
   }
   // ✏ 按钮上的小点：这道题有笔记
-  function refresh() {
-    if (!btn) return;
+  function refresh(ext) {
+    const target = (ext || st.ext || {}).button || btn;
+    if (!target) return;
+    const k = ext ? ext.key : keyNow(), mk = ext ? (ext.mkey || '') : mkeyNow();
     let has = false;
-    try { has = !!localStorage.getItem(PREFIX + keyNow()) || (!!mkeyNow() && !!localStorage.getItem(PREFIX + mkeyNow())); } catch (e) { /* 读不了就不显示 */ }
-    btn.classList.toggle('has', has);
+    try { has = !!localStorage.getItem(PREFIX + k) || (!!mk && !!localStorage.getItem(PREFIX + mk)); } catch (e) { /* 读不了就不显示 */ }
+    target.classList.toggle('has', has);
   }
   let layer, canvas, ctx, bar;
 
@@ -208,8 +211,11 @@
   function undo() { if (st.strokes.length) { st.redo.push(st.strokes.pop()); paint(); syncBar(); save(); } }
   function redo() { if (st.redo.length) { st.strokes.push(st.redo.pop()); paint(); syncBar(); save(); } }
 
-  function open() {
+  function open(ext) {
     if (!layer) build();
+    if (st.on) close();
+    st.ext = ext && ext.key ? ext : null;
+    if (st.ext && st.ext.host) st.ext.host.appendChild(layer);
     st.on = true;
     st.key = keyNow();
     st.mkey = mkeyNow();
@@ -219,16 +225,18 @@
     layer.classList.add('on');
     resize();
     syncBar();
-    btn.classList.add('on');
+    (st.ext && st.ext.button || btn)?.classList.add('on');
   }
   function close() {
     if (st.cur) up();
     if (st.on) save();                  // 关掉不清：存起来，下次打开这道题还在
-    st.on = false;
+    const ext = st.ext;
+    st.on = false; st.closedAt = performance.now();
     st.strokes = []; st.redo = [];
     layer.classList.remove('on');
     document.documentElement.classList.remove('drawing');
-    btn.classList.remove('on');
+    (ext && ext.button || btn)?.classList.remove('on');
+    if (ext) { st.ext = null; if (layer.parentNode !== document.body) document.body.appendChild(layer); refresh(ext); }
   }
 
   const btn = document.getElementById('drawBtn');

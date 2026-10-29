@@ -511,6 +511,30 @@ def begin(g, board, mode):
     return run
 
 
+def mark_wrong_from_exam(g, season, rows):
+    """整卷模考交卷后：答错、没答的题记进题库的“错题回炉”（按板块），答对的不动。
+    只标记 wrong，不写作答历史：试炼塔层数、首次奖励、修为都不受影响。返回 {板块: 记了几题}。"""
+    data = state(g)
+    bank_of = {}
+    out = {}
+    for row in rows:
+        if row.get('status') not in ('bad', 'blank'):
+            continue
+        board = row.get('board')
+        if not board:
+            continue
+        if board not in bank_of:
+            bank_of[board] = {q['id']: q for q in read_all(g.paths, board)[0]}
+        q = bank_of[board].get('粉笔%d季-%03d' % (int(season), int(row['num'])))
+        if not q or q.get('pending'):
+            continue
+        rec = data['records'].setdefault(q['key'], {'question': q, 'history': [], 'wrong': False, 'streak': 0})
+        if not rec['wrong']:
+            out[board] = out.get(board, 0) + 1
+        rec['wrong'], rec['streak'] = True, 0
+    return out
+
+
 def record(g, run, answer, reasoning="", method_ok=None, feedback=""):
     if run['phase'] != 'answer':
         raise BankError('这道题已经提交，请点击下一题')

@@ -189,6 +189,14 @@
   }
 
   // ---------------------------------------------------------------- 大比复盘
+  // 整卷模考的战绩小结：分数、用时、平均每题、最慢几题（每题用时在复盘时也会逐题显示）
+  function examLine(s) {
+    const x = s && s.exam;
+    if (!x) return "";
+    const t = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+    const slow = (x.slowest || []).slice(0, 3).map((o) => `第${o.num}题 ${t(o.sec)}`).join("、");
+    return `<p class="small" style="margin:6px 0">整卷模考 · <b>${x.score == null ? "未判分" : f1(x.score) + " 分"}</b>${x.minutes ? ` · 用时 ${x.minutes} 分钟` : ""}${x.overtime ? " <b>超时</b>" : ""}${x.attempts > 1 ? ` · 第 ${x.attempts} 次` : ""}${x.avg_sec ? ` · 平均每题 ${t(x.avg_sec)}` : ""}${slow ? ` · 最慢：${slow}` : ""}</p>`;
+  }
   function reviewCard(d) {
     const ss = d.seasons.filter((s) => (s.review || []).length);
     if (!ss.length) return "";
@@ -206,6 +214,7 @@
     return `<div class="card contest-card rv-card"><div class="row" style="flex-wrap:wrap;gap:10px"><h3 style="margin:0">📜 大比复盘
         <small>像刷完一组题那样，把这一季模考逐题过一遍：看题 → 对答案 → 读解析 → 不懂就问师傅。复盘时间记进「修炼 · 复习」</small></h3>
         <span class="spacer"></span><select id="rvPick" style="width:auto">${opts}</select></div>
+      ${examLine(cur)}
       <div class="row" style="gap:12px;margin:8px 0 4px;align-items:center"><span class="small muted">这份试卷已复盘 <b>${seen}</b>/${all} 题</span>
         <label class="small" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="rvWrong" style="width:auto" ${RV_WRONG ? "checked" : ""}> 只复盘错题和没做的</label>
         <span class="spacer"></span><button class="primary" id="rvStart">${seen ? "从第一个板块复盘" : "开始复盘"}</button></div>

@@ -344,6 +344,20 @@ def _clean_answers(qs, answers):
     return out
 
 
+def _clean_qtimes(qs, times, old, limit):
+    """每题作答用时（秒）{题号: 秒}：只收本卷的题号；同一题取新旧较大值（暂存重试、续考不会把已记的时间改小）；单题上限是考试总时长"""
+    nums = {q["num"] for q in qs}
+    out = {str(k): int(v) for k, v in (old or {}).items()}
+    for k, v in (times or {}).items():
+        try:
+            num, sec = int(k), int(round(float(v)))
+        except (TypeError, ValueError):
+            continue
+        if num in nums and sec > 0:
+            out[str(num)] = max(out.get(str(num), 0), min(sec, limit * 3))
+    return out
+
+
 def save_run(g, n, body):
     _guard(g)
     run = g.state.get("exam_runs", {}).get(str(n))
@@ -357,6 +371,8 @@ def save_run(g, n, body):
     if "marks" in body:
         nums = {q["num"] for q in qs}
         run["marks"] = sorted({int(x) for x in (body.get("marks") or []) if str(x).isdigit() and int(x) in nums})
+    if "qtimes" in body:
+        run["qtimes"] = _clean_qtimes(qs, body["qtimes"], run.get("qtimes"), run["limit"])
     try:
         elapsed = int(body.get("elapsed"))
         run["elapsed"] = max(run["elapsed"], min(elapsed, run["limit"] * 3))
@@ -465,8 +481,9 @@ def submit(g, n, body):
     minutes = max(1, int(round(min(elapsed, run["limit"]) / 60.0)))
     exam = {"answers": run["answers"], "marks": run["marks"], "elapsed": elapsed, "limit": run["limit"],
             "minutes": minutes, "overtime": elapsed > run["limit"], "submitted": g.t,
-            "attempts": int(previous.get("attempts", 0)) + 1}
+            "attempts": int(previous.get("attempts", 0)) + 1, "qtimes": run.get("qtimes") or {}}
     result = _grade(g, n, exam)
+    _fill_module_minutes(g, n, rec, exam)
     rec["date"] = g.t                                  # 走势按交卷日期排
     events = []
     if result["score"] is not None:
@@ -475,10 +492,44 @@ def submit(g, n, body):
     events += g.add_practice("模考", total, result["ok"], minutes, mock.season_name(g, n),
                              "整卷模拟考试，实际用时 %d 分钟" % minutes)
     rec["practice_source"] = mock.season_name(g, n)
+    try:                                               # 错题、没答的题进题库的“错题回炉”（按板块）；不动塔层数和奖励
+        from . import question_bank
+        rows = [{"num": num, "status": st, "board": next((q["board"] for q in _questions(g, n)[0] if q["num"] == num), "")}
+                for num, _mine, st in exam["results"]]
+        result["to_review"] = question_bank.mark_wrong_from_exam(g, n, rows)
+    except Exception:
+        result["to_review"] = {}
     mock.unhide(g, n)
     result.update(minutes=minutes, overtime=exam["overtime"], attempts=exam["attempts"], name=mock.season_name(g, n),
                   season=n, date=g.t, events=events)
     return result
+
+
+def _fill_module_minutes(g, n, rec, exam):
+    """每题用时汇总成各模块用时（分钟），写进大比的“模块用时”；用户自己录过的不覆盖"""
+    times = exam.get("qtimes") or {}
+    if not times or rec.get("minutes"):
+        return
+    qs, _ = _questions(g, n)
+    per = {}
+    for q in qs:
+        per[q["module"]] = per.get(q["module"], 0) + times.get(str(q["num"]), 0)
+    mins = {m: round(sec / 60.0, 1) for m, sec in per.items() if sec}
+    if mins:
+        rec["minutes"] = mins
+
+
+def season_exam_info(rec):
+    """给宗门大比战绩/复盘卡的整卷模考小结：用时、平均每题、最慢几题；没有每题用时就只给总用时"""
+    exam = (rec or {}).get("exam")
+    if not exam or exam.get("score") is None and not exam.get("results"):
+        return None
+    times = {int(k): v for k, v in (exam.get("qtimes") or {}).items()}
+    slow = sorted(times.items(), key=lambda x: -x[1])[:5]
+    return {"score": exam.get("score"), "minutes": exam.get("minutes"), "overtime": bool(exam.get("overtime")),
+            "attempts": exam.get("attempts"), "submitted": exam.get("submitted"), "timed": len(times),
+            "avg_sec": round(sum(times.values()) / len(times)) if times else None,
+            "slowest": [{"num": n, "sec": s} for n, s in slow]}
 
 
 def result(g, n):
@@ -498,7 +549,8 @@ def result(g, n):
                                          "total": 0, "ok": 0, "bad": 0, "blank": 0, "nokey": 0})
         m["total"] += 1
         m[status] += 1
-    rows = [{"num": num, "mine": mine, "status": status, "correct": (by[num]["correct"] if num in by else ""),
+    times = exam.get("qtimes") or {}
+    rows = [{"num": num, "mine": mine, "status": status, "sec": times.get(str(num)), "correct": (by[num]["correct"] if num in by else ""),
              "module": (by[num]["module"] if num in by else ""), "board": (by[num]["board"] if num in by else "")}
             for num, mine, status in exam["results"]]
     return {"season": n, "name": mock.season_name(g, n), "score": exam.get("score"), "basis": exam.get("basis"),

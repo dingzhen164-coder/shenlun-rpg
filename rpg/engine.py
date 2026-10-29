@@ -750,7 +750,8 @@ class Game:
 
     # ================================================================ 渡劫
     def contests(self, kind="大比"):
-        return [b for b in self.state["boss"] if b.get("kind", "大比") == kind]
+        # 按考试日期排（稳定排序，同日保持录入顺序）：补录旧卷不能被当成“最近两次”。
+        return sorted((b for b in self.state["boss"] if b.get("kind", "大比") == kind), key=lambda b: str(b.get("d") or ""))
 
     def tribulation_status(self):
         g = self.pending_gate()
@@ -1307,9 +1308,12 @@ class Game:
         self.state["seconds"][ds] = self.state["seconds"].get(ds, 0) + minutes * 60
         self._practice_log(rec)
         head = f"{self.T('practice')} {board}" + (f"（{source}）" if source else "")
-        if not total:
+        # 修为按学习时间算：自练的分钟与修炼同一汇率；按题数的奖励默认 0，规则里想要可以调大。
+        base = self.rules.xp("自练每题") * total + self.rules.xp("自练每分钟") * minutes
+        if not total and not base:
             return [{"kind": "info", "msg": f"{head}：日志已记下"}]
-        ev = self._award(self.rules.xp("自练每题") * total, "practice", board, note=f"{head} {correct}/{total}")
+        ev = self._award(base, "practice", board, note=f"{head} {correct}/{total}，{int(minutes)} 分钟" if total else f"{head} {int(minutes)} 分钟",
+                          bonus=False)         # 与心跳计时的修炼同一汇率：学多久涨多少，不吃连续打卡/灵根加成
         rec["xp"] = sum(e.get("v", 0) for e in ev if e.get("kind") == "xp")
         return ev
 

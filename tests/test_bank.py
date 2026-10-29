@@ -134,7 +134,13 @@ class BankTest(unittest.TestCase):
         self.assertEqual(bank.rank(self.g, 7, 10), 1)
         self.assertEqual(bank.rank(self.g, 6, 10), 0)
 
+    def _per_question_rewards(self):
+        """默认做题不再按题数发修为（只按学习时间）；这些用例测的是“按题奖励”的机制，所以显式打开旧数值。"""
+        for k, v in (('经验.实战答对', 5), ('经验.实战答错', 1), ('经验.实战通关', 30)):
+            self.g.rules.raw[k] = v
+
     def test_old_partial_run_keeps_answers_without_retroactive_reward(self):
+        self._per_question_rewards()
         self.file.write_text(question('1') + question('2'), encoding='utf-8')
         r = trainer.start(self.g, self.task)
         bank_action(self.g, r['session'], 'bank_answer:0:A')
@@ -239,6 +245,7 @@ class BankTest(unittest.TestCase):
 
 
     def test_whole_set_across_boards(self):
+        self._per_question_rewards()
         # 言语书一套 20 题分在两个板块；整套试炼按题号顺序一次做完，不受每轮 10 关限制
         fill = self.paths.train / '题库/逻辑填空真题.md'
         read = self.paths.train / '题库/片段阅读真题.md'
