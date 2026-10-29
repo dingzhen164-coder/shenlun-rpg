@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-bfb32fc4-866c-472f-b7c4-690ed2963e6e.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-c9f03b06-afb5-46cc-ae7e-cb379f2e9604.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "6ab31c235293d97a9a0daa058a5407dff3d533facaa5cbe0191b51d292d75c86"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-5ab9f208-4b7e-479a-aeac-827e52de6c80.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "9dd7cebd715bd7f50a055adab09ad79e4946632b40df68657372359c3f621cd2"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-fceb1073-7aa1-4586-9abd-93ccbb041b7b.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "726adc3ac87b7882894e4f2fc957f434176609028438d80b3b0972fd2fe7c41a"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-baf87c65-b515-4b43-80b2-a08a213a3b82.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c1611ff7f48d3fb9712e9340d700a1289b460af3793ddc4524ff13d70f7a4239"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-374bf96a-cc1a-44e7-8f1a-8ab30010a462.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "179cee2fd6b3b5e8aa65cef915ffd7aabd4ae4afcf6a54e179f047cb61d3fed3"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-2aa44f69-c011-43d7-b4cb-c5029474ef51.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dcdb08f49258378024e48bae8cbd8771d668f5a15b4ccc17eedef0d2a749aa04"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-75afe58e-996b-460d-a29a-882b7e14dd32.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "46af719e1ff966ec479e62c111f84801ad5b530571dccfd994d39afa7ceaeba9"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-f7351ce5-669d-4da9-b25d-998371308551.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "836e9fb32d191e6e521ab18b9448e754379b1829b0c9f31d6f485a23227b9614"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/bank-night.webp",
+  "sha256": "a8ca54d487255be5bb01377ae3c39c61989b43e2094de489252f0ff00b76c67f",
+  "bytes": 2720530,
+  "actual": [
+    3840,
+    2880
+  ]
+}

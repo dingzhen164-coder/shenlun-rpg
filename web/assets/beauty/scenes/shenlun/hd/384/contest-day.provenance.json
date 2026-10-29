@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-4aff7687-1a06-49ee-a10e-bbc1a289e21e.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-44662a9a-1ab6-4da0-8b27-5caccff50805.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4c569b8fbd58d8dfbb5da73eaba04081483808834c798f707919b5f24be813ad"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-76291af7-bf59-4324-b992-dc1fcd9d2232.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "56e4092fcb88816d40d93b2358dafe70b068f40484c1045c1af0b1dd0ca81226"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-77106de0-8ce8-4bed-9c28-93a7782853f3.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "670340f6b4f6b9df3ecc9660951bf5f360946873e1bfe43a6910ebd9a7b95560"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-6e768468-840c-46f0-ab24-0fabc23616f8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "caf262a2c333a7bf32a2d17280a054c27f867ff1055ec2b54b476cae290322ce"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-cb34bd47-89fc-4d9f-8b45-a6ff066bb892.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4286239ef54ef5c568120b8613ad4388333cd771cb4d34fa5c9b44bce4e9f065"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-c6301249-8bb6-4b07-8651-5a87e0a414ec.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "92ed9d68049e64c9f7026ca2304955919374196448b8d99b8235e6cb71072ae2"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-53bf8122-8a24-45ed-8e38-e96319db077f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "6ba58d1835ee75164a1be161686f557b0b739b764d5344724927bc9e8a4ad067"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/contest-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-40d02ead-65be-4a69-a094-f6fb8d88c11d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4f0ad40ca174d12bc992e05067cbbb17f2dac3362b32dd95d8c5a32e5abf017a"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/contest-day.webp",
+  "sha256": "5cbd6c06b5537c9b7c0db1d160f10976635c350dff7f3fcab5fcd96856fd3591",
+  "bytes": 3163502,
+  "actual": [
+    3840,
+    2880
+  ]
+}

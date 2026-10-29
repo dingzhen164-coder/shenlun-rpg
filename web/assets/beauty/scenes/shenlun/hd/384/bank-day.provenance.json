@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-07b76c68-f108-49d7-8528-a1b40ef7f81a.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-0bb65130-762d-4c80-a166-f41906e609b1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "78da7ce3da58c284c236c9698bd51e99c1d45f7c1f85c38f678fcd82d9e2165b"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-03a02528-a42e-4d40-ad3b-098cf74f7df8.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "33d0c6b79643066d5a6d380d3f346890c8b24445299219b1eab4b01daab97ffd"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-bf35a72f-cad8-4210-9d83-a51c07a4098d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2aa5fcd6ce43bf135982c40fa5fb245518d56b01b0e60b6d6bf6df93d5ff5ac1"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-d74e8f3f-34d4-42ca-ae2d-279c16f7261a.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "1b257a6531103d2eb7d34cd79e07d248a328e5bcd94d313647638d66bbb47fbc"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-06880dde-e376-4b9b-a5fe-4db48be18aeb.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "4f4ec8e5037982602598bd1aa3efe6d4e5edc9a148fcda7a383f7a065c88c2c5"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-1410db7d-1579-4680-9ea9-e8ee9562de24.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f28b1d4cd826bcde6009257d153e377b214444ddc16011935b3633775c19fe41"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-db5752a7-3e58-4a59-a75e-4c2741bc3927.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "9644d2c921d9b9b5f3a83eb356e9b9aa9cb15c2c87c70c0b375d69e1ad4a254b"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/bank-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-50b7c074-35a2-4327-9c2d-2e3e23bf0d1f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ae512763b275c755f641e61095da7cf7e19078fe19e54d7ca89ff20e7ace5806"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/bank-day.webp",
+  "sha256": "5f0e1328c9385e8e317d09f87984a52fea729eb2ec8ffb813a72fd4b549ad2be",
+  "bytes": 2763448,
+  "actual": [
+    3840,
+    2880
+  ]
+}

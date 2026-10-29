@@ -47,3 +47,8 @@ html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-tower-art,
 html[data-scene-phase] body[data-trial-night="true"] .trial-hall .th-gate-stage>img { filter: drop-shadow(0 12px 12px var(--ds-sign-shadow)); }
 /* 五峰页去掉整页遮罩后，列表条目自带一层淡淡的毛玻璃，亮山景上的小字也看得清。 */
 body[data-scene-art="peak"] .wx-workspace .wx-exam-list .wx-atlas-entry{background:color-mix(in srgb,var(--panel) 46%,transparent);backdrop-filter:blur(6px);border-radius:var(--ds-r-8);margin-bottom:12px}
+
+/* 申论原生分时场景直接显示，不叠程序滤镜和遮罩。 */
+body.has-page-art[data-scene-art="roomSL4k"]:not(.portal-home) #bgLayer::after{opacity:0!important}
+body[data-scene-art="roomSL4k"] #bgLayer{filter:none}
+body[data-scene-art="roomSL4k"] #bgLayer::before{background:none}
