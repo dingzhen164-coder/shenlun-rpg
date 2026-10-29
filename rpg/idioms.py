@@ -489,7 +489,7 @@ def ask_tutor(g, word):
     from . import ai, prompts
     e = _entry(g, word)
     for s in e['sources']:
-        r = ai.chat_json(prompts.idiom_compare(g.persona, word, s), temperature=0.4, max_tokens=600)
+        r = ai.chat_json(prompts.idiom_compare(g.persona, word, s), temperature=0.4, max_tokens=600, think=False)   # 一句话辨析不用深度思考，开着会慢很多
         text = str(r.get('辨析') or '').strip()
         if text:
             s['compare'] = text
@@ -504,7 +504,7 @@ def ask_tutor(g, word):
     if len(word) >= 4:                    # 成语：再讲关键字和出处
         try:
             d = ai.chat_json(prompts.idiom_detail(g.persona, word, next((s.get('meaning') for s in e['sources'] if s.get('meaning')), '')),
-                             temperature=0.3, max_tokens=700)
+                             temperature=0.3, max_tokens=700, think=False)
         except Exception:
             d = {}
         chars = [{'char': str(c.get('字') or '')[:2], 'meaning': str(c.get('义') or '')[:40],

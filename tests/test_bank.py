@@ -478,6 +478,7 @@ class BankTest(unittest.TestCase):
             idioms.ask_tutor(self.g, '方兴未艾')
         self.assertIn('方兴未艾', m.call_args_list[0][0][0][-1]['content'])
         self.assertIn('逐字', m.call_args_list[1][0][0][-1]['content'])                 # 成语：再问关键字和出处
+        self.assertTrue(all(c.kwargs.get('think') is False for c in m.call_args_list))   # 辨析和出处都关思考，答疑才不会等很久
         det = idioms.data(self.g)['方兴未艾']['detail']
         self.assertEqual((det['chars'][0]['char'], det['chars'][0]['like'], det['origin']['from']), ('艾', ['自怨自艾'], '宋·陆游《上殿札子》'))
         self.assertIn('- **逐字**：艾 = 停止、尽（同样用法：自怨自艾）', (self.paths.train / '成语实词录.md').read_text(encoding='utf-8'))
