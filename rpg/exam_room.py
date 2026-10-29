@@ -8,7 +8,7 @@
   再用 mock.set_score 记成绩——录分奖励与悟道机缘走大比原来的规则，同一张试卷只结算一次。
 
 数据：
-  state["exam_runs"][编号] = {name, limit(秒), elapsed(秒), answers{题号:字母}, marks[题号], status:"running", started}
+  state["exam_runs"][编号] = {name, limit(秒), elapsed(秒), answers{题号:字母}, marks[题号], paused(是否休息), status:"running", started}
   state["mocks"][编号]["exam"] = {answers, marks, elapsed, limit, submitted, minutes, score, basis, partial, overtime, attempts, results[[题号,我的答案,状态]]}
   状态：ok答对 bad答错 blank没答 nokey没有标准答案（不判分）
 作答记录单独存，不写试炼塔的已做题（不影响塔层数和首次奖励）。倒计时时长可在 训练/规则.md 用“整卷考试.分钟”调整，默认120。
@@ -352,6 +352,8 @@ def save_run(g, n, body):
     qs, _ = _questions(g, n)
     if "answers" in body:
         run["answers"] = _clean_answers(qs, body["answers"])
+    if type(body.get("paused")) is bool:
+        run["paused"] = body["paused"]
     if "marks" in body:
         nums = {q["num"] for q in qs}
         run["marks"] = sorted({int(x) for x in (body.get("marks") or []) if str(x).isdigit() and int(x) in nums})

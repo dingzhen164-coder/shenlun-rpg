@@ -55,6 +55,17 @@ class ExamRoomTest(unittest.TestCase):
         exam_room.save_run(self.g, self.n, {'answers': answers, 'elapsed': elapsed})
         return exam_room.submit(self.g, self.n, {'answers': answers, 'elapsed': elapsed})
 
+    def test_pause_state_saved_and_resumed(self):
+        self.install()
+        exam_room.begin(self.g, self.n)
+        exam_room.save_run(self.g, self.n, {'elapsed': 42, 'paused': True, 'answers': {'1': 'A'}})
+        paused = exam_room.begin(self.g, self.n)['run']
+        self.assertTrue(paused['paused'])
+        self.assertEqual(paused['elapsed'], 42)
+        self.assertEqual(paused['answers']['1'], 'A')
+        exam_room.save_run(self.g, self.n, {'elapsed': 42, 'paused': False})
+        self.assertFalse(exam_room.begin(self.g, self.n)['run']['paused'])
+
     def test_papers_listed_by_name_and_questions_hide_answers(self):
         self.install()
         listing = exam_room.papers(self.g)

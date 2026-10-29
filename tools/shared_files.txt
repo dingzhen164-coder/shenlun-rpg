@@ -125,6 +125,10 @@ shared tests/test_journey.py
 shared tests/test_journey_dom.cjs
 shared tests/test_mac_update.py
 shared tests/test_mindmap_document.py
+shared rpg/mindmap_inline.py
+shared web/mindmap_text.js
+shared tests/test_mindmap_text.cjs
+shared tests/ui_mindmap_format.cjs
 shared tests/test_mock_rewards.py
 shared tests/test_narrative.py
 shared tests/test_narrative_dom.cjs

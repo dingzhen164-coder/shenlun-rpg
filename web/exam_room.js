@@ -99,10 +99,11 @@
 
  function runShell(r){
   const d=document.createElement('dialog');d.className='er-run';d.setAttribute('aria-label','整卷模拟考试 · '+r.name);
-  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><div class="er-clock" role="timer" aria-live="off" data-er-clock>--:--</div><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
+  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><button type="button" class="er-clock" aria-label="暂停倒计时" data-er-clock>--:--</button><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
    ${r.warning?`<p class="er-banner" data-er-warning>${esc(r.warning)}</p>`:''}<p class="er-banner er-error" data-er-run-error role="alert" hidden></p><p class="er-banner er-timeup" data-er-timeup hidden role="alert">时间到。可以继续作答，成绩会标记“超时”；也可以现在交卷。</p>
    <div class="er-body" data-er-body></div>
    <footer class="er-foot"><button type="button" data-er-prev>上一题</button><div class="er-choices" role="group" aria-label="选择答案" data-er-choices></div><button type="button" data-er-next>下一题</button></footer>
+   <div class="er-rest" data-er-rest hidden role="dialog" aria-modal="true" aria-labelledby="er-rest-title"><div class="er-rest-card"><div class="er-rest-symbol" aria-hidden="true">☕</div><h2 id="er-rest-title">稍作休息</h2><p data-er-rest-progress></p><p>倒计时已暂停，调整好状态再继续。</p><p data-er-rest-error role="alert"></p><button type="button" class="primary" data-er-resume>继续答题</button></div></div>
    <aside class="er-sheet" data-er-sheet hidden role="dialog" aria-label="答题卡"><div class="er-sheet-panel"><header><b>答题卡</b><span class="er-sheet-count" data-er-sheet-count></span><button type="button" data-er-sheet-close aria-label="关闭答题卡">✕</button></header><div class="er-sheet-body" data-er-sheet-body></div><footer><div class="er-legend" aria-hidden="true"><i class="done"></i>已答<i class="mark"></i>标记<i class="cur"></i>当前</div><p class="er-confirm" data-er-confirm hidden></p><div class="er-sheet-actions"><button type="button" data-er-continue hidden>继续答题</button><button type="button" class="primary" data-er-submit>交卷</button></div></footer></div></aside>`;
   return d;
  }
@@ -158,7 +159,7 @@
  async function persist(r,quiet){
   if(r.saving)return r.saving;
   r.dirty=false;
-  const body={season:r.season,answers:r.answers,marks:[...r.marks],elapsed:elapsedNow(r)};
+  const body={season:r.season,answers:r.answers,marks:[...r.marks],elapsed:elapsedNow(r),paused:!!r.paused};
   r.saving=hooks.api('/api/exam/save',body).then(()=>runError(r,'')).catch(error=>{r.dirty=true;if(!r.warned||!quiet){r.warned=true;runError(r,'答案暂存失败（会继续重试，请别关闭这个页面）：'+failText(error));}}).finally(()=>{r.saving=null;});
   return r.saving;
  }
@@ -178,6 +179,22 @@
   r.base=elapsedNow(r);r.t0=Date.now();
  }
 
+ function showRest(r){
+  const rest=r.root.querySelector('[data-er-rest]');rest.hidden=!r.paused;
+  if(r.paused){rest.querySelector('[data-er-rest-progress]').textContent=`已作答 ${answered(r)} / ${r.questions.length} 题`;rest.querySelector('[data-er-resume]').focus({preventScroll:true});}
+ }
+ async function restTransition(r,pause){
+  if(r.transitioning)return;r.transitioning=true;
+  const error=r.root.querySelector('[data-er-rest-error]');error.textContent='';
+  if(pause){pauseAdd(r);r.running=false;r.paused=true;showRest(r);tick(r);}
+  if(r.saving)await r.saving;
+  if(!pause)r.paused=false;
+  await persist(r,false);
+  if(r.dirty){r.paused=true;r.running=false;showRest(r);error.textContent='暂停状态暂存失败，请检查连接后重试。';}
+  else if(!pause){r.running=true;r.t0=Date.now();showRest(r);tick(r);r.root.querySelector('[data-er-clock]').focus({preventScroll:true});}
+  r.transitioning=false;
+ }
+
  async function leave(r){
   pauseAdd(r);stop(r);
   try{await persist(r,false);}catch(_){}
@@ -195,18 +212,18 @@
   let data;
   try{data=await hooks.api('/api/exam/begin',{season});}catch(error){return homeError('开始考试失败：'+failText(error));}
   const r={season,name:data.summary.name,questions:data.questions,materials:data.materials,modules:data.modules,
-   limit:data.run.limit,base:data.run.elapsed||0,t0:Date.now(),running:true,idx:0,answers:{...(data.run.answers||{})},
+   limit:data.run.limit,base:data.run.elapsed||0,t0:Date.now(),paused:!!data.run.paused,running:!data.run.paused,idx:0,answers:{...(data.run.answers||{})},
    marks:new Set(data.run.marks||[]),warning:data.warning||'',timeup:false,lastMaterial:'',matScroll:0};
   const first=r.questions.findIndex(q=>!r.answers[q.num]);r.idx=first<0?0:first;
   r.root=runShell(r);document.body.appendChild(r.root);run=r;
-  r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
+  r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(r.paused)return;if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
   r.root.addEventListener('click',e=>onClick(r,e));
-  r.root.showModal();renderQuestion(r);tick(r);
+  r.root.showModal();renderQuestion(r);tick(r);showRest(r);
   r.timer=setInterval(()=>{if(document.hidden){return;}tick(r);},1000);
   r.autosave=setInterval(()=>persist(r,true),30000);
   r.visible=()=>{if(document.hidden)persist(r,true);};document.addEventListener('visibilitychange',r.visible);
   r.key=e=>onKey(r,e);document.addEventListener('keydown',r.key);
-  r.root.querySelector('.er-choice,[data-er-next]')?.focus({preventScroll:true});
+  if(!r.paused)r.root.querySelector('.er-choice,[data-er-next]')?.focus({preventScroll:true});
  }
  function go(r,i){
   if(i<0||i>=r.questions.length)return;r.idx=i;renderQuestion(r);
@@ -218,7 +235,7 @@
   choices(r);counter(r);touch(r);
  }
  function onKey(r,e){
-  if(r.finished||!r.root.open||e.target.closest('input,textarea,select'))return;
+  if(r.finished||r.paused||r.transitioning||!r.root.open||e.target.closest('input,textarea,select'))return;
   if(!r.root.querySelector('[data-er-sheet]').hidden)return;
   const k=e.key.toUpperCase();
   if(LETTERS.includes(k)&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&r.questions[r.idx].choices.includes(k)){e.preventDefault();pick(r,k);}
@@ -227,6 +244,10 @@
  }
  async function onClick(r,e){
   const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(r.transitioning)return;
+  if(b.hasAttribute('data-er-resume')&&r.paused)return restTransition(r,false);
+  if(r.paused)return;
+  if(b.hasAttribute('data-er-clock'))return restTransition(r,true);
   if(b.hasAttribute('data-er-leave'))return leave(r);
   if(b.hasAttribute('data-er-card'))return openSheet(r,true);
   if(b.hasAttribute('data-er-sheet-close'))return openSheet(r,false);

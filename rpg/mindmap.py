@@ -2,13 +2,14 @@
 
 - 存在库里 训练/灵脉图/<板块>/<名字>.json（simple-mind-map 的完整数据：root 节点树 + layout / theme / view），坚果云同步；
   一个板块可以有好几幅；资料库首次编辑可建空图，修炼只读入口不建空图。
-- 导入：.xmind / Markdown / .json（.smm）在网页上转成节点树再存；导出：xmind / png / Markdown / json 存到 训练/灵脉图/导出/。
+- 导入：.xmind / .json（.smm）由网页转节点树，Markdown由后端解析并保留行内源文；导出：xmind / png / Markdown / json 存到 训练/灵脉图/导出/。
 """
 import base64
 import datetime as dt
 import json
 import re
 from pathlib import Path
+from .mindmap_inline import rich_markdown, source_text, document_text
 
 BOARDS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
           "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
@@ -175,21 +176,29 @@ class _Text(HTMLParser):
             self.parts.append('\n')
 
 
-def _text(node):
+def _text(node, legacy=False):
     text = str((node.get('data') or {}).get('text') or '')
     if (node.get('data') or {}).get('richText'):
+        if not legacy:
+            return rich_markdown(text)
         parser = _Text()
         parser.feed(text)
         text = ''.join(parser.parts).strip()
     return text
 
 
-def to_markdown(root):
-    """根标题 + 缩进列表，支持超过六级；转义列表文本，避免将文字误作标题或HTML。"""
-    out = ['# ' + _text(root).replace('\n', ' '), '']
+def to_markdown(root, legacy=False):
+    """根标题 + 缩进列表，保留行内Markdown/公式；legacy用于识别旧转义文档。"""
+    out = ['# ' + (_text(root, True) if legacy else document_text(_text(root))).replace('\n', ' '), '']
+    if not legacy:
+        out.extend(['<!-- mindmap-inline:v1 -->', ''])
     def walk(node, depth):
-        text = _text(node).replace('\\', '\\\\')
-        text = re.sub(r'([`*_<>\[\]#])', r'\\\1', text)
+        text = _text(node, legacy)
+        if legacy:
+            text = text.replace('\\', '\\\\')
+            text = re.sub(r'([`*_<>\[\]#])', r'\\\1', text)
+        else:
+            text = document_text(text)
         lines = text.split('\n')
         out.append('  ' * depth + '- ' + lines[0])
         for line in lines[1:]:
@@ -208,13 +217,13 @@ def from_markdown(text, title):
     items = []
     current = root
     first = True
-    for line in text.expandtabs(2).splitlines():
-        if not line.strip():
+    for line in text.lstrip('\ufeff').expandtabs(2).splitlines():
+        if not line.strip() or line.strip() == '<!-- mindmap-inline:v1 -->':
             continue
         h = re.match(r'^(#{1,6})\s+(.+?)\s*#*$', line)
         li = re.match(r'^(\s*)(?:[-+*]|\d+[.)])\s+(.*)$', line)
         if h:
-            level, value = len(h.group(1)), h.group(2)
+            level, value = len(h.group(1)), source_text(h.group(2))
             if first and level == 1:
                 root['data']['text'] = value
                 heads = [(1, root)]
@@ -230,12 +239,12 @@ def from_markdown(text, title):
             indent = len(li.group(1))
             while items and items[-1][0] >= indent:
                 items.pop()
-            value = re.sub(r'\\([\\`*_<>\[\]#])', r'\1', li.group(2))
+            value = source_text(li.group(2))
             current = {'data': {'text': value}, 'children': []}
             (items[-1][1] if items else heads[-1][1])['children'].append(current)
             items.append((indent, current))
         else:
-            value = re.sub(r'\\([\\`*_<>\[\]#])', r'\1', line.strip())
+            value = source_text(line.strip())
             current['data']['text'] += '\n' + value
         first = False
     return root
@@ -273,7 +282,7 @@ def document(paths, board, name, create_missing=True):
         if not md.exists():
             _atomic(md, generated)
         text = md.read_text(encoding='utf-8-sig')
-        if text != generated:
+        if text not in (generated, to_markdown(data['root'], legacy=True)):
             data = copy.deepcopy(data)
             data['root'] = from_markdown(text, f.stem)
             data.pop('view', None)
@@ -291,7 +300,10 @@ def save_document(paths, board, name, data, revision=None):
             text = md.read_text(encoding='utf-8-sig')
             expected = revision
             if expected is None and f.exists():
-                expected = _digest(to_markdown(json.loads(f.read_text(encoding='utf-8'))['root']))
+                root = json.loads(f.read_text(encoding='utf-8'))['root']
+                generated = to_markdown(root)
+                legacy = to_markdown(root, legacy=True)
+                expected = _digest(legacy if text == legacy else generated)
             if expected != _digest(text):
                 raise MapError('本地Markdown已修改，请重新载入后再编辑，避免覆盖新内容')
         result = save(paths, board, name, data)
