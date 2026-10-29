@@ -64,6 +64,20 @@ async function openRoom(page){
   assert((await page.locator('[data-er-pos]').textContent()).includes('第 1/130 题'));
   const bar=await page.evaluate(()=>{const c=document.querySelector('[data-er-card]').getBoundingClientRect();return {right:innerWidth-c.right,top:c.top};});assert(bar.right<40&&bar.top<20,'答题卡按钮在右上角');
   await fits(page,'dialog.er-run');await shot('run');
+  // 草稿笔：考场头部有按钮；画布挂在考场弹窗里（不被顶层弹窗盖住），能画、按题存；Esc 只收笔不离开考场；换题后回来笔迹还在
+  await page.locator('[data-er-pen]').click();await page.locator('.draw-layer.on').waitFor();
+  assert(await page.evaluate(()=>document.querySelector('dialog.er-run').contains(document.querySelector('.draw-layer'))),'画布应在考场弹窗内');
+  assert.equal(await page.evaluate(()=>{const c=document.querySelector('.draw-layer canvas').getBoundingClientRect();return Math.round(c.width)===innerWidth&&Math.round(c.height)===innerHeight;}),true,'画布铺满屏幕');
+  await page.mouse.move(300,300);await page.mouse.down();await page.mouse.move(420,380,{steps:8});await page.mouse.up();
+  assert(await page.evaluate(()=>!!localStorage.getItem('xrpg-draw:exam:1001:q1')),'第1题的笔迹已存');
+  await shot('pen');
+  await page.keyboard.press('Escape');await page.locator('.draw-layer.on').waitFor({state:'detached'}).catch(()=>{});
+  assert.equal(await page.locator('.draw-layer.on').count(),0,'Esc 收笔');
+  assert.equal(await page.locator('dialog.er-run[open]').count(),1,'Esc 只收笔，不能离开考场');
+  assert(await page.locator('[data-er-pen].has').count()===1,'有笔迹的题，✏ 带小点');
+  await page.locator('[data-er-next]').click();assert.equal(await page.locator('[data-er-pen].has').count(),0,'第2题没有笔迹');
+  await page.locator('[data-er-prev]').click();assert.equal(await page.locator('[data-er-pen].has').count(),1,'回到第1题，笔迹还在');
+  await fits(page,'dialog.er-run');
   // 点击时钟暂停，休息期间倒计时冻结、快捷键不作答；刷新后仍在休息。
   const remaining=await page.locator('[data-er-clock]').textContent();
   const pausedSave=page.waitForResponse(r=>r.url().endsWith('/api/exam/save')&&r.request().postDataJSON()?.paused===true);

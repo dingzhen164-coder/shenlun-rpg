@@ -99,7 +99,7 @@
 
  function runShell(r){
   const d=document.createElement('dialog');d.className='er-run';d.setAttribute('aria-label','整卷模拟考试 · '+r.name);
-  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><button type="button" class="er-clock" aria-label="暂停倒计时" data-er-clock>--:--</button><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
+  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><button type="button" class="er-clock" aria-label="暂停倒计时" data-er-clock>--:--</button><button type="button" class="er-pen" data-er-pen aria-pressed="false" aria-label="草稿笔">✏ 草稿</button><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
    ${r.warning?`<p class="er-banner" data-er-warning>${esc(r.warning)}</p>`:''}<p class="er-banner er-error" data-er-run-error role="alert" hidden></p><p class="er-banner er-timeup" data-er-timeup hidden role="alert">时间到。可以继续作答，成绩会标记“超时”；也可以现在交卷。</p>
    <div class="er-body" data-er-body></div>
    <footer class="er-foot"><button type="button" data-er-prev>上一题</button><div class="er-choices" role="group" aria-label="选择答案" data-er-choices></div><button type="button" data-er-next>下一题</button></footer>
@@ -108,7 +108,24 @@
   return d;
  }
 
+ // 草稿笔：复用全站的 DRAW（draw.js），画布挂进考场 <dialog>（否则会被顶层弹窗盖住）；笔迹按“考试+题号”存在本机，材料题的材料笔迹按材料共用
+ function penOpts(r){
+  const q=r.questions[r.idx];
+  return {key:`exam:${r.season}:q${q.num}`,mkey:q.material?`exam:${r.season}:m${q.material}`:'',host:r.root,button:r.root.querySelector('[data-er-pen]'),
+   inMat:(x,y)=>{const m=r.root.querySelector('.er-material');if(!m)return false;const b=m.getBoundingClientRect();return x>=b.left&&x<=b.right&&y>=b.top&&y<=b.bottom;}};
+ }
+ function togglePen(r){
+  if(!window.DRAW)return;
+  const btn=r.root.querySelector('[data-er-pen]');
+  if(DRAW.state.on){DRAW.close();btn?.setAttribute('aria-pressed','false');}
+  else{DRAW.open(penOpts(r));btn?.setAttribute('aria-pressed','true');}
+ }
+ function closePen(r){
+  if(window.DRAW&&DRAW.state.on&&DRAW.state.ext&&DRAW.state.ext.host===r.root)DRAW.close();
+  r.root.querySelector('[data-er-pen]')?.setAttribute('aria-pressed','false');
+ }
  function renderQuestion(r){
+  closePen(r);                                   // 换题前把这题的草稿存好收起
   const q=r.questions[r.idx],body=r.root.querySelector('[data-er-body]');
   const mat=q.material&&r.materials[q.material];
   const same=q.material&&r.lastMaterial===q.material;
@@ -121,6 +138,7 @@
   r.root.querySelector('[data-er-prev]').disabled=r.idx===0;
   r.root.querySelector('[data-er-next]').disabled=r.idx>=r.questions.length-1;
   choices(r);counter(r);
+  window.DRAW?.refresh(penOpts(r));              // ✏ 上的小点：这题有草稿
  }
  function choices(r){
   const q=r.questions[r.idx],cur=r.answers[q.num]||'';
@@ -201,6 +219,7 @@
   close(r);
  }
  function close(r){
+  closePen(r);
   document.removeEventListener('visibilitychange',r.visible);document.removeEventListener('keydown',r.key);
   if(r.root.open)r.root.close();r.root.remove();
   if(run===r)run=null;
@@ -216,7 +235,7 @@
    marks:new Set(data.run.marks||[]),warning:data.warning||'',timeup:false,lastMaterial:'',matScroll:0};
   const first=r.questions.findIndex(q=>!r.answers[q.num]);r.idx=first<0?0:first;
   r.root=runShell(r);document.body.appendChild(r.root);run=r;
-  r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(r.paused)return;if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
+  r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(window.DRAW&&(DRAW.state.on||performance.now()-(DRAW.state.closedAt||-1e9)<400))return DRAW.state.on&&DRAW.close();if(r.paused)return;if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
   r.root.addEventListener('click',e=>onClick(r,e));
   r.root.showModal();renderQuestion(r);tick(r);showRest(r);
   r.timer=setInterval(()=>{if(document.hidden){return;}tick(r);},1000);
@@ -235,7 +254,7 @@
   choices(r);counter(r);touch(r);
  }
  function onKey(r,e){
-  if(r.finished||r.paused||r.transitioning||!r.root.open||e.target.closest('input,textarea,select'))return;
+  if(r.finished||r.paused||r.transitioning||!r.root.open||e.target.closest('input,textarea,select')||document.documentElement.classList.contains('drawing'))return;
   if(!r.root.querySelector('[data-er-sheet]').hidden)return;
   const k=e.key.toUpperCase();
   if(LETTERS.includes(k)&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&r.questions[r.idx].choices.includes(k)){e.preventDefault();pick(r,k);}
@@ -248,6 +267,7 @@
   if(b.hasAttribute('data-er-resume')&&r.paused)return restTransition(r,false);
   if(r.paused)return;
   if(b.hasAttribute('data-er-clock'))return restTransition(r,true);
+  if(b.hasAttribute('data-er-pen'))return togglePen(r);
   if(b.hasAttribute('data-er-leave'))return leave(r);
   if(b.hasAttribute('data-er-card'))return openSheet(r,true);
   if(b.hasAttribute('data-er-sheet-close'))return openSheet(r,false);
