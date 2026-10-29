@@ -59,3 +59,35 @@ class XpReconcileTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class XpRulesTest(unittest.TestCase):
+    """修为只看学习时间：自练按分钟、做题不再按题数额外发；旧规则文件里仍是旧默认值的行自动迁移。"""
+
+    def test_manual_practice_pays_minutes_not_questions(self):
+        import datetime as dt
+        from rpg import config, engine, store
+        tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
+        p = paths.Paths(Path(tmp.name)); p.ensure_train_dir()
+        day = dt.date(2026, 10, 22)
+        g = engine.Game(p, config.Rules(), config.Persona(), config.Lines(), store.new_state(day), day)
+        x0 = g.state["xp"]
+        g.add_practice("论证逻辑", 40, 30, 30)                       # 40 题、30 分钟
+        self.assertEqual(g.state["xp"] - x0, 30)                    # 只按 30 分钟，不按题数
+        g.add_practice("论证逻辑", 0, 0, 20)                        # 只记分钟也算
+        self.assertEqual(g.state["xp"] - x0, 50)
+
+    def test_old_explicit_rules_migrate_custom_kept(self):
+        tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
+        p = paths.Paths(Path(tmp.name)); p.ensure_train_dir()
+        f = p.rules
+        t = f.read_text(encoding="utf-8")
+        for k, v in (("经验.实战答对", 5), ("经验.实战答错", 1), ("经验.实战通关", 30), ("经验.自练每题", 2), ("经验.听道每分钟", 0.5), ("经验.静修每分钟", 0.5)):
+            t = __import__("re").sub(r"(?m)^(\s*-\s*%s\s*[:：]\s*)[^\n#]*" % k, r"\g<1>%s " % v, t)
+        t = t.replace("- 经验.自练每分钟: 1", "- 经验.自练每分钟: 3")           # 自己改过的值不动
+        f.write_text(t, encoding="utf-8")
+        p._migrate_rules()
+        from rpg import config
+        r = config.Rules(f.read_text(encoding="utf-8"))
+        self.assertEqual([r.xp(k) for k in ("实战答对", "实战答错", "实战通关", "自练每题")], [0, 0, 0, 0])
+        self.assertEqual([r.xp(k) for k in ("听道每分钟", "静修每分钟", "自练每分钟")], [1, 1, 3])
