@@ -1958,6 +1958,52 @@ html[data-theme="dark"].theme-gc { --bg: #0e1520; }
 @media (max-width: 900px) { .ar-annotate { grid-template-columns: minmax(0, 1fr); } }
 .ar-rhead select, .ar-src-add select { width: auto; }
 .ar-rhead .spacer { flex: 1; }
+/* ===== 每日文章阅读页（参阅室）：整页固定高度，文章自己滚动；题头、工具条各压成一行（用户2026-10-29）=====
+   以前 .ar-read 随内容长到 2700px，被 #view 的 overflow:hidden 裁掉，手指拖动又只会滚 #ntPages（本身没有限高，滚不动），表现为“卡住”。
+   现在 #ntPages 是真正的滚动容器，笔记本里的手指拖动 / 惯性滚动才有效；右侧精读栏自己独立滚动。 */
+.fixed-app .tj-hub:has(#arRoot) > .tj-head { display: none; }   /* 每日文章列表和阅读页都不再显示重复的大标题块（列表卡片里已有同名标题） */
+.fixed-app .tj-hub:has(.ar-read) > .fx-scroll { overflow: hidden; display: flex; flex-direction: column; padding: 0; }
+.fixed-app #arRoot:has(.ar-read) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.fixed-app .ar-read { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.fixed-app .ar-rhead { flex: none; padding: 4px 8px; gap: 6px; }
+.fixed-app .ar-rhead button, .fixed-app .ar-rhead select, .fixed-app .ar-rhead a.btn { min-height: 34px; padding-top: 3px; padding-bottom: 3px; }
+.fixed-app .ar-cols { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+.fixed-app #arBook { min-height: 0; display: flex; flex-direction: column; }
+.fixed-app #arBook > .notes { flex: 1; height: auto; min-height: 0; gap: 0; }
+.fixed-app .ar-side { position: static; max-height: none; min-height: 0; overflow: auto; align-content: start; overscroll-behavior: contain; padding: 8px 10px; }
+.fixed-app .ar-notebook .nt-bar { flex-wrap: wrap; gap: 4px 6px; padding: 4px 8px; }
+.fixed-app .ar-notebook .nt-title { flex: 1 1 120px; min-width: 100px; max-width: 220px; min-height: 34px; }
+.fixed-app .ar-read .card.ar-rhead { padding: 4px 8px !important; }
+.fixed-app .ar-notebook .nt-tools { gap: 2px; }
+.fixed-app .ar-notebook .nt-tools button { min-width: 30px; width: 34px; height: 32px; padding: 0 !important; }
+.fixed-app .ar-notebook .nt-tools button.nt-dot, .fixed-app .ar-notebook .nt-tools button.nt-w { width: 34px; }
+.fixed-app .ar-notebook input.nt-title { padding: 4px 10px; height: 34px; box-sizing: border-box; flex: 0 1 120px; min-width: 70px; }
+.fixed-app .ar-notebook .nt-jump { padding: 0 6px; gap: 3px; min-height: 34px; }
+.fixed-app .ar-notebook .nt-jump input { width: 48px; height: 30px; padding: 2px 4px; }
+.fixed-app .ar-notebook .nt-bar > button, .fixed-app .ar-notebook .nt-bar > .nt-compile { padding-top: 3px; padding-bottom: 3px; }
+.fixed-app .ar-notebook .nt-bar .nt-compile, .fixed-app .ar-notebook .nt-bar .ar-save-status { min-height: 34px; padding: 3px 10px; }
+.fixed-app .ar-notebook .nt-pages { flex: 1; min-height: 0; padding: 8px; gap: 10px; overflow-y: auto; }
+.fixed-app .ar-notebook .nt-foot > summary { padding: 4px 10px; min-height: 0; }
+html:has(.ar-read) #studyHud.subpage-heading { min-height: 0; padding: 2px 10px; border-bottom: 0; }
+html:has(.ar-read) #studyHud.subpage-heading .subpage-place { display: none; }
+html:has(.ar-read) #studyHud.subpage-heading .subpage-tools { margin-left: auto; }
+html:has(.ar-read) #studyHud.subpage-heading #drawBtn { width: 30px; height: 30px; min-height: 30px; }
+html:has(.ar-read) #studyHud.subpage-heading .study-hud-meter { height: 24px; }
+html:has(.ar-read) #studyHud.subpage-heading .subpage-tools { min-height: 0; padding-top: 1px; padding-bottom: 1px; }
+.fixed-app:has(.ar-read) #view { padding-top: 2px; padding-bottom: 4px; }
+@media (max-width: 900px) {
+  .fixed-app .ar-cols { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 32%); }
+  .fixed-app .ar-cols.ar-side-closed { grid-template-rows: minmax(0, 1fr); }
+}
+/* 精读栏：五步，每步可折叠 */
+.ar-step { border-top: 1px solid var(--line); padding: 4px 0; }
+.ar-step > summary { cursor: pointer; font-weight: 700; padding: 6px 0; min-height: 32px; display: flex; align-items: center; }
+.ar-step h5 { margin: 8px 0 2px; font-size: var(--ds-fs-13); color: var(--muted); }
+.ar-terms, .ar-parts, .ar-paras { margin: 0; padding-left: 1.2em; line-height: 1.7; }
+.ar-paras { list-style: none; padding-left: 0; }
+.ar-act { margin: 4px 0 8px; line-height: 1.6; }
+.ar-act-dir { color: var(--muted); }
+
 .ar-rhead a.btn { padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--ds-r-8); text-decoration: none; }
 .ar-list .card, .ar-wrap .card, .ar-read .card { margin: 0; }
 .ar-src-row label { display: flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; }
@@ -2128,3 +2174,18 @@ html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
 .exam-rest-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; background: var(--ds-scrim); }
 .exam-rest-card { width: min(380px,100%); box-sizing: border-box; text-align: center; padding: 32px 26px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--ds-r-12); box-shadow: var(--ds-shadow-3); }
 .exam-rest-symbol { font-size: calc(var(--ds-fs-26) * 1.6); } .exam-rest-card h2 { margin: 8px 0 12px; } .exam-rest-card p { line-height: 1.6; } .exam-rest-card button { margin-top: 8px; }
+
+/* 📎 摘编（档案室，web/digest.js）：翻阅每日文章精读里存下来的对策和黄金句式 */
+.dg-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+.dg-modes .on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+/* 档案室的卡片默认全透明，正文直接压在照片上看不清：摘编的每一块自带磨砂底（轮廓、圆角、淡底、细边；只模糊背景，不模糊文字）。
+   选择器要带上 interface_glass.css 里同样的前缀才压得过它的 !important。 */
+body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .dg-root :is(.dg-sec, .dg-art, .dg-empty) {
+  background: color-mix(in srgb, var(--panel) 82%, transparent) !important; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent) !important;
+  border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; -webkit-backdrop-filter: blur(8px) !important; backdrop-filter: blur(8px) !important; }
+.dg-sec h3 small { color: var(--faint); font-weight: 400; }
+.dg-sec blockquote, .dg-art blockquote { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--line); line-height: 1.7; }
+.dg-sec blockquote small, .dg-art blockquote small { display: block; color: var(--faint); }
+.dg-from { display: block; margin-top: 2px; }
+.dg-art > summary { cursor: pointer; padding: 4px 0; }
+.dg-art h5 { margin: 8px 0 2px; font-size: var(--ds-fs-13); color: var(--muted); }

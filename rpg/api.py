@@ -1989,12 +1989,26 @@ def ar_delete(body):
     return _ar(articles.delete, str(body.get("id") or ""))
 
 
-def ar_cards(body):
-    return _ar(articles.jd_cards, str(body.get("id") or ""))
+def ar_digest_save(body):
+    return _ar(articles.digest_save, str(body.get("id") or ""), save=False)
+
+
+def ar_digest_remove(body):
+    with open_game(save=False) as g:
+        if g.paths.subject != "申论":
+            raise ApiError("每日文章只在申论科目里")
+        return articles.digest_remove(g.paths, str(body.get("id") or ""))
+
+
+def ar_digest_list(body):
+    with open_game(save=False) as g:
+        if g.paths.subject != "申论":
+            raise ApiError("每日文章只在申论科目里")
+        return {"items": articles.digest_list(g.paths)}
 
 
 def ar_jd(body):
-    """一键精读：AI 提炼成结构化 JSON，程序校验（金句必须在原文里），不合格重试一次；存下来，再点直接给旧的（force 才重做）"""
+    """一键精读（五步）：AI 提炼成结构化 JSON，程序校验（词语/原文方向/金句必须在原文里），不合格重试一次；存下来，再点直接给旧的（force 才重做）"""
     iid = str(body.get("id") or "")
     with open_game(save=False) as g:
         if g.paths.subject != "申论":
@@ -2015,7 +2029,7 @@ def ar_jd(body):
     err = None
     for _ in range(2):
         try:
-            jd = articles.check_jd(ai.chat_json(msgs, temperature=0.3, max_tokens=1800), art, tixing)
+            jd = articles.check_jd(ai.chat_json(msgs, temperature=0.3, max_tokens=3600), art, tixing)
             break
         except (ai.AIError, articles.ArticleError) as e:
             err = e
@@ -2053,8 +2067,9 @@ for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
 ROUTES[("GET", "/api/articles")] = ar_list
 for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import_url", ar_import_url), ("source", ar_source),
-               ("category", ar_category), ("delete", ar_delete), ("cards", ar_cards), ("jd", ar_jd), ("notebook", ar_notebook)):
+               ("category", ar_category), ("delete", ar_delete), ("digest_save", ar_digest_save), ("digest_remove", ar_digest_remove), ("jd", ar_jd), ("notebook", ar_notebook)):
     ROUTES[("POST", "/api/articles/" + _n)] = _f
+ROUTES[("GET", "/api/articles/digest")] = ar_digest_list
 ROUTES[("POST", "/api/poster/save")] = poster_save
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),
                ("update", cards_update), ("delete", cards_delete), ("suspend", cards_suspend), ("forget", cards_forget),

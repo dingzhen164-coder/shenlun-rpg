@@ -255,6 +255,9 @@ class SubjectTest(unittest.TestCase):
         self.assertEqual(wording.web("app.js", raw, "行测"), raw)
         self.assertEqual(wording.web("app.js", raw, "申论").decode("utf-8"), "每日办理 · 整改销号 · 便笺 · 申论题型")
         self.assertEqual(wording.web("vendor/big.js", raw, "申论"), raw)      # 第三方库不动
+        tj = "{id:'tianji',label:'天机台'}".encode("utf-8")     # 天机台是修仙名字：申论叫参阅室，行测不动
+        self.assertEqual(wording.web("app.js", tj, "申论").decode("utf-8"), "{id:'tianji',label:'参阅室'}")
+        self.assertEqual(wording.web("app.js", tj, "行测"), tj)
         self.assertEqual(wording.web("icons/a.png", raw, "申论"), raw)
         self.assertEqual(wording.web("app.js", "[\"review\", \"温\", \"复习\", \"温养\"".encode("utf-8"), "申论").decode("utf-8"),
                          "[\"review\", \"复\", \"复习\", \"复核\"")

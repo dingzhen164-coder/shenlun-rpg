@@ -1,6 +1,8 @@
 /* 大比整景与卷宗：只在当前科目的模考页生效，申论年度考核保留原工作区。 */
 .fixed-app #view:has(.contest-scene){max-width:none;padding:0}
-.contest-scene{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;container-type:inline-size}
+/* 场景整幅铺满视口（含顶栏牌子后面），顶栏牌子浮在画面上；不再让全屏背景层和场景图各露一截（顶部出现两个月亮）。 */
+.fixed-app:has(#view .contest-scene,#view .trial-hall) #banner{position:relative;z-index:3}
+.contest-scene{position:fixed;left:0;top:0;width:100%;height:var(--fx-height,100dvh);min-width:0;min-height:0;overflow:hidden;container-type:inline-size}
 .cs-world,.cs-landscape{position:absolute;inset:0}
 .cs-world{overflow:hidden;background:var(--ds-paper)}
 .cs-landscape{background:url('assets/beauty/contest/arena.png') center/cover no-repeat}

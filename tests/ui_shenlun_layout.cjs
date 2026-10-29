@@ -21,16 +21,25 @@ async function main(){
  await open(0);
  assert.equal(await page.locator('.sl-material-sheet').count(),1);
  assert.ok((await page.locator('.sl-material-scroll').textContent()).includes('材料2'));
- assert.ok((await page.locator('.sl-material-notice').textContent()).includes('题干写明'));
+ assert.ok((await page.locator('#slMaterialPick').getAttribute('title')).includes('题干写明'));
  // 笔工具在顶栏固定：红格滚到底后仍可见，且没有“滚动模式”
  assert.equal(await page.locator('[data-card="scroll"]').count(),0);
  for(const [name,w,h] of sizes)for(const theme of ['light','dark']){
   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
   await page.setViewportSize({width:w,height:h});await page.waitForTimeout(250);
-  const m=await page.evaluate(()=>{const r=s=>{const e=document.querySelector(s);if(!e)return null;const b=e.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height};};return {mat:r('.sl-materials'),wr:r('.sl-writing'),ink:r('.sl-card-ink'),pen:r('[data-card="pen"]'),head:r('.sl-exam-heading'),vw:innerWidth,vh:innerHeight,sw:document.documentElement.scrollWidth};});
+  const m=await page.evaluate(()=>{const r=s=>{const e=document.querySelector(s);if(!e)return null;const b=e.getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height};};return {mat:r('.sl-materials'),wr:r('.sl-writing'),ink:r('.sl-card-ink'),pen:r('[data-card="pen"]'),head:r('.sl-exam-heading'),vp:r('.sl-card-viewport'),wtop:r('.sl-write-top'),wbot:r('.sl-submit-row'),mtool:r('.sl-material-toolbar'),hud:r('#studyHud'),mscroll:r('.sl-material-scroll'),vw:innerWidth,vh:innerHeight,sw:document.documentElement.scrollWidth};});
   assert.ok(m.sw<=m.vw+1,name+' 横向溢出');
   assert.ok(m.head.h<=Math.max(150,m.vh*.2),name+' 题干卡过高 '+m.head.h);
   assert.ok(m.pen&&m.pen.y>=0&&m.pen.y+m.pen.h<=m.vh,name+' 笔按钮不在屏内');
+  // 用户2026-10-29：材料和红格要占绝大部分，工具条各压成一行、无关行并走
+  assert.ok(m.wtop.h<=52,name+' 作答顶栏（计时+笔工具）应是一行 '+m.wtop.h);
+  assert.ok(m.wbot.h<=56,name+' 底栏（翻页+识别+字数+保存状态+交卷）应是一行 '+m.wbot.h);
+  assert.ok(m.hud.h<=44,name+' 作答时顶部只留细条 '+m.hud.h);
+  assert.equal(await page.locator('.sl-write-top h3').evaluate(e=>getComputedStyle(e).position),'absolute',name+' “我的作答”标题不占位');
+  assert.ok(m.vp.h>=m.vh*(w<900?.38:.55),name+' 红格可见高度占比太小 '+Math.round(m.vp.h)+'/'+m.vh);
+  assert.ok(m.mscroll.h>=m.vh*(w<900?.2:.6),name+' 材料正文占比太小 '+Math.round(m.mscroll.h)+'/'+m.vh);
+  assert.ok(m.mtool.h<=(w<900?56:84),name+' 材料工具条应压成一两行 '+m.mtool.h);
+  for(const sel of ['.sl-submit-row','.sl-write-top']){const hit=await page.evaluate(q=>{const b=[...document.querySelector(q).querySelectorAll('button')].map(x=>x.getBoundingClientRect()),c=[...document.querySelectorAll('.beauty-audio,.page-settings-gear,.page-back-btn')].map(x=>x.getBoundingClientRect()).filter(r=>r.width>0);return b.some(x=>x.width>0&&c.some(y=>x.left<y.right-1&&x.right>y.left+1&&x.top<y.bottom-1&&x.bottom>y.top+1));},sel);assert.ok(!hit,name+' '+sel+' 的按钮被角落圆钮压住');}
   if(w>=1000)assert.ok(m.mat.w<m.wr.w,name+' 作答区应宽于材料区');
   if(w<900)assert.ok(m.mat.y+m.mat.h<=m.wr.y+2,name+' 竖屏应上材料下红格');
   await page.evaluate(()=>{const s=document.querySelector('.sl-writing .fx-scroll')||document.querySelector('.sl-writing');s.scrollTop=s.scrollHeight;});
@@ -63,7 +72,7 @@ async function main(){
  await page.locator('#slBack').click();await open(2);
  assert.equal(await page.locator('[data-mat-tab]').count(),4);
  await page.locator('#slMaterialPick').click();await page.locator('.sl-material-dialog input[value="4"]').check();await page.locator('#slPickOk').click();
- await page.locator('.sl-material-notice').filter({hasText:'已按你的选择'}).waitFor();await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);
+ await page.waitForFunction(()=>document.querySelector('#slMaterialPick')?.title.includes('已按你的选择'));await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);
  assert.equal(await page.locator('.sl-material-sheet').count(),1);
  await shot('3-picked');
  // 批改后：“查看批改/返回作答”切换，评分标准校准可用且不计成绩

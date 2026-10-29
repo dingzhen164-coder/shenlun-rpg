@@ -1,3 +1,12 @@
+## 开发中（未发布）：场景铺满、答题页占比、参阅室五步精读与摘编（2026-10-29）
+
+- **场景铺满视口**：宗门大比 `.contest-scene`、试炼塔 `.trial-hall` 改为 `position:fixed; top:0; height:var(--fx-height)`，顶栏牌子（z-index 2）浮在画面上，横幅 `#banner` 升到 z-index 3；`.th-world-title`、`.th-scene-tools` 用 `calc(var(--study-workspace-height) + x%)` 让位。全屏 `#bgLayer` 与 `.cs-landscape` 同一张图、同尺寸，不再露出第二个月亮。不要用负 margin 提起 `#view`。
+- **答题/阅读页占比原则（用户长期原则，2026-10-29）**：题目和材料占比优先，只放一个控件的行并进已有按钮行。复盘底栏：`#reviewSkillTeacher`（头像 + 只显示名字的窄下拉）并进 `.composer-row`。底部固定条右侧让出 116px 给音量/设置圆钮。
+- **申论作答页**（`web/shenlun.js` 模板、`shenlun_ui.css` “再压缩”段）：作答时顶部只留细条；题干卡一行标题 + 一行题干；材料工具、材料页签、“📎 材料N · 调整”小按钮同一行（`#slMaterialPick`，说明放 title；只有“无法自动对应”才保留整行提醒）；作答顶栏 = 计时 + 暂停 + 笔工具 + 纸张 + 专注书写；底栏 `.sl-submit-row` = 翻页/加页（`SL_CARD.pager()`）+ 识别手写文字 + 字数 + 保存状态 + 交卷。去掉“我的作答”标题、独立“保存”按钮（`#slDraftSave` 现在是点击即保存的状态小按钮，内含 `#slSaveStatus`）、说明文字（移进“识别文字核对”折叠区）、红格顶部“第N题”小标题（红格坐标不变，用 `--sl-crop` 负边距在显示上裁掉）。
+- **参阅室（每日文章阅读页）**：申论里“天机台”改叫“参阅室”（`wording.py` MAP；行测/法考不动，代码标识 `tianji` 不变）。阅读页整条祖先链定高，`#ntPages` 是滚动容器（手指拖动走笔记本脚本）；`.tj-head` 大标题块在阅读时隐藏，顶栏收成细条，题头和笔记本工具条各压成一两行；竖屏（≤900px）精读栏在文章下方占 32%。
+- **一键精读五步**（`rpg/articles.py`，version=2）：`step1{old_words,verbs,new_terms}`、`step2{thesis,parts,paragraphs}`、`step3{items[{direction,domain,landing,source}]}`、`step4{quotes[{kind,text,use}]}`、`step5{yuyan,shenlun}`。程序校验：词语/原文方向/金句必须一字不差在原文里，段号在送审范围内，申论题型只能是本科目题型，`source` 只能是“文中/参考做法”（原文没写的做法必须标参考做法）。第六步“模拟输出”由用户自己做，不生成；建议用时不显示。旧版精读（无 version）照常显示，“重新精读”才换新格式。
+- **摘编**：每篇一份 `训练/时政文章/摘编/<编号>.json`（`digest_save/list/remove`），接口 `POST /api/articles/digest_save`、`digest_remove`、`GET /api/articles/digest`；在档案室“📎 摘编”翻阅（`web/digest.js`，对策按领域 / 黄金句式按类型 / 按文章，只读，可“移出摘编”），不生成复习卡片。原“金句/素材刻成玉简”（`jd_cards`、`/api/articles/cards`）已删除。
+
 ## 开发中（未发布）：整卷模考的草稿笔、每题用时与错题回炉（2026-10-29）
 
 - 草稿笔：考场头部“✏ 草稿”复用全站 `DRAW`（draw.js 新增 `open({key,mkey,host,button,inMat})`），画布挂进考场 `<dialog>`（否则被顶层弹窗盖住）。笔迹按“考试+题号”存在本机，材料题的材料笔迹按材料共用；Esc 只收笔不离开考场；换题/离开自动收笔并存好。

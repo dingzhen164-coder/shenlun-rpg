@@ -14,8 +14,12 @@
 自定义来源：训练/时政文章/来源.json  [{name, url, category}]。
 已读 / 收藏 / 来源开关：存档 state["articles"] = {read: {id: 日期}, star: [id], off: [来源名], on: [默认关的来源里被打开的]}。
 
-精读（程序校验，AI 只提炼）：{theme, points[], structure[], quotes[{text, use}], materials[{kind, text}], tixing[], writing}
-  金句 quotes.text 必须是原文里真有的句子，不在原文里的丢掉；tixing 只能是本科目的题型名。
+精读（五步，程序校验，AI 只提炼；version=2）：{version, step1{old_words[{term,note}], verbs[{term,note}], new_terms[{term,definition}]},
+  step2{thesis, parts[{point,kind}], paragraphs[{no,summary,type}]}, step3{items[{direction,domain,landing,source}]},
+  step4{quotes[{kind,text,use}]}, step5{yuyan[{type,question}], shenlun[{type,question}]}}
+  词语 / 原文方向 / 金句必须是原文里真有的，不在的丢掉；段号必须在送审范围内；shenlun 的题型只能是本科目题型名；第六步“模拟输出”由用户自己做，不生成。
+  旧版精读（无 version 字段）照常显示，点“重新精读”才换成新版。
+摘编：训练/时政文章/摘编/<编号>.json  {id,title,source,url,date,saved,countermeasures[step3.items],quotes[step4.quotes]}，在档案室「摘编」翻阅（只读），不是复习卡片。
 调用：rpg/api.py 的 /api/articles*；网页 web/articles.js。
 """
 import datetime as dt
@@ -376,7 +380,8 @@ def get(g, iid):
     from . import tianji
     tianji.touch()
     return {"id": iid, "title": a["title"], "source": a.get("source", ""), "category": a.get("category", "其他"), "date": a.get("date", ""),
-            "url": a.get("url", ""), "paras": a["paras"], "star": iid in s["star"], "jd": load_jd(g.paths, iid)}
+            "url": a.get("url", ""), "paras": a["paras"], "star": iid in s["star"], "jd": load_jd(g.paths, iid),
+            "digest": digest_file(g.paths, iid).is_file()}
 
 
 def mark(g, iid, body):
@@ -622,49 +627,115 @@ def start_crawl(g, body=None):
     return {"started": True}
 
 
-# ---------------------------------------------------------------- 精读
-JD_SYSTEM = ("你是申论备考的精读老师。下面是一篇时政评论 / 理论文章，请只做提炼，不评价文章对错，不编造文中没有的内容。\n"
-             "只返回 JSON 对象，字段：\n"
-             '{"theme": "一句话主旨（40 字内）", "points": ["核心观点，3~5 条，每条 30 字内"], '
-             '"structure": ["论证脉络，按“提出问题 → 分析 → 对策”这样的顺序，3~5 步"], '
-             '"quotes": [{"text": "文中原句，必须一字不差从原文摘", "use": "适合用在什么题 / 什么位置，15 字内"}], '
-             '"materials": [{"kind": "例子|数据|政策|表述", "text": "可直接用的素材，摘要写"}], '
-             '"tixing": ["最适合拿来练的题型，只能从给定题型里选 1~3 个"], '
-             '"writing": "一段仿写 / 运用思路，80 字内"}\n'
-             "quotes 给 3~6 句，materials 给 2~6 条。")
+# ---------------------------------------------------------------- 精读（五步）
+# 用户2026-10-29指定的《求是》文章拆解心法前五步；第六步“模拟输出”由用户自己做，程序不生成。
+JD_SYSTEM = ("你是申论备考的精读老师。下面是一篇时政评论 / 理论文章，请按“五步拆解心法”只做提炼，不评价文章对错，不编造文中没有的内容。\n"
+             "正文已按段编号 [1] [2] …。只返回 JSON 对象，字段如下：\n"
+             '{"step1": {"old_words": [{"term": "老词新用的词，如“压舱石”“最后一公里”，文中原词", "note": "背后的深层逻辑，25 字内"}], '
+             '"verbs": [{"term": "动词结构，如“统筹”“深化”“协同推进”，文中原词", "note": "常搭配什么对象，20 字内"}], '
+             '"new_terms": [{"term": "新提法，如“新质生产力”，文中原词", "definition": "含义；文中有解释就据文摘要，没有就留空字符串"}]},\n'
+             ' "step2": {"thesis": "文章总论点（提出问题），50 字内", '
+             '"parts": [{"point": "分论点，40 字内", "kind": "分析意义|分析原因|提出对策|提出问题"}], '
+             '"paragraphs": [{"no": 段号, "summary": "一句话概括这一段大意，30 字内", "type": "解释说明|举例论证|提出要求|提出问题"}]},\n'
+             ' "step3": {"items": [{"direction": "文中的宏观方向 / 要求，必须一字不差从原文摘", "domain": "人才|科技|民生|治理|经济|生态|文化|其他", '
+             '"landing": "如果让我落实，具体怎么做，60 字内", "source": "文中|参考做法"}]},\n'
+             ' "step4": {"quotes": [{"kind": "巧用形象|辩证论述|标题段首句", "text": "原文句子，必须一字不差从原文摘", "use": "可以用在什么主题 / 位置，20 字内"}]},\n'
+             ' "step5": {"yuyan": [{"type": "词语理解题|主旨概括题|其他", "question": "站在出题人角度可能这样问，40 字内"}], '
+             '"shenlun": [{"type": "只能从给定题型里选", "question": "可能这样出题，如“请根据材料，概括XX问题的主要表现，并提出建议”，50 字内"}]}}\n'
+             "要求：step1 三类词各 2~6 个，必须是原文里真有的词语；step2 的 parts 给 2~5 个，paragraphs 给全部主要段落；"
+             "step3 的 landing 若原文已写明做法，source 填“文中”，否则可给常见做法，source 必须填“参考做法”；"
+             "step3 给 2~8 条，step4 给 3~9 句（三类尽量都有）；step5 的 yuyan 与 shenlun 各给 1~3 条。")
+JD_PARTS = ("分析意义", "分析原因", "提出对策", "提出问题")
+JD_PTYPES = ("解释说明", "举例论证", "提出要求", "提出问题")
+JD_DOMAINS = ("人才", "科技", "民生", "治理", "经济", "生态", "文化")
+JD_KINDS = ("巧用形象", "辩证论述", "标题段首句")
+
+
+def _shown_paras(art):
+    """送给 AI 的那部分正文（前 7000 字内的整段），段号从 1 起"""
+    out, n = [], 0
+    for p in art["paras"]:
+        n += len(p)
+        if out and n > 7000:
+            break
+        out.append(p)
+    return out
 
 
 def jd_messages(art, tixing):
-    body = "\n".join(art["paras"])[:7000]
+    body = "\n".join("[%d] %s" % (i + 1, p) for i, p in enumerate(_shown_paras(art)))
     return [{"role": "system", "content": JD_SYSTEM},
             {"role": "user", "content": "【本科目题型】%s\n【来源】%s\n【标题】%s\n【正文】\n%s" % ("、".join(tixing), art.get("source", ""), art["title"], body)}]
 
 
-def check_jd(raw, art, tixing):
-    """校验 AI 返回：字段齐、金句真在原文里；不合格抛 ArticleError"""
-    if not isinstance(raw, dict) or not str(raw.get("theme") or "").strip():
-        raise ArticleError("精读结果缺少主旨")
+def _sq(s):
+    return re.sub(r"\s+", "", str(s))
 
-    def squash(s):
-        return re.sub(r"\s+", "", str(s))
-    flat = squash("".join(art["paras"]))
+
+def _cut(v, n):
+    return str(v or "").strip()[:n]
+
+
+def _choice(v, options, default):
+    v = str(v or "").strip()
+    return v if v in options else default
+
+
+def check_jd(raw, art, tixing):
+    """校验 AI 返回（五步）：词语 / 原文方向 / 金句必须真在原文里，不在的丢掉；缺总论点或五步全空抛 ArticleError"""
+    if not isinstance(raw, dict):
+        raise ArticleError("精读结果格式不对")
+    flat = _sq("".join(art["paras"]))
+    s1, s2, s3, s4, s5 = (raw.get(k) if isinstance(raw.get(k), dict) else {} for k in ("step1", "step2", "step3", "step4", "step5"))
+
+    def rows(v):
+        return [x for x in (v or []) if isinstance(x, dict)]
+
+    def terms(key, note):
+        out, seen = [], set()
+        for x in rows(s1.get(key)):
+            t = _cut(x.get("term"), 20)
+            if len(_sq(t)) >= 2 and _sq(t) in flat and t not in seen:
+                seen.add(t)
+                out.append({"term": t, note: _cut(x.get(note), 80)})
+        return out[:8]
+    step1 = {"old_words": terms("old_words", "note"), "verbs": terms("verbs", "note"), "new_terms": terms("new_terms", "definition")}
+    thesis = _cut(s2.get("thesis"), 120)
+    if not thesis:
+        raise ArticleError("精读结果缺少总论点")
+    n = len(_shown_paras(art))
+    parts = [{"point": _cut(x.get("point"), 80), "kind": _choice(x.get("kind"), JD_PARTS, "其他")} for x in rows(s2.get("parts")) if _cut(x.get("point"), 80)][:6]
+    paras, used = [], set()
+    for x in rows(s2.get("paragraphs")):
+        try:
+            no = int(x.get("no"))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= no <= n and no not in used and _cut(x.get("summary"), 80):
+            used.add(no)
+            paras.append({"no": no, "summary": _cut(x.get("summary"), 80), "type": _choice(x.get("type"), JD_PTYPES, "其他")})
+    paras.sort(key=lambda x: x["no"])
+    items = []
+    for x in rows(s3.get("items")):
+        d = _cut(x.get("direction"), 120)
+        if len(_sq(d)) >= 6 and _sq(d) in flat and _cut(x.get("landing"), 200):
+            items.append({"direction": d, "domain": _choice(x.get("domain"), JD_DOMAINS, "其他"), "landing": _cut(x.get("landing"), 200),
+                          "source": _choice(x.get("source"), ("文中", "参考做法"), "参考做法")})
     quotes = []
-    for q in raw.get("quotes") or []:
-        if isinstance(q, dict) and len(squash(q.get("text", ""))) >= 6 and squash(q["text"]) in flat:
-            quotes.append({"text": str(q["text"]).strip(), "use": str(q.get("use") or "").strip()[:30]})
-    points = [str(x).strip() for x in raw.get("points") or [] if str(x).strip()][:6]
-    if not points:
-        raise ArticleError("精读结果缺少核心观点")
-    mats = []
-    for m in raw.get("materials") or []:
-        if isinstance(m, dict) and str(m.get("text") or "").strip():
-            kind = m.get("kind") if m.get("kind") in ("例子", "数据", "政策", "表述") else "表述"
-            mats.append({"kind": kind, "text": str(m["text"]).strip()})
-    return {"theme": str(raw["theme"]).strip()[:80], "points": points,
-            "structure": [str(x).strip() for x in raw.get("structure") or [] if str(x).strip()][:6],
-            "quotes": quotes[:8], "materials": mats[:8],
-            "tixing": [x for x in raw.get("tixing") or [] if x in tixing][:3],
-            "writing": str(raw.get("writing") or "").strip()[:300]}
+    for x in rows(s4.get("quotes")):
+        t = _cut(x.get("text"), 200)
+        if len(_sq(t)) >= 6 and _sq(t) in flat:
+            k = str(x.get("kind") or "")
+            kind = "巧用形象" if "形象" in k else "辩证论述" if "辩证" in k else "标题段首句"
+            quotes.append({"kind": kind, "text": t, "use": _cut(x.get("use"), 40)})
+    yuyan = [{"type": _cut(x.get("type"), 20) or "其他", "question": _cut(x.get("question"), 120)} for x in rows(s5.get("yuyan")) if _cut(x.get("question"), 120)][:4]
+    shenlun = [{"type": _cut(x.get("type"), 20), "question": _cut(x.get("question"), 140)} for x in rows(s5.get("shenlun"))
+               if _cut(x.get("question"), 140) and (not tixing or x.get("type") in tixing)][:4]
+    if not (items or quotes or step1["old_words"] or step1["verbs"] or step1["new_terms"] or parts):
+        raise ArticleError("精读结果几乎是空的")
+    return {"version": 2, "step1": step1,
+            "step2": {"thesis": thesis, "parts": parts, "paragraphs": paras},
+            "step3": {"items": items[:10]}, "step4": {"quotes": quotes[:10]}, "step5": {"yuyan": yuyan, "shenlun": shenlun}}
 
 
 def save_jd(paths, iid, jd):
@@ -675,26 +746,46 @@ def save_jd(paths, iid, jd):
     return jd
 
 
-def jd_cards(g, iid):
-    """精读里的金句 / 素材 → 玉简（问答），放进 <本科目时政模块>::每日文章；同一篇做过就不重复"""
-    from . import cards
+# ---------------------------------------------------------------- 摘编（档案室里翻阅；不是复习卡片）
+def digest_file(paths, iid):
+    return folder(paths) / "摘编" / (iid + ".json")
+
+
+def digest_save(g, iid):
+    """精读里的“万能对策”和“黄金句式”存成一份摘编（每篇一份，再存会覆盖），放在档案室里按领域 / 类型翻阅"""
     a = find(g.paths, iid)
     jd = load_jd(g.paths, iid)
     if not jd:
         raise ArticleError("这篇还没精读")
-    if jd.get("carded"):
-        return {"added": 0, "again": True}
-    items = []
-    for q in jd.get("quotes", []):
-        items.append({"type": "问答", "front": "【金句 · %s】%s" % (a["title"][:20], q.get("use") or "这句话可以用在哪里？"), "back": q["text"],
-                      "tags": ["每日文章", "金句"], "extra": a.get("source", "")})
-    for m in jd.get("materials", []):
-        items.append({"type": "问答", "front": "【%s · %s】%s…" % (m["kind"], a["title"][:20], m["text"][:14]), "back": m["text"],
-                      "tags": ["每日文章", m["kind"]], "extra": a.get("source", "")})
-    if not items:
-        return {"added": 0}
-    r = cards.add_many(g, "%s::每日文章" % g.news_board(), items)
-    jd["carded"] = True
-    jd_file(g.paths, iid).write_text(json.dumps(jd, ensure_ascii=False, indent=1), encoding="utf-8")
-    r["deck"] = "%s › 每日文章" % g.news_board()
-    return r
+    if jd.get("version") != 2:
+        raise ArticleError("这是旧版精读，先点“重新精读”换成新版再存入摘编")
+    items = list((jd.get("step3") or {}).get("items") or [])
+    quotes = list((jd.get("step4") or {}).get("quotes") or [])
+    if not items and not quotes:
+        raise ArticleError("这篇精读里没有可摘的对策或黄金句式")
+    f = digest_file(g.paths, iid)
+    again = f.is_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    data = {"id": iid, "title": a["title"], "source": a.get("source", ""), "url": a.get("url", ""), "date": a.get("date", ""),
+            "saved": dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "countermeasures": items, "quotes": quotes}
+    f.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"ok": True, "again": again, "countermeasures": len(items), "quotes": len(quotes)}
+
+
+def digest_list(paths):
+    out = []
+    d = folder(paths) / "摘编"
+    for f in sorted(d.glob("*.json")) if d.is_dir() else []:
+        try:
+            out.append(json.loads(f.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    out.sort(key=lambda x: x.get("saved", ""), reverse=True)
+    return out
+
+
+def digest_remove(paths, iid):
+    f = digest_file(paths, iid)
+    if f.is_file():
+        f.unlink()
+    return {"ok": True}
