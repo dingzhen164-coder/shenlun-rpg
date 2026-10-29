@@ -35,6 +35,7 @@ diverged tests/ui_wanxiang372.cjs
 shared web/audio_bus.js
 shared rpg/study_clock.py
 shared tests/study_clock_fixture.py
+shared tests/per_question_rules.py
 shared tests/test_study_clock.py
 diverged tests/test_repairs368.py
 diverged tests/ui_repairs368.cjs
