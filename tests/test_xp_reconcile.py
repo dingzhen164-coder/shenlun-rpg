@@ -81,11 +81,10 @@ class XpRulesTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         p = paths.Paths(Path(tmp.name)); p.ensure_train_dir()
         f = p.rules
-        t = f.read_text(encoding="utf-8")
-        for k, v in (("经验.实战答对", 5), ("经验.实战答错", 1), ("经验.实战通关", 30), ("经验.自练每题", 2), ("经验.听道每分钟", 0.5), ("经验.静修每分钟", 0.5)):
-            t = __import__("re").sub(r"(?m)^(\s*-\s*%s\s*[:：]\s*)[^\n#]*" % k, r"\g<1>%s " % v, t)
-        t = t.replace("- 经验.自练每分钟: 1", "- 经验.自练每分钟: 3")           # 自己改过的值不动
-        f.write_text(t, encoding="utf-8")
+        # 自己写一份只含相关行的规则文本：不依赖默认规则文件的当前内容。
+        f.write_text("\n".join("- %s: %s" % kv for kv in (
+            ("经验.实战答对", 5), ("经验.实战答错", 1), ("经验.实战通关", 30), ("经验.自练每题", 2), ("经验.听道每分钟", 0.5),
+            ("经验.静修每分钟", 0.5), ("经验.自练每分钟", 3))) + "\n", encoding="utf-8")        # 自练每分钟：自己改过的值不动
         p._migrate_rules()
         from rpg import config
         r = config.Rules(f.read_text(encoding="utf-8"))
