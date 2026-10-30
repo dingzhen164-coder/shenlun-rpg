@@ -2181,6 +2181,7 @@ html.in-sl-exam button:disabled { color:var(--muted); opacity:.5; }
 /* 📎 摘编（档案室，web/digest.js）：翻阅每日文章精读里存下来的对策和黄金句式 */
 .dg-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
 .dg-modes .on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.dg-root :is(.dg-sec, .dg-art, .dg-empty) { background: var(--panel); border: 1px solid var(--line); border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; }   /* 摘编的内容块不用 .card 类：档案室的容器框一律透明，这里是正文式的内容块，自带底以便看清 */
 /* 档案室的卡片默认全透明，正文直接压在照片上看不清：摘编的每一块自带磨砂底（轮廓、圆角、淡底、细边；只模糊背景，不模糊文字）。
    选择器要带上 interface_glass.css 里同样的前缀才压得过它的 !important。 */
 body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .dg-root :is(.dg-sec, .dg-art, .dg-empty) {
