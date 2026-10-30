@@ -48,6 +48,15 @@ async function main(){
   await shot('1-'+name+'-'+theme);
  }
  await page.setViewportSize({width:1280,height:860});
+ // 红格顶部小标题被裁掉后（--sl-crop 负边距），第一条格线仍在可见区内，鼠标落笔点和笔迹像素必须对得上
+ await page.setViewportSize({width:1280,height:860});await page.waitForTimeout(250);
+ const geo=await page.evaluate(()=>{const c=document.querySelector('.sl-card-ink'),b=c.getBoundingClientRect(),v=document.querySelector('.sl-card-viewport').getBoundingClientRect();return {bl:b.left,bt:b.top,bw:b.width,bh:b.height,cw:c.width,ch:c.height,vt:v.top,vb:v.bottom};});
+ const firstLine=geo.bt+60*geo.bh/geo.ch-geo.vt;assert.ok(firstLine>=2&&firstLine<=44,'第一条格线应在可见区顶部附近（被裁掉的只是小标题）'+firstLine);
+ const px=geo.bl+geo.bw*.5,py=geo.vt+firstLine+geo.bh/geo.ch*64*1.5;
+ await page.mouse.move(px,py);await page.mouse.down();await page.mouse.move(px+60,py+10,{steps:6});await page.mouse.up();
+ const hit=await page.evaluate(([lx,ly])=>{const c=document.querySelector('.sl-card-ink'),d=c.getContext('2d').getImageData(Math.max(0,lx-4),Math.max(0,ly-4),9,9).data;for(let i=3;i<d.length;i+=4)if(d[i]>0)return true;return false;},[(px-geo.bl)*geo.cw/geo.bw,(py-geo.bt)*geo.ch/geo.bh]);
+ assert.ok(hit,'落笔点与笔迹像素对不上（红格裁掉顶部后坐标偏了）');
+ await page.locator('[data-card="undo"]').click();   // 撤掉测试笔画，免得后面的“打字交卷”被当成手写未识别
  // 专注书写：材料栏收起、红格占满，工具条仍在；再点恢复。不再有独立全屏层
  await page.locator('[data-card="expand"]').click();
  assert.equal(await page.locator('.sl-card-expanded').count(),0);
