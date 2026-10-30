@@ -17,7 +17,7 @@ import base64
 import datetime as dt
 import re
 
-from . import importer, mock, mock_score, vault
+from . import ad_clean, importer, mock, mock_score, vault
 
 BASE = 1000                      # 整卷考试自己的试卷编号从1001起
 LETTERS = "ABCD"
@@ -105,6 +105,8 @@ def papers(g):
         qs, _ = _questions(g, n)
         if qs:
             out.append(_summary(g, n, qs))
+    for p in out:
+        p["deletable"] = deletable(g, p["season"]) is not None
     out.sort(key=lambda p: (p["run"] is None, -p["season"]))
     return {"papers": out, "limit": limit_seconds(g), "minutes": limit_seconds(g) // 60,
             "split_ready": bool(importer.split_script(g.paths)), "pymupdf": importer.has_pymupdf(), "ocr": _ocr_name()}
@@ -178,6 +180,10 @@ def finish_import(g, plan, report):
     rec["name"] = name
     rec.setdefault("date", "")
     mock.unhide(g, n)
+    try:                                       # 广告词库里的文字（藏经阁「清除」里存的）导入时自动清掉
+        ad_clean.strip_files(g.paths, g.paths.train / "模考复盘" / ("第%d季" % n))
+    except Exception:
+        pass
     done = g.state.setdefault("mock_practice", [])
     if str(n) not in [str(x) for x in done]:
         done.append(str(n))                   # 导入不另给120分钟，交卷时按实际用时记
@@ -385,6 +391,60 @@ def discard(g, n):
     """放弃这场考试（不批改、不记成绩）"""
     g.state.get("exam_runs", {}).pop(str(n), None)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- 删除套卷
+def deletable(g, n):
+    """只有程序自己写在 训练/ 里的导入套卷才能删；用户库里原有的粉笔复盘（FB模考试卷复盘等）只读，不删"""
+    d = next((d for k, d in vault.seasons(g.paths) if k == n), None)
+    if not d or not g.paths.train:
+        return None
+    try:
+        d.resolve().relative_to((g.paths.train / "模考复盘").resolve())
+    except ValueError:
+        return None
+    return d
+
+
+def delete_paper(g, n):
+    """整份删掉一份导入的套卷（多半是导入重复了）：复盘文件夹（题目、图片、答案栏）、题库里这一季的题和图片、
+    作答暂存、宗门大比里这一季的记录。已发的奖励不收回；用户放进库里的原 PDF 不动。返回删了什么。"""
+    import shutil
+    _guard(g)
+    n = int(n)
+    if n in _PENDING:
+        raise ExamError("这份试卷正在导入，等导入完再删")
+    d = deletable(g, n)
+    if d is None:
+        raise ExamError("这是你库里原有的复盘，程序不删除它（可以在宗门大比里隐藏）")
+    qs = _questions(g, n)[0]
+    shutil.rmtree(d, ignore_errors=True)
+    bank = dropped = images = 0
+    prefix = "粉笔%d季-" % n
+    root = g.paths.train / "题库"
+    if root.is_dir():
+        for f in sorted(root.rglob("*.md")):
+            try:
+                blocks = importer.parse_blocks(f.read_text(encoding="utf-8-sig"))
+            except OSError:
+                continue
+            ids = {b["id"] for b in blocks if str(b["id"]).startswith(prefix)}
+            if ids:
+                importer._drop_ids(f, ids)
+                bank += len(ids)
+        for img in (root / "图片").rglob(prefix + "*") if (root / "图片").is_dir() else []:
+            try:
+                img.unlink()
+                images += 1
+            except OSError:
+                pass
+    key = str(n)
+    g.state.get("exam_runs", {}).pop(key, None)
+    g.state.get("mocks", {}).pop(key, None)
+    for name in ("mocks_hidden", "mock_practice"):
+        if name in g.state:
+            g.state[name] = [x for x in g.state[name] if str(x) != key]
+    return {"ok": True, "season": n, "questions": len(qs), "bank": bank, "images": images}
 
 
 # ---------------------------------------------------------------- 批改、记成绩

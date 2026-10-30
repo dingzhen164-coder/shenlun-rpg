@@ -560,13 +560,32 @@ def segment_lines(seq, segments):
     return out
 
 
+def _split_inline_options(text):
+    """“A.底色 契合 循环 B.本色 符合 闭环”这种一行两个选项：按 A→B→C→D 的顺序拆成多段；认不准就原样返回"""
+    m = OPTION.match(text)
+    if not m:
+        return [text]
+    labels, pos, want = [], 0, ord(m.group(1))
+    marks = [(0, m.group(1))]
+    for hit in re.finditer(r"(?<=\s)[（(]?([A-D])\s*[.．、:：)）]", text):
+        if ord(hit.group(1)) == want+len(marks) and hit.start() > marks[-1][0]:
+            marks.append((hit.start(), hit.group(1)))
+    if len(marks) < 2:
+        return [text]
+    cuts = [at for at, _ in marks] + [len(text)]
+    return [text[cuts[i]:cuts[i+1]].strip() for i in range(len(marks))]
+
+
 def split_choices(lines):
     """文字行 → (题干段落, {A..D: 文字})；认不全 A~D 四个选项、或题干太短就返回None（改用原图）。"""
     texts = [l["t"] for l in lines]
     if texts and (m := QSTART.match(texts[0])):
         texts[0] = m.group(2)
     stem, options, label = [], {}, None
-    for t in texts:
+    expanded = []
+    for t in texts:                      # 一行里并排排了两个选项（“A. … B. …”）：拆开，别让 B 的字并进 A
+        expanded.extend(_split_inline_options(t))
+    for t in expanded:
         if not t.strip():
             continue
         m = OPTION.match(t)
@@ -619,6 +638,135 @@ def text_body(paragraphs, options):
     return "\n".join(paragraphs+["- **%s.** %s" % (k, v) for k, v in options.items()])
 
 
+# ---------------------------------------------------------------- 填空横线 / 选项词间空格
+# OCR 和文字层都拿不到“画出来的横线”，也会把选项里的词连成一串（原卷是“底色　契合　循环”）。这里读页面像素补回：
+#   · 一行里有一段够长、上面没有字的水平线 → 填空横线，写成 ＿＿＿＿（不会和 Markdown 的下划线混）；字下面的下划线（上面有字）不算；
+#   · 一行里字与字之间有大于约一个字宽的空隙 → 词间空格。
+# 字符位置按各段墨迹的宽度比例估计（中文方块字宽度一致，够用）；估不准的靠“对照原图”。
+BLANK = "＿＿＿＿"
+BLANK_DPI = 110
+_PUNCT_AFTER = "，、；：（“‘"
+_PUNCT_BEFORE = "。，、；：）”’？！"
+
+
+def _runs(flags, min_len, merge=0):
+    """flags(0/1序列) 里连续为1的区间 [(a,b)]（b不含），空隙不超过 merge 的合并，长度不足 min_len 的丢掉"""
+    out, a = [], None
+    for i, v in enumerate(list(flags)+[0]):
+        if v and a is None:
+            a = i
+        elif not v and a is not None:
+            if out and a-out[-1][1] <= merge:
+                out[-1] = (out[-1][0], i)
+            else:
+                out.append((a, i))
+            a = None
+    return [(x, y) for x, y in out if y-x >= min_len]
+
+
+def _snap(text, idx):
+    """横线更可能落在标点旁边：在 idx 附近两个字内挑一个靠标点的位置"""
+    best, gap = idx, 99
+    for j in range(max(0, idx-2), min(len(text), idx+2)+1):
+        near = (j > 0 and text[j-1] in _PUNCT_AFTER) or (j < len(text) and text[j] in _PUNCT_BEFORE)
+        if near and abs(j-idx) < gap:
+            best, gap = j, abs(j-idx)
+    return best
+
+
+def mark_line(gray, width, height, stride, line):
+    """gray：整页灰度字节；返回补好 横线/词间空格 的文字（没有可补的就原样返回）"""
+    text = line["t"]
+    n = len(text)
+    X0, X1 = max(0, int(line["x0"]*width)), min(width, int(line["x1"]*width)+1)
+    Y0, Y1 = max(0, int(line["y0"]*height)), min(height, int(line["y1"]*height)+1)
+    lh = Y1-Y0
+    if n < 3 or lh < 8 or X1-X0 < 20:
+        return text
+    em = lh*.9
+    ext = min(height, Y1+int(lh*.35))
+    dark = lambda x, y: gray[y*stride+x] < 175           # noqa: E731
+    # 1) 填空横线：靠下的细水平线（粗≤0.25倍行高），长度≥约两个字宽，且线上面（整行高）几乎没有字
+    blanks = []
+    for y in range(Y0+int(lh*.55), ext):
+        for a, b in _runs([dark(x, y) for x in range(X0, X1)], int(em*1.8), merge=2):
+            blanks.append((a+X0, b+X0, y))
+    merged = []
+    for a, b, y in sorted(blanks):
+        if merged and a <= merged[-1][1] and b >= merged[-1][0]:
+            merged[-1][0], merged[-1][1] = min(a, merged[-1][0]), max(b, merged[-1][1])
+            merged[-1][2] = min(merged[-1][2], y)
+        else:
+            merged.append([a, b, y])
+    real = []
+    for a, b, y in merged:
+        top = max(Y0, y-int(lh*.8))
+        body = [dark(x, yy) for yy in range(top, y-1) for x in range(a+2, b-2, 2)]
+        if body and sum(body)/len(body) < .04:
+            real.append((a, b))
+    # 2) 文字墨迹的列：去掉横线所在的列区间，再把相隔很近的列并成一段
+    col = []
+    for x in range(X0, X1):
+        inside_blank = any(a <= x < b for a, b in real)
+        col.append(0 if inside_blank else int(any(dark(x, y) for y in range(Y0, Y1))))
+    segs = [(a+X0, b+X0) for a, b in _runs(col, 1, merge=int(em*.55))]       # 换成整页像素坐标
+    if not segs:
+        return text
+    cuts = []                      # [(字符位置前的分界, 记号)]；记号 ＿ 横线 / ' ' 词间空格
+    total = sum(b-a for a, b in segs)
+    done = 0
+    for k, (a, b) in enumerate(segs[:-1]):
+        done += b-a
+        idx = int(round(n*done/total))
+        nxt = segs[k+1][0]
+        has_blank = any(b-2 <= ba and bb <= nxt+2 for ba, bb in real)
+        if has_blank:
+            cuts.append((_snap(text, idx), BLANK))
+        elif nxt-b >= em*.95:
+            cuts.append((idx, " "))
+    for a, b in real:             # 横线在整行最左/最右（线前或线后没有字）
+        if a-X0 < em*.5 and not any(t == BLANK and i == 0 for i, t in cuts):
+            cuts.append((0, BLANK))
+        elif X1-b < em*.5 and not any(t == BLANK and i == n for i, t in cuts):
+            cuts.append((n, BLANK))
+    if not cuts:
+        return text
+    out, last = [], 0
+    for idx, mark in sorted(cuts):
+        out.append(text[last:idx])
+        out.append(mark)
+        last = idx
+    out.append(text[last:])
+    return "".join(out)
+
+
+def mark_lines(doc, seq, dpi=BLANK_DPI):
+    """给整份试卷的文字行补横线和词间空格（原地改 seq 里每行的 t）。读不了页面就原样不动。"""
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        return 0
+    changed = 0
+    by_page = {}
+    for line in seq:
+        by_page.setdefault(line.get("page", 0), []).append(line)
+    for pi, lines in by_page.items():
+        try:
+            pix = doc[pi].get_pixmap(dpi=dpi, colorspace=fitz.csGRAY, alpha=False)
+        except Exception:
+            continue
+        gray, w, h, stride = pix.samples, pix.width, pix.height, pix.stride
+        for line in lines:
+            try:
+                new = mark_line(gray, w, h, stride, line)
+            except Exception:
+                continue
+            if new != line["t"]:
+                line["t"] = new
+                changed += 1
+    return changed
+
+
 # ---------------------------------------------------------------- 写成复盘文件
 BOARD_ORDER = ("政治理论", "常识判断", "逻辑填空", "片段阅读", "语句排序", "数量关系", "图形推理", "定义判断", "类比推理", "论证逻辑", "资料分析")
 
@@ -632,6 +780,9 @@ def write_review(folder, doc, result):
     for q in sorted(result["questions"], key=lambda q: q["num"]):
         by_board.setdefault(q["board"] or "政治理论", []).append(q)
     written = {}
+    if not result.get("marked"):
+        result["marked"] = True
+        mark_lines(doc, result.get("seq", []))                  # 补填空横线和选项词间空格
     texted = result.setdefault("texted", [])
     ordered = sorted(by_board, key=lambda b: (min(q["num"] for q in by_board[b])))
     for k, board in enumerate(ordered, 1):
@@ -669,7 +820,7 @@ def split(paths, pdf_file, season, engine=None, part_sizes=None):
         raise ScanError("缺少 pymupdf：请使用完整电脑安装包")
     folder = paths.train / "模考复盘" / ("第%d季" % season)
     if any(folder.glob("[0-9][0-9]-*.md")):
-        raise ScanError("第%d季已经有复盘文件，先在宗门大比里删除再重新导入" % season)
+        raise ScanError("第%d季已经有复盘文件，先在整卷模拟考试的列表里删除这份卷子再重新导入" % season)
     with fitz.open(str(pdf_file)) as doc:
         if doc.needs_pass:
             raise ScanError("请先解密PDF")

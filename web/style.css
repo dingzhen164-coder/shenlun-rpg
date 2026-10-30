@@ -2193,3 +2193,30 @@ body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .dg-root :is(.dg
 .dg-from { display: block; margin-top: 2px; }
 .dg-art > summary { cursor: pointer; padding: 4px 0; }
 .dg-art h5 { margin: 8px 0 2px; font-size: var(--ds-fs-13); color: var(--muted); }
+
+/* 🧹 清除（藏经阁 · 行测，web/ad_clean.js）：查找广告文字、勾选清除、广告词库、撤销。块不用 .card（档案室的 .card 全透明），自带磨砂底 */
+.ac-top .ac-search { margin-bottom: 0; }
+.ac-intro { margin: 0 0 10px; color: var(--muted); font-size: var(--ds-fs-13); line-height: 1.7; }
+.ac-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ac-search input[type="text"] { flex: 1 1 280px; min-width: 0; min-height: var(--ds-touch); }
+.ac-search label { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: var(--ds-fs-13); white-space: nowrap; }
+.ac-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 12px; align-items: start; }
+.ac-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
+.ac-group h4, .ac-side h4 { margin: 0 0 6px; font-size: var(--ds-fs-14); }
+.ac-group h4 small { color: var(--faint); font-weight: 400; }
+.ac-hit { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); line-height: 1.6; cursor: pointer; }
+.ac-hit input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+.ac-q { flex: none; min-width: 4em; color: var(--muted); font-size: var(--ds-fs-12); }
+.ac-ctx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ac-ctx mark { background: color-mix(in srgb, var(--red) 28%, transparent); color: inherit; border-radius: var(--ds-r-3); padding: 0 2px; }
+.ac-tag { flex: none; font-style: normal; font-size: var(--ds-fs-11); padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--ds-r-10); color: var(--muted); }
+.ac-tag.ac-warn { color: var(--orange); border-color: currentColor; }
+.ac-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.ac-words { margin: 0 0 8px; padding: 0; list-style: none; }
+.ac-words li { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.ac-words li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .ac-root :is(.ac-top, .ac-group, .ac-side, .ac-note, .ac-summary, .ac-actions) {
+  background: color-mix(in srgb, var(--panel) 82%, transparent) !important; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent) !important;
+  border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; -webkit-backdrop-filter: blur(8px) !important; backdrop-filter: blur(8px) !important; }
+.ac-root :is(.ac-top, .ac-group, .ac-side, .ac-note, .ac-summary, .ac-actions) { background: var(--panel); border: 1px solid var(--line); border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; }
+@media (max-width: 900px) { .ac-main { grid-template-columns: minmax(0, 1fr); } }

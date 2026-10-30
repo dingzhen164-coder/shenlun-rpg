@@ -634,12 +634,13 @@ const views = {
       ${isSL() ? `<button class="${LIB.tab === 'bank' ? 'on' : ''}" data-libtab="bank">📑 题库</button>` : `<button class="${LIB.tab === 'yujian' ? 'on' : ''}" data-libtab="yujian">📖 经卷 · 题库</button>
       <button class="${LIB.tab === 'idioms' ? 'on' : ''}" data-libtab="idioms">📘 词录 · 成语实词</button>`}
       <button class="${LIB.tab === 'skillbook' ? 'on' : ''}" data-libtab="skillbook">📘 ${esc(W('skillbook'))}</button>
-      ${isSL() ? `<button class="${LIB.tab === 'digest' ? 'on' : ''}" data-libtab="digest">📎 摘编</button>` : ''}
+      ${isSL() ? `<button class="${LIB.tab === 'digest' ? 'on' : ''}" data-libtab="digest">📎 摘编</button>` : (DASH?.subject === '行测' ? `<button class="${LIB.tab === 'adclean' ? 'on' : ''}" data-libtab="adclean">🧹 清除</button>` : '')}
       <button class="${LIB.tab === 'jiaocai' ? 'on' : ''}" data-libtab="jiaocai">📜 功法 · 教材</button></div></div>`;
     if (LIB.tab === 'bank' && window.SHENLUN) return tabs + await SHENLUN.libHtml();
     if (LIB.tab === 'idioms') return tabs + `<div class="id-root">${await IDIOMS.render()}</div>`;
     if (LIB.tab === 'skillbook') return tabs + await SKILLBOOK.render();
     if (LIB.tab === 'digest' && window.DIGEST) return tabs + await DIGEST.render();
+    if (LIB.tab === 'adclean' && window.AD_CLEAN && DASH?.subject === '行测') return tabs + await AD_CLEAN.render();
     if (LIB.tab === 'yujian') return tabs + await yujianHtml() + importCardHtml();
     if (LIB.tab === 'jiaocai') return tabs + await jiaocaiHtml();
     if (LIB.tab === 'mindmaps') return tabs + await MINDMAP.hubHtml(null, true);
@@ -1505,6 +1506,7 @@ function bindSkeleton() {
   bindLibrary();
   window.SKILLBOOK?.bind($("#view"));
   if (LIB.tab === "digest") window.DIGEST?.bind($("#view"));
+  if (LIB.tab === "adclean") window.AD_CLEAN?.bind($("#view"));
   window.MINDMAP?.bindHub($("#view"));
   if ($('#importCard')) $('#importCard').ontoggle = (e) => { if (e.target.open) loadImport(); };
   document.querySelectorAll("[data-skel]").forEach((b) => (b.onclick = () =>

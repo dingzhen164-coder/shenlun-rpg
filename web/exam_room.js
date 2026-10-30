@@ -21,19 +21,31 @@
    const r=new FileReader();r.onerror=()=>reject(Error('读取文件失败'));r.onload=()=>resolve(String(r.result));r.readAsDataURL(file);
   });
  }
+ // 删除一份导入的套卷（多半是导入重复了）：整份删，题目/图片/作答暂存/大比里这一季的记录都没有了，已发奖励不收回
+ async function deletePaper(season,name){
+  if(!confirm(`删除「${name}」？\n\n这份试卷的全部题目、图片、作答暂存、草稿笔迹和它在宗门大比里的记录都会删除，不能恢复（已发的奖励不收回，原 PDF 不动）。`))return;
+  homeError('');
+  try{
+   const r=await hooks.api('/api/exam/delete',{season});
+   try{const prefix='xrpg-draw:exam:'+season+':';Object.keys(localStorage).filter(k=>k.startsWith(prefix)).forEach(k=>localStorage.removeItem(k));}catch(_){}
+   await load();
+   home.querySelector('.er-intro')?.insertAdjacentHTML('afterend',`<p class="er-ok" role="status">已删除「${esc(name)}」（${r.questions} 题）。</p>`);
+   window.dispatchEvent(new Event('exam-paper-deleted'));
+  }catch(error){homeError('删除「'+name+'」失败：'+failText(error));}
+ }
  function paperRow(p){
   const last=p.last,running=p.run;
   const keyed=p.keyed>=p.total?`答案齐全`:p.keyed?`答案 ${p.keyed}/${p.total}`:'还没有答案';
   const line=running?`进行中 · 已答 ${running.answered} 题 · 已用 ${clock(running.elapsed)}`
    :last?`最近 ${last.score==null?'未出分':esc(last.score)+' 分'} · 用时 ${esc(last.minutes)} 分钟 · ${esc(when(last.submitted))}${p.attempts>1?' · 共考 '+p.attempts+' 次':''}`:'尚未考过';
   return `<article class="er-paper" data-er-season="${p.season}"><div class="er-paper-main"><b>${esc(p.name)}</b><small>${p.total} 题 · ${esc(keyed)}</small><small class="${running?'er-live':''}">${line}</small></div>
-   <div class="er-paper-actions"><button type="button" class="primary" data-er-start="${p.season}">${running?'继续作答':last?'再考一次':'开始考试'}</button>${last?`<button type="button" data-er-result="${p.season}">查看成绩</button>`:''}<button type="button" data-er-answers="${p.season}" aria-expanded="false">${p.keyed>=p.total?'更新答案':'导入答案'}</button></div>
+   <div class="er-paper-actions"><button type="button" class="primary" data-er-start="${p.season}">${running?'继续作答':last?'再考一次':'开始考试'}</button>${last?`<button type="button" data-er-result="${p.season}">查看成绩</button>`:''}<button type="button" data-er-answers="${p.season}" aria-expanded="false">${p.keyed>=p.total?'更新答案':'导入答案'}</button>${p.deletable?`<button type="button" class="er-danger" data-er-delete="${p.season}" data-er-pname="${esc(p.name)}" aria-label="删除试卷 ${esc(p.name)}">删除</button>`:''}</div>
    <form class="er-answers" data-er-answer-form="${p.season}" hidden><label><span>粘贴答案（如 <code>1-20 BCDAB…</code> 或每行 <code>1.A 2.B</code>）</span><textarea rows="4" data-er-answer-text></textarea></label><label><span>或选择答案文件（.txt / 答案页 PDF）</span><input type="file" accept=".txt,.pdf,text/plain,application/pdf" data-er-answer-file></label><div class="er-form-row"><button type="submit" class="primary">保存答案</button><span class="er-note" role="status"></span></div></form></article>`;
  }
  function homeHtml(d){
   const ready=d.pymupdf;
   const importer=`<details class="er-import"><summary>＋ 导入模拟试卷</summary><form data-er-import-form><label><span>试卷名称（会原样显示在宗门大比里）</span><input type="text" maxlength="40" placeholder="如：花生26下模拟卷第一套" data-er-name></label><label><span>试卷 PDF（题目 + 选项，约 130 题）</span><input type="file" accept=".pdf,application/pdf" data-er-pdf></label><p class="er-note">${ready?(d.ocr?'支持带文字的 PDF，也支持整页是图片的扫描卷（会用本机的文字识别找题号，约 1～3 分钟）。':'这台电脑没有可用的文字识别，只能导入带文字的 PDF；扫描图片版需要 Mac App 或装了中文 OCR 的 Windows。'):'PDF 缺少 pymupdf 组件，请使用完整电脑安装包。'}</p><div class="er-form-row"><button type="submit" class="primary" ${ready?'':'disabled'}>导入并拆分</button><span class="er-note" role="status" data-er-import-note></span></div></form></details>`;
-  return `<p class="er-error" data-er-error role="alert" hidden></p><div class="er-intro"><h3>整卷模拟考试</h3><p>限时 <b>${d.minutes}</b> 分钟，全卷连续作答；交卷后批改并给分，成绩按试卷名称记进“宗门大比”，同时记一次模拟训练。分模块练习请走右边的“板块”。</p></div>${importer}
+  return `<p class="er-error" data-er-error role="alert" hidden></p><div class="er-intro"><h3>整卷模拟考试</h3><p>限时 <b>${d.minutes}</b> 分钟，全卷连续作答；交卷后批改并给分，成绩按试卷名称记进“宗门大比”，同时记一次模拟训练。分模块练习请走右边的“板块”。</p>${autoLabel()}</div>${importer}
    <div class="er-list" aria-label="试卷列表">${d.papers.map(paperRow).join('')||'<p class="er-empty">还没有可考的试卷。先用上面的“导入模拟试卷”导入一份 PDF。</p>'}</div>`;
  }
  async function load(){
@@ -52,8 +64,10 @@
     const b=e.target.closest('button');if(!b||b.disabled)return;
     if(b.hasAttribute('data-er-start'))return openRun(Number(b.dataset.erStart));
     if(b.hasAttribute('data-er-result'))return openResult(Number(b.dataset.erResult));
+    if(b.hasAttribute('data-er-delete'))return deletePaper(Number(b.dataset.erDelete),b.dataset.erPname||'');
     if(b.hasAttribute('data-er-answers')){const f=home.querySelector(`[data-er-answer-form="${b.dataset.erAnswers}"]`);f.hidden=!f.hidden;b.setAttribute('aria-expanded',String(!f.hidden));if(!f.hidden)f.querySelector('textarea').focus();}
    });
+   home.addEventListener('change',e=>{if(e.target.matches?.('[data-er-auto]'))setAutoNext(e.target.checked);});
    home.addEventListener('submit',async e=>{
     e.preventDefault();const form=e.target,btn=form.querySelector('[type=submit]');
     if(form.hasAttribute('data-er-import-form')){
@@ -97,14 +111,21 @@
  const answered=r=>Object.values(r.answers).filter(Boolean).length;
  function elapsedNow(r){return r.base+(r.running?Math.floor((Date.now()-r.t0)/1000):0);}
 
+ // 选完答案自动跳下一题（只用于整卷模考；有即时对错的练习不跳）。本机偏好，默认开
+ const autoNext=()=>{try{return localStorage.getItem('er.autoNext')!=='0';}catch(_){return true;}};
+ const setAutoNext=on=>{try{localStorage.setItem('er.autoNext',on?'1':'0');}catch(_){}};
+ const autoLabel=()=>`<label class="er-auto"><input type="checkbox" data-er-auto ${autoNext()?'checked':''}> 选完答案自动跳下一题</label>`;
+ // 草稿按钮只画笔头（和首页右上角的笔同一个图标）；字号放大/缩小沿用答题页的同一个本机偏好（chatLayout.fs，初始大小不变）
+ const PEN_SVG='<svg class="er-pen-ico" viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5l4 4L8 20l-5 1 1-5z"/><path d="M14 6l4 4"/></svg>';
+ const sizeTools=()=>window.READING_TOOLS?.html?window.READING_TOOLS.html():'';
  function runShell(r){
   const d=document.createElement('dialog');d.className='er-run';d.setAttribute('aria-label','整卷模拟考试 · '+r.name);
-  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div><button type="button" class="er-clock" aria-label="暂停倒计时" data-er-clock>--:--</button><button type="button" class="er-pen" data-er-pen aria-pressed="false" aria-label="草稿笔">✏ 草稿</button><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
+  d.innerHTML=`<header class="er-bar"><button type="button" class="er-leave" data-er-leave aria-label="暂存并离开考场">✕</button><div class="er-title"><b>${esc(r.name)}</b><small data-er-pos></small></div>${sizeTools()}<button type="button" class="er-clock" aria-label="暂停倒计时" data-er-clock>--:--</button><button type="button" class="er-pen" data-er-pen aria-pressed="false" aria-label="草稿笔" title="草稿笔">${PEN_SVG}</button><button type="button" class="er-card-btn" data-er-card aria-haspopup="dialog" aria-expanded="false">答题卡 <small data-er-count></small></button></header>
    ${r.warning?`<p class="er-banner" data-er-warning>${esc(r.warning)}</p>`:''}<p class="er-banner er-error" data-er-run-error role="alert" hidden></p><p class="er-banner er-timeup" data-er-timeup hidden role="alert">时间到。可以继续作答，成绩会标记“超时”；也可以现在交卷。</p>
    <div class="er-body" data-er-body></div>
    <footer class="er-foot"><button type="button" data-er-prev>上一题</button><div class="er-choices" role="group" aria-label="选择答案" data-er-choices></div><button type="button" data-er-next>下一题</button></footer>
    <div class="er-rest" data-er-rest hidden role="dialog" aria-modal="true" aria-labelledby="er-rest-title"><div class="er-rest-card"><div class="er-rest-symbol" aria-hidden="true">☕</div><h2 id="er-rest-title">稍作休息</h2><p data-er-rest-progress></p><p>倒计时已暂停，调整好状态再继续。</p><p data-er-rest-error role="alert"></p><button type="button" class="primary" data-er-resume>继续答题</button></div></div>
-   <aside class="er-sheet" data-er-sheet hidden role="dialog" aria-label="答题卡"><div class="er-sheet-panel"><header><b>答题卡</b><span class="er-sheet-count" data-er-sheet-count></span><button type="button" data-er-sheet-close aria-label="关闭答题卡">✕</button></header><div class="er-sheet-body" data-er-sheet-body></div><footer><div class="er-legend" aria-hidden="true"><i class="done"></i>已答<i class="mark"></i>标记<i class="cur"></i>当前</div><p class="er-confirm" data-er-confirm hidden></p><div class="er-sheet-actions"><button type="button" data-er-continue hidden>继续答题</button><button type="button" class="primary" data-er-submit>交卷</button></div></footer></div></aside>`;
+   <aside class="er-sheet" data-er-sheet hidden role="dialog" aria-label="答题卡"><div class="er-sheet-panel"><header><b>答题卡</b><span class="er-sheet-count" data-er-sheet-count></span>${autoLabel()}<button type="button" data-er-sheet-close aria-label="关闭答题卡">✕</button></header><div class="er-sheet-body" data-er-sheet-body></div><footer><div class="er-legend" aria-hidden="true"><i class="done"></i>已答<i class="mark"></i>标记<i class="cur"></i>当前</div><p class="er-confirm" data-er-confirm hidden></p><div class="er-sheet-actions"><button type="button" data-er-continue hidden>继续答题</button><button type="button" class="primary" data-er-submit>交卷</button></div></footer></div></aside>`;
   return d;
  }
 
@@ -112,13 +133,26 @@
  function penOpts(r){
   const q=r.questions[r.idx];
   return {key:`exam:${r.season}:q${q.num}`,mkey:q.material?`exam:${r.season}:m${q.material}`:'',host:r.root,button:r.root.querySelector('[data-er-pen]'),
+   place:bar=>placePenBar(r,bar),
    inMat:(x,y)=>{const m=r.root.querySelector('.er-material');if(!m)return false;const b=m.getBoundingClientRect();return x>=b.left&&x<=b.right&&y>=b.top&&y<=b.bottom;}};
+ }
+ // 草稿工具栏停在顶栏中间的空位（不盖住题目、也不盖住右边的计时/答题卡）：用左右边界让浏览器自己居中，不去量按钮宽度
+ // （按钮里有表情符号，字体加载前后宽度会变）；放不下先换紧凑样式，再不行工具栏内部可左右滑动。
+ function placePenBar(r,bar){
+  const head=r.root.querySelector('.er-bar'),leave=head?.querySelector('[data-er-leave]'),clock=head?.querySelector('[data-er-clock]');
+  if(!head||!leave||!clock)return;
+  const hb=head.getBoundingClientRect(),lb=leave.getBoundingClientRect(),cb=clock.getBoundingClientRect();
+  Object.assign(bar.style,{transform:'none',left:Math.round(lb.right+8)+'px',right:Math.round(innerWidth-(cb.left-8))+'px',width:'fit-content',maxWidth:'none',margin:'0 auto',overflowX:'auto'});
+  const room=cb.left-8-(lb.right+8);bar.classList.remove('compact');
+  if(bar.offsetWidth>room+1)bar.classList.add('compact');
+  if(bar.offsetWidth>room+1){bar.style.width='auto';bar.style.margin='0';bar.style.justifyContent='safe center';}   // 紧凑了还放不下：撑满空位，内部可左右滑动
+  bar.style.top=Math.round(Math.max(0,hb.top+(hb.height-bar.offsetHeight)/2))+'px';
  }
  function togglePen(r){
   if(!window.DRAW)return;
   const btn=r.root.querySelector('[data-er-pen]');
   if(DRAW.state.on){DRAW.close();btn?.setAttribute('aria-pressed','false');}
-  else{DRAW.open(penOpts(r));btn?.setAttribute('aria-pressed','true');}
+  else{DRAW.open(penOpts(r));btn?.setAttribute('aria-pressed','true');const again=()=>{const bar=r.root.querySelector('.draw-bar');if(bar&&DRAW.state.on)placePenBar(r,bar);};requestAnimationFrame(again);setTimeout(again,250);document.fonts?.ready?.then(again);}   // 表情符号字体加载后按钮宽度会变，多摆几次
  }
  function closePen(r){
   if(window.DRAW&&DRAW.state.on&&DRAW.state.ext&&DRAW.state.ext.host===r.root)DRAW.close();
@@ -246,6 +280,8 @@
   r.root=runShell(r);document.body.appendChild(r.root);run=r;
   r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(window.DRAW&&(DRAW.state.on||performance.now()-(DRAW.state.closedAt||-1e9)<400))return DRAW.state.on&&DRAW.close();if(r.paused)return;if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
   r.root.addEventListener('click',e=>onClick(r,e));
+  r.root.addEventListener('change',e=>{if(e.target.matches?.('[data-er-auto]'))setAutoNext(e.target.checked);});
+  window.READING_TOOLS?.bind(r.root);
   r.root.showModal();renderQuestion(r);tick(r);showRest(r);
   r.timer=setInterval(()=>{if(document.hidden){return;}tick(r);},1000);
   r.autosave=setInterval(()=>persist(r,true),30000);
@@ -261,6 +297,11 @@
   const q=r.questions[r.idx];
   r.answers[q.num]=r.answers[q.num]===letter?'':letter;
   choices(r);counter(r);touch(r);
+  // 选中（不是取消）一个答案后，稍等一下让选中状态看得见，再自动进入下一题；最后一题不跳
+  clearTimeout(r.autoT);
+  if(r.answers[q.num]&&autoNext()&&r.idx<r.questions.length-1){
+   const at=r.idx;r.autoT=setTimeout(()=>{if(r.root.open&&!r.finished&&!r.paused&&!r.transitioning&&r.idx===at)go(r,at+1);},280);
+  }
  }
  function onKey(r,e){
   if(r.finished||r.paused||r.transitioning||!r.root.open||e.target.closest('input,textarea,select')||document.documentElement.classList.contains('drawing'))return;

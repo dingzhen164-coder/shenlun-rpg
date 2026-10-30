@@ -70,7 +70,7 @@ async function main(){
     const title=await page.evaluate(v=>v==='train'?(STUDY_REGIONS.title()||SCENE_PORTAL.title(v)):SCENE_PORTAL.title(v),view);
     await page.waitForFunction(title=>document.querySelector('.subpage-place h2')?.textContent===title,title);
     if(view==='train'||view==='bank')assert.equal(await page.locator('[data-hall]').count(),0);
-    if(view==='skeleton'){await page.locator('.subpage-nav [data-libtab]').first().waitFor();assert.equal(await page.locator('.subpage-nav [data-libtab]').count(),subject==='申论'?6:5);}
+    if(view==='skeleton'){await page.locator('.subpage-nav [data-libtab]').first().waitFor();assert.equal(await page.locator('.subpage-nav [data-libtab]').count(),6);}
     if(view==='notes'){
      await page.locator('.subpage-nav [data-ntab]').first().waitFor();
      assert.equal(await page.locator('.subpage-nav [data-ntab]').count(),2);

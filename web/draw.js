@@ -129,7 +129,14 @@
     canvas.style.width = innerWidth + 'px';
     canvas.style.height = innerHeight + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    placeBar();
     paint();
+  }
+  // 草稿工具栏的位置：默认悬在页面顶部中间；考场等外部页面可以自己安排（ext.place(bar)），比如放进顶栏的空位
+  function placeBar() {
+    if (!bar) return;
+    if (st.ext && st.ext.place) { try { st.ext.place(bar); } catch (e) { /* 摆不好就用默认位置 */ } return; }
+    bar.removeAttribute('style'); bar.classList.remove('compact');
   }
 
   // 每一笔存成点列，撤销/重做就是从头重画；橡皮是“擦除模式”的一笔，“清空”也是一步（可以撤销回来）
