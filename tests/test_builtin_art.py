@@ -29,7 +29,7 @@ class BuiltinArtTest(unittest.TestCase):
                 self.assertEqual(set(art.character_portraits(None, subject, cid)), {'calm'})
             self.assertIsNone(art.builtin_asset(subject, '../../etc/passwd'))
         # 高清全景/五峰独立夜景不按350KiB压缩；其余旧图保留原预算。
-        legacy = {p for p in unique if '/hd/381/' not in p.as_posix()}
+        legacy = {p for p in unique if '/hd/381/' not in p.as_posix() and '/shenlun/hd/384/' not in p.as_posix()}
         native381 = unique - legacy
         self.assertLess(sum(p.stat().st_size for p in legacy), (128 if '行测' in expected else 10) * 1024 * 1024)
         self.assertLess(sum(p.stat().st_size for p in native381), 128 * 1024 * 1024)
@@ -84,7 +84,7 @@ class BuiltinArtTest(unittest.TestCase):
             if kind != 'landscape':
                 with Image.open(p) as im:
                     self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
-        self.assertEqual(len(unique), 35)  # 行测六处及申论 P1 三处独立夜景；旧页签仍兼容。
+        self.assertEqual(len(unique), 36)  # 行测六处及申论 P1/P2 独立夜景；旧页签仍兼容。
         for p in unique:
             with Image.open(p) as im:
                 self.assertGreaterEqual(max(im.size), 1152)
