@@ -148,11 +148,20 @@
   if(bar.offsetWidth>room+1){bar.style.width='auto';bar.style.margin='0';bar.style.justifyContent='safe center';}   // 紧凑了还放不下：撑满空位，内部可左右滑动
   bar.style.top=Math.round(Math.max(0,hb.top+(hb.height-bar.offsetHeight)/2))+'px';
  }
+ // 顶栏或工具栏的宽度之后变了（字体晚加载、窗口缩放）就重新摆，不能压到右边的计时。
+ let penRO=null;
+ function watchPenBar(r,again){
+  penRO?.disconnect();penRO=null;
+  if(!window.ResizeObserver)return;
+  let t=0;penRO=new ResizeObserver(()=>{cancelAnimationFrame(t);t=requestAnimationFrame(()=>{if(window.DRAW?.state.on)again();else{penRO?.disconnect();penRO=null;}});});
+  const head=r.root.querySelector('.er-bar'),bar=r.root.querySelector('.draw-bar');
+  [head,head?.querySelector('[data-er-clock]'),head?.querySelector('[data-er-leave]'),bar].forEach(el=>el&&penRO.observe(el));
+ }
  function togglePen(r){
   if(!window.DRAW)return;
   const btn=r.root.querySelector('[data-er-pen]');
   if(DRAW.state.on){DRAW.close();btn?.setAttribute('aria-pressed','false');}
-  else{DRAW.open(penOpts(r));btn?.setAttribute('aria-pressed','true');const again=()=>{const bar=r.root.querySelector('.draw-bar');if(bar&&DRAW.state.on)placePenBar(r,bar);};requestAnimationFrame(again);setTimeout(again,250);document.fonts?.ready?.then(again);}   // 表情符号字体加载后按钮宽度会变，多摆几次
+  else{DRAW.open(penOpts(r));btn?.setAttribute('aria-pressed','true');const again=()=>{const bar=r.root.querySelector('.draw-bar');if(bar&&DRAW.state.on)placePenBar(r,bar);};requestAnimationFrame(again);setTimeout(again,250);document.fonts?.ready?.then(again);watchPenBar(r,again);}   // 表情符号字体加载后按钮宽度会变，多摆几次
  }
  function closePen(r){
   if(window.DRAW&&DRAW.state.on&&DRAW.state.ext&&DRAW.state.ext.host===r.root)DRAW.close();

@@ -26,6 +26,10 @@ async function openRoom(page){await page.evaluate(()=>go('bank'));await page.loc
    return {bt:b.top,bb:b.bottom,bl:b.left,br:b.right,ht:h.top,hb:h.bottom,cl:c.left,kl:k.left,qt:q.top};});
   assert.ok(g.bt>=g.ht-1&&g.bb<=g.hb+2,label+'：草稿工具栏应在顶栏那一行里 '+JSON.stringify(g));
   assert.ok(g.br<=g.cl-4,label+'：不能盖住右边的计时 '+JSON.stringify(g));assert.ok(g.bb<=g.qt+2,label+'：不盖住题目');
+  // 模拟字体晚加载使计时变宽（云端字体慢）：工具栏要自己重新避开，不能压住计时
+  await page.evaluate(()=>{const c=document.querySelector('[data-er-clock]');c.style.paddingLeft='70px';});await page.waitForTimeout(400);
+  const g2=await page.evaluate(()=>({br:document.querySelector('.draw-bar').getBoundingClientRect().right,cl:document.querySelector('[data-er-clock]').getBoundingClientRect().left}));
+  assert.ok(g2.br<=g2.cl+1,label+'：计时变宽后工具栏仍压住计时 '+JSON.stringify(g2));
   await page.keyboard.press('Escape');await page.locator('.draw-layer.on').waitFor({state:'detached'}).catch(()=>{});
   // 选完答案自动跳下一题
   assert.ok((await pos(page)).includes('第 1/'),label);
