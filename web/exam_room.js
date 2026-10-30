@@ -153,7 +153,8 @@
  function watchPenBar(r,again){
   penRO?.disconnect();penRO=null;
   if(!window.ResizeObserver)return;
-  let t=0;penRO=new ResizeObserver(()=>{cancelAnimationFrame(t);t=requestAnimationFrame(()=>{if(window.DRAW?.state.on)again();else{penRO?.disconnect();penRO=null;}});});
+  // 重摆后再补一次：宽度还在跟着字体/换行慢慢稳定
+  let t=0;penRO=new ResizeObserver(()=>{cancelAnimationFrame(t);t=requestAnimationFrame(()=>{if(window.DRAW?.state.on){again();setTimeout(()=>{if(window.DRAW?.state.on)again();},160);}else{penRO?.disconnect();penRO=null;}});});
   const head=r.root.querySelector('.er-bar'),bar=r.root.querySelector('.draw-bar');
   [head,head?.querySelector('[data-er-clock]'),head?.querySelector('[data-er-leave]'),bar].forEach(el=>el&&penRO.observe(el));
  }
