@@ -652,6 +652,41 @@ def exam_discard(body):
     return _exam(exam_room.discard, int(body.get("season") or 0))
 
 
+def _ad(fn, body, save=False):
+    """藏经阁「清除」：行测的导入套卷 / 板块题目里的广告文字（见 rpg/ad_clean.py）"""
+    from . import ad_clean
+    try:
+        with open_game(save=save) as g:
+            return getattr(ad_clean, fn)(g, body)
+    except ad_clean.AdError as e:
+        raise ApiError(str(e))
+
+
+def adclean_find(body):
+    return _ad("find", body)
+
+
+def adclean_clean(body):
+    return _ad("clean", body)
+
+
+def adclean_undo(body):
+    return _ad("undo", body)
+
+
+def adclean_status(body):
+    return _ad("status", body)
+
+
+def adclean_words(body):
+    return _ad("edit_words", body)
+
+
+def exam_delete(body):
+    from . import exam_room
+    return _exam(exam_room.delete_paper, int(body.get("season") or 0))
+
+
 def import_install(body):
     return _import_call(importer.install_pymupdf, body)
 
@@ -1472,6 +1507,12 @@ ROUTES = {
     ("POST", "/api/exam/submit"): exam_submit,
     ("POST", "/api/exam/result"): exam_result,
     ("POST", "/api/exam/discard"): exam_discard,
+    ("POST", "/api/exam/delete"): exam_delete,
+    ("POST", "/api/adclean/find"): adclean_find,
+    ("POST", "/api/adclean/clean"): adclean_clean,
+    ("POST", "/api/adclean/undo"): adclean_undo,
+    ("POST", "/api/adclean/status"): adclean_status,
+    ("POST", "/api/adclean/words"): adclean_words,
     ("POST", "/api/mock/marks/scan"): mock_marks_scan,
     ("POST", "/api/mock/report/scan"): mock_report_scan,
     ("POST", "/api/mock/marks/save"): mock_marks_save,
