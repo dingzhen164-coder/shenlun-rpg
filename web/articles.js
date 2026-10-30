@@ -1,6 +1,6 @@
 /* 📅 每日文章（仅申论，嵌在时政简报的第三个标签里；数据见 rpg/articles.py）。
    列表：按来源（杂志 / 网站）、按分类、按状态（未读 / 已读 / 收藏 / 已精读）筛，能搜标题；「立即抓取」后台抓，「粘贴链接」导入单篇，「来源」里开关 / 增删来源。
-   阅读：左边原文，右边「🔍 一键精读」（观点 / 论证脉络 / 金句 / 素材 / 适用题型 / 运用思路），金句和素材可一键刻成玉简。
+   阅读：左边原文，右边「🔍 一键精读」（五步拆解：圈核心概念 / 拆行文骨架 / 挖万能对策 / 记黄金句式 / 做题型映射），对策和黄金句式可存入档案室「摘编」。
    计时：开着一篇、2 分钟内动过，算学习时间（跟着时政简报的心跳走）。 */
 (function () {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -139,18 +139,42 @@
     try { CUR = await api("/api/articles/get", { id }); act(); reader(); window.scrollTo(0, 0); } catch (e) { showError(e); }
   }
   async function close() { if (!(await NOTES.leaveArticle())) return false; readerVer++; CUR = null; window.STUDY_LAMP?.reader(null); JDING = false; if (ROOT && ROOT.isConnected) await mount(ROOT); return true; }
+  // 一键精读：按“五步拆解心法”分步显示（第六步“模拟输出”由自己做，不在这里）。旧版精读（无 version）照常显示，点“重新精读”换新版。
+  const JD_INTRO = "让 AI 按五步拆解心法精读这篇：①圈核心概念 ②拆行文骨架 ③挖万能对策 ④记黄金句式 ⑤做题型映射。词语、原文方向、金句保证是原文里真有的。结果会存下来，不重复花钱。";
   function jdHtml(jd) {
-    if (!jd) return `<div class="muted small">让 AI 把这篇文章提炼成：主旨、观点、论证脉络、可背的金句、可用素材、适合练的题型。金句保证是原文里真有的句子。结果会存下来，不重复花钱。</div>
+    if (!jd) return `<div class="muted small">${JD_INTRO}</div>
       <button class="primary" id="arJd" ${JDING ? "disabled" : ""}>${JDING ? "精读中…" : "🔍 一键精读"}</button>`;
+    if (jd.version === 2) return jdHtmlV2(jd);
     const li = (a) => `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
-    return `<div class="ar-jd-box"><div class="ar-theme">${esc(jd.theme)}</div>
-      <h4>核心观点</h4>${li(jd.points)}
-      ${jd.structure.length ? `<h4>论证脉络</h4><ol>${jd.structure.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}
-      ${jd.quotes.length ? `<h4>金句</h4>${jd.quotes.map((q) => `<blockquote>${esc(q.text)}<small>${esc(q.use)}</small></blockquote>`).join("")}` : ""}
-      ${jd.materials.length ? `<h4>可用素材</h4>${jd.materials.map((m) => `<div class="ar-mat"><span class="tag">${esc(m.kind)}</span> ${esc(m.text)}</div>`).join("")}` : ""}
-      ${jd.tixing.length ? `<h4>适合练的题型</h4><div>${jd.tixing.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")}</div>` : ""}
+    return `<div class="ar-jd-box"><p class="small warn">这是旧版精读。点最下面“重新精读”换成五步拆解（会再花一次 AI 费用）。</p><div class="ar-theme">${esc(jd.theme)}</div>
+      <h4>核心观点</h4>${li(jd.points || [])}
+      ${(jd.structure || []).length ? `<h4>论证脉络</h4><ol>${jd.structure.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}
+      ${(jd.quotes || []).length ? `<h4>金句</h4>${jd.quotes.map((q) => `<blockquote>${esc(q.text)}<small>${esc(q.use)}</small></blockquote>`).join("")}` : ""}
+      ${(jd.materials || []).length ? `<h4>可用素材</h4>${jd.materials.map((m) => `<div class="ar-mat"><span class="tag">${esc(m.kind)}</span> ${esc(m.text)}</div>`).join("")}` : ""}
+      ${(jd.tixing || []).length ? `<h4>适合练的题型</h4><div>${jd.tixing.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")}</div>` : ""}
       ${jd.writing ? `<h4>运用思路</h4><p>${esc(jd.writing)}</p>` : ""}
-      <div class="row ar-jd-foot"><button class="small" id="arCard" ${jd.carded ? "disabled" : ""}>${jd.carded ? "✓ 已刻成玉简" : "🧧 金句 / 素材刻成玉简"}</button>
+      <div class="row ar-jd-foot"><button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
+  }
+  function jdHtmlV2(jd) {
+    const s1 = jd.step1 || {}, s2 = jd.step2 || {}, s3 = jd.step3 || {}, s4 = jd.step4 || {}, s5 = jd.step5 || {};
+    const tag = (t) => `<span class="tag">${esc(t)}</span>`;
+    const words = (rows, note) => rows.map((x) => `<li><b>${esc(x.term)}</b>${x[note] ? `<span class="muted small"> · ${esc(x[note])}</span>` : ""}</li>`).join("");
+    const group = (title, rows, note) => rows.length ? `<h5>${title}</h5><ul class="ar-terms">${words(rows, note)}</ul>` : "";
+    const step = (no, name, body, open = true) => `<details class="ar-step" ${open ? "open" : ""}><summary>第${no}步 · ${name}</summary>${body || '<p class="muted small">这一步没有提炼出可靠的内容。</p>'}</details>`;
+    const byDomain = {};
+    (s3.items || []).forEach((x) => (byDomain[x.domain] = byDomain[x.domain] || []).push(x));
+    const quoteKinds = { "巧用形象": "巧用形象的", "辩证论述": "辩证论述的", "标题段首句": "标题 / 段首句" };
+    const p1 = group("老词新用", s1.old_words || [], "note") + group("动词结构", s1.verbs || [], "note") + group("新提法", s1.new_terms || [], "definition");
+    const p2 = `<p><b>总论点</b>（提出问题）：${esc(s2.thesis || "")}</p>`
+      + ((s2.parts || []).length ? `<h5>分论点</h5><ol class="ar-parts">${s2.parts.map((x) => `<li>${tag(x.kind)} ${esc(x.point)}</li>`).join("")}</ol>` : "")
+      + ((s2.paragraphs || []).length ? `<h5>每段大意</h5><ul class="ar-paras">${s2.paragraphs.map((x) => `<li><span class="faint small">第${x.no}段</span> ${tag(x.type)} ${esc(x.summary)}</li>`).join("")}</ul>` : "");
+    const p3 = Object.keys(byDomain).map((d) => `<h5>${esc(d)}</h5>${byDomain[d].map((x) => `<div class="ar-act"><div class="ar-act-dir">原文：${esc(x.direction)}</div><div>落地：${esc(x.landing)} ${tag(x.source)}</div></div>`).join("")}`).join("");
+    const p4 = Object.keys(quoteKinds).map((k) => { const rows = (s4.quotes || []).filter((q) => q.kind === k); return rows.length ? `<h5>${quoteKinds[k]}</h5>${rows.map((q) => `<blockquote>${esc(q.text)}${q.use ? `<small>${esc(q.use)}</small>` : ""}</blockquote>`).join("")}` : ""; }).join("");
+    const p5 = ((s5.yuyan || []).length ? `<h5>言语理解</h5><ul>${s5.yuyan.map((x) => `<li>${tag(x.type)} ${esc(x.question)}</li>`).join("")}</ul>` : "")
+      + ((s5.shenlun || []).length ? `<h5>申论</h5><ul>${s5.shenlun.map((x) => `<li>${tag(x.type)} ${esc(x.question)}</li>`).join("")}</ul>` : "");
+    const saved = !!(CUR && CUR.digest);
+    return `<div class="ar-jd-box ar-jd2">${step(1, "圈核心概念", p1)}${step(2, "拆行文骨架", p2)}${step(3, "挖万能对策", p3)}${step(4, "记黄金句式", p4)}${step(5, "做题型映射", p5)}
+      <div class="row ar-jd-foot"><button class="small" id="arDigest" title="把第三步的对策和第四步的黄金句式存到 档案室 › 摘编，只翻阅，不生成复习卡片">${saved ? "✓ 已存入摘编（再点覆盖）" : "📎 存入摘编"}</button>${saved ? '<button class="ghost small" id="arDigestGo">去档案室看</button>' : ""}
         <button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
   }
   async function reader() {
@@ -163,7 +187,7 @@
         <select id="arCat">${DATA.categories.map((c) => `<option ${c === a.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         <button class="ghost small" id="arStar">${a.star ? "★ 已收藏" : "☆ 收藏"}</button>
         ${a.url ? `<a class="ghost small btn" href="${esc(a.url)}" target="_blank" rel="noopener">🌐 原网页</a>` : ""}
-        <button class="ghost small" id="arSideToggle">展开 / 收起精读</button>
+        <button class="ghost small" id="arSideToggle" title="展开 / 收起右侧精读栏">🔍 精读栏</button>
         <button class="ghost small" id="arLedger">📓 公务手账</button><button class="ghost small" id="arDel">🗑</button></div>
       <div class="ar-cols ar-annotate ${store.get("side", "open") === "closed" ? "ar-side-closed" : ""}"><article id="arBook"><div class="card">正在打开文章批注本…</div></article>
         <aside class="card ar-side" id="arSide">${jdHtml(a.jd)}</aside></div></div>`;
@@ -179,7 +203,7 @@
     R.querySelector("#arSideToggle").onclick = () => { const cols = R.querySelector(".ar-cols"); const closed = cols.classList.toggle("ar-side-closed"); store.set("side", closed ? "closed" : "open"); dispatchEvent(new Event("resize")); };
     R.querySelector("#arStar").onclick = async () => { a.star = !a.star; await api("/api/articles/mark", { id: a.id, star: a.star }); reader(); };
     R.querySelector("#arCat").onchange = async (e) => { try { await api("/api/articles/category", { id: a.id, category: e.target.value }); a.category = e.target.value; } catch (x) { showError(x); } };
-    R.querySelector("#arDel").onclick = async () => { if (!confirm("删掉这篇文章（连精读一起）？公务手账里的批注本会保留。")) return; try { if (!(await NOTES.leaveArticle())) return; await api("/api/articles/delete", { id: a.id }); CUR = null; mount(ROOT); } catch (e) { showError(e); } };
+    R.querySelector("#arDel").onclick = async () => { if (!confirm("删掉这篇文章（连精读一起）？公务手账里的批注本和已存入的摘编会保留。")) return; try { if (!(await NOTES.leaveArticle())) return; await api("/api/articles/delete", { id: a.id }); CUR = null; mount(ROOT); } catch (e) { showError(e); } };
     bindSide();
   }
   function bindSide() {
@@ -191,10 +215,11 @@
     };
     const b = R.querySelector("#arJd"); if (b) b.onclick = () => run(false);
     const re = R.querySelector("#arRe"); if (re) re.onclick = () => { if (confirm("重新精读会再花一次 AI 费用，确定？")) run(true); };
-    const c = R.querySelector("#arCard");
+    const c = R.querySelector("#arDigest");
     if (c) c.onclick = async () => {
-      try { const r = await api("/api/articles/cards", { id: a.id }); a.jd.carded = true; toast(`🧧 刻了 ${r.added || 0} 枚玉简（${esc(r.deck || "")}）`); R.querySelector("#arSide").innerHTML = jdHtml(a.jd); bindSide(); } catch (e) { showError(e); }
+      try { const r = await api("/api/articles/digest_save", { id: a.id }); a.digest = true; toast(`📎 已存入摘编：${r.countermeasures} 条对策、${r.quotes} 句黄金句式（档案室 › 摘编）`); R.querySelector("#arSide").innerHTML = jdHtml(a.jd); bindSide(); } catch (e) { showError(e); }
     };
+    const go2 = R.querySelector("#arDigestGo"); if (go2) go2.onclick = () => { LIB.tab = "digest"; go("skeleton"); };
   }
 
   const active = () => !!(CUR && VIEW === "tianji" && document.visibilityState === "visible" && Date.now() - lastAct < 120000);

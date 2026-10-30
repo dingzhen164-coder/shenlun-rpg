@@ -245,7 +245,8 @@ html.fixed-app body.portal-home #view{position:fixed;inset:0;width:auto;max-widt
 html.fixed-app body.portal-home .study-hud{padding-top:max(12px,env(safe-area-inset-top));padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
 .page-settings-gear:hover,.page-settings-gear:focus-visible,.page-back-btn:hover,.page-back-btn:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:2px}
 .page-settings-gear svg,.page-back-btn svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}
-.fixed-app .composer,.fixed-app .fx-actions{padding-right:64px!important;padding-left:64px!important}
+/* 底部按钮条避开右下角两个圆钮（音量+设置共约112px），否则最右的按钮（结束复盘/交卷）会被压住。 */
+.fixed-app .composer,.fixed-app .fx-actions{padding-right:116px!important;padding-left:64px!important}
 html.drawing .page-settings-gear,html.drawing .page-back-btn{display:none}
 @media(max-width:1100px){.fx-records-list{display:block}.fx-records-list>.card{margin-bottom:10px!important}}
 

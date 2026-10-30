@@ -1,4 +1,4 @@
-"""📅 每日文章（rpg/articles.py）：用本地假网页测列表页挑链接、正文提取、去重、坏来源不拖累别的来源、精读校验、玉简、API"""
+"""📅 每日文章（rpg/articles.py）：用本地假网页测列表页挑链接、正文提取、去重、坏来源不拖累别的来源、五步精读校验、摘编、API"""
 import os
 import shutil
 import sys
@@ -162,31 +162,51 @@ class StateAndJdTest(Base):
             articles.remove_source(g, "我的来源")
             self.assertFalse(any(s["name"] == "我的来源" for s in articles.sources(g)))
 
-    def test_check_jd_drops_invented_quotes_and_bad_tixing(self):
+    # 五步精读用的原文：BODY 是“基层治理是国家治理的基石，要把服务送到群众家门口…”，另有一段“让群众少跑腿，是衡量治理水平的一把尺子…”
+    GOOD = {"step1": {"old_words": [{"term": "试金石", "note": "检验作风的标准"}, {"term": "编造词语不存在", "note": "x"}],
+                      "verbs": [{"term": "服务送到", "note": "对象是群众"}], "new_terms": [{"term": "基层治理", "definition": ""}]},
+            "step2": {"thesis": "基层治理要便民", "parts": [{"point": "为什么要便民", "kind": "分析意义"}, {"point": "怎么办", "kind": "乱写"}],
+                      "paragraphs": [{"no": 1, "summary": "提出要把服务送到家门口", "type": "提出要求"}, {"no": 99, "summary": "超出范围", "type": "解释说明"}]},
+            "step3": {"items": [{"direction": "要把服务送到群众家门口", "domain": "民生", "landing": "设立社区一站式服务点", "source": "参考做法"},
+                                {"direction": "文章里根本没有这句话的方向", "domain": "人才", "landing": "编的", "source": "文中"}]},
+            "step4": {"quotes": [{"kind": "辩证论述", "text": "让群众少跑腿，是衡量治理水平的一把尺子", "use": "用在评价标准"},
+                                 {"kind": "巧用形象", "text": "这句话文章里根本没有过的内容啊", "use": "编的"}]},
+            "step5": {"yuyan": [{"type": "主旨概括题", "question": "这段文字意在强调什么？"}],
+                      "shenlun": [{"type": "提出对策", "question": "请根据材料，提出建议"}, {"type": "不存在的题型", "question": "x"}]}}
+
+    def test_check_jd_five_steps_drops_invented_content(self):
         with api.open_game() as g:
             art = self.seed(g)
-        real = "让群众少跑腿，是衡量治理水平的一把尺子"
-        raw = {"theme": "基层治理要便民", "points": ["服务到家门口"], "structure": ["提出", "分析"],
-               "quotes": [{"text": real, "use": "分析题"}, {"text": "这句话文章里根本没有过的内容啊", "use": "编的"}],
-               "materials": [{"kind": "怪", "text": "一网通办"}], "tixing": ["提出对策", "不存在的题型"], "writing": "写法"}
-        jd = articles.check_jd(raw, art, cards.DEFAULT_DECKS_SHENLUN)
-        self.assertEqual([q["text"] for q in jd["quotes"]], [real])
-        self.assertEqual(jd["tixing"], ["提出对策"])
-        self.assertEqual(jd["materials"][0]["kind"], "表述")
-        for bad in ({}, {"theme": "x", "points": []}):
+        jd = articles.check_jd(self.GOOD, art, cards.DEFAULT_DECKS_SHENLUN)
+        self.assertEqual(jd["version"], 2)
+        self.assertEqual([x["term"] for x in jd["step1"]["old_words"]], ["试金石"])            # 文里没有的词丢掉
+        self.assertEqual(jd["step2"]["thesis"], "基层治理要便民")
+        self.assertEqual([x["kind"] for x in jd["step2"]["parts"]], ["分析意义", "其他"])
+        self.assertEqual([x["no"] for x in jd["step2"]["paragraphs"]], [1])                     # 超出段号范围的丢掉
+        self.assertEqual([x["direction"] for x in jd["step3"]["items"]], ["要把服务送到群众家门口"])   # 方向必须原文真有
+        self.assertEqual([q["text"] for q in jd["step4"]["quotes"]], ["让群众少跑腿，是衡量治理水平的一把尺子"])
+        self.assertEqual([x["type"] for x in jd["step5"]["shenlun"]], ["提出对策"])              # 题型只能是本科目题型
+        self.assertNotIn("step6", jd)                                                         # 第六步用户自己做，不生成
+        for bad in ({}, {"step2": {"thesis": ""}}, {"step2": {"thesis": "x"}}):
             with self.assertRaises(articles.ArticleError):
                 articles.check_jd(bad, art, [])
 
-    def test_api_jd_retry_cache_and_cards(self):
+    def test_jd_messages_number_paragraphs(self):
+        with api.open_game() as g:
+            art = self.seed(g)
+        user = articles.jd_messages(art, ["提出对策"])[1]["content"]
+        self.assertIn("[1] ", user)
+        self.assertIn("step1", articles.JD_SYSTEM)
+        self.assertNotIn("模拟输出", articles.JD_SYSTEM)
+
+    def test_api_jd_retry_cache_and_digest(self):
         with api.open_game() as g:
             self.seed(g)
-        good = {"theme": "主旨", "points": ["观点"], "structure": [], "quotes": [{"text": "让群众少跑腿，是衡量治理水平的一把尺子", "use": "用在对策"}],
-                "materials": [{"kind": "表述", "text": "服务送到家门口"}], "tixing": ["提出对策"], "writing": ""}
         calls = []
 
         def fake(msgs, **kw):
             calls.append(1)
-            return {"nope": 1} if len(calls) == 1 else good
+            return {"nope": 1} if len(calls) == 1 else self.GOOD
         with patch.object(ai, "available", return_value=True), patch.object(ai, "chat_json", side_effect=fake):
             r = api.ar_jd({"id": "abcd1234"})
             self.assertEqual(len(calls), 2)                                  # 第一次格式不对，重试一次
@@ -194,11 +214,26 @@ class StateAndJdTest(Base):
             r2 = api.ar_jd({"id": "abcd1234"})
             self.assertTrue(r2["cached"])
             self.assertEqual(len(calls), 2)                                  # 存过的不再花钱
-        c = api.ar_cards({"id": "abcd1234"})
-        self.assertEqual(c["added"], 2)
-        self.assertEqual(api.ar_cards({"id": "abcd1234"})["added"], 0)       # 不重复刻
+        self.assertFalse(api.ar_get({"id": "abcd1234"})["digest"])
+        d = api.ar_digest_save({"id": "abcd1234"})
+        self.assertEqual((d["countermeasures"], d["quotes"], d["again"]), (1, 1, False))
+        self.assertTrue(api.ar_get({"id": "abcd1234"})["digest"])
+        self.assertTrue(api.ar_digest_save({"id": "abcd1234"})["again"])      # 再存是覆盖，不重复
+        items = api.ar_digest_list({})["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["countermeasures"][0]["domain"], "民生")
+        self.assertEqual(items[0]["quotes"][0]["kind"], "辩证论述")
+        with api.open_game() as g:                                           # 摘编是翻阅用的笔记，不生成复习卡片
+            self.assertNotIn("每日文章", str(cards.data(g)["decks"]))
+        api.ar_digest_remove({"id": "abcd1234"})
+        self.assertEqual(api.ar_digest_list({})["items"], [])
+
+    def test_digest_needs_new_style_jd(self):
         with api.open_game() as g:
-            self.assertIn("每日文章", cards.data(g)["decks"].get("综合分析", {}).get("children", {}) or str(cards.data(g)["decks"]))
+            self.seed(g)
+            articles.save_jd(g.paths, "abcd1234", {"theme": "旧版精读", "points": ["x"], "structure": [], "quotes": [], "materials": [], "tixing": [], "writing": ""})
+        with self.assertRaises(api.ApiError):
+            api.ar_digest_save({"id": "abcd1234"})                            # 旧版（无 version）提示重新精读
 
     def test_jd_fails_cleanly_when_ai_keeps_bad(self):
         with api.open_game() as g:

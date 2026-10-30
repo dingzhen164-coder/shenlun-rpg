@@ -21,6 +21,10 @@ const zipped=spawnSync('python3',['-c',"import io,json,sys,zipfile\nb=io.BytesIO
   const old=await page.evaluate(()=>T.msgs.find(m=>m.text?.includes('猫专属讲解'))?.mentor?.name);assert.equal(old,'大懒猫','切换老师不能把旧讲解冒认为新老师');
   await page.locator('[data-act^="exam_explain:"]').click();await page.waitForFunction(()=>!T.busy&&T.msgs.some(m=>m.text?.includes('句号专属讲解')));assert.equal(aiCalls,2);
   assert.equal(await page.evaluate(()=>T.mentor.avatar),'assets/teachers/full-stop.png');for(const asset of ['lazy-cat','jade-cabbage','full-stop']){const response=await page.request.get(base+'/assets/teachers/'+asset+'.png');assert.equal(response.status(),200);}
+  const lay=await page.evaluate(()=>{const sel=document.querySelector('#reviewSkillTeacher'),row=sel.closest('.composer-row'),comp=document.querySelector('.composer'),corner=[...document.querySelectorAll('.beauty-audio,.page-settings-gear')].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0);
+   const sb=sel.getBoundingClientRect(),btns=[...(row?row.querySelectorAll('button'):[])].map(b=>b.getBoundingClientRect()),hit=btns.some(b=>corner.some(c=>b.left<c.right&&b.right>c.left&&b.top<c.bottom&&b.bottom>c.top));
+   return {inRow:!!row,sameLine:btns.length>0&&Math.abs((sb.top+sb.bottom)/2-(btns[0].top+btns[0].bottom)/2)<btns[0].height,labelText:sel.closest('label').textContent.includes('心法老师'),opts:[...sel.options].every(o=>!o.textContent.includes('心法')),hit,rowH:comp.getBoundingClientRect().height};});
+  assert(lay.inRow,'心法老师选择并进底部按钮行，不单独占一行');assert(lay.sameLine,'选择框与“求助”等按钮在同一行（'+label+'）');assert(!lay.labelText,'下拉框只显示老师名字，不再带“心法老师”文字');assert(!lay.hit,'底部按钮不被右下角音量/设置圆钮压住（'+label+'）');
   assert.equal(await page.locator('.review-teacher-avatar').count(),1,'复盘选择区直接显示老师Q版头像');await page.locator('.review-teacher-avatar').evaluate(img=>img.decode());assert(await page.locator('.review-teacher-avatar').isVisible());
   if(label==='desktop'){fs.mkdirSync('ui-artifacts/teachers',{recursive:true});await page.screenshot({path:'ui-artifacts/teachers/review-desktop.png'});}
   if(label==='desktop'){

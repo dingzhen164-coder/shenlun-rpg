@@ -62,6 +62,7 @@ jobs:
               ['node', 'tests/ui_mindmap381.cjs'],
               ['node', 'tests/ui_hollow381.cjs'],
               ['node', 'tests/ui_art381.cjs'],
+              ['node', 'tests/ui_art_shenlun.cjs'],
               ['node', 'tests/ui_trial_phase374.cjs'],
               ['node', 'tests/ui_art368.cjs'],
               ['node', 'tests/test_guide.cjs'],
@@ -100,6 +101,7 @@ jobs:
               ['node', 'tests/ui_scene_panels.cjs', '--subject=行测'],
               ['node', 'tests/ui_scene_panels.cjs', '--subject=申论'],
               ['node', 'tests/ui_trial_hall.cjs', '--shots'],
+              ['node', 'tests/ui_scene_top.cjs'],
               ['node', 'tests/ui_exam_room.cjs'],
               ['node', 'tests/ui_warm_load.cjs'],
               ['node', 'tests/ui_contest_scene.cjs', '--subject=行测', '--shots'],
@@ -207,7 +209,7 @@ jobs:
         shell: python
         run: |
           import subprocess
-          for command in [['node', 'tests/ui_articles.cjs']]:
+          for command in [['node', 'tests/ui_articles.cjs'], ['node', 'tests/ui_articles_reader.cjs']]:
               result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
               print(' '.join(command) + '\n' + result.stdout, flush=True)
               if result.returncode:

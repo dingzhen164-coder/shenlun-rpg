@@ -51,3 +51,12 @@ class Idioms359Test(unittest.TestCase):
     def test_dictionary_excludes_short_words_and_plain_four_character_phrases(self):
         for w in ('提高','渐进性','经济发展','ABCDE'):self.assertFalse(idioms.is_word(w))
         for w in ('方兴未艾','屡禁不止','一叶障目不见泰山'):self.assertTrue(idioms.is_word(w),w)
+    def test_idiom_detail_labels_not_gold_on_cream(self):
+        """逐字/出处小标签和纸面不用金色字、金底：米黄卡片上看不清（样式回归，见踩坑记录）"""
+        import re
+        css=(Path(__file__).resolve().parent.parent/'web'/'style.css').read_text(encoding='utf-8')
+        rule=lambda sel:re.search(re.escape(sel)+r'\s*\{([^}]*)\}',css).group(1)
+        self.assertNotRegex(rule('.id-k'),r'(?<![-\w])color:\s*var\(--gold\)')
+        self.assertNotIn('--gold',rule('.id-detail'))
+        self.assertNotIn('--gold',rule('.id-cmp-short'))
+        self.assertIn('.id-card .id-detail.id-detail',css)          # 压过轻透界面给阅读纸面铺的米黄底
