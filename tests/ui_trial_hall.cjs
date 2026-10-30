@@ -11,7 +11,7 @@ async function fits(page){
   if(r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1)bad.push('框越界');
   if(frame!==scene&&Math.abs(r.width-scene.parentElement.clientWidth)>3)bad.push('面板未全宽');
   if(frame.scrollWidth>frame.clientWidth+2)bad.push('框横向溢出');
-  if(frame===scene){const view=scene.parentElement.getBoundingClientRect();if(Math.abs(r.height-view.height)>2)bad.push('塔景未铺满高度');return bad;}
+  if(frame===scene){const fx=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fx-height'))||innerHeight;if(Math.abs(r.height-fx)>2||Math.abs(r.top)>1)bad.push('塔景未铺满整个屏幕（含顶栏后面）');return bad;}   // 2026-10-29起塔景固定铺满视口，顶栏牌子浮在画面上
   for(const selector of ['.th-actions','.th-dialog-head']){const e=frame.querySelector(selector),b=e.getBoundingClientRect();if(b.top<r.top||b.bottom>r.bottom+1||!b.height)bad.push('固定区域越界 '+selector);}
   for(const button of frame.querySelectorAll('.th-actions button')){const b=button.getBoundingClientRect();if(b.width&&b.height&&(b.left<r.left||b.right>r.right+1||b.bottom>r.bottom+1))bad.push('操作不可达');}
   const pane=frame.querySelector('.th-pane:not([hidden])');if(pane.scrollWidth>pane.clientWidth+2)bad.push('面板横向溢出');

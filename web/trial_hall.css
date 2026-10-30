@@ -1,7 +1,7 @@
 /* 全高试炼场景：稳定建筑、分层云雾与灯火；左右石门打开同一卷宗，整页固定。 */
 /* 3.6.9：行测使用同一幅高清塔景；画框按实际contain尺寸定位入口，横竖屏均不裁建筑。 */
 .fixed-app #view:has(.trial-hall){max-width:none;padding:0}
-.fixed-app .trial-hall{position:relative;flex:1;min-width:0;min-height:0;width:100%;overflow:hidden;isolation:isolate;container-type:inline-size;--th-gold:var(--ds-gold)}
+.fixed-app .trial-hall{position:fixed;left:0;top:0;height:var(--fx-height,100dvh);min-width:0;min-height:0;width:100%;overflow:hidden;isolation:isolate;container-type:inline-size;--th-gold:var(--ds-gold)}
 .th-world{position:absolute;inset:0;overflow:hidden;background:var(--ds-paper)}
 .th-landscape{position:absolute;inset:0;background:url('assets/beauty/trial/landscape.png') center bottom/cover no-repeat;pointer-events:none}
 .th-landscape:after{content:"";position:absolute;inset:0;box-shadow:inset 0 12px 40px var(--ds-sign-shadow);background:linear-gradient(180deg,var(--ds-glint),transparent 30%)}
@@ -13,10 +13,10 @@
 .th-cloud{position:absolute;left:-12%;width:124%;height:20%;pointer-events:none;background:radial-gradient(ellipse at 20% 50%,var(--ds-paper),transparent 55%),radial-gradient(ellipse at 78% 60%,var(--ds-paper),transparent 58%);filter:blur(18px);opacity:.45;animation:th-cloud-drift 32s ease-in-out infinite alternate}
 .th-cloud-back{bottom:32%;opacity:.35}
 .th-cloud-front{bottom:5%;height:14%;animation-duration:43s;animation-direction:alternate-reverse;opacity:.6}
-.th-world-title{position:absolute;left:5%;top:6%;color:var(--ds-paper-ink);pointer-events:none}
+.th-world-title{position:absolute;left:5%;top:calc(var(--study-workspace-height,0px) + 6%);color:var(--ds-paper-ink);pointer-events:none}
 .th-world-title p,.th-world-title>span{font-size:var(--ds-fs-11);letter-spacing:.16em;margin:0;color:var(--ds-paper-accent)}
 .th-world-title>span{display:block;margin-top:var(--ds-sp-8)}
-.th-scene-tools{position:absolute;right:4%;top:6%;display:flex;flex-direction:column;align-items:flex-end;gap:var(--ds-sp-8)}
+.th-scene-tools{position:absolute;right:4%;top:calc(var(--study-workspace-height,0px) + 6%);display:flex;flex-direction:column;align-items:flex-end;gap:var(--ds-sp-8)}
 .th-scene-tools button{min-height:42px;font-size:var(--ds-fs-12);padding:var(--ds-sp-8) var(--ds-sp-12);border:1px solid var(--ds-paper-line);border-radius:var(--ds-r-4);background:var(--ds-paper);color:var(--ds-paper-ink);box-shadow:var(--ds-shadow-1)}
 .trial-hall .th-gate{position:absolute;bottom:14%;width:24%;max-width:310px;height:43%;border:0;padding:0;background:none;box-shadow:none;border-radius:0;display:flex;justify-content:center;align-items:flex-end;transition:transform var(--ds-dur-slow),filter var(--ds-dur-slow);color:var(--ds-sign-ink)}
 .th-gate-sets{left:6%}.th-gate-blocks{right:6%}
@@ -102,7 +102,7 @@
 @media(prefers-reduced-motion:reduce){.trial-hall *, .trial-hall *:before,.trial-hall *:after{animation:none!important;transition:none!important}}
 [data-motion=reduced] .trial-hall *,[data-motion=paused] .trial-hall *,.th-still *{animation:none!important;transition:none!important}
 .trial-hall:has(dialog[open]) .th-world *{animation-play-state:paused}
-@container(max-width:900px){.th-gate-sets{left:1%}.th-gate-blocks{right:1%}.trial-hall .th-gate{width:29%;height:32%;bottom:15%}.th-world-title{top:4%;left:4%}.th-scene-tools{top:4%}}
+@container(max-width:900px){.th-gate-sets{left:1%}.th-gate-blocks{right:1%}.trial-hall .th-gate{width:29%;height:32%;bottom:15%}.th-world-title{top:calc(var(--study-workspace-height,0px) + 4%);left:4%}.th-scene-tools{top:calc(var(--study-workspace-height,0px) + 4%)}}
 @container(max-width:460px){.th-stats{gap:var(--ds-sp-4) var(--ds-sp-8)}.th-stats b{font-size:var(--ds-fs-14)}.th-tabs{gap:var(--ds-sp-8);padding:0 var(--ds-sp-12)}.th-pane{padding:var(--ds-sp-12)}.th-actions{padding:var(--ds-sp-8) var(--ds-sp-12)}.th-action-note{flex-basis:100%}.th-action-buttons{width:100%}.th-action-buttons button{flex:1}.th-actions>.th-start{width:100%}.th-dialog-head{padding:var(--ds-sp-12)}}
 
 @media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){
@@ -143,7 +143,7 @@ html[data-scene-time=day] .th-painted.th-side-gap::before{filter:blur(20px)}
 .th-painted-gate span{position:absolute;bottom:18%;font-size:clamp(10px,1.35cqw,14px);font-weight:600;letter-spacing:.04em;white-space:nowrap}
 .trial-hall .th-painted-gate:hover{background:color-mix(in srgb,var(--ds-gold) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ds-gold) 55%,transparent)}
 .trial-hall .th-painted-gate:focus-visible{outline:2px solid var(--ds-sign-focus);outline-offset:var(--ds-sp-4)}
-.th-painted .th-world-title{top:var(--ds-sp-24);left:var(--ds-sp-24);text-shadow:0 1px 8px var(--ds-paper)}
+.th-painted .th-world-title{top:calc(var(--study-workspace-height,0px) + var(--ds-sp-24));left:var(--ds-sp-24);text-shadow:0 1px 8px var(--ds-paper)}
 .th-painted .th-world-title h2{font:700 var(--ds-fs-26)/1.5 var(--display);letter-spacing:.22em;margin:var(--ds-sp-4) 0}
 .th-painted .th-stele{bottom:var(--ds-sp-24);padding:var(--ds-sp-12) var(--ds-sp-16);width:max-content;max-width:60%;background:color-mix(in srgb,var(--ds-paper) 88%,transparent);border:1px solid var(--ds-gold-line);border-radius:var(--ds-r-4);text-shadow:none;box-shadow:var(--ds-shadow-1)}
 html[data-scene-phase] .trial-hall .th-painted .th-stele{color:var(--ds-paper-ink);text-shadow:none}

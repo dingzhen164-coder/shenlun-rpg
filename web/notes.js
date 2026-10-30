@@ -206,8 +206,8 @@
           <button data-act="redo" title="重做（Ctrl+Y）" ${redo.length ? "" : "disabled"}>↷</button>
         </span>
         <span class="spacer"></span>
-        ${NB.article ? '<button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存状态，点击可重试保存">已保存 · 公务手账</button>' : ""}
-        <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : "📄 导出 PDF"}</button>
+        ${NB.article ? '<button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存在公务手账；点击可立即重试保存">已保存</button>' : ""}
+        <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : NB.article ? "📄 PDF" : "📄 导出 PDF"}</button>
         <button class="ghost small nt-fullbtn" id="ntFull" title="全屏写（再点一次退出）">${fullIcon(isFull())}</button>
         <button class="ghost small" id="ntClose" title="收起本子（已自动保存）">✕</button>
       </div>
@@ -586,7 +586,7 @@
       const b = BOOKS.find((x) => x.id === book.id);
       if (b && (b.title !== r.title || b.pages !== book.pages.length)) { b.title = r.title; b.pages = book.pages.length; repaintSide(); }
       if (NB === book && ver !== v0) return flush();       // 存的这会儿又写了：接着存，直到存上最新的
-      if (NB === book) { dirty = false; saveStatus("已保存 · 公务手账"); }
+      if (NB === book) { dirty = false; saveStatus("已保存"); }
       return true;
     } catch (e) { saving = null; done(); saveStatus("保存失败 · 点此重试"); showError(e); return false; }
   }

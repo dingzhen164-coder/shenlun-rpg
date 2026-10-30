@@ -604,11 +604,15 @@ const views = {
     }
     const inp = T.input;
     let composer = "";
+    // 心法老师选择：并进底部按钮行（不再单独占一行，把高度让给题目）；只显示老师名字
+    const teacherPick = T.skillTeachers?.options?.length ? `<label class="review-skill-teacher" title="心法老师">${T.mentor?.avatar ? `<img class="review-teacher-avatar" src="${esc(T.mentor.avatar)}" alt="${esc(T.mentor.name)}的心法头像">` : ""}<select id="reviewSkillTeacher" aria-label="心法老师" ${T.busy ? "disabled" : ""}>${T.skillTeachers.options.map((t) => `<option value="${esc(t.name)}" ${t.name === T.skillTeachers.selected ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>` : "";
+    let teacherInRow = false;
     if (T.busy) composer = `<div class="thinking">${esc(T.mentor?.name || DASH?.persona?.tutor || "导师")}正在判定</div>`;
     else if (inp.mode === "text" && inp.buttons) {
       // 复盘类（试炼复盘 / 大比复盘 / 题后讨论）：打字框默认收起，点左下角「师傅求助」才打开，题目区域更大
+      teacherInRow = true;
       composer = `${ASK_OPEN ? `<textarea id="answer" placeholder="${esc(inp.placeholder || "")}"></textarea>` : ""}
-        <div class="row composer-row" style="margin-top:${ASK_OPEN ? 8 : 0}px"><button class="${ASK_OPEN ? "" : "ghost"} ask-btn" id="askToggle">🙋 ${ASK_OPEN ? "收起" : esc(T.mentor ? T.mentor.name + "求助" : "师傅求助")}</button>${ASK_OPEN ? `<button class="primary" id="send">${esc(T.mentor ? "问" + T.mentor.name : "问师傅")}</button>` : ""}<span class="spacer"></span>
+        <div class="row composer-row" style="margin-top:${ASK_OPEN ? 8 : 0}px"><button class="${ASK_OPEN ? "" : "ghost"} ask-btn" id="askToggle">🙋 ${ASK_OPEN ? "收起" : esc(T.mentor ? T.mentor.name + "求助" : "师傅求助")}</button>${teacherPick}${ASK_OPEN ? `<button class="primary" id="send">${esc(T.mentor ? "问" + T.mentor.name : "问师傅")}</button>` : ""}<span class="spacer"></span>
         ${inp.buttons.map((b) => `<button class="ghost" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
     }
     else if (inp.mode === "text") composer = `<textarea id="answer" placeholder="${esc(inp.placeholder || "")}"></textarea>
@@ -619,21 +623,23 @@ const views = {
     else if (T.finished) composer = `<div class="row"><button class="primary" id="nextTask">下一项功课</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
     return `<div class="train">
       <div class="card chat ${MAT_OPEN && currentMaterial() ? "with-mat" : ""}">${sessionHead()}${materialPane()}<div class="msgs" id="msgs">${T.msgs.map(msgHtml).join("")}</div>
-        <div class="composer">${T.skillTeachers?.options?.length?`<label class="review-skill-teacher">${T.mentor?.avatar?`<img class="review-teacher-avatar" src="${esc(T.mentor.avatar)}" alt="${esc(T.mentor.name)}的心法头像">`:''}心法老师<select id="reviewSkillTeacher" aria-label="复盘心法老师" ${T.busy?'disabled':''}>${T.skillTeachers.options.map(t=>`<option value="${esc(t.name)}" ${t.name===T.skillTeachers.selected?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`:''}${composer}</div></div></div>`;
+        <div class="composer">${teacherInRow ? "" : teacherPick}${composer}</div></div></div>`;
   },
 
   async skeleton() {
-    if (isSL() && !["cards", "bank", "jiaocai", "mindmaps", "skillbook"].includes(LIB.tab)) LIB.tab = "cards";
+    if (isSL() && !["cards", "bank", "jiaocai", "mindmaps", "skillbook", "digest"].includes(LIB.tab)) LIB.tab = "cards";
     const tabs = `<div class="lib-head"><h2>${esc(NAV('skeleton'))}</h2><div class="lib-tabs">
       <button class="${LIB.tab === 'mindmaps' ? 'on' : ''}" data-libtab="mindmaps">🌿 知识导图</button>
       <button class="${LIB.tab === 'cards' ? 'on' : ''}" data-libtab="cards">📗 ${esc(W('yj'))} · 知识点</button>
       ${isSL() ? `<button class="${LIB.tab === 'bank' ? 'on' : ''}" data-libtab="bank">📑 题库</button>` : `<button class="${LIB.tab === 'yujian' ? 'on' : ''}" data-libtab="yujian">📖 经卷 · 题库</button>
       <button class="${LIB.tab === 'idioms' ? 'on' : ''}" data-libtab="idioms">📘 词录 · 成语实词</button>`}
       <button class="${LIB.tab === 'skillbook' ? 'on' : ''}" data-libtab="skillbook">📘 ${esc(W('skillbook'))}</button>
+      ${isSL() ? `<button class="${LIB.tab === 'digest' ? 'on' : ''}" data-libtab="digest">📎 摘编</button>` : ''}
       <button class="${LIB.tab === 'jiaocai' ? 'on' : ''}" data-libtab="jiaocai">📜 功法 · 教材</button></div></div>`;
     if (LIB.tab === 'bank' && window.SHENLUN) return tabs + await SHENLUN.libHtml();
     if (LIB.tab === 'idioms') return tabs + `<div class="id-root">${await IDIOMS.render()}</div>`;
     if (LIB.tab === 'skillbook') return tabs + await SKILLBOOK.render();
+    if (LIB.tab === 'digest' && window.DIGEST) return tabs + await DIGEST.render();
     if (LIB.tab === 'yujian') return tabs + await yujianHtml() + importCardHtml();
     if (LIB.tab === 'jiaocai') return tabs + await jiaocaiHtml();
     if (LIB.tab === 'mindmaps') return tabs + await MINDMAP.hubHtml(null, true);
@@ -1498,6 +1504,7 @@ function bindLibrary() {
 function bindSkeleton() {
   bindLibrary();
   window.SKILLBOOK?.bind($("#view"));
+  if (LIB.tab === "digest") window.DIGEST?.bind($("#view"));
   window.MINDMAP?.bindHub($("#view"));
   if ($('#importCard')) $('#importCard').ontoggle = (e) => { if (e.target.open) loadImport(); };
   document.querySelectorAll("[data-skel]").forEach((b) => (b.onclick = () =>

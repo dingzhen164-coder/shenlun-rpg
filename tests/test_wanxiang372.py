@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from rpg import api, politics, tianji, wanxiang_journal as journal
-from tests import test_tianji as fixtures
+from tests import per_question_rules, test_tianji as fixtures
 
 
 def setUpModule():
@@ -113,6 +113,7 @@ class JournalTests(unittest.TestCase):
             d=journal.load(g.paths,**dict(kind='month',iid=result['id']))
             d['questions'][0]['answer']='AB'
             journal._write(journal._file(g.paths,'month',result['id']),d)
+        per_question_rules.enable(self.vault)
         first=self.call('mark',dict(key,quiz=0,choice='BA'))
         self.assertTrue(first['progress']['quiz']['0']['ok'])
         self.assertTrue(first['events'])

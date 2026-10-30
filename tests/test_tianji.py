@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from rpg import api, cards, paths, tianji
 import study_clock_fixture
+import per_question_rules
 
 try:
     import pymupdf as fitz
@@ -128,6 +129,7 @@ class TianjiTest(unittest.TestCase):
         ls = api.tj_list({})
         self.assertEqual([x["id"] for x in ls["month"]], ["2026-09-下"])
         self.assertEqual(ls["topic"][0]["category"], "两会·政府报告")
+        per_question_rules.enable(self.vault)             # 默认做题不按题数发修为；本用例测第一次答发修为
         k = dict(kind="month", id="2026-09-下")
         api.tj_get(k)
         api.tj_mark(dict(k, read=0))
