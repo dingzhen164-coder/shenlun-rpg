@@ -18,13 +18,15 @@
   // 科目守卫用转义：申论wording会改写源码中的“行测”字面量，不能让专属场景误启用。
   const isXingce=()=>{try{return (typeof DASH!=='undefined'?DASH.subject:'')==='\u884c\u6d4b';}catch(_){return false;}};
   const isShenlun=()=>{try{return (typeof DASH!=='undefined'?DASH.subject:'')==='\u7533\u8bba';}catch(_){return false;}};
-  const SL_ROOMS=['dwelling','bank','contest'];
+  const SL_ROOMS=['dwelling','bank','contest','train','skeleton','tianji','settings'];
+  // 训练题型仍沿用各自的独立场景，只有大厅使用整体背景。
+  const isSlRoom=(page)=>isShenlun()&&SL_ROOMS.includes(page)&&(page!=='train'||!REGION_KEY[regionName()]);
   const phase=()=>document.documentElement.dataset.scenePhase||document.documentElement.dataset.sceneTime||'day';
   const regionName = () => { try { return window.STUDY_REGIONS ? STUDY_REGIONS.title() : ''; } catch (e) { return ''; } };
   const tabLabel = () => { const t = document.querySelector('.fx-tab[aria-selected="true"]'); return t ? t.textContent.trim() : ''; };
   let view = '', applied='';
   function findHit(page, dn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime || 'day') {
-    if(isShenlun()&&SL_ROOMS.includes(page)){
+    if(isSlRoom(page)){
       const other=dn==='dusk'?['day','night']:[dn==='night'?'day':'night'];
       const tk=page==='dwelling'?TAB_KEY[tabLabel()]:'';
       const own=[...(tk?[`beauty/page/dwelling-${tk}-${dn}.webp`,`beauty/page/dwelling-${tk}.webp`,...other.map(t=>`beauty/page/dwelling-${tk}-${t}.webp`)]:[]),`beauty/page/${page}-${dn}.webp`,`beauty/page/${page}.webp`,...other.map(t=>`beauty/page/${page}-${t}.webp`)];
@@ -90,7 +92,7 @@
     // 五峰是独立地点，不再被旧全局背景压住；专门设置的峰/页背景仍优先。
     const peakScene=view==='train'&&PEAK_NAMES.includes(regionName());
     const roomScene=view==='train'&&b.classList.contains('academy-room');
-    const independent=(isXingce()&&ROOMS381.includes(view))||(isShenlun()&&SL_ROOMS.includes(view)),nativeRoom=independent&&hit&&(!custom.has(hit)||/-(day|dusk|night|dawn)\.webp$/.test(hit));
+    const independent=(isXingce()&&ROOMS381.includes(view))||isSlRoom(view),nativeRoom=independent&&hit&&(!custom.has(hit)||/-(day|dusk|night|dawn)\.webp$/.test(hit));
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene&&!roomScene&&!independent)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
     b.dataset.sceneRelight=(hit?(peakScene||nativeRoom||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
