@@ -62,6 +62,7 @@ jobs:
               ['node', 'tests/ui_mindmap381.cjs'],
               ['node', 'tests/ui_hollow381.cjs'],
               ['node', 'tests/ui_art381.cjs'],
+              ['node', 'tests/ui_art_shenlun.cjs'],
               ['node', 'tests/ui_trial_phase374.cjs'],
               ['node', 'tests/ui_art368.cjs'],
               ['node', 'tests/test_guide.cjs'],

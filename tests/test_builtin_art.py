@@ -84,11 +84,11 @@ class BuiltinArtTest(unittest.TestCase):
             if kind != 'landscape':
                 with Image.open(p) as im:
                     self.assertEqual(im.getchannel('A').getextrema(), (0, 255))
-        self.assertEqual(len(unique), 32)  # 六处新增独立夜景；旧洞府页签仍兼容。
+        self.assertEqual(len(unique), 35)  # 行测六处及申论 P1 三处独立夜景；旧页签仍兼容。
         for p in unique:
             with Image.open(p) as im:
                 self.assertGreaterEqual(max(im.size), 1152)
-            hd = '/hd/368/train-' in p.as_posix() or '/hd/381/' in p.as_posix()
+            hd = '/hd/368/train-' in p.as_posix() or '/hd/381/' in p.as_posix() or '/shenlun/hd/384/' in p.as_posix()
             self.assertLessEqual(p.stat().st_size, (12 * 1024 * 1024) if hd else 350 * 1024)
         for color in ('jade', 'vermilion', 'indigo'):
             with Image.open(assets / ('beauty/fx/sword-chibi-%s.webp' % color)) as im:

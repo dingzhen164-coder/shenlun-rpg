@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-358de822-347f-4877-bee8-cd47fb92fff7.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-f756e2f5-3a5c-4216-aabb-002da5681972.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "49f29e1fe2d44708266071034930ede83948e4bff80e40d59927b3b4b55c26c2"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-a2799883-9f7f-4e89-91af-ee8a653e39eb.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "153db54dccecdc6ebd7bb527d6c9a6563274440b527c97952884375747ff4853"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-738c220a-03e8-4c90-9ce4-9a278ddf3f82.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "82dd1120851c1226f658cf7de282d05229ac6e4d775fa2444b13b0091fceb4db"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-03ce89a6-bb45-4f3a-96a6-827090c7db13.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "194893da4c6cb06711b5bd3c4685e0355783990c0198a5666a4596fa92fa7e89"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-5abab34e-ecab-4796-8ef3-25369f459f56.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "0171a6a02c31b53b98e6ea0328b6982a500753726ca4f0cf0d79838c6a1f760a"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-3f676470-1afa-4ec3-a636-27922aebd637.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c24cc71641b194dda7ab9d0aecfe1db1dce663f2b6ac9cbc34160d536333ebc6"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-6a8f8105-63a1-4c06-adab-1721c164aeac.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "894bc286c8767bc2b7ab3550687f76c02c3b4d33de3bbb1d76d76aed0eedb68c"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p1-cool/dwelling-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-67c99962-d61d-45c5-9a2a-634f0cf8f12e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "8fb3060cbe4b7fdb2568b95f443f2deb5356bd6e62b66026ececd3f4c0a48d7d"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/dwelling-night.webp",
+  "sha256": "2beba40e92d56f83a2df4270445416fe794a9a78e952b6ae41616ae80a60d42e",
+  "bytes": 2803586,
+  "actual": [
+    3840,
+    2880
+  ]
+}

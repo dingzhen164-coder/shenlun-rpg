@@ -4,6 +4,7 @@
 
 | 编号 | 路径（相对 web/assets） | 用途 | 来源 | 授权 | 日期 | 生成提示词/备注 |
 |---|---|---|---|---|---|---|
+| art384-shenlun-p1 | beauty/scenes/shenlun/hd/384/{dwelling,bank,contest}-{day,dusk,night}.webp（9张） | 申论办公室、训练中心、年度考核分时背景 | OpenAI imagegen 原创构图及每张8个原生细绘块 | 生成服务条款；无第三方参考图 | 2026-10-29 | 3840×2880，原生分块只缩小合成；来源及摘要见相邻 provenance；不用于法考 |
 | art381-six-scenes | beauty/scenes/xingce/hd/381/{dwelling,bank,contest,skeleton,tianji,settings}-{day,dusk,night}.webp、bank-dawn.webp、selection-{dawn,day,dusk,night}.webp（23张） | 六处独立昼/昏/夜与塔清晨、选择厅；电脑/平板横竖屏 | OpenAI imagegen原创构图+每张8个原生细绘块，参考仅项目自有素材 | 生成服务条款；无第三方参考图 | 2026-10-25 | 3840×2880，只降采样合成，无放大冒充4K；每图provenance含原生尺寸/坐标/来源ID/SHA256，提示词及安全区见ART381.md；不随法考打包 |
 | trial-hall-369 | beauty/trial/hd/369/hall-day.webp | 行测完整试炼塔与双门场景，电脑/平板横竖屏 | OpenAI imagegen原创构图与8个原生细绘块 | 生成服务条款 | 2026-10-23 | 3840×2880，3.47MiB；青绿云海、同光照塔门、无字匾额；不补全裁块边缘建筑，按原构图细绘后只缩小合成；提示词要求兼顾电脑/平板，实际采用完整contain画框保护主体，出处/原生尺寸/SHA256见同目录provenance.json |
 | xc-sect-day | sect/xc-sect-day.webp | 青衡宗白天全景 | Gemini 生成 | 以生成服务条款为准（用户确认） | 2026-10-15 | 见 sect/README.md |

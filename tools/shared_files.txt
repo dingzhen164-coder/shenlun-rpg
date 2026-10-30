@@ -706,3 +706,5 @@ shared web/legacy_css.js
 shared tests/ui_legacy_css.cjs
 shared tests/test_xp_reconcile.py
 diverged tests/ui_scene_top.cjs
+
+shared tests/test_scene_layout_version.py
