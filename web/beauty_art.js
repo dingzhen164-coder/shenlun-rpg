@@ -101,7 +101,7 @@
     // 当前时段没有专图（法考黄昏只有白天/夜晚图）：用邻近时段的图，并保留程序调色，不能当成“原生光照”。
     const curDn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime||'day';
     const hitPhase=(String(hit||'').match(/-(day|dusk|night|dawn)\.webp$/)||[])[1];
-    const phaseOk=!nativeRoom||!hitPhase||hitPhase===curDn;
+    const phaseOk=!nativeRoom||!hitPhase||hitPhase===curDn||hitPhase==='dawn';
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene&&!roomScene&&!independent)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
     b.dataset.sceneRelight=(hit?(peakScene||(nativeRoom&&phaseOk)||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';

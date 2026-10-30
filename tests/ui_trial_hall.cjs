@@ -35,7 +35,7 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
   const painted=await page.locator('.th-panorama').count(),left=(await page.locator('[data-th-enter=exam]').count())?'exam':'sets';   // 行测左门是整卷模考（见 ui_exam_room.cjs），法考等仍是套卷练习
   await page.locator(painted?'.th-panorama':'.th-tower-art').evaluate(img=>img.decode());
-  if(painted){assert.equal(await page.locator('.th-panorama').evaluate(img=>img.naturalWidth),3840);assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const fit=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect(),inside=b=>b.left>=s.left-1&&b.right<=s.right+1&&b.top>=s.top-1&&b.bottom<=s.bottom+1;
+  if(painted){assert((await page.locator('.th-panorama').evaluate(img=>img.naturalWidth))>=1600,'塔前全景至少 1600 宽（法考现用 1600×1200 预览图，不是原生 4K）');assert.equal(await page.locator('.th-tower-art,.th-gate img').count(),0);const fit=await page.locator('.th-painting').evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.trial-hall').getBoundingClientRect(),inside=b=>b.left>=s.left-1&&b.right<=s.right+1&&b.top>=s.top-1&&b.bottom<=s.bottom+1;
    // 塔尖（画面上方）、左右山门与中央牌匾必须完整可见；横向要贴住或几乎贴住两侧，只允许裁掉底部多余石阶。
    const gates=[...el.querySelectorAll('.th-painted-gate')].map(g=>g.getBoundingClientRect()),stele=el.closest('.trial-hall').querySelector('.th-stele')?.getBoundingClientRect();
    return{cropped:el.classList.contains('th-fill'),sideGap:Math.max(r.left-s.left,s.right-r.right),topOk:r.top<=s.top+1,gates:gates.length===2&&gates.every(inside),stele:!stele||inside(stele),whole:inside(r),w:s.width,h:s.height};});
@@ -76,8 +76,9 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   // 套卷题数不受20题设置限制；此夹具一套跨两板块共6题。
   if(left==='sets'){await enter(page,'sets');await page.locator('[data-th-paper="23"]').click();await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),6);await pause(page);}
   // 按套卷板块训练取同一套全部题，包含做过的题，来源始终可见；独立恢复与旧模式互不覆盖。
-  if(painted){
-  await enter(page,'blocks');await page.locator('.bankOrder').selectOption('paper');
+  await enter(page,'blocks');   // 法考（魔法学院）没有“按套卷训练”，只有行测式试炼塔才有
+  if(painted&&await page.locator('.bankOrder option[value=paper]').count()){
+  await page.locator('.bankOrder').selectOption('paper');
   const source=await page.locator('[data-th-block-paper]').first().locator('b').textContent();await page.locator('[data-th-block-paper]').first().click();
   assert((await page.locator('.th-paper-source').textContent()).includes(source));assert.equal(await page.locator('#bankCount,[data-th-topic]').count(),0);await fits(page);
   const expected=Number((await page.locator('[data-th-block-paper][aria-pressed=true] .th-choice-progress').textContent()).match(/\d+/)[0]);

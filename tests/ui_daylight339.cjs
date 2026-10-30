@@ -26,7 +26,7 @@ async function setTime(p,mode){await p.evaluate(m=>{localStorage.setItem('scene-
   for(const view of ['dwelling','train','skeleton','notes','settings',...(subject==='申论'?[]:['bank','contest'])]){
    await p.evaluate(v=>go(v),view);if(view==='bank'||view==='contest')await p.locator(view==='bank'?'.th-landscape':'.cs-landscape').waitFor();else await p.waitForFunction(()=>document.body.classList.contains('has-page-art'));
    assert.equal(await p.evaluate(()=>document.documentElement.dataset.sceneTime),mode);const filter=await p.locator(view==='bank'?'.th-landscape':view==='contest'?'.cs-landscape':'#bgLayer').evaluate(e=>getComputedStyle(e).filter);
-   const native=mode==='night'&&!!subject;assert.equal(native?filter==='none':mode==='night'?filter.includes('brightness'):filter==='none',true,view+' '+theme+' '+mode+' '+filter);if(native)assert.equal(await p.evaluate(()=>document.body.dataset.sceneRelight),'native');
+   const native=mode==='night'&&(!!subject||['dwelling','bank','skeleton','notes'].includes(view));   // 法考这四处有独立夜景assert.equal(native?filter==='none':mode==='night'?filter.includes('brightness'):filter==='none',true,view+' '+theme+' '+mode+' '+filter);if(native)assert.equal(await p.evaluate(()=>document.body.dataset.sceneRelight),'native');
    assert.equal(await p.locator('#view').evaluate(e=>getComputedStyle(e).filter),'none');assert.equal(await p.locator('#studyHud').evaluate(e=>getComputedStyle(e).filter),'none');
    assert.equal(await p.evaluate(()=>scrollY>0||document.documentElement.scrollWidth>innerWidth+2||document.documentElement.scrollHeight>innerHeight+2),false);
   }
