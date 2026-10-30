@@ -81,7 +81,7 @@ shared rpg/task_board.py
 shared web/task_board.js
 shared web/task_board.css
 shared tests/test_task_board.py
-shared tests/ui_task_board.cjs
+diverged tests/ui_task_board.cjs
 shared defaults/台词库.md
 shared defaults/台词库·玄幻.md
 shared rpg/__init__.py
@@ -143,11 +143,11 @@ shared tests/ui_compact_review.cjs
 shared tests/ui_fixed_layout.cjs
 shared tests/ui_layout_check.cjs
 shared tests/ui_mac_update.cjs
-shared tests/ui_narrative.cjs
+diverged tests/ui_narrative.cjs
 shared tests/ui_reader_310.cjs
-shared tests/ui_status_navigation.cjs
-shared tests/ui_workspace_309.cjs
-shared tests/ui_world.cjs
+diverged tests/ui_status_navigation.cjs
+diverged tests/ui_workspace_309.cjs
+diverged tests/ui_world.cjs
 shared tools/compile_narrative.cjs
 shared tools/shared_files.txt
 shared tests/ui_back_button.cjs
@@ -659,7 +659,7 @@ shared tests/ui_layout335.cjs
 
 # 3.3.8 随包美术：别名清单与素材按各仓库科目独立
 diverged tests/test_builtin_art.py
-shared tests/ui_art338.cjs
+diverged tests/ui_art338.cjs
 diverged web/assets/beauty/builtin-art.json
 diverged tests/test_ai_thinking.py
 

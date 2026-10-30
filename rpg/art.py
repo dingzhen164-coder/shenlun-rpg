@@ -126,8 +126,10 @@ def slots(subject):
             out.append(("子地图背景", place + '-黄昏', 'beauty/page/%s-dusk.webp' % view, None, "image", ()))
             if subject == '行测' and view == 'bank':
                 out.append(("子地图背景", place + '-清晨', 'beauty/page/bank-dawn.webp', None, "image", ()))
-    if subject == '行测':
-        for phase, label in [('dawn', '清晨'), ('day', '白天'), ('dusk', '黄昏'), ('night', '夜晚')]:
+    if subject in ('行测', '法考'):
+        # 法考的选择厅只有白天、夜晚两张（黄昏、清晨用白天图+程序调色）。
+        phases = [('dawn', '清晨'), ('day', '白天'), ('dusk', '黄昏'), ('night', '夜晚')] if subject == '行测' else [('day', '白天'), ('night', '夜晚')]
+        for phase, label in phases:
             out.append(("子地图背景", '试炼塔-选择厅-' + label, 'beauty/trial/selection-%s.webp' % phase, None, "image", ()))
     for key, name in REGIONS.get(subject, []):
         out.append(("子地图背景", name, "beauty/page/train-%s.webp" % key, None, "image", ()))
