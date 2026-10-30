@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-f074c2ef-ee1b-4366-ad34-7fbf673d5d3e.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-9884c8c4-083a-4b76-94ea-e58eaf372e9e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "08e89a2fc0e84a5b06ead9dcd44b85399866e5da592f543f0cfbb04f283208c5"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-3138dbee-f950-4156-94db-9fbc37fcc555.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c8a7e8f05d517daa1d0037d38e677574b9c1553f0eda411e2ffa8663f9eb497b"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-b5b7f1db-4b1b-4489-a56f-50d5517766ff.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "37809968dc2bd8600f482ccf7035c4e33ee87d143d891b19fe7344a375692989"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-67cfda37-4fa4-43e6-adfb-3b1950c2c06e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "e2533199d4e38ff5be4e68cb1d83b8f403b65d0acdaf22fe35660cebfd64e025"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-d3625557-7e9f-428b-94af-2762a5707596.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "6919913e3b5b00f94c54cea3b5526cfd92e9333dcadced02c5b173c91d68c883"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-83108a7d-aeb8-4dd6-9930-57ab8674cde0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "7d09f8526c14245c426cde7c99604c64eb0e2984159294416c9b996d824c3887"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-fe016a69-3a57-40fd-816f-c23b0227e577.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "8039823f8180f5d9f3c6a579afef028d66fa16628c0f1549f924f2178807d328"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-6c7a91ec-d42b-4066-b47b-26c1b566dd28.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "57ea8abb58b99106ebaf5382638797bd52624d7d0b1be43a9c89c8daa6e75e42"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/train-night.webp",
+  "sha256": "ffd77f21eb83028afa1806dc0d301cdce953c960b4bdc6995acde3d2595a8064",
+  "bytes": 2173878,
+  "actual": [
+    3840,
+    2880
+  ]
+}

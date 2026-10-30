@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-8db957f6-2964-4d11-b9d0-80eeab31c273.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-441ba8d2-3468-40ed-b83e-f222065ba03f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "b662b124a562137343c8411022e27ba6ff02bcf0ed32c6824261935c70470ae8"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-65ee4cd7-b18d-4dd9-b4de-29fa9c62e4d5.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "11acaeb4c676d19743ed4035932624e8d06646a703fabbeca2a2e070d5711293"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-8bf2efb5-659f-4c71-8324-b1699618cc55.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "60033efe605910776637ae3466f9af3e7b7674e896c703d8bd71dec40282f541"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-51613a6b-229e-4690-afa5-9315039a392e.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "461f46adb5b1fedec22bdfa2faf90bc27a6ba50cac87e34268017ae0f5a01a44"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-534fe0a9-4490-4eb2-a5d4-602732673a22.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c7b95e4670afa9a9d3d557a461186f0f8d7373270c210fe2cd8208e8ac061fb3"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-0e392eea-b57f-4ae5-a6f5-36f95dc4cd28.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "16b7c761f4a50ed0aa265dd9bff86ac722c07830569640c9356c73d2827daac9"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-ac059037-e670-4f87-a424-881db61f83ef.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2696a4b20d696302d46d6f28566cd6bb3891e0fbcbfca62adf843187ba6ab4e6"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/train-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-5af4fcce-8f9c-4e7c-9e6a-5e5d67090102.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "3c6e7c7f5b687ced55cf15c2944be3605285ac6bd9f7ba7f3abee1304c7fd04c"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/train-day.webp",
+  "sha256": "88312156ef675198b2c5bbf672560a575402de8afc7c43b2a6f122428ee2792e",
+  "bytes": 2108776,
+  "actual": [
+    3840,
+    2880
+  ]
+}

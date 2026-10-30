@@ -14,17 +14,22 @@
     '民法': 'minfa', '刑法': 'xingfa', '民诉': 'minsu', '刑诉': 'xingsu', '行政法': 'xingzheng', '商经知': 'shangjing', '三国法': 'sanguo', '理论法': 'lilun' };
   const PEAK_NAMES = ['万象峰', '辨言峰', '明理峰', '演数峰', '观星峰'];
   const ACADEMY_NAMES = ['民法','刑法','民诉','刑诉','行政法','商经知','三国法','理论法'];
+  // 法考：只有营地、试炼塔（塔前全景+选择厅）、咒文书馆、魔法手记有新的独立昼/夜场景（没有黄昏图：黄昏用白天图+程序调色）。
+  const ROOMS_FAKAO=['dwelling','bank','skeleton','notes'];
   const ROOMS381=['dwelling','bank','contest','skeleton','tianji','settings'];
   // 科目守卫用转义：申论wording会改写源码中的“行测”字面量，不能让专属场景误启用。
   const isXingce=()=>{try{return (typeof DASH!=='undefined'?DASH.subject:'')==='\u884c\u6d4b';}catch(_){return false;}};
+  const isFakao=()=>{try{return (typeof DASH!=='undefined'?DASH.subject:'')==='\u6cd5\u8003';}catch(_){return false;}};
   const isShenlun=()=>{try{return (typeof DASH!=='undefined'?DASH.subject:'')==='\u7533\u8bba';}catch(_){return false;}};
-  const SL_ROOMS=['dwelling','bank','contest'];
+  const SL_ROOMS=['dwelling','bank','contest','train','skeleton','tianji','settings'];
+  // 训练题型仍沿用各自的独立场景，只有大厅使用整体背景。
+  const isSlRoom=(page)=>isShenlun()&&SL_ROOMS.includes(page)&&(page!=='train'||!REGION_KEY[regionName()]);
   const phase=()=>document.documentElement.dataset.scenePhase||document.documentElement.dataset.sceneTime||'day';
   const regionName = () => { try { return window.STUDY_REGIONS ? STUDY_REGIONS.title() : ''; } catch (e) { return ''; } };
   const tabLabel = () => { const t = document.querySelector('.fx-tab[aria-selected="true"]'); return t ? t.textContent.trim() : ''; };
   let view = '', applied='';
   function findHit(page, dn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime || 'day') {
-    if(isShenlun()&&SL_ROOMS.includes(page)){
+    if(isSlRoom(page)){
       const other=dn==='dusk'?['day','night']:[dn==='night'?'day':'night'];
       const tk=page==='dwelling'?TAB_KEY[tabLabel()]:'';
       const own=[...(tk?[`beauty/page/dwelling-${tk}-${dn}.webp`,`beauty/page/dwelling-${tk}.webp`,...other.map(t=>`beauty/page/dwelling-${tk}-${t}.webp`)]:[]),`beauty/page/${page}-${dn}.webp`,`beauty/page/${page}.webp`,...other.map(t=>`beauty/page/${page}-${t}.webp`)];
@@ -33,8 +38,8 @@
       const built=`beauty/page/${page}-${dn}.webp`;
       if(has(built))return built;
     }
-    if(isXingce()&&ROOMS381.includes(page)){
-      const p=page==='bank'&&phase()==='dawn'?'dawn':dn;
+    if((isXingce()&&ROOMS381.includes(page))||(isFakao()&&ROOMS_FAKAO.includes(page))){
+      const p=page==='bank'&&phase()==='dawn'&&isXingce()?'dawn':dn;
       // 明确的专用覆盖仍优先；旧内置洞府页签不能抢过新整体分时场景。
       const own=[`beauty/page/${page}-${p}.webp`].find(r=>custom.has(r)&&has(r));
       if(own)return own;
@@ -62,10 +67,10 @@
   // 进页面前只等“这一页现在要显示的图”；另一时段（夜/昼）的图过一会儿再悄悄下，不拖慢进门。
   function prepare(page,quiet){const hit=findHit(page),urls=hit?[url(hit)]:[],extra=[];
     const opposite=findHit(page,document.documentElement.dataset.sceneTime==='night'?'day':'night');if(opposite&&opposite!==hit)extra.push(url(opposite));
-    if(isXingce()&&page==='bank'){const selection=`beauty/trial/selection-${phase()}.webp`;if(has(selection))urls.push(url(selection));}
+    if((isXingce()||isFakao())&&page==='bank'){const selection=selectionArt();if(selection)urls.push(url(selection));}
     const examScene=!(typeof isSL==='function'&&isSL());
     // 行测的试炼塔是一整张画（hall），三层拆件图只有法考版在用，不再白下近8MB。
-    if(page==='bank'&&examScene&&!isXingce())urls.push(...['tower','gate','landscape'].map(k=>has(`beauty/trial/${k}-night.webp`)&&document.documentElement.dataset.sceneTime==='night'?url(`beauty/trial/${k}-night.webp`):`assets/beauty/trial/${k}.png`));
+    if(page==='bank'&&examScene&&!isXingce()&&!isFakao())urls.push(...['tower','gate','landscape'].map(k=>has(`beauty/trial/${k}-night.webp`)&&document.documentElement.dataset.sceneTime==='night'?url(`beauty/trial/${k}-night.webp`):`assets/beauty/trial/${k}.png`));
     if(page==='contest'&&examScene)urls.push('assets/beauty/contest/arena.png');
     if(!quiet&&extra.length)setTimeout(()=>extra.forEach(decode),2500);
     return Promise.all(urls.map(decode));
@@ -85,23 +90,29 @@
     const step=()=>{if(warmed!==key)return;const job=queue.shift();if(!job)return;idle(()=>{Promise.resolve().then(job).catch(()=>0).then(()=>setTimeout(step,400));});};
     step();
   }
+  // 选择厅图：优先当前时段，缺了（法考没有黄昏/清晨）就用当前白天/夜晚那张。
+  function selectionArt(){return [`beauty/trial/selection-${phase()}.webp`,`beauty/trial/selection-${document.documentElement.dataset.sceneTime==='night'?'night':'day'}.webp`].find(r=>has(r))||'';}
   function heroFor(page){const hit=findHit(page);return hit?url(hit):'';}
   function apply(){const b=document.body;if(!b)return;let hit=findHit(view);
     // 五峰是独立地点，不再被旧全局背景压住；专门设置的峰/页背景仍优先。
     const peakScene=view==='train'&&PEAK_NAMES.includes(regionName());
     const roomScene=view==='train'&&b.classList.contains('academy-room');
-    const independent=(isXingce()&&ROOMS381.includes(view))||(isShenlun()&&SL_ROOMS.includes(view)),nativeRoom=independent&&hit&&(!custom.has(hit)||/-(day|dusk|night|dawn)\.webp$/.test(hit));
+    const independent=(isXingce()&&ROOMS381.includes(view))||(isFakao()&&ROOMS_FAKAO.includes(view))||isSlRoom(view),nativeRoom=independent&&hit&&(!custom.has(hit)||/-(day|dusk|night|dawn)\.webp$/.test(hit));
+    // 当前时段没有专图（法考黄昏只有白天/夜晚图）：用邻近时段的图，并保留程序调色，不能当成“原生光照”。
+    const curDn=document.documentElement.dataset.scenePhase==='dusk'?'dusk':document.documentElement.dataset.sceneTime||'day';
+    const hitPhase=(String(hit||'').match(/-(day|dusk|night|dawn)\.webp$/)||[])[1];
+    const phaseOk=!nativeRoom||!hitPhase||hitPhase===curDn||hitPhase==='dawn';
     if(hit&&!custom.has(hit)&&b.classList.contains('has-bg')&&!peakScene&&!roomScene&&!independent)hit='';
     // 专用夜景/黄昏不重复调色；单张图与用户全局图使用程序光照。
-    b.dataset.sceneRelight=(hit?(peakScene||nativeRoom||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
+    b.dataset.sceneRelight=(hit?(peakScene||(nativeRoom&&phaseOk)||/(?:-night|-dusk)\.webp$/.test(hit)):!b.classList.contains('has-bg')&&document.documentElement.dataset.sceneTime==='night')?'native':'synthetic';
     // 五峰自己的昼/昏/夜画面按原图显示：不再叠整页遮罩（遮罩会把浅色洗白、深色压成灰黑）。
     if(hit&&peakScene)b.dataset.sceneArt='peak';else if(nativeRoom)b.dataset.sceneArt=isShenlun()?'roomSL4k':'room381';else delete b.dataset.sceneArt;
     if(isXingce()&&independent&&view==='bank'&&hit){
       const src=url(hit),img=document.querySelector('.th-panorama');
       b.style.setProperty('--scene381-tower',`url("${src}")`);
       if(img&&img.getAttribute('src')!==src)decode(src).then(ok=>{if(ok&&img.isConnected&&findHit(view)===hit){img.src=src;img.dataset.native381='true';}});
-      const selection=`beauty/trial/selection-${phase()}.webp`;
-      if(has(selection)){b.style.setProperty('--scene381-selection',`url("${url(selection)}")`);b.dataset.sceneSelection='native381';}
+      const selection=selectionArt();
+      if(selection){b.style.setProperty('--scene381-selection',`url("${url(selection)}")`);b.dataset.sceneSelection='native381';}
       else{b.style.removeProperty('--scene381-selection');delete b.dataset.sceneSelection;}
     }else delete b.dataset.sceneSelection;
     b.dataset.sceneRoom=['dwelling','skeleton','notes','settings'].includes(view)||b.classList.contains('guantu')?'indoor':'outdoor';

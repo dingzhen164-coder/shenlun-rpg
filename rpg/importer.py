@@ -23,7 +23,7 @@ import threading
 from collections import Counter
 from pathlib import Path
 
-from . import ai, skeleton, vault
+from . import ad_clean, ai, skeleton, vault
 
 BOARDS = ["政治理论", "常识判断", "逻辑填空", "片段阅读", "数量关系", "图形推理", "定义判断",
           "类比推理", "论证逻辑", "形式逻辑", "一拖五", "资料分析"]
@@ -992,7 +992,7 @@ def _append(paths, qs):
     for board, items in by.items():
         f = paths.train / "题库" / (board + "真题.md")
         old = f.read_text(encoding="utf-8-sig") if f.exists() else "# %s真题\n" % board
-        _write(f, old.rstrip("\n") + "\n\n" + "".join(items))
+        _write(f, old.rstrip("\n") + "\n\n" + ad_clean.strip_text(paths, "".join(items)))     # 广告词库里的文字导入时自动清掉
 
 
 def _fix_import(paths, body, dry):

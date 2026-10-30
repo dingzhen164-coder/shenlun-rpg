@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-42e706a6-cbd7-4f7e-9fe7-2d14045eaf11.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-0.png",
+      "path": "/workspace/generated_images/exec-5d81bac6-ec16-49bb-b831-b7f709fac14f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "1d8b97bb33ad96e9d493659e502333783c005d1e2ca2d9c4f1f332e11857441f"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-1.png",
+      "path": "/workspace/generated_images/exec-f99405d4-d7ba-4870-a790-d22690e14b63.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "ed3c8a2a4773c6569cf7c6015a8be03d72c20668c544b9cf8113515b4da25278"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-2.png",
+      "path": "/workspace/generated_images/exec-d86b1372-9039-49e1-bd9d-1174e2edf2f3.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f6dff1888f301f3efa14565479b76c1c66d154cbe65001355456877c95d903c9"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-3.png",
+      "path": "/workspace/generated_images/exec-8eb229b8-a5fd-442b-879e-ead988bb0e40.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "00aac7e5edc0661249c5388fb677420c1431cb1d50a6d7a55d75093ecccbee44"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-4.png",
+      "path": "/workspace/generated_images/exec-06d503c7-990d-4da4-b469-46c35422e3e0.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "dfaa08ad148b369afab9345909b912c17cf7eb5a129c3918bb22d21d1885983c"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-5.png",
+      "path": "/workspace/generated_images/exec-c41c03c7-73ad-4312-bfbe-9d23e5659cb7.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "163bc0d4c21e911efd8294adfaf79363874359bad7cea3fb6eb1e6e25a3d9174"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-6.png",
+      "path": "/workspace/generated_images/exec-5410512a-8cc6-4103-8d3a-a9e5c21d6201.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "59c61e74abf1ca2e4b2bd9f94d98c9e4f5cf11505ca00b06cb41212381c9936b"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/settings-day/ref-7.png",
+      "path": "/workspace/generated_images/exec-66828f19-956c-45a6-a552-883c24c84474.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "9d3999baa0fd4739d3f9321c72820db5bafaa21b213973efd68bf9448ac0b9fb"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/settings-day.webp",
+  "sha256": "fdcfb0ffcf8cf1194b2f4c079ad3b4a9dd91f1fc6ff1ad789fe51ec0f3aec1ff",
+  "bytes": 2679894,
+  "actual": [
+    3840,
+    2880
+  ]
+}

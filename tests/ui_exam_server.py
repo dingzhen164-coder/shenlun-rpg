@@ -48,6 +48,12 @@ def main():
                 from PIL import Image
                 Image.new('RGB', (600, 120), 'white').save(att/'O001-1.jpg')        # 第1题按“文字题”处理时留的原图
                 g.state.setdefault('mocks', {})['1001'] = {'name': NAME}
+                if '--ads' in sys.argv:       # 藏经阁「清除」用：在第1题下面放一整行广告，第2题的句子中间夹一段广告
+                    f = sorted((g.paths.train/'模考复盘/第1001季').glob('[0-9][0-9]-*.md'))[0]
+                    text = f.read_text(encoding='utf-8')
+                    text = text.replace('### 1. ⚪\n自编条件题，仅用于隔离测试。', '### 1. ⚪\n自编条件题，仅用于隔离测试。\n一手最全公考资源加微信 biguo368', 1)
+                    text = text.replace('### 2. ⚪\n自编条件题，仅用于隔离测试。', '### 2. ⚪\n自编条件题，仅用于隔离测试。一手最全公考资源 加微信biguo368 继续正文', 1)
+                    f.write_text(text, encoding='utf-8')
             api.ai.available = lambda: False
             server = ThreadingHTTPServer(('127.0.0.1', 0), api.Handler)
             api.RUNTIME.update(port=server.server_port, lan=False)

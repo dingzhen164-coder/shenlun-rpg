@@ -24,7 +24,9 @@ async function openRoom(page){
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  const pdf=path.join(os.tmpdir(),'exam-ui-fake.pdf');fs.writeFileSync(pdf,'%PDF-1.4\n% fake\n');
  for(const [label,viewport,fresh]of [['desktop',{width:1280,height:860},true],['tablet',{width:800,height:1280},false],['tablet-landscape',{width:1280,height:800},false]]){
-  const page=await browser.newPage({viewport,deviceScaleFactor:1});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage({viewport,deviceScaleFactor:1});active=page;await page.addInitScript(()=>{try{localStorage.setItem('er.autoNext','0');}catch(_){}});
+  // 本用例逐题点选并核对状态，关掉“选完自动跳下一题”（自动跳由 ui_exam_extras 单独测）
+  page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.clock.install({time:new Date('2026-10-25T09:00:00')});
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());
   await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
@@ -79,9 +81,9 @@ async function openRoom(page){
   await page.locator('[data-er-prev]').click();assert.equal(await page.locator('[data-er-pen].has').count(),1,'回到第1题，笔迹还在');
   await fits(page,'dialog.er-run');
   // 点击时钟暂停，休息期间倒计时冻结、快捷键不作答；刷新后仍在休息。
-  const remaining=await page.locator('[data-er-clock]').textContent();
   const pausedSave=page.waitForResponse(r=>r.url().endsWith('/api/exam/save')&&r.request().postDataJSON()?.paused===true);
   await page.locator('[data-er-clock]').click();await page.locator('[data-er-resume]').waitFor();await pausedSave;
+  const remaining=await page.locator('[data-er-clock]').textContent();      // 暂停之后再读：点击前读会赶上走字的那一秒（偶发 119:58≠119:59）
   for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);await fits(page,'.er-rest-card');}
   await page.evaluate(()=>document.documentElement.dataset.theme='light');await shot('rest');await page.clock.fastForward(125000);
   assert.equal(await page.locator('[data-er-clock]').textContent(),remaining);

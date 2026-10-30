@@ -1,3 +1,12 @@
+## 开发中（未发布）：整卷模考补充、填空题转文字、藏经阁清除（2026-10-30）
+
+- **删除套卷**：`exam_room.delete_paper(g,n)`，接口 `POST /api/exam/delete`。只删程序自己写在 `训练/模考复盘/第N季/` 的导入套卷（`deletable()`：目录必须在训练/模考复盘下；库里原有的 FB 复盘只读，不给删除按钮）。同时清：`训练/题库/**/*.md` 里 id 以 `粉笔N季-` 开头的题、`训练/题库/图片/**/粉笔N季-*`、`state.exam_runs/mocks/mocks_hidden/mock_practice` 里这一季；已发奖励不收回；PDF 不动。前端 `exam_room.js deletePaper`（二次确认）并清本机 `xrpg-draw:exam:<季>:*` 草稿笔迹。`papers()` 每份带 `deletable`。
+- **草稿工具栏**：`DRAW.open(ext)` 新增 `ext.place(bar)`（`draw.js placeBar`，resize 时调用）；考场的 `placePenBar` 用左右边界（✕ 右边 ～ 计时左边）让浏览器居中，不量按钮宽度（表情符号字体加载前后宽度会变）；放不下加 `.compact`，再不行工具栏内部可横滑。草稿按钮只有笔头 SVG。
+- **字号**：`READING_TOOLS.html()/bind(root)`（reading_tools.js，两仓库共用）给整卷考场顶栏放大/缩小，沿用 `chatLayout.fs`（初始 110%）；`.er-material/.er-question` 字号 = `--ds-fs-16 * var(--chat-fs,1.1)/1.1`。
+- **选完自动跳**：`pick()` 选中（非取消）后 280ms 调 `go(idx+1)`，最后一题不跳；开关 `localStorage er.autoNext`（默认开），在考试首页与答题卡里；仅整卷模考，有即时对错的练习不动。
+- **填空横线与选项空格**：`exam_scan.mark_lines(doc, seq)`（写复盘前整卷执行一次）按页面像素：靠下的细水平线、长度≥约两个字宽、线上面没有字 → `＿＿＿＿`；字下面有字的下划线不算；行内墨迹间隔≥约一个字宽 → 空格；字符位置按各段墨迹宽度比例估计并就近靠标点。`split_choices` 先 `_split_inline_options` 拆“A… B…”并排选项。估不准靠“对照原图”。
+- **藏经阁「清除」（行测）**：`rpg/ad_clean.py`，接口 `POST /api/adclean/{find,clean,undo,status,words}`，前端 `web/ad_clean.js`。查找忽略空白/大小写，范围 paper=训练/模考复盘、bank=训练/题库；整行都是广告就连行删，夹在句中只删这段并标“请核对”；清除前把原文件备份到 `训练/清除/备份/<时间>/`（含 manifest.json 记清除后的 sha1，撤销时文件被改过就跳过）；广告词库 `训练/清除/广告词库.json`，`exam_room.finish_import` 和 `importer._append` 导入时自动清。块不用 `.card`，自带磨砂底。
+
 ## 开发中（未发布）：场景铺满、答题页占比、参阅室五步精读与摘编（2026-10-29）
 
 - **场景铺满视口**：宗门大比 `.contest-scene`、试炼塔 `.trial-hall` 改为 `position:fixed; top:0; height:var(--fx-height)`，顶栏牌子（z-index 2）浮在画面上，横幅 `#banner` 升到 z-index 3；`.th-world-title`、`.th-scene-tools` 用 `calc(var(--study-workspace-height) + x%)` 让位。全屏 `#bgLayer` 与 `.cs-landscape` 同一张图、同尺寸，不再露出第二个月亮。不要用负 margin 提起 `#view`。

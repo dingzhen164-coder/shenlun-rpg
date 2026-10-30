@@ -236,3 +236,64 @@ class ScanTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BlankAndGapTest(unittest.TestCase):
+    """2026-10-30：填空题转文字时补回横线 ＿＿＿＿，选项里被连成一串的词按空隙补回空格；字下面的下划线不算横线"""
+
+    def page(self):
+        import pymupdf as fitz
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+
+        def put(x, y, text):
+            page.insert_text((x, y), text, fontsize=14, fontname="china-s")
+        # 题干：“……集市鲜活的________。无论是……”，横线是画出来的，文字层里只有几个全角空格（和OCR一样，横线本身读不出来）
+        put(60, 100, "这些细节，构成了集市鲜活的" + "　" * 5 + "。无论是烟火气的感官冲击")
+        page.draw_line((60+14*13+2, 103), (60+14*13+2+14*5-4, 103), width=0.8)
+        # 带下划线的词（字在线上面）：不是填空
+        put(60, 140, "画横线部分最恰当的是")
+        page.draw_line((60, 143), (60+14*4, 143), width=0.8)
+        # 选项：词与词之间隔得很开（文字层里同样只有空格，会被去掉）
+        put(60, 200, "A.底色" + "　" * 2 + "契合" + "　" * 2 + "循环")
+        return doc
+
+    def test_blank_and_option_gaps(self):
+        from rpg import exam_scan
+        doc = self.page()
+        seq = [dict(l, page=0) for l in exam_scan.lines_from_text_layer(doc[0])]
+        before = {l["t"] for l in seq}
+        self.assertTrue(any(t.startswith("A.底色") for t in before))
+        changed = exam_scan.mark_lines(doc, seq)
+        out = [l["t"] for l in seq]
+        stem = next(t for t in out if "构成了集市鲜活的" in t)
+        self.assertIn(exam_scan.BLANK, stem)
+        self.assertLess(stem.index("鲜活的"), stem.index(exam_scan.BLANK))
+        self.assertLess(stem.index(exam_scan.BLANK), stem.index("。无论"))
+        under = next(t for t in out if t.startswith("画横线部分"))
+        self.assertNotIn(exam_scan.BLANK, under)                         # 字下面的下划线不是填空
+        opt = next(t for t in out if t.startswith("A."))
+        self.assertEqual(opt.replace(" ", ""), "A.底色契合循环")
+        self.assertEqual(opt.count(" "), 2)                              # 三个词之间两处空隙
+        self.assertGreaterEqual(changed, 2)
+
+    def test_plain_lines_are_untouched(self):
+        import pymupdf as fitz
+        from rpg import exam_scan
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((60, 100), "这是一行没有任何横线也没有大空隙的普通文字内容", fontsize=14, fontname="china-s")
+        seq = [dict(l, page=0) for l in exam_scan.lines_from_text_layer(page)]
+        keep = [l["t"] for l in seq]
+        exam_scan.mark_lines(doc, seq)
+        self.assertEqual([l["t"] for l in seq], keep)
+
+    def test_two_options_on_one_line_are_split(self):
+        from rpg import exam_scan
+        lines = [{"t": "37.独一无二的手工秘制酱料构成了集市鲜活的＿＿＿＿。依次填入画横线部分最恰当的一项是："},
+                 {"t": "A.底色 契合 循环 B.本色 符合 闭环"}, {"t": "C.底蕴 顺应 链条 D.基调 迎合 周期"}]
+        stem, options = exam_scan.split_choices(lines)
+        self.assertEqual(list(options), ["A", "B", "C", "D"])
+        self.assertEqual(options["A"], "底色 契合 循环")
+        self.assertEqual(options["D"], "基调 迎合 周期")
+        self.assertIn("＿＿＿＿", stem[0])

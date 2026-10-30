@@ -1,0 +1,138 @@
+{
+  "base": "/workspace/generated_images/exec-ec5efccc-988f-4192-9c6e-22102c86b615.png",
+  "baseNative": [
+    1448,
+    1086
+  ],
+  "target": [
+    3840,
+    2880
+  ],
+  "tiles": [
+    {
+      "index": 0,
+      "x": 0,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-0.png",
+      "path": "/workspace/generated_images/exec-12335b42-68db-4253-ad17-704ff98b6335.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c83dea5582fcc6c11027e0c07a3981cbae83146f0fa36d8a70f8e3fd2a4713ac"
+    },
+    {
+      "index": 1,
+      "x": 944,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-1.png",
+      "path": "/workspace/generated_images/exec-65fbae46-b511-44e7-b54e-cd206fea86fb.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "5a18145482402f080fd6d7c68714a05291f35f81c9fc190c4be150210a4cc07b"
+    },
+    {
+      "index": 2,
+      "x": 1904,
+      "y": 0,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-2.png",
+      "path": "/workspace/generated_images/exec-0cc70cd9-1c50-4e05-af8f-fffd016f90d1.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "c2fcd24fe40b6b41ceedd120e9a4e0320ee4b42636337dbb5f9b484843d15ecf"
+    },
+    {
+      "index": 3,
+      "x": 2864,
+      "y": 0,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-3.png",
+      "path": "/workspace/generated_images/exec-c7a00f92-c400-4eb8-bae4-51e927afa29f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "bf56478afa92ad87cb2ad0d49fc6085aed4ff8d780660d307c08813916211d25"
+    },
+    {
+      "index": 4,
+      "x": 0,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-4.png",
+      "path": "/workspace/generated_images/exec-33a19039-f771-4c24-9a2f-9fab5524a21d.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "2e28bed41da4e8a3e2acf14058381410d8d668a02ba54ecbf89cdace8dfe2552"
+    },
+    {
+      "index": 5,
+      "x": 944,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-5.png",
+      "path": "/workspace/generated_images/exec-3974d0bc-d792-4be3-b125-dd5a4760545f.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "f6275a1330dd82e6dfb4d016c1fc557e99c2400411280192706ed659290a48db"
+    },
+    {
+      "index": 6,
+      "x": 1904,
+      "y": 1424,
+      "w": 992,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-6.png",
+      "path": "/workspace/generated_images/exec-3b704e55-ca1e-499f-a17d-2852f6f53f84.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "786c3a7510d287e0c2be24aa0612aad98a3cdf4f3a24f3549f1dc524c98246f4"
+    },
+    {
+      "index": 7,
+      "x": 2864,
+      "y": 1424,
+      "w": 976,
+      "h": 1456,
+      "ref": "/workspace/art-shenlun-p2/skeleton-night/ref-7.png",
+      "path": "/workspace/generated_images/exec-d4998121-b8b0-4336-9cb8-a201a912bedf.png",
+      "native": [
+        1024,
+        1536
+      ],
+      "sha256": "6822b3c89bff6672870ad6a7ed511d100ae86263555c810625a5ba43382880d9"
+    }
+  ],
+  "method": "native-portrait-tiles",
+  "interpolated_upscale": false,
+  "grid": [
+    4,
+    2
+  ],
+  "output": "web/assets/beauty/scenes/shenlun/hd/384/skeleton-night.webp",
+  "sha256": "d5ba57f49d27f2918a13be241365538392d0582895b747d5e80e281d5b74af53",
+  "bytes": 2094978,
+  "actual": [
+    3840,
+    2880
+  ]
+}

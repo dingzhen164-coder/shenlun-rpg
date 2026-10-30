@@ -132,7 +132,7 @@
 .th-painting.th-fill .th-panorama{mask-image:none}
 .th-painting.th-fill.th-gap .th-panorama{mask-image:linear-gradient(90deg,transparent,var(--ds-mask-opaque) 5%,var(--ds-mask-opaque) 95%,transparent)}
 /* 画面两侧若还有缝（超宽屏），用同一张图的模糊延伸补满，不留空白条。 */
-.th-painted.th-side-gap::before{content:"";position:absolute;inset:-4%;background:url('assets/beauty/trial/hd/369/hall-day.webp') center top/cover no-repeat;filter:blur(20px);pointer-events:none}
+.th-painted.th-side-gap::before{content:"";position:absolute;inset:-4%;background:var(--th-fill,url('assets/beauty/trial/hd/369/hall-day.webp')) center top/cover no-repeat;filter:blur(20px);pointer-events:none}
 [data-theme=dark] .th-painted.th-side-gap::before{filter:blur(20px) brightness(.65) saturate(.8)}
 html[data-scene-time=night] .th-painted.th-side-gap::before{filter:blur(20px) brightness(.6) saturate(.75)}
 html[data-scene-time=day] .th-painted.th-side-gap::before{filter:blur(20px)}
