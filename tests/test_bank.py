@@ -474,10 +474,14 @@ class BankTest(unittest.TestCase):
         reply = {'辨析': '方兴未艾重“正在兴起”，如火如荼重“热烈”，此处写发展势头，选方兴未艾。', '释义': {'崭露头角': '比喻初显才能'}}
         detail = {'逐字': [{'字': '艾', '义': '停止、尽', '同用法': ['自怨自艾']}],
                   '出处': {'出自': '宋·陆游《上殿札子》', '原文': '方兴未艾', '说明': '形容正在兴起、一时不会停止'}}
-        with patch.object(trainer.ai, 'chat_json', side_effect=[reply, detail]) as m:
+        fake = lambda msgs, **kw: detail if '逐字' in msgs[-1]['content'] else reply        # 并发请求，回来的先后不定：按提示词内容返回
+        with patch.object(trainer.ai, 'chat_json', side_effect=fake) as m:
             idioms.ask_tutor(self.g, '方兴未艾')
-        self.assertIn('方兴未艾', m.call_args_list[0][0][0][-1]['content'])
-        self.assertIn('逐字', m.call_args_list[1][0][0][-1]['content'])                 # 成语：再问关键字和出处
+        prompts_sent = [c[0][0][-1]['content'] for c in m.call_args_list]
+        self.assertEqual(len(prompts_sent), 2)
+        self.assertEqual(sum('逐字' in t for t in prompts_sent), 1)                       # 成语：再问关键字和出处
+        self.assertTrue(all('方兴未艾' in t for t in prompts_sent))
+        self.assertTrue(all(c.kwargs.get('think') is False for c in m.call_args_list))   # 辨析和出处都关思考，答疑才不会等很久
         det = idioms.data(self.g)['方兴未艾']['detail']
         self.assertEqual((det['chars'][0]['char'], det['chars'][0]['like'], det['origin']['from']), ('艾', ['自怨自艾'], '宋·陆游《上殿札子》'))
         self.assertIn('- **逐字**：艾 = 停止、尽（同样用法：自怨自艾）', (self.paths.train / '成语实词录.md').read_text(encoding='utf-8'))
@@ -503,6 +507,29 @@ class BankTest(unittest.TestCase):
         self.assertEqual(idioms.backfill(self.g)['new'],[])
         self.assertEqual(idioms.data(self.g),{})
         with self.assertRaises(ValueError):idioms.delete(self.g,'方兴未艾')
+
+    def test_idiom_tutor_asks_all_sources_at_once(self):
+        """多条出处并发请求：全部同时发出；有一条失败整体不改；成语的出处讲不出来不影响辨析"""
+        import threading
+        from rpg import idioms
+        src = lambda k: {'key': '逻辑填空::' + k, 'id': k, 'blank': 1, 'option': 'A', 'option_text': '不落窠臼', 'answer': 'A', 'meaning': '释' + k,
+                         'compare': '原', 'source': '', 'paper': '', 'date': '2026-10-29', 'others': []}
+        idioms.data(self.g)['不落窠臼'] = {'word': '不落窠臼', 'letter': 'B', 'sources': [src('A1'), src('A2'), src('A3')]}
+        barrier = threading.Barrier(4, timeout=5)                # 3 条辨析 + 1 次出处必须同时在路上，排队的话这里会超时
+        def fake(msgs, **kw):
+            barrier.wait()
+            if '逐字' in msgs[-1]['content']:
+                return {'逐字': [], '出处': {'出自': '不详', '原文': '', '说明': ''}}
+            return {'辨析': '新辨析'}
+        with patch.object(trainer.ai, 'chat_json', side_effect=fake) as m:
+            idioms.ask_tutor(self.g, '不落窠臼')
+        self.assertEqual(m.call_count, 4)
+        self.assertEqual([x['compare'] for x in idioms.data(self.g)['不落窠臼']['sources']], ['新辨析'] * 3)
+        boom = lambda msgs, **kw: (_ for _ in ()).throw(ValueError('断网')) if '逐字' not in msgs[-1]['content'] and '释A2' in msgs[-1]['content'] else {'辨析': '又新'}
+        with patch.object(trainer.ai, 'chat_json', side_effect=boom):
+            with self.assertRaises(ValueError):
+                idioms.ask_tutor(self.g, '不落窠臼')
+        self.assertEqual([x['compare'] for x in idioms.data(self.g)['不落窠臼']['sources']], ['新辨析'] * 3)   # 失败：保持原样
 
     def test_idiom_book_splits_joined_options(self):
         from rpg import idioms

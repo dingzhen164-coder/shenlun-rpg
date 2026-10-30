@@ -485,11 +485,29 @@ def delete(g, word):
 
 
 def ask_tutor(g, word):
-    """师傅答疑：每条出处让 AI 写一句话辨析，替换原来的辨析；解析没给的释义顺手补上"""
+    """师傅答疑：每条出处让 AI 写一句话辨析，替换原来的辨析；解析没给的释义顺手补上。
+    各条出处的辨析和成语的“关键字+出处”同时请求（不排队等），全部回来再按顺序写入；辨析请求失败则整体不改。"""
+    from concurrent.futures import ThreadPoolExecutor
     from . import ai, prompts
     e = _entry(g, word)
-    for s in e['sources']:
-        r = ai.chat_json(prompts.idiom_compare(g.persona, word, s), temperature=0.4, max_tokens=600)
+    detail_meaning = next((s.get('meaning') for s in e['sources'] if s.get('meaning')), '')
+    want_detail = len(word) >= 4          # 成语：再讲关键字和出处
+
+    def compare(s):
+        return ai.chat_json(prompts.idiom_compare(g.persona, word, s), temperature=0.4, max_tokens=600, think=False)
+
+    def detail():
+        try:
+            return ai.chat_json(prompts.idiom_detail(g.persona, word, detail_meaning), temperature=0.3, max_tokens=700, think=False)
+        except Exception:
+            return {}                     # 出处讲不出来不影响辨析
+
+    with ThreadPoolExecutor(max_workers=min(6, len(e['sources']) + 1)) as pool:
+        jobs = [pool.submit(compare, s) for s in e['sources']]
+        dj = pool.submit(detail) if want_detail else None
+        results = [j.result() for j in jobs]       # 有一条失败就在这里抛出，还没改任何词条内容
+        d = dj.result() if dj else {}
+    for s, r in zip(e['sources'], results):
         text = str(r.get('辨析') or '').strip()
         if text:
             s['compare'] = text
@@ -501,12 +519,7 @@ def ask_tutor(g, word):
             for o in s.get('others', []):
                 if not o.get('meaning') and means.get(o['word']):
                     o['meaning'] = str(means[o['word']]).strip()[:60]
-    if len(word) >= 4:                    # 成语：再讲关键字和出处
-        try:
-            d = ai.chat_json(prompts.idiom_detail(g.persona, word, next((s.get('meaning') for s in e['sources'] if s.get('meaning')), '')),
-                             temperature=0.3, max_tokens=700)
-        except Exception:
-            d = {}
+    if want_detail:
         chars = [{'char': str(c.get('字') or '')[:2], 'meaning': str(c.get('义') or '')[:40],
                   'like': [str(x)[:12] for x in (c.get('同用法') or [])][:4]}
                  for c in (d.get('逐字') or []) if isinstance(c, dict) and c.get('字')][:3]
