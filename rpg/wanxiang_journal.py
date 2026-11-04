@@ -696,10 +696,22 @@ def ensure_legacy(g):
     root = folder(g.paths)
     marker = root / '迁移.json'
     legacy = g.paths.train / '天机简报'
-    if not marker.exists():
+    # 2026-11 行测撤掉天机台（改为思过崖）：首次复制之后又导进天机简报的期刊，再补复制一次（只补比首次复制标记新的文件，
+    # 删除过的旧副本不复活）；标记写成 version 2。
+    since = None
+    if marker.exists():
+        try:
+            info = json.loads(marker.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            info = {}
+        if int(info.get('version') or 1) < 2:
+            since = marker.stat().st_mtime
+    if not marker.exists() or since is not None:
         for kind, label in KINDS.items():
             for file in sorted((legacy / label).glob('*.json')):
                 if legacy.resolve() not in file.resolve().parents:
+                    continue
+                if since is not None and file.stat().st_mtime <= since:
                     continue
                 target = _file(g.paths, kind, file.stem)
                 if target.exists():
@@ -725,7 +737,7 @@ def ensure_legacy(g):
                     _write(target, data)
                 except (ValueError, KeyError, TypeError) as error:
                     raise JournalError('旧期刊无法复制，原件未修改：%s（%s）' % (file.name, error))
-        _write(marker, {'version': 1, 'date': g.t})
+        _write(marker, {'version': 2, 'date': g.t})
     if not g.state.get('wanxiang_journal_seeded'):
         progress = g.state.setdefault('wanxiang_journal', {})
         for key, value in g.state.get('tianji', {}).items():

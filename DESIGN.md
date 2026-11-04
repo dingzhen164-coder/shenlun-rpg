@@ -3,6 +3,8 @@
 - **词录**（一组有几个维度时拆成“第N组一/二…”小组，每小组一张卡，卡键加 `|小组号`）：`rpg/wordbook.py`（后端，数据格式写在模块顶部）+ `web/idioms.js`（沿用 `window.IDIOMS` 接口）+ `web/wordbook.css`（wb- 前缀）。只读 `训练/成语实词录/{成语,实词}区别汇总.md`，首次写 `_模板.md`；`##` 分组、加粗“最深区别/维度”为判别轴、表格“成语/实词/词语”列为词、带“区别”列为一句话区别、`**易混**` 为提示。组名 `第N组—各词`（只取单个词格子）。接口 `POST /api/wordbook {kind}`、`POST /api/wordbook/cards {kind}`（仅行测）。组卡牌组 `逻辑填空::成语组/实词组`，`state.wordbook_cards[<种类>|<组标题>]` 记编号，`cards.upsert` 改内容保进度，文档没了的组删卡。原自动收录（`idioms.harvest/from_explanation`、`/api/idioms/*`、`state.idioms/idiom_cards`、`训练/成语实词录.md`、`rpg/data/idioms`）全部移除；`wordbook.retire_old` 首次打开备份到 `训练/词录备份/` 后清除。`rpg/idioms.py` 只剩逻辑填空选项分词（`display_options`）。
 - 行测镂空层会把 table 标 `hx381-paper`/`ig-paper` 并套场景浅色字：词录整块画在纸笺 `.wb-main` 上，在纸笺里改写 `--hx381-base-text/--panel/--ig-library-ink` 等变量为纸笺墨色与底色。
 - **背景串科**：`BeautyArt.url()` 带 `&s=<科目>`（见踩坑记录 1.x）。
+- **思过崖（行测，替换天机台）**：`rpg/siguo.py`（数据格式见模块顶部）、`web/siguo.js`、`web/siguo.css`（sg- 前缀）。沿用 view id `tianji`（主页地点 id 不变，用户排布照旧），行测渲染 `SIGUO`、申论仍是 `TIANJI`（参阅室）；顶栏名取 `themes.py nav.tianji`。接口 `POST /api/siguo`、`/api/siguo/board {name}`、`/api/siguo/answer {name,key,choice}`（仅行测）。记录 `state.siguo[<板块>|<题指纹>]={last,date,tries,ok,pick}`；题指纹=题干+选项摘要。心跳新增 `siguo:<板块>`（`siguo.studying()` 5 分钟窗口）记做题时间；答对奖 `经验.思过崖答对`（默认 3，每题每天一次，不叠加连胜加成）。场景按“地图类”处理：图片原比例 contain + 模糊底衬，七碑热区按图片像素坐标（`STELES`）定位，字号随画面缩放；`fixed_layout` 对 `.sg-root` 不拆页签。背景 `builtin-art.json` 行测 `beauty/page/tianji(-day/-night).webp` → `scenes/xingce/hd/siguo/`，删除原天机台三张 381 图。色彩：白天黄橙 0.1%、绿 18%、蓝青 66%；夜晚黄橙 0%、蓝青 85%。当前图为聊天压缩版 1672×941，用户原图到后替换（坐标按比例不变）。
+- **天机台并入万象峰**：`wanxiang_journal.ensure_legacy` 标记升到 version 2，首次复制之后又导进 `训练/天机简报/` 的期刊补复制一次（只补比 v1 标记新的文件，删过的副本不复活）。
 
 ## 开发中（未发布）：整卷模考补充、填空题转文字、藏经阁清除（2026-10-30）
 

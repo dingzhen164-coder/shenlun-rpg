@@ -1,0 +1,53 @@
+/* 行测 · 思过崖（web/siguo.js）：悬崖场景（按原比例完整显示 + 模糊底衬）+ 七块石碑热区 + 纸笺重做面板。类名统一 sg- 前缀。 */
+.sg-root{position:relative;height:100%;min-height:0;display:flex;flex-direction:column}
+.sg-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:var(--ds-r-12)}
+.sg-back{position:absolute;inset:-24px;background:var(--sg-img) center/cover no-repeat;filter:blur(18px) saturate(.9);opacity:.85}
+.sg-frame{position:relative;flex:none;border-radius:var(--ds-r-10);overflow:hidden;box-shadow:var(--ds-shadow-1)}
+.sg-art{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.sg-stele{position:absolute;border:0;background:transparent;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--ds-r-6) var(--ds-r-6) var(--ds-r-2) var(--ds-r-2);transition:transform var(--ds-dur),box-shadow var(--ds-dur)}
+.sg-stele:hover,.sg-stele:focus-visible{transform:translateY(-2px);box-shadow:0 0 0 2px var(--ds-paper),0 0 18px var(--ds-paper)}
+.sg-carve{writing-mode:vertical-rl;font-family:var(--ds-font-title);font-size:var(--sg-fs,16px);line-height:1;letter-spacing:.12em;color:var(--ds-paper);padding:var(--ds-sp-8) 3px;border-radius:var(--ds-r-4);background:var(--ds-scrim);font-weight:700;margin-top:-10%}
+.sg-count{position:absolute;top:100%;left:50%;transform:translate(-50%,6px);white-space:nowrap;font-size:var(--ds-fs-11);padding:2px var(--ds-sp-8);border-radius:var(--ds-r-pill);background:var(--ds-paper);color:var(--ds-paper-ink);box-shadow:var(--ds-shadow-1)}
+.sg-stele.empty .sg-carve{opacity:.6}
+.sg-hint{position:absolute;left:50%;bottom:var(--ds-sp-8);transform:translateX(-50%);margin:0;max-width:min(92%,760px);text-align:center;font-size:var(--ds-fs-12);padding:var(--ds-sp-4) var(--ds-sp-12);border-radius:var(--ds-r-pill);background:var(--ds-paper);color:var(--ds-paper-ink);opacity:.9}
+.sg-paper{--sg-ink:var(--ds-paper-ink);--sg-pp:var(--ds-paper)}
+.sg-paper{background:var(--ds-paper);color:var(--ds-paper-ink);--hx381-base-text:var(--sg-ink);--hx381-base-muted:var(--sg-ink);--text:var(--sg-ink);--muted:var(--sg-ink);--panel:var(--sg-pp);--ig-library-ink:var(--sg-ink);--ig-library-halo:transparent;text-shadow:none}
+.sg-paper *{text-shadow:none}
+.sg-room{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;border-radius:var(--ds-r-12);box-shadow:var(--ds-shadow-3);padding:var(--ds-sp-12) var(--ds-sp-16);min-height:0}
+.sg-head{display:flex;align-items:center;gap:var(--ds-sp-12);flex-wrap:wrap;padding-bottom:var(--ds-sp-8);border-bottom:1px solid var(--ds-paper-line);flex:none}
+.sg-title{font-family:var(--ds-font-title);font-size:var(--ds-fs-22)}
+.sg-file{opacity:.7}
+.sg-warn{flex:none;margin-top:var(--ds-sp-8);padding:var(--ds-sp-8) var(--ds-sp-12);border-left:3px solid var(--ds-warn);border-radius:var(--ds-r-6);font-size:var(--ds-fs-13);background:var(--ds-seal-bg)}
+.sg-body{flex:1;min-height:0;display:grid;grid-template-columns:clamp(200px,24%,280px) minmax(0,1fr);gap:var(--ds-sp-16);margin-top:var(--ds-sp-12)}
+.sg-list{display:flex;flex-direction:column;gap:var(--ds-sp-4);overflow:auto;overscroll-behavior:contain;min-height:0}
+.sg-q{display:grid;grid-template-columns:auto 1fr;column-gap:var(--ds-sp-8);align-items:center;text-align:left;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;min-height:var(--ds-touch);flex:none;font-family:inherit}
+.sg-q span{font-size:var(--ds-fs-13);line-height:1.4}
+.sg-q small{grid-column:2;font-size:var(--ds-fs-11);opacity:.7}
+.sg-q.on{border-color:var(--ds-paper-accent);box-shadow:inset 3px 0 0 var(--ds-paper-accent)}
+.sg-dot{width:10px;height:10px;border-radius:var(--ds-r-pill);border:2px solid var(--ds-paper-line);grid-row:span 2}
+.sg-dot.ok{background:var(--ds-ok);border-color:var(--ds-ok)}
+.sg-dot.bad{background:var(--ds-danger);border-color:var(--ds-danger)}
+.sg-main{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:var(--ds-sp-4)}
+.sg-qtitle{display:block;margin:0 0 var(--ds-sp-8);font-family:var(--ds-font-title);font-size:var(--ds-fs-20)}
+.sg-stem{font-size:var(--ds-fs-18);line-height:1.8}
+.sg-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--ds-sp-8);margin:var(--ds-sp-16) 0}
+.sg-opt{display:flex;gap:var(--ds-sp-8);align-items:baseline;text-align:left;padding:var(--ds-sp-12) var(--ds-sp-14);border-radius:var(--ds-r-10);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;font-size:var(--ds-fs-16);min-height:var(--ds-touch);font-family:inherit}
+.sg-opt b{color:var(--ds-paper-accent)}
+.sg-opt:not([disabled]):hover{border-color:var(--ds-paper-accent)}
+.sg-opt.right{border:2px solid var(--ds-ok)}
+.sg-opt.wrong{border:2px solid var(--ds-danger)}
+.sg-opt[disabled]{opacity:1;cursor:default;color:inherit}
+.sg-opt.dim{opacity:.55}
+.sg-verdict{display:flex;gap:var(--ds-sp-12);align-items:baseline;padding:var(--ds-sp-8) var(--ds-sp-14);border-radius:var(--ds-r-8);font-weight:700;background:var(--ds-seal-bg)}
+.sg-verdict.ok{color:var(--ds-ok)}
+.sg-verdict.bad{color:var(--ds-danger)}
+.sg-verdict span{font-weight:400;opacity:.8;color:var(--ds-paper-ink)}
+.sg-sec{margin-top:var(--ds-sp-16);padding-top:var(--ds-sp-12);border-top:1px dashed var(--ds-paper-line)}
+.sg-sec h4{margin:0 0 var(--ds-sp-8);font-size:var(--ds-fs-16);color:var(--ds-paper-accent)}
+.sg-md{line-height:1.75;font-size:var(--ds-fs-14)}
+.sg-md table{width:100%;border-collapse:collapse;margin:var(--ds-sp-8) 0}
+.sg-md :is(th,td){border:1px solid var(--ds-paper-line);padding:var(--ds-sp-4) var(--ds-sp-8);text-align:left;vertical-align:top}
+.sg-md blockquote{margin:var(--ds-sp-8) 0;padding:var(--ds-sp-8) var(--ds-sp-12);border-left:3px solid var(--ds-paper-accent);background:var(--ds-seal-bg)}
+.sg-acts{display:flex;gap:var(--ds-sp-8);justify-content:flex-end;margin:var(--ds-sp-16) 0 var(--ds-sp-8)}
+.sg-empty{padding:var(--ds-sp-24);line-height:1.8}
+@media (max-width:900px){.sg-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}.sg-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}.sg-q{min-width:200px}}

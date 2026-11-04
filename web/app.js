@@ -149,7 +149,8 @@ async function go(view) {
   if (window.SHENLUN && !(await SHENLUN.flush())) return;
   if (window.NOTES && NOTES.embedded() && !(await NOTES.leaveArticle())) return;
   if (VIEW === "notes" && view !== "notes" && window.NOTES && !(await NOTES.flush())) return;
-  if (view === "tianji" && VIEW === "tianji" && window.TIANJI && TIANJI.isOpen()) TIANJI.close();   // 在一期里再点顶栏：回天机简报首页
+  const TJ0 = isSL() ? window.TIANJI : window.SIGUO;      // 行测这里是思过崖，申论是参阅室
+  if (view === "tianji" && VIEW === "tianji" && TJ0 && TJ0.isOpen()) TJ0.close();   // 在一期 / 一块石碑里再点顶栏：回首页
   if (window.CARDS && CARDS.isOpen()) CARDS.close();
   if (window.MINDMAP && MINDMAP.isOpen() && (await MINDMAP.close()) === false) return;
   if(ticket!==navigationTicket)return;
@@ -179,7 +180,8 @@ window.xcBack = () => {
   if (window.CARDS && CARDS.isOpen()) { CARDS.close(); return true; }
   if (window.MINDMAP && MINDMAP.isOpen()) { MINDMAP.close(); return true; }
   const m0 = $("#modal");
-  if (VIEW === "tianji" && window.TIANJI && TIANJI.isOpen() && (!m0 || m0.classList.contains("hidden"))) { TIANJI.close(); return true; }
+  const TJ1 = isSL() ? window.TIANJI : window.SIGUO;
+  if (VIEW === "tianji" && TJ1 && TJ1.isOpen() && (!m0 || m0.classList.contains("hidden"))) { TJ1.close(); return true; }
   const m = $("#modal");
   if (m && !m.classList.contains("hidden")) { m.classList.add("hidden"); return true; }
   if (window.FOCUS && FOCUS.isOn()) { FOCUS.exit(); return true; }
@@ -224,7 +226,7 @@ function configurePortal() {
     {id:'contest',label:'宗门大比',view:'contest',x:34,y:67,nx:14,ny:52},
     {id:'dwelling',label:'洞府',view:'dwelling',x:11,y:80,nx:16,ny:88},
     {id:'notes',label:'灵台手札',view:'notes',x:81,y:52,nx:84,ny:70},
-    {id:'tianji',label:'天机台',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
+    {id:'tianji',label:'思过崖',view:'tianji',x:6,y:36,nx:16,ny:70},{id:'journal',label:'任务大殿',view:'journal',x:51,y:52,nx:50,ny:48},
   ];
   SCENE_PORTAL.configure({savedLayout:DASH?.scene_layouts?.[official?'guantu':'xingce'],progress:DASH?.narrative?.world_progress,id:official?'guantu':'xingce',title:official?'政务大厅':'行测宗',subtitle:official?'申论工作台 · 政务全景':'五脉同修 · 明理致用',...(official?(window.BeautyArt?.has('beauty/page/home-night.webp')?{images:{day:'assets/shenlun/hall.webp',night:window.BeautyArt.url('beauty/page/home-night.webp')},layoutId:'guantu-v2'}:{image:'assets/shenlun/hall.webp'}):{images:{day:'assets/sect/xc-sect-day.webp',night:'assets/sect/xc-sect-night.webp'},framing:'extended',seasons:Object.fromEntries(['spring','summer','autumn','winter'].map(se=>[se,Object.fromEntries(['day','night'].map(t=>[t,'assets/beauty/scenes/xingce/hd/368/home-'+se+'-'+t+'.webp']))])),layoutId:'xingce-v3',viewTitles:{train:'问道群峰'}}),extraHtml:()=>NARRATIVE.homeHtml(DASH?.narrative),places},p=>{
     if(p.view==='journal')NARRATIVE.open();
@@ -305,7 +307,7 @@ async function render() {
     else if(page==='dwelling')commit(views.home(),bindHome);
     else if(page==='train'||page==='bank')commit(await views.train(),bindTrain);
     else if(page==='contest')await (isSL()?CONTEST_SL:CONTEST).render(v,prepare);
-    else if(page==='tianji')await TIANJI.render(v,prepare);
+    else if(page==='tianji')await (isSL()?TIANJI:SIGUO).render(v,prepare);
     else if(page==='notes')await NOTES.render(v,prepare);
     else if(page==='skeleton')commit(await views.skeleton(),bindSkeleton);
     else if(page==='wrong'||page==='pill')return go('log');
@@ -1605,6 +1607,7 @@ let cardSec = 0;   // 温简也算复习：按秒累计正在温简的时间（w
 let mapSec=0, mapToken="", cardBoard="";
 let tjSec = 0;     // 🔮 天机简报：开着一期、2 分钟内动过（web/tianji.js 的 active）
 let tjMode = "";
+let sgSec = 0, sgBoard = "";   // 行测 · 思过崖：在一块石碑里 2 分钟内动过（web/siguo.js 的 active）
 let slSec = 0;     // 申论作答：在作答页敲过键盘（web/shenlun.js 的 active）
 setInterval(() => {
   if(window.STUDY_LAMP?.allows()===false)return;
@@ -1616,8 +1619,10 @@ setInterval(() => {
   if (window.MINDMAP && MINDMAP.active()) {mapSec+=1;mapToken=MINDMAP.token();}
   const tj = window.TIANJI ? TIANJI.active() : "";
   if (tj) { tjSec += 1; tjMode = tj; }
+  const sg = window.SIGUO ? SIGUO.active() : "";
+  if (sg) { sgSec += 1; sgBoard = sg; }
 }, 1000);
-function automaticStudyOn(){return !!window.MINDMAP?.active() || studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SHENLUN && SHENLUN.active());
+function automaticStudyOn(){return !!window.MINDMAP?.active() || studyingNow() || !!(window.NOTES && NOTES.writingId()) || !!(window.CARDS && CARDS.active()) || !!(window.TIANJI && TIANJI.active()) || !!(window.SIGUO && SIGUO.active()) || !!(window.SHENLUN && SHENLUN.active());
 }
 function updateStudyDot() {
   const on=window.STUDY_LAMP?.allows()!==false&&(automaticStudyOn()||!!window.STUDY_LAMP?.wanted());
@@ -1627,7 +1632,7 @@ function updateStudyDot() {
   lamp.setAttribute('aria-pressed',String(on));
   lamp.setAttribute('aria-label',on?'关闭学习蜡烛，暂停学习计时':'点亮学习蜡烛，开始学习计时');
 }
-window.STUDY_LAMP?.configure({autoOn:automaticStudyOn,update:updateStudyDot,board:()=>VIEW==='tianji'?'政治理论':''});
+window.STUDY_LAMP?.configure({autoOn:automaticStudyOn,update:updateStudyDot,board:()=>VIEW==='tianji'?(isSL()?'政治理论':(window.SIGUO?.board()||'')):''});
 window.finishLampReading=async token=>{
   const sec=token===lampToken?Math.min(90,lampSec):0;if(token===lampToken){lampSec=0;lampToken='';}if(!sec)return;
   try{const r=await api('/api/heartbeat',{seconds:sec,lamp:token});if(DASH){Object.assign(DASH,{xp:r.xp,realm:r.realm,study_status:r.study_status});DASH.minutes.today=r.minutes;updatePill();}handleEvents(r.events);}catch(_){}
@@ -1637,20 +1642,21 @@ setInterval(async () => {
   updateStudyDot();
   const on = studySec>0;
   beatCount += 1;
-  if (!on && !noteSec && !cardSec && !mapSec && !tjSec && !slSec && !lampSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
+  if (!on && !noteSec && !cardSec && !mapSec && !tjSec && !sgSec && !slSec && !lampSec && beatCount % 2) return;          // 不修炼时每分钟只刷新一次状态（多设备提醒、调息、闭关）
   try {
     const nid = !on && window.NOTES ? NOTES.writingId() || (noteSec ? NOTES.lastId() : "") : "";
     const carding = !on && !nid && cardSec > 0;
     const mapping = !on && !nid && !carding && mapSec>0;
     const tj = !on && !nid && !carding && !mapping && tjSec > 0 ? tjMode : "";
     const sl = !on && !nid && !carding && !mapping && !tj && slSec > 0 && window.SHENLUN ? SHENLUN.board() || "作答" : "";
-    const lamp=!on&&!nid&&!carding&&!mapping&&!tj&&!sl&&lampSec>0?lampToken:'';
-    const sec = Math.min(BEAT,on?studySec:nid?noteSec:carding?cardSec:mapping?mapSec:tj?tjSec:sl?slSec:lampSec);
+    const sg = !on && !nid && !carding && !mapping && !tj && !sl && sgSec > 0 ? sgBoard : "";
+    const lamp=!on&&!nid&&!carding&&!mapping&&!tj&&!sl&&!sg&&lampSec>0?lampToken:'';
+    const sec = Math.min(BEAT,on?studySec:nid?noteSec:carding?cardSec:mapping?mapSec:tj?tjSec:sl?slSec:sg?sgSec:lampSec);
     const sid=studySid;studySec=0;studySid=null;lampSec=0;lampToken='';
-    noteSec = 0; cardSec = 0; mapSec = 0; tjSec = 0; slSec = 0;
+    noteSec = 0; cardSec = 0; mapSec = 0; tjSec = 0; slSec = 0; sgSec = 0;
     if (nid && sec) await NOTES.save();          // 先把刚写的存上，服务器才认得“最近写过”
     const r = await api("/api/heartbeat", { seconds: sec, session: on ? sid : null, lamp:lamp||null, notes: nid || null,
-      cards: carding || null, cards_board: carding ? cardBoard : null, mindmap: mapping ? mapToken : null, tianji: tj || null, answering: sl || null });
+      cards: carding || null, cards_board: carding ? cardBoard : null, mindmap: mapping ? mapToken : null, tianji: tj || null, answering: sl || null, siguo: sg || null });
     if (DASH) { Object.assign(DASH, {xp:r.xp, realm:r.realm, study_status:r.study_status, today:r.today}); DASH.minutes.today = r.minutes; DASH.other_device = r.other_device; DASH.rest = r.rest; updatePill(); banner(); }
     handleEvents(r.events);
     if (DASH?.retreat && !r.retreat_on && VIEW === "dwelling") render();

@@ -26,6 +26,9 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/boss                 {"name", "score", "kind": "大比"|"飞升", "result"?}  宗门大比（模考）/ 飞升大典（国考）
     POST /api/wordbook             {"kind": 成语|实词}  藏经阁·词录：读 训练/成语实词录/ 下用户维护的区别汇总文档，按组返回
     POST /api/wordbook/cards       {"kind"}  每组一张组卡同步到辨言峰（逻辑填空::成语组 / 实词组）
+    POST /api/siguo                行测·思过崖：七块石碑（每板块题数、做过、对、错）
+    POST /api/siguo/board          {"name"}  一个板块文档里的题（只给题干和选项）
+    POST /api/siguo/answer         {"name","key","choice"}  重做一题：判对错，返回解析小节；答对每题每天给一次修为
     GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
     POST /api/mock/marks/scan      {"season", "images": [base64]}  读答题卡截图（绿对红错）→ 每题对错
     POST /api/mock/report/scan     {"images": [base64], "text"?}  读粉笔成绩截图（Windows OCR）或粘贴的报告文字 → 成绩单各项
@@ -487,6 +490,37 @@ def wordbook_cards(body):
         return dict(wordbook.listing(g, kind), result=r)
 
 
+def _siguo(fn, *args, save=True):
+    from . import siguo
+    with open_game(save=save) as g:
+        if g.subject != "行测":
+            raise ApiError("思过崖只在行测里有")
+        try:
+            return fn(g, *args)
+        except ValueError as e:
+            raise ApiError(str(e))
+
+
+def siguo_boards(body):
+    from . import siguo
+    return _siguo(siguo.boards, save=False)
+
+
+def siguo_board(body):
+    from . import siguo
+    return _siguo(siguo.board, str((body or {}).get("name") or ""), save=False)
+
+
+def siguo_answer(body):
+    from . import siguo
+    body = body or {}
+    def run(g, *a):
+        r = siguo.answer(g, *a)
+        r["events"] = tutor.enrich(g, r["events"])
+        return r
+    return _siguo(run, str(body.get("name") or ""), str(body.get("key") or ""), str(body.get("choice") or ""))
+
+
 def mock_marks_scan(body):
     try:
         season = int(body.get("season") or 0)
@@ -918,6 +952,8 @@ def heartbeat(body):
     carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 后端核对近期取卡、翻卡或答卡，前端另核对可见性及操作时限
     answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 申论：在作答页写答案
     tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在天机简报里学（5 分钟内翻过、填过、答过）
+    from . import siguo
+    sg = body.get("siguo") if not (studying or noting or carding or answer or tj) and siguo.studying() else None  # 思过崖重做（5 分钟内翻过、答过）
     with open_game() as g:
         mapping = mindmap.reading(g.paths, body.get("mindmap")) if not (studying or noting or carding) and g.paths.vault else None
         from . import study_clock
@@ -931,6 +967,8 @@ def heartbeat(body):
             ev = tutor.enrich(g, g.add_seconds(sec, "practice", body.get("answering") if body.get("answering") in g.boards else ""))
         elif mapping is not None and sec:
             ev = tutor.enrich(g, g.add_seconds(sec, "review", mapping if mapping in g.boards else ""))
+        elif sg and sec:      # 思过崖重做算做题，记在这块石碑对应的板块
+            ev = tutor.enrich(g, g.add_seconds(sec, "practice", sg if sg in g.boards else ""))
         elif tj and sec:      # 精卷算做题，研读 / 消化算复习，都记在政治理论
             ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", g.news_board() if g.news_board() in g.boards else ""))
         else:
@@ -938,7 +976,7 @@ def heartbeat(body):
             lamp = study_lamp.seconds(g.paths, body.get('lamp'), sec) if body.get('lamp') else None
             ev = tutor.enrich(g, g.add_seconds(lamp[0], 'review', lamp[1] if lamp[1] in g.boards else '')) if lamp and lamp[0] else []
             studying = bool(lamp) or studying
-        studying = studying or noting or carding or mapping is not None or answer or bool(tj)
+        studying = studying or noting or carding or mapping is not None or answer or bool(tj) or bool(sg)
         from . import study_status
         return {"events": ev, "xp": g.state["xp"], "realm": g.realm_info(), "study_status": study_status.view(g),
                 "today": g.t, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
@@ -1476,6 +1514,9 @@ ROUTES = {
     ("GET", "/api/wordbook"): wordbook_list,
     ("POST", "/api/wordbook"): wordbook_list,
     ("POST", "/api/wordbook/cards"): wordbook_cards,
+    ("POST", "/api/siguo"): siguo_boards,
+    ("POST", "/api/siguo/board"): siguo_board,
+    ("POST", "/api/siguo/answer"): siguo_answer,
     ("POST", "/api/mock/save"): mock_save,
     ("POST", "/api/exam/list"): exam_list,
     ("POST", "/api/exam/import"): exam_import,
