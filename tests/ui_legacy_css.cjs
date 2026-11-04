@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
   const srv = spawn(process.env.PYTHON || 'python3', ['tests/ui_layout_server.py', subject], { env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
   const base = await new Promise((res, rej) => { let t = ''; const timer = setTimeout(() => rej(Error('服务没起来')), 25000);
     srv.stdout.on('data', (b) => { t += b; const m = t.match(/UI-READY (\S+)/); if (m) { clearTimeout(timer); res(m[1]); } }); });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   try {
     for (const [w, h] of [[1280, 860], [800, 1280], [1280, 800]]) {
       const page = await browser.newPage({ viewport: { width: w, height: h } });

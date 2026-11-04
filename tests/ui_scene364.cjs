@@ -23,7 +23,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   assert.equal(await p.locator('.portal-fx').evaluate(e=>getComputedStyle(e).pointerEvents),'none');
   await p.evaluate(()=>{window.__homeNode=document.querySelector('.portal-stage');window.__positions=[...document.querySelectorAll('[data-portal-go]')].map(e=>[e.dataset.portalGo,e.style.cssText]);});
   // 正常绘制一帧后减少动画必须真正取消后续绘制，而非不断清空画布。
-  await p.waitForTimeout(100);assert((await p.evaluate(()=>__fx.clear))>1);
+  await p.waitForFunction(()=>__fx.clear>1,null,{timeout:5000});
   await p.evaluate(()=>document.documentElement.dataset.motion='reduced');await p.waitForTimeout(80);const stopped=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(160);assert.equal(await p.evaluate(()=>__fx.clear),stopped);
   await p.evaluate(()=>document.documentElement.dataset.motion='full');await p.waitForFunction(n=>__fx.clear>n,stopped);
   await p.emulateMedia({reducedMotion:'reduce'});await p.waitForTimeout(100);const systemStop=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(120);assert.equal(await p.evaluate(()=>__fx.clear),systemStop);await p.emulateMedia({reducedMotion:'no-preference'});
