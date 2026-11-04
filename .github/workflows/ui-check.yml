@@ -3,7 +3,7 @@ name: article-ui-check
 on:
   push:
     branches: ['validate/**']
-    paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml']
+    paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml', '.github/release-request.json']
   workflow_dispatch:
 permissions:
   contents: read
