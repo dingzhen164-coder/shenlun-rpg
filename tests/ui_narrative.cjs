@@ -71,7 +71,20 @@ let browser, page;
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);
   assert.equal(await page.evaluate(()=>{const d=document.querySelector('.narrative-dialog'),r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&d.scrollWidth<=d.clientWidth+2;}),true);
   fs.mkdirSync('ui-artifacts/narrative',{recursive:true});await page.screenshot({path:'ui-artifacts/narrative/dialogue-'+(subject||'mage')+'.png'});
-  await page.locator('[data-narrative="study"]').click();await page.waitForFunction(()=>VIEW==='train');assert.equal(await page.locator('.narrative-dialog').count(),0);
+  const previousMap=subject==='行测'?await page.locator('.portal-world').elementHandle():null;
+  await page.locator('[data-narrative="study"]').click();
+  if(subject==='行测'){
+    // 未选峰时返回实际地图；不能把 go('train') 的短暂中间状态当作完成。
+    assert(previousMap,'打开纪事前的实际地图');
+    await page.waitForFunction(el=>!el.isConnected,previousMap);
+    await page.locator('[data-portal-go="peak-yan"]').waitFor();
+    assert.equal(await page.evaluate(()=>VIEW),'home');
+    assert.equal(await page.locator('[data-portal-go^="peak-"]').count(),5);
+    await page.locator('[data-portal-go="peak-yan"]').click();
+    await page.locator('.subpage-place h2').filter({hasText:'辨言峰'}).waitFor();
+    assert.equal(await page.locator('.study-region-heading').getAttribute('aria-label'),'辨言峰');
+  }else await page.locator('[data-study-region]').first().waitFor();
+  assert.equal(await page.evaluate(()=>VIEW),'train');assert.equal(await page.locator('.narrative-dialog').count(),0);
   assert.deepEqual(errors,[]);
   console.log('纪事交互检查通过：'+(subject||'法考'));
  }catch(e){if(page){fs.mkdirSync('ui-artifacts/narrative',{recursive:true});await page.screenshot({path:'ui-artifacts/narrative/failure-'+(subject||'mage')+'.png'}).catch(()=>{});}throw e;}
