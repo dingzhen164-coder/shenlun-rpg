@@ -64,7 +64,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, wordbook, importer, lan, library, mock, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, shenlun, subjects, tianji, wordbook, importer, lan, library, mock, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -1732,29 +1732,6 @@ def mm_export(body):
     return r
 
 
-# ---------------------------------------------------------------- 🖼 修炼战报（见 rpg/poster.py、web/poster.js）
-def poster_stats(body):
-    with open_game(save=False) as g:
-        try:
-            d = poster.stats(g, body.get("span") or "day")
-        except poster.PosterError as e:
-            raise ApiError(str(e))
-        d.update(persona=_persona_view(g), today=g.t, theme=g.theme)
-        return d
-
-
-def poster_save(body):
-    with open_game(save=False) as g:
-        if not g.paths.vault:
-            raise ApiError("还没找到行测库")
-        try:
-            r = poster.save(g.paths, body.get("data"), body.get("span") or "day", g.t)
-        except poster.PosterError as e:
-            raise ApiError(str(e))
-    r["url"] = "/notes-file?p=%s&t=%s" % (quote(r["path"]), export_token(r["path"]))
-    return r
-
-
 # ---------------------------------------------------------------- 🔮 天机简报（见 rpg/tianji.py、web/tianji.js）
 def _tj(fn, *a, save=True):
     with open_game(save=save) as g:
@@ -1972,7 +1949,6 @@ ROUTES[("GET", "/api/mindmap")] = mm_list
 for _n, _f in (("get", mm_get), ("save", mm_save), ("create", mm_create), ("rename", mm_rename), ("delete", mm_delete), ("export", mm_export)):
     ROUTES[("POST", "/api/mindmap/" + _n)] = _f
 ROUTES[("POST", "/api/settings/ai_profile")] = ai_profile
-ROUTES[("POST", "/api/poster/stats")] = poster_stats
 ROUTES[("GET", "/api/tianji")] = tj_list
 for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta", tj_meta), ("delete", tj_delete), ("cards", tj_cards), ("pdf", tj_pdf), ("ask", tj_ask)):
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
@@ -1981,7 +1957,6 @@ for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import
                ("category", ar_category), ("delete", ar_delete), ("digest_save", ar_digest_save), ("digest_remove", ar_digest_remove), ("jd", ar_jd), ("notebook", ar_notebook)):
     ROUTES[("POST", "/api/articles/" + _n)] = _f
 ROUTES[("GET", "/api/articles/digest")] = ar_digest_list
-ROUTES[("POST", "/api/poster/save")] = poster_save
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),
                ("update", cards_update), ("delete", cards_delete), ("suspend", cards_suspend), ("forget", cards_forget),
                ("move", cards_move), ("deck", cards_deck), ("search", cards_search), ("info", cards_info),

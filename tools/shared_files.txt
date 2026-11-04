@@ -197,7 +197,6 @@ diverged rpg/mindmap.py
 diverged rpg/mock.py
 diverged rpg/notes.py
 diverged rpg/paths.py
-diverged rpg/poster.py
 diverged rpg/prompts.py
 diverged rpg/question_bank.py
 diverged rpg/store.py
@@ -219,7 +218,6 @@ diverged tests/test_import.py
 diverged tests/test_lecture.py
 diverged tests/test_library.py
 diverged tests/test_notes.py
-diverged tests/test_poster.py
 diverged tests/test_skill_material.py
 diverged tests/test_tianji.py
 diverged tests/test_tutor_note.py
@@ -245,7 +243,6 @@ diverged web/index.html
 diverged web/manifest.webmanifest
 diverged web/mindmap.js
 diverged web/notes.js
-diverged web/poster.js
 diverged web/settle.js
 diverged web/style.css
 diverged web/tianji.js

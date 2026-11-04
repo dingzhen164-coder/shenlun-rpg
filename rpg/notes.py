@@ -256,9 +256,6 @@ def export_file(paths, rel):
     from . import mindmap
     if p.suffix.lower().lstrip(".") in mindmap.EXPORT_EXT and mindmap.export_dir(paths).resolve() in p.parents:
         return p
-    from . import poster
-    if p.suffix.lower() == ".png" and poster.export_dir(paths).resolve() in p.parents:
-        return p
     from . import tianji
     if p.suffix.lower() == ".pdf" and (tianji.folder(paths) / "原文").resolve() in p.parents:
         return p

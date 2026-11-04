@@ -577,8 +577,7 @@ const views = {
           <span class="small muted">按住约 1.5 秒凝聚灵气，松手则散</span></div>` : ""}
       </div>
       <div class="hero-score"><div class="small muted">${esc(W("score"))}</div><div class="big">${R.score}<span>分</span></div>
-        <div class="small muted">目标 ${R.target} 分</div>
-        <button class="ghost small ps-open" id="psHero" title="今日修炼战报：画成一张海报，可以存图、分享">🖼 修炼战报</button></div>
+        <div class="small muted">目标 ${R.target} 分</div></div>
     </div>
     ${timeCard(d)}
     <div class="grid g5" style="margin-top:14px">
@@ -823,7 +822,6 @@ function timeCard(d) {
   const ticks = units > 1 ? Array.from({ length: units - 1 }, (_, i) => `<span style="left:${((i + 1) * base / total * 100).toFixed(2)}%"></span>`).join("") : "";
   return `<div class="card sancai" style="margin-top:14px">
     <div class="sancai-head"><h3>☯ 三才时辰 <small>听课 · 做题 · 复习</small></h3><span class="spacer"></span>
-      <button class="ghost small ps-open" id="psOpen" title="把这段时间的修炼成果画成一张海报，可以存图、分享">🖼 战报</button>
       <div class="sancai-tabs">${[["today", "今日"], ["week", "近七日"], ["all", "累计"]].map(([k, n]) => `<a data-tspan="${k}" class="${k === TIME_SPAN ? "on" : ""}">${n}</a>`).join("")}</div></div>
     <div class="orbs">${orbs}</div>
     <div class="ratio">
@@ -832,7 +830,6 @@ function timeCard(d) {
     </div></div>`;
 }
 function bindTimeCard() {
-  const ps = $("#psOpen"); if (ps) ps.onclick = () => POSTER.open(TIME_SPAN === "week" ? "week" : "day");
   document.querySelectorAll("[data-tspan]").forEach((a) => (a.onclick = () => {
     TIME_SPAN = a.dataset.tspan;
     try { localStorage.setItem("timeSpan", TIME_SPAN); } catch {}
@@ -1028,7 +1025,6 @@ function bindHome() {
   bindSelfstudy();
   bindTimeCard();
   bindBoardTime();
-  const ph = $("#psHero"); if (ph) ph.onclick = () => POSTER.open("day");
   bindBreak();
   const tb = $("#tribBtn"); if (tb) tb.onclick = () => startTask({ task: { type: "tribulation", board: "", target: String(DASH.trib.gate), title: `⚡ ${W("tribulation")} · ${DASH.trib.realm}` } });
   bindRetreatTimer();
