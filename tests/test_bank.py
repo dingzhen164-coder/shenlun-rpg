@@ -317,8 +317,7 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.time, 'time', return_value=100):
             r = trainer.start(self.g, task)
         sid = r['session']
-        self.assertIn('1-5  1·_  2·_  3·_  4·_  5·_', str(r))
-        self.assertIn('6-10  6·_  7·_  8·_  9·_  10·_', str(r))
+        self.assertNotIn('答题卡', str(r))                                      # 做题界面不再显示答题卡
         with patch.object(trainer.time, 'time', return_value=112):
             r = trainer.action(self.g, sid, 'exam_rest')
         self.assertEqual(r['battle']['timer']['question'], 12)
@@ -336,7 +335,7 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.time, 'time', return_value=515):
             r = trainer.action(self.g, sid, 'exam_pick:0:A')
         self.assertEqual(r['battle']['timer']['total'], 15)
-        self.assertIn('1·A', str(r))
+        self.assertEqual(r['battle']['answered'], 1)
 
     def test_exam_submit_review_explain(self):
         f = self.paths.train / '题库/类比推理真题.md'
@@ -355,7 +354,8 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_pick:0:A')                   # 回去改答案
         trainer.action(self.g, sid, 'exam_pick:1:A')
         r = trainer.action(self.g, sid, 'exam_pick:2:C')
-        self.assertIn('1-3  1·A  2·A  3·C', str(r))
+        self.assertEqual(r['battle']['answered'], 3)
+        self.assertIn("'label': '✓ C'", str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
         self.assertEqual((r['battle']['correct'], r['battle']['total']), (2, 3))
         self.assertTrue(r['messages'][0]['pin'])

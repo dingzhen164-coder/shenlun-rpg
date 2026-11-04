@@ -1385,10 +1385,6 @@ def _exam_show(g, s, run, events=None, extra=None):
     left = [str(i + 1) for i in range(len(qs)) if str(i) not in picks]
     msg = '%s · 第 %s/%s 题 · 编号 %s' % (question_bank.label(run['board']), pos + 1, len(qs), q['id'])
     blocks, mat = _bank_q(g, q)
-    sheet = '答题卡：\n' + '\n'.join(
-        '%d-%d  %s' % (start + 1, min(start + 5, len(qs)), '  '.join(
-            '%d·%s' % (i + 1, picks.get(str(i), '_')) for i in range(start, min(start + 5, len(qs)))))
-        for start in range(0, len(qs), 5))
     mine = picks.get(str(pos))
     btns = [('exam_pick:%s:%s' % (pos, k), ('✓ ' if k == mine else '') + k) for k in 'ABCD']
     if pos > 0:
@@ -1397,7 +1393,7 @@ def _exam_show(g, s, run, events=None, extra=None):
         btns.append(('exam_next', '下一题 →'))
     btns.append(('exam_submit', '交卷' if not left else '交卷（还有 %d 题没选）' % len(left)))
     btns.append(('bank_pause', g.T('bank_pause')))
-    msgs = [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id']), _msg('sys', sheet)] + (extra or [])
+    msgs = [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id'])] + (extra or [])   # 2026-11-04 用户要求：做题界面不再显示答题卡
     r = _bank_resp(g, s, run, msgs, events, _buttons(*btns))
     r['replace'] = True
     return r

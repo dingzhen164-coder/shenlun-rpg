@@ -31,7 +31,7 @@ async function fits(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(do
    const paused=await p.locator('#tT').textContent();await p.waitForTimeout(2200);assert.equal(await p.locator('#tT').textContent(),paused);
    assert(await p.locator('#examRestOverlay').isVisible());await p.locator('#examRestResume').click();await p.locator('#examRestOverlay').waitFor({state:'detached'});
    await p.waitForFunction(t=>document.getElementById('tT')?.textContent!==t,paused);
-   assert((await p.locator('#msgs').innerText()).includes('1-5'));assert((await p.locator('#msgs').innerText()).includes('16-20'));
+   assert(!(await p.locator('#msgs').innerText()).includes('答题卡'),'做题界面不显示答题卡');
    const timer=await p.locator('#tT').textContent();await p.waitForFunction(t=>document.getElementById('tT')?.textContent!==t,timer);
    const timeNode=await p.locator('#tT').evaluate(e=>{window.__timeNode=e;STUDY_HUD.refresh();return e===document.getElementById('tT');});assert(timeNode,'同值HUD刷新保留计时节点');
    if(subject==='行测'){
