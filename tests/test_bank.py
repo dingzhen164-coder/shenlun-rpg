@@ -495,7 +495,7 @@ class BankTest(unittest.TestCase):
         r = trainer.action(self.g, sid, 'exam_close')
         self.assertEqual(r['messages'][0]['blocks'][0]['rows'][-1][7], '11:45')
 
-    def test_point_run_and_dedupe(self):
+    def test_point_run(self):
         from rpg import importer
         f = self.paths.train / '题库/论证逻辑真题-2020.md'
         blk = lambda i, topic, stem, paper, num: ('\n## 题目 %s\n### 知识点\n%s\n### 试卷\n%s\n### 模块\n判断推理\n### 题号\n%s\n'
@@ -518,17 +518,15 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_close')
         with self.assertRaises(trainer.TrainError):
             trainer.start(self.g, task)                                   # 这一类做完了
-        # 去重：1 和 9 题干选项一样（只差来源括号和标点）；两份都做过 → 记录合并到留下的那份，试卷并过去
-        r = importer.dedupe_bank(self.paths, {'dry': True}, self.g.state)
-        self.assertEqual((r['groups'], r['removed']), (1, 1))
-        r = importer.dedupe_bank(self.paths, {}, self.g.state)
-        self.assertEqual(r['records'], 1)
-        qs = {q['id']: q for q in bank.read(self.paths, '论证逻辑')[0]}
-        keep = '真题-1' if '真题-1' in qs else '真题-9'
-        self.assertEqual(sorted(qs), sorted(['真题-2', '真题-3', keep]))
-        self.assertEqual(sorted(qs[keep]['papers']), ['乙卷', '甲卷'])
-        self.assertEqual(len(bank.state(self.g)['records']['论证逻辑::' + keep]['history']), 2)
-        self.assertEqual(importer.dedupe_bank(self.paths, {}, self.g.state)['removed'], 0)
+
+    def test_reload_reports_counts_errors_and_writes_template(self):
+        (self.paths.train / '题库/类比推理真题.md').write_text(question('01') + '## 题目 02\n### 知识点\nx\n### 题干\n题\n### 选项\nA. 甲\nB. 乙\n### 答案\nA\n', encoding='utf-8')
+        r = bank.reload(self.g)
+        row = next(x for x in r['boards'] if x['board'] == '类比推理')
+        self.assertEqual(row['count'], 2)
+        self.assertTrue(any('类比推理真题.md' in e and '02' in e for e in row['errors']))
+        self.assertTrue((self.paths.train / '题库/_模板.md').is_file())
+        self.assertEqual(bank.read_all(self.paths, '数量关系')[0], [])          # 模板不会被当成题
 
     def test_argument_board_defaults_to_normal_answering(self):
         self.file.write_text(''.join(question(x) for x in ('01', '02')), encoding='utf-8')

@@ -43,12 +43,8 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/bank/add             {"board", "topic", "source", "stem", "options": {A..D}, "answer", "analysis"}  自练好题收进题库
     GET  /api/import               导入真题页：各季模考（已导入数）、待修文件、待分类知识点数
     POST /api/import/preview       {"kind": "season"|"text"|"fix", ...}  拆题预览（不写文件）
+    POST /api/bank/reload          题库文档重新载入并检查格式（每板块题数、答案待补、哪个文件哪题有错）
     POST /api/import/commit        同上 + {"ai": bool}  入库；拆不干净的写进 训练/题库/_待修/
-    POST /api/import/answers       {"prefix", "key"}  按答案表补答案
-    POST /api/import/classify      {"limit"}  DeepSeek 补“待分类”的知识点
-    POST /api/import/remove        {"prefix"}  撤销一批导入（只删没做过的题）
-    POST /api/import/normalize     整理题库格式：选项统一“A. ”，修复 OCR 认错的 ①② / ⅠⅡ
-    POST /api/import/rename        {"old", "new", "boards"?}  改编号前缀（题库 + 作答记录一起改）
     POST /api/import/upload_pdf    {"name", "data"(base64), "season"?}  新模考 PDF 存进 FB模考试卷复盘/模考试卷/
     POST /api/import/split         {"file"}  运行 xingce-mokao-split 拆分并导入那一季
     POST /api/import/install_pymupdf  用户点按钮才运行 pip install pymupdf
@@ -438,16 +434,20 @@ def _mock_imported(rep, season, credit=True):
     return rep
 
 
+def bank_reload(body):
+    """题库文档重新载入并检查格式（取代原“导入真题”的 txt/PDF 拆题与维护工具）"""
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        return question_bank.reload(g)
+
+
 def import_commit(body):
     rep = _import_call(importer.commit, body)
     if body.get("kind") == "season" and not rep.get("dry"):
         # 已有复盘的补导入是维护题库，不代表又考了一次。
         _mock_imported(rep, body.get("season"), credit=False)
     return rep
-
-
-def import_answers(body):
-    return _import_call(importer.fill_answers, body)
 
 
 def import_html(body):
@@ -704,52 +704,6 @@ def exam_delete(body):
 
 def import_install(body):
     return _import_call(importer.install_pymupdf, body)
-
-
-def import_rename(body):
-    """改编号前缀：题库文件和存档里的作答记录一起改，所以要拿存档"""
-    with open_game() as g:
-        if not g.paths.vault:
-            raise ApiError("请先在设置中指定行测库路径")
-        try:
-            return importer.rename_prefix(g.paths, body, g.state)
-        except importer.ImportError_ as e:
-            raise ApiError(str(e))
-
-
-def import_dedupe(body):
-    """题库去重：要动存档里的作答记录，所以拿存档；预览不保存"""
-    with open_game(save=not body.get("dry")) as g:
-        if not g.paths.vault:
-            raise ApiError("请先在设置中指定行测库路径")
-        return importer.dedupe_bank(g.paths, body, g.state)
-
-
-def import_distill(body):
-    """给已入库的真题补蒸馏解析（读本机的蒸馏笔记文件夹）"""
-    from . import zhenti
-    p = _import_paths()
-    folder = str(body.get("folder") or "").strip().strip('"')
-    if not folder:
-        raise ApiError("填蒸馏笔记所在的文件夹")
-    try:
-        return zhenti.merge_distilled(p.train, folder, dry=bool(body.get("dry")))
-    except ValueError as e:
-        raise ApiError(str(e))
-
-
-def import_normalize(body):
-    return _import_call(importer.normalize_bank, body)
-
-
-def import_remove(body):
-    with open_game(save=False) as g:   # 做过的题有作答记录，不删
-        done = set(question_bank.state(g)["records"])
-    return _import_call(lambda p, b: importer.remove(p, b, done), body)
-
-
-def import_classify(body):
-    return _import_call(lambda p, b: importer.classify(p, max(1, min(300, int(b.get("limit") or 100)))), body)
 
 
 def contest_calendar(body):
@@ -1478,13 +1432,7 @@ ROUTES = {
     ("POST", "/api/import/season/remove"): import_season_remove,
     ("POST", "/api/import/season/restore"): import_season_restore,
     ("POST", "/api/import/commit"): import_commit,
-    ("POST", "/api/import/answers"): import_answers,
-    ("POST", "/api/import/classify"): import_classify,
-    ("POST", "/api/import/remove"): import_remove,
-    ("POST", "/api/import/normalize"): import_normalize,
-    ("POST", "/api/import/distill"): import_distill,
-    ("POST", "/api/import/dedupe"): import_dedupe,
-    ("POST", "/api/import/rename"): import_rename,
+    ("POST", "/api/bank/reload"): bank_reload,
     ("POST", "/api/import/upload_pdf"): import_upload_pdf,
     ("POST", "/api/import/html"): import_html,
     ("POST", "/api/import/split"): import_split,

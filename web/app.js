@@ -1233,170 +1233,30 @@ function bindHub() {
 // ------------------------------------------------------------ 导入真题（rpg/importer.py）
 let IMPORT_TEXT = null;   // 选中的 txt 内容（只在浏览器里读，导入时发给本机程序）
 let IMPORT_PDF = null;    // 选中的 PDF（base64），由本机程序抽文字
-let IMPORT_KEEP = '';     // 导入后整页重画时保留的结果报告
+// 题库只认本地文档（2026-11 用户定：直接导入 PDF 易出错，改为照模板写 md 放进 训练/题库/）。这里只做“重新载入 + 检查格式”。
 async function loadImport() {
   const box = $('#importBody');
   try {
-    const d = await api('/api/import');
-    const opts = ['<option value="">自动识别</option>', ...d.boards.map(b => `<option>${esc(b)}</option>`)].join('');
+    const d = await api('/api/bank/reload', {});
+    const bad = d.boards.filter((b) => b.errors.length);
     box.innerHTML = `
-      <p class="small muted">模考PDF和HTML导入已移到宗门大比的“录入”。<button type="button" id="mockImportGo">前往试卷导入 →</button></p>
-      <div class="import-sec"><h4>② txt / PDF（练习册、试卷；有文字层的 PDF 能保留填空横线）</h4>
-        <div class="row"><input type="file" id="impFile" accept=".txt,.md,.pdf,text/plain,application/pdf"><span class="small muted" id="impFileInfo"></span></div>
-        <div class="row"><label>来源 <input id="impSource" placeholder="自动识别，如 2025年国考"></label>
-          <label><input type="checkbox" id="impNoSource"> 没有来源</label>
-          <label>编号前缀 <input id="impPrefix" placeholder="如 四海逻辑600"></label>
-          <label>整份板块 <select id="impBoard">${opts}</select></label>
-          <label>第一套是练习几 <input id="impStart" type="number" min="1" placeholder="不填自动（按“练习题NN”）" style="width:13em"></label>
-          ${d.ai ? '<label><input type="checkbox" id="impAI"> 用 AI 补认不出的板块和知识点（DeepSeek，只发题干）</label>' : ''}</div>
-        <div class="row"><button class="ghost" id="impPreview">预览</button><button class="primary" id="impCommit">导入</button></div></div>
-      <div class="import-sec"><h4>③ 待修（拆不干净的题，在 Obsidian 里改好、清空“检查”后重新导入）</h4>
-        ${d.fixes.map(x => `<div class="row"><span>训练/题库/_待修/${esc(x.file)}</span><span class="small muted">${x.total} 题，已改好 ${x.ready}</span><span class="spacer"></span>
-          <button data-imp-fix="${esc(x.file)}">重新导入</button></div>`).join('') || '<p class="small muted">没有待修的题。</p>'}</div>
-      <div class="import-sec"><h4>④ 补答案（练习册答案在另一本时）</h4>
-        <p class="small muted">整本一次补：前缀填导入时的编号前缀（如“花生600题”），答案每行一套：<code>练习01 ADDBA CDCAB DBBCC BBADD</code>。
-          只补一套：前缀写到第几套（如“花生600题-03”），答案写 <code>1-5 ABCDA 6-10 …</code> 或 <code>1.A 2.B</code>。</p>
-        <div class="row"><label>编号前缀 <input id="ansPrefix" placeholder="如 花生600题"></label><button id="ansGo">补答案</button></div>
-        <textarea id="ansKey" rows="5" style="width:100%" placeholder="练习01 ADDBA CDCAB DBBCC BBADD&#10;练习02 DDACB DADAC DDBAA DABAB&#10;……"></textarea></div>
-      <div class="import-sec"><h4>⑥ 整理题库格式</h4>
-        <div class="row"><button id="normGo">整理全部题库</button><span class="small muted">选项统一写成“A. ”；把 OCR 认错的序号还原成 ①②③、ⅠⅡⅢ。只改题干和选项，编号、答案、作答记录不动</span></div></div>
-      <div class="import-sec"><h4>⑨ 补蒸馏解析</h4>
-        <p class="small muted">已经入库的历年真题（编号“真题-数字”），可以从本机下载的蒸馏笔记里补上 推理链 / 最快解法 / 易错点 / 母题抽象，知识点换成细考点。
-          按题号对上，不花 token；再合并一次会换成新的，不重复。填蒸馏仓库的根目录或其中“10-真题”文件夹的完整路径。</p>
-        <div class="row"><input id="dsFolder" style="flex:1;min-width:280px" placeholder="如 C:\\Users\\29356\\Desktop\\行测obsidian\\行测\\蒸馏skill\\言语蒸馏">
-          <button class="ghost" id="dsPreview">预览</button><button id="dsGo">合并</button></div></div>
-      <div class="import-sec"><h4>⑩ 题库去重</h4>
-        <p class="small muted">题干和选项完全一样的题只留一份（来源括号、空格标点不算差别）。留做过的、有蒸馏解析的那份；删掉那份的试卷出处并过来（按卷刷不缺题），作答记录也挪过来。</p>
-        <div class="row"><button class="ghost" id="ddPreview">预览</button><button id="ddGo">去重</button></div></div>
-      <div class="import-sec"><h4>⑧ 改编号前缀</h4>
-        <p class="small muted">两本书用了同一个前缀、或者想改个更清楚的名字时用。题库、作答记录一起改，做过的题历史不丢。只勾部分板块时只改这些板块里的题。</p>
-        <div class="row"><label>旧前缀 <input id="rnOld" placeholder="如 花生600题"></label><label>新前缀 <input id="rnNew" placeholder="如 花生600题逻辑"></label>
-          <button id="rnGo">改前缀</button></div>
-        <div class="row small">${d.boards.map((b) => `<label><input type="checkbox" class="rnB" value="${esc(b)}"> ${esc(b)}</label>`).join(" ")}</div></div>
-      <div class="import-sec"><h4>⑦ 撤销一批导入</h4>
-        <div class="row"><label>编号前缀 <input id="rmPrefix" placeholder="如 花生600题"></label>
-          <button class="ghost" id="rmGo">删除这批没做过的题</button><span class="small muted">导错了想重导时用；做过的题有作答记录，会保留</span></div></div>
-      <div class="import-sec"><h4>⑤ 知识点</h4><div class="row"><span>“待分类”的题：${d.unsorted} 道</span><span class="spacer"></span>
-        ${d.ai ? `<button id="clsGo" ${d.unsorted ? '' : 'disabled'}>AI 补 100 题</button>` : '<span class="small muted">在设置里填 DeepSeek key 后可以让 AI 补；不补也能正常做题</span>'}</div></div>
-      <div id="importResult" class="import-result">${IMPORT_KEEP}</div>`;
-    const hadResult = !!IMPORT_KEEP;
-    IMPORT_KEEP = '';
+      <p class="small">往题库里加题：照 <b>${esc(d.template)}</b> 的格式写，放进 <b>${esc(d.folder)}</b>（文件名 <code>板块真题.md</code> 或 <code>板块真题-任意名.md</code>），回到这里点「重新载入」。
+        模考 PDF / HTML 在宗门大比的“录入”里导入 <button type="button" class="ghost small" id="mockImportGo">前往试卷导入 →</button></p>
+      <div class="row"><button type="button" class="primary small" id="bankReload">⟳ 重新载入题库并检查格式</button><span class="small muted">共 ${d.total} 题${d.pending ? `，${d.pending} 题答案待补` : ''}</span></div>
+      <div class="import-sec"><table class="mk-table"><thead><tr><th>板块</th><th>题数</th><th>答案待补</th><th>格式问题</th></tr></thead><tbody>
+        ${d.boards.map((b) => `<tr><td>${esc(b.board)}</td><td>${b.count}</td><td>${b.pending || ''}</td><td>${b.errors.length ? `<span class="tag">${b.errors.length} 处</span>` : '✓'}</td></tr>`).join('')}</tbody></table></div>
+      ${bad.length ? `<div class="import-sec" role="alert"><h4>需要改的地方（改好后再点重新载入）</h4>${bad.map((b) => `<details open><summary>${esc(b.board)}（${b.errors.length} 处）</summary><ul class="small">${b.errors.slice(0, 60).map((e) => `<li>${esc(e)}</li>`).join('')}${b.errors.length > 60 ? `<li>…还有 ${b.errors.length - 60} 处</li>` : ''}</ul></details>`).join('')}</div>` : '<p class="small muted">所有题库文档格式都没问题。</p>'}`;
     bindImport();
-    if (hadResult) $('#importResult').scrollIntoView({ block: 'center' });
-  } catch (e) { box.innerHTML = `<p class="small">⚠ ${esc(e.message)}</p>`; }
+  } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
 }
-
-function importReport(r, dry) {
-  const boards = r.boards.map(([b, n]) => `${esc(b)} ${n}`).join('，') || '—';
-  return `<div class="card inner"><b>${dry ? '预览' : '已导入'}：${esc(r.name || '')}</b>
-    ${r.split_log ? `<details class="fold"><summary>拆分记录</summary><div>${md(r.split_log)}</div></details>` : ''}${r.source ? ` <span class="tag">${esc(r.source)}</span>` : ''}
-    ${r.note ? `<p class="small">${esc(r.note)}</p>` : ''}
-    <p>${dry ? '可以入库' : '入库'} <b>${r.ready}</b> 题（${boards}）· 进待修 ${r.fix} 题 · 已有跳过 ${r.dup} 题</p>
-    <p class="small muted">其中知识点待分类 ${r.unsorted} 题，答案待补 ${r.no_answer} 题（答案待补的题先不出）。${r.fix_file ? '待修文件：' + esc(r.fix_file) : ''}</p>
-    ${r.samples.map(q => `<details class="fold"><summary>${esc(q.id)} · ${esc(q.board)} · ${esc(q.topic)} · 答案 ${esc(q.answer)}</summary><div>${md(q.stem)}<br>${'ABCD'.split('').map(k => esc(k + '. ' + (q.options[k] || ''))).join('<br>')}</div></details>`).join('')}
-    ${r.problems.length ? `<details class="fold"><summary>待修的题（前 ${r.problems.length} 道）</summary><div>${r.problems.map(p => esc(p.id + '：' + p.problems.join('；'))).join('<br>')}</div></details>` : ''}</div>`;
-}
-
 function bindImport() {
-  const show = (html) => {   // 结果写在卡片最底下：写完滚过去，免得以为“没反应”
-    const el = $('#importResult'); el.innerHTML = html;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-  const run = async (btn, url, body, dry) => {
-    const label = btn.textContent; btn.disabled = true; btn.textContent = '处理中…';
-    show('<p class="muted">处理中，请稍候…</p>');
-    const s0 = window.SETTLE ? SETTLE.snap() : null;
-    try {
-      const r = await api(url, body);
-      if (url.endsWith('/answers')) show(`<p>补了 <b>${r.filled}</b> 题的答案（答案表 ${r.key} 个）。</p>`);
-      else if (url.endsWith('/install_pymupdf')) show(r.ok ? '<p>✅ 拆分组件装好了，现在可以拆 PDF。</p>' : '<p>⚠ 装完了但还是找不到组件，关掉程序重新打开试试。</p>');
-      else if (url.endsWith('/rename')) show(`<p>改了 <b>${r.renamed}</b> 道题的编号（${r.files} 个题库文件），作答记录迁移 ${r.records} 条。</p>`);
-      else if (url.endsWith('/normalize')) show(`<p>整理了 <b>${r.changed}</b> 道题（${r.files} 个文件）。${r.flagged_total ? `有 ${r.flagged_total} 道题的序号 OCR 丢了信息，没法自动还原，请对照原书改：${r.flagged.map(esc).join('、')}${r.flagged_total > r.flagged.length ? ' …' : ''}` : ''}</p>`);
-      else if (url.endsWith('/remove')) show(`<p>删除了 <b>${r.removed}</b> 题${r.kept ? `，${r.kept} 道已经做过的保留` : ''}。</p>`);
-      else if (url.endsWith('/dedupe')) show(`<p>${r.dry ? '预览（还没改）' : '✅ 去重完成'}：${r.groups ? `${r.groups} 组重复，${r.dry ? '要删' : '删了'} <b>${r.removed}</b> 道（${r.boards.map(([b, n]) => esc(b) + ' ' + n).join('、')}）${r.records ? `，${r.records} 条作答记录挪到留下的那道` : ''}。<br><span class="small muted">例：${r.examples.map(esc).join('；')}（左边留下）</span>` : '没有重复的题。'}</p>`);
-      else if (url.endsWith('/distill')) show(`<p>${r.dry ? '预览（还没写入）' : '✅ 合并完成'}：扫描 ${r.scanned} 个 .md，读出 <b>${r.notes}</b> 篇蒸馏笔记${r.skipped_no_qid || r.skipped_no_parts ? `（跳过：${r.skipped_no_qid} 个没有题号、${r.skipped_no_parts} 个没有解析小节，例：${esc(r.skip_example)}）` : ''}，对上题库里 <b>${r.merged}</b> 道题${r.topics ? `，其中 ${r.topics} 道的知识点换成了细考点` : ''}；
-          ${r.files.length ? `涉及 ${r.files.length} 个题库文件。` : '题库没有要改的。'}${r.not_in_bank ? `<br>${r.not_in_bank} 篇对不上题库（多选题、没导入的模块，或题库里没有这道；例：qid ${r.not_in_bank_example.map(esc).join('、')}）。` : ''}
-          ${r.images_copied ? `<br>${r.dry ? '要拷' : '拷了'} ${r.images_copied} 张解析配图。` : ''}${r.images_missing ? `<br>⚠ ${r.images_missing} 张配图在蒸馏文件夹里没找到（解析里会显示“缺图”）。` : ''}${r.unreadable ? `<br>${r.unreadable} 篇读不了，已跳过。` : ''}</p>`);
-      else if (url.endsWith('/classify')) show(`<p>补了 ${r.done} 题的知识点，还剩 ${r.left} 题待分类。</p>`);
-      else show(importReport(r, dry));
-      if (r.practice_minutes) {   // 导入了一份模考：演武 · 历练记记 120 分钟，弹演武结算
-        $('#importResult').insertAdjacentHTML('beforeend', `<p>⚔ 已给「${esc(W('practice_title'))}」记 ${r.practice_minutes} 分钟（第 ${r.season || body.season} 季模考）。去「${esc(NAV('contest'))}」录成绩单。</p>`);
-        handleEvents(r.events);
-        await refresh();
-        if (s0) SETTLE.show({ kind: 'practice', title: `第 ${r.season || body.season} 季模考`, sub: '导入模考试卷', before: s0, lines: [`${r.practice_minutes} 分钟`] });
-      }
-      if (!dry) {   // 入库后整页重画：下面各板块的题数要跟着变
-        IMPORT_KEEP = $('#importResult').innerHTML;
-        await render();
-        const card = $('#importCard');
-        if (card) card.open = true;   // 触发 toggle → loadImport，再把这次的结果放回去
-      }
-    } catch (e) { show(`<p>⚠ ${esc(e.message)}</p>`); }
-    finally { btn.disabled = false; btn.textContent = label; }
-  };
-  document.querySelectorAll('[data-imp-season]').forEach(b => b.onclick = () => run(b,
-    b.dataset.dry ? '/api/import/preview' : '/api/import/commit', { kind: 'season', season: Number(b.dataset.impSeason) }, !!b.dataset.dry));
-  document.querySelectorAll('[data-imp-fix]').forEach(b => b.onclick = () => run(b, '/api/import/commit', { kind: 'fix', file: b.dataset.impFix }, false));
   const jump=$('#mockImportGo');if(jump)jump.onclick=async()=>{await go('contest');document.querySelector('[data-cs-enter="entry"]')?.click();};
-  $('#impFile').onchange = async (e) => {
-    const f = e.target.files[0]; IMPORT_TEXT = null; IMPORT_PDF = null;
-    if (!f) return;
-    const buf = await f.arrayBuffer();
-    if (!$('#impPrefix').value) $('#impPrefix').placeholder = f.name.replace(/\.[^.]+$/, '').slice(0, 12) + '（不填就按来源/文件名）';
-    if (/\.pdf$/i.test(f.name)) {
-      const u8 = new Uint8Array(buf);
-      let bin = ''; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
-      IMPORT_PDF = btoa(bin);
-      $('#impFileInfo').textContent = `${f.name} · PDF ${Math.round(f.size / 1024)} KB`;
-      return;
-    }
-    try { IMPORT_TEXT = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
-    catch { IMPORT_TEXT = new TextDecoder('gb18030').decode(buf); }   // 有些 OCR 软件存成 GBK
-    IMPORT_TEXT = IMPORT_TEXT.replace(/^\uFEFF/, '');
-    $('#impFileInfo').textContent = `${f.name} · ${IMPORT_TEXT.length} 字`;
-  };
-  const textBody = () => {
-    if (!IMPORT_TEXT && !IMPORT_PDF) throw new Error('先选一个 txt 或 PDF 文件');
-    return { ...(IMPORT_PDF ? { kind: 'pdf', data: IMPORT_PDF } : { kind: 'text', text: IMPORT_TEXT }), name: $('#impFile').files[0]?.name || '', source: $('#impSource').value.trim(),
-             no_source: $('#impNoSource').checked, prefix: $('#impPrefix').value.trim(), board: $('#impBoard').value, ai: !!$('#impAI')?.checked,
-             start_set: Number($('#impStart').value) || 0 };
-  };
-  $('#impPreview').onclick = (e) => { try { run(e.target, '/api/import/preview', textBody(), true); } catch (err) { show(`<p>⚠ ${esc(err.message)}</p>`); } };
-  $('#impCommit').onclick = (e) => { try { run(e.target, '/api/import/commit', textBody(), false); } catch (err) { show(`<p>⚠ ${esc(err.message)}</p>`); } };
-  $('#ansGo').onclick = (e) => run(e.target, '/api/import/answers', { prefix: $('#ansPrefix').value.trim(), key: $('#ansKey').value }, false);
-  $('#normGo').onclick = (e) => run(e.target, '/api/import/normalize', {}, false);
-  try { $('#dsFolder').value = localStorage.getItem('dsFolder') || ''; } catch {}
-  const ds = (e, dry) => {
-    const folder = $('#dsFolder').value.trim();
-    if (!folder) return show('<p>⚠ 填蒸馏笔记文件夹的路径</p>');
-    try { localStorage.setItem('dsFolder', folder); } catch {}
-    run(e.target, '/api/import/distill', { folder, dry }, dry);
-  };
-  $('#dsPreview').onclick = (e) => ds(e, true);
-  $('#ddPreview').onclick = (e) => run(e.target, '/api/import/dedupe', { dry: true }, true);
-  $('#ddGo').onclick = (e) => { if (confirm('删除重复的题（留一份，作答记录合并）？')) run(e.target, '/api/import/dedupe', {}, false); };
-  $('#dsGo').onclick = (e) => ds(e, false);
-  $('#rnGo').onclick = (e) => {
-    const o = $('#rnOld').value.trim(), n = $('#rnNew').value.trim();
-    const boards = [...document.querySelectorAll('.rnB:checked')].map((x) => x.value);
-    if (!o || !n) return show('<p>⚠ 填旧前缀和新前缀</p>');
-    if (!confirm(`把编号「${o}-…」改成「${n}-…」（${boards.length ? '只改：' + boards.join('、') : '全部板块'}）？`)) return;
-    run(e.target, '/api/import/rename', { old: o, new: n, boards }, false);
-  };
-  $('#rmGo').onclick = (e) => {
-    const pre = $('#rmPrefix').value.trim();
-    if (!pre || !confirm(`删除编号以「${pre}-」开头、还没做过的所有题（题库和待修文件里都删）？`)) return;
-    run(e.target, '/api/import/remove', { prefix: pre }, false);
-  };
-  if ($('#clsGo')) $('#clsGo').onclick = (e) => run(e.target, '/api/import/classify', { limit: 100 }, false);
+  const btn=$('#bankReload');if(btn)btn.onclick=async()=>{btn.disabled=true;btn.textContent='载入中…';await loadImport();toast('题库已重新载入');};
 }
-
-// 竖排题签：一个字一行（不用 writing-mode，有些字体竖排会叠字）
 const vlabel = (t) => [...String(t)].map(esc).join('<br>');
 let LIB = { tab: 'cards', yj: { board: '', topic: '', q: '', status: '', page: 0 } };
-// 经卷保留练习册与题库维护；模考PDF/HTML统一由宗门大比录入。
 function importCardHtml() {
-  return `<details class="card import-card" id="importCard" style="margin-top:18px"><summary><b>📥 导入真题</b> <span class="small muted">txt、PDF练习册及题库维护；模考PDF / HTML在宗门大比的录入中导入</span></summary><div id="importBody">载入中…</div></details>`;
+  return `<details class="card import-card" id="importCard" style="margin-top:18px"><summary><b>📥 题库文档</b> <span class="small muted">照模板写 md 放进题库文件夹，在这里重新载入、检查格式</span></summary><div id="importBody">载入中…</div></details>`;
 }
 // ---- 经卷：题库目录 + 搜题
 const YJ_STATUS = { '': '全部', new: '未做', done: '做对', wrong: '做错（心魔）', pending: '答案待补' };
