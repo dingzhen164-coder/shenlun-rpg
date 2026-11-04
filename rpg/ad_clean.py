@@ -60,7 +60,8 @@ def words(paths):
         try:
             data = json.loads(old.read_text(encoding="utf-8"))
             lines = [str(w.get("text")).strip() for w in data if isinstance(w, dict) and w.get("text")]
-            f.write_text(HEAD + "\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+            with f.open("w", encoding="utf-8", newline="\n") as stream:
+                stream.write(HEAD + "\n".join(lines) + "\n")
         except (OSError, ValueError):
             pass
     try:
@@ -72,20 +73,18 @@ def words(paths):
 
 def _compiled(paths):
     f = _words_file(paths)
-    try:
-        stamp = f.stat().st_mtime_ns if f.is_file() else 0
-    except OSError:
-        stamp = 0
+    # 本地小词库按实际内容复用正则；Windows快速改写可能保留旧时间戳，不能只靠mtime判缓存。
+    entries = tuple(w["text"] for w in words(paths))
     hit = _WORDS_CACHE.get(str(f))
-    if hit and hit[0] == stamp:
+    if hit and hit[0] == entries:
         return hit[1]
     pats = []
-    for w in words(paths):
+    for text in entries:
         try:
-            pats.append(_pattern(w["text"]))
+            pats.append(_pattern(text))
         except AdError:
             continue
-    _WORDS_CACHE[str(f)] = (stamp, pats)
+    _WORDS_CACHE[str(f)] = (entries, pats)
     return pats
 
 
@@ -115,6 +114,7 @@ def strip_files(paths, folder):
             continue
         new = strip_text(paths, raw)
         if new != raw:
-            f.write_text(new, encoding="utf-8", newline="\n")
+            with f.open("w", encoding="utf-8", newline="\n") as stream:
+                stream.write(new)
             n += 1
     return n

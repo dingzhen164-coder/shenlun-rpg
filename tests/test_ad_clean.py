@@ -51,6 +51,30 @@ class Base(unittest.TestCase):
 
 class WordListTest(Base):
     """广告词库是本地文档 训练/清除/广告词库.txt（一行一条，# 注释）；旧 json 第一次读到时转成 txt"""
+    def test_word_list_edit_with_unchanged_timestamp_takes_effect(self):
+        self.add_word()
+        f = self.p.train / "清除/广告词库.txt"
+        before = f.stat()
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文")
+        changed = AD.replace("368", "369")
+        f.write_text(changed + "\n", encoding="utf-8")
+        os.utime(f, ns=(before.st_atime_ns, before.st_mtime_ns))
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文" + AD)
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + changed), "正文")
+
+    def test_migration_and_import_writes_support_python38(self):
+        root = self.p.train / "清除"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "广告词库.json").write_text('[{"text": "%s"}]' % AD, encoding="utf-8")
+        original = Path.write_text
+        def legacy_write(path, data, encoding=None, errors=None):
+            return original(path, data, encoding=encoding, errors=errors)
+        self.put_ads()
+        with patch.object(Path, "write_text", legacy_write):
+            self.assertEqual(ad_clean.words(self.p), [{"text": AD}])
+            self.assertGreaterEqual(ad_clean.strip_files(self.p, self.folder), 1)
+        self.assertNotIn(AD, self.first.read_text(encoding="utf-8"))
+
     def test_text_word_list_and_json_migration(self):
         root = self.p.train / "清除"
         root.mkdir(parents=True, exist_ok=True)
