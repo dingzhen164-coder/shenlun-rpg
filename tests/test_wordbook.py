@@ -80,6 +80,13 @@ class WordbookTest(unittest.TestCase):
         self.assertEqual(wordbook.cn_num(12), "十二")
         self.assertEqual(wordbook.cn_num(20), "二十")
 
+    def test_three_digit_group_numbers_do_not_break_document(self):
+        self.write(DOC.split('## 2.')[0].replace('## 1.', '## 100.'))
+        result = wordbook.listing(self.g, '成语')
+        self.assertEqual(len(result['groups']), 1)
+        self.assertEqual(result['groups'][0]['no'], 100)
+        self.assertTrue(result['groups'][0]['name'].startswith('第100组'))
+
     def test_missing_file_writes_template_only(self):
         r = wordbook.listing(self.g, "实词")
         self.assertFalse(r["exists"])

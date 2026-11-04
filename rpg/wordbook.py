@@ -42,6 +42,8 @@ WORD_COL = ('成语', '实词', '词语', '词')
 
 def cn_num(n):
     """1→一 10→十 12→十二 20→二十"""
+    if n >= 100:
+        return str(n)
     if n < 10:
         return CN[n]
     tens, ones = divmod(n, 10)
@@ -215,7 +217,8 @@ def ensure_template(paths):
         f = d / TEMPLATE
         if not f.exists():
             tmp = f.with_suffix('.tmp')
-            tmp.write_text(TEMPLATE_TEXT, encoding='utf-8', newline='\n')
+            with tmp.open('w', encoding='utf-8', newline='\n') as stream:
+                stream.write(TEMPLATE_TEXT)
             os.replace(tmp, f)
     except OSError:
         pass

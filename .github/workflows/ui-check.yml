@@ -138,6 +138,7 @@ jobs:
           commands = [
               ['node', 'tests/ui_training339.cjs', '--subject=行测'],
               ['node', 'tests/ui_siguo.cjs'],
+              ['node', 'tests/test_siguo_races.cjs'],
               ['node', 'tests/ui_daylight339.cjs', '--subject=行测'],
               ['node', 'tests/ui_training339.cjs', '--subject=申论'],
               ['node', 'tests/ui_daylight339.cjs', '--subject=申论'],

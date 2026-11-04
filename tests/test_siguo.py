@@ -118,6 +118,22 @@ class SiguoTest(unittest.TestCase):
         self.assertEqual((q["title"], q["answer"], q["options"]["C"]), ("001 · 月牙儿（力透纸背）", "C", "力透纸背"))
         self.assertEqual([s["title"] for s in q["sections"]], ["区别（先看这里）", "解析"])
 
+    def test_correct_wrong_correct_cannot_repeat_daily_award(self):
+        siguo.boards(self.g)
+        (self.p.train / "思过崖/中心理解.md").write_text(MULTI, encoding="utf-8")
+        key = siguo.board(self.g, "中心理解")["questions"][0]["key"]
+        siguo.answer(self.g, "中心理解", key, "C")
+        awarded = self.g.state["xp"]
+        siguo.answer(self.g, "中心理解", key, "B")
+        result = siguo.answer(self.g, "中心理解", key, "C")
+        self.assertEqual(self.g.state["xp"], awarded, "错误尝试不能重置当天的领奖资格")
+        self.assertEqual(result["events"], [])
+        tomorrow = dt.date(2026, 11, 5)
+        self.g = engine.Game(self.p, self.g.rules, config.Persona(), config.Lines(), self.g.state, tomorrow)
+        siguo.answer(self.g, "中心理解", key, "B")
+        siguo.answer(self.g, "中心理解", key, "C")
+        self.assertEqual(self.g.state["xp"] - awarded, config.DEFAULT_RULES["经验.思过崖答对"])
+
     def test_boards_and_redo_award_once_a_day(self):
         r = siguo.boards(self.g)
         self.assertEqual([b["name"] for b in r["boards"]], [n for n, _ in siguo.BOARDS])

@@ -770,7 +770,8 @@ def ensure_template(paths):
         f.parent.mkdir(parents=True, exist_ok=True)
         if not f.exists():
             tmp = f.with_suffix('.tmp')
-            tmp.write_text(TEMPLATE_TEXT, encoding='utf-8', newline='\n')
+            with tmp.open('w', encoding='utf-8', newline='\n') as stream:
+                stream.write(TEMPLATE_TEXT)
             import os
             os.replace(tmp, f)
     except OSError:

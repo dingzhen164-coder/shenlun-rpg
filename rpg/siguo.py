@@ -14,7 +14,7 @@
     “我当时的真实想法”这类小节不显示（用户 2026-11-04 定）。
 
 重做：只显示题干和选项，选一个 → 判对错、展开其余小节。记录在 state["siguo"][<板块>|<题指纹>] =
-    {"last": "ok"|"bad", "date", "tries", "ok"}；题指纹 = 题干+选项的摘要，改标题不丢记录。
+    {"last": "ok"|"bad", "date", "reward_date", "tries", "ok"}；题指纹 = 题干+选项的摘要，改标题不丢记录。
 奖励：学习时间照常按心跳计（做题）；重做答对另给 规则 经验.思过崖答对（默认 3）修为，每题每天最多一次。
 """
 import hashlib
@@ -201,7 +201,8 @@ def ensure_template(paths):
         f = d / TEMPLATE
         if not f.exists():
             tmp = f.with_suffix('.tmp')
-            tmp.write_text(TEMPLATE_TEXT, encoding='utf-8', newline='\n')
+            with tmp.open('w', encoding='utf-8', newline='\n') as stream:
+                stream.write(TEMPLATE_TEXT)
             os.replace(tmp, f)
     except OSError:
         pass
@@ -270,10 +271,11 @@ def answer(g, name, key, choice):
     touch()
     ok = bool(q['answer']) and choice == q['answer']
     r = _rec(g).setdefault('%s|%s' % (name, key), {'tries': 0, 'ok': 0})
-    first_today = r.get('date') != g.t or r.get('last') != 'ok'
+    first_today = r.get('reward_date', r.get('date') if r.get('last') == 'ok' else None) != g.t
     r.update(tries=r.get('tries', 0) + 1, ok=r.get('ok', 0) + ok, last='ok' if ok else 'bad', date=g.t, pick=choice)
     events = []
     if ok and first_today:
+        r['reward_date'] = g.t
         base = g.rules.xp('思过崖答对')
         if base:
             events = g._award(base, 'siguo', eng, item=key, ok=True, note='思过崖 · %s 重做答对' % name, bonus=False)

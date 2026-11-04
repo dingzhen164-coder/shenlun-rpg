@@ -9,6 +9,8 @@
     [913, 352, 1008, 550], [1043, 362, 1138, 552], [1169, 362, 1255, 560]];
   const POS_KEY = "sg-pos-v1";
   let DATA = null, BOARD = null, CUR = "", RESULT = null, lastAct = 0, root = null, ro = null;
+  let generation = 0, boardRequest = 0, answerRequest = 0;
+  const current = () => typeof VIEW === 'undefined' || VIEW === 'tianji';
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const md = (t) => (window.MDLITE ? MDLITE.render(t || "") : `<p>${esc(t)}</p>`);
   const pos = () => { try { return JSON.parse(localStorage.getItem(POS_KEY) || "{}"); } catch (_) { return {}; } };
@@ -82,13 +84,17 @@
   }
 
   function paint() {
-    if (!root) return;
+    if (!root || !current()) return;
     root.innerHTML = `<div class="sg-root">${sceneHtml()}${BOARD ? roomHtml() : ""}</div>`;
     bind(); fit();
   }
 
   async function openBoard(name, key) {
-    BOARD = await api("/api/siguo/board", { name });
+    const epoch = generation, request = ++boardRequest;
+    const result = await api("/api/siguo/board", { name });
+    if (epoch !== generation || request !== boardRequest || !current()) return;
+    ++answerRequest;
+    BOARD = result;
     const keys = BOARD.questions.map((q) => q.key);
     CUR = keys.includes(key) ? key : keys.includes(pos()[name]) ? pos()[name] : keys[0] || "";
     RESULT = null; touch(); savePos({ board: name, [name]: CUR }); paint();
@@ -98,26 +104,31 @@
     root.querySelectorAll("[data-sgboard]").forEach((b) => (b.onclick = () => openBoard(b.dataset.sgboard).catch(showError)));
     root.querySelector("[data-sgback]")?.addEventListener("click", () => close());
     root.querySelectorAll("[data-sgq]").forEach((b) => (b.onclick = () => {
-      CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint();
+      ++answerRequest; CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint();
       root.querySelector(".sg-main")?.scrollTo?.({ top: 0 });
     }));
-    root.querySelector("[data-sgredo]")?.addEventListener("click", () => { RESULT = null; touch(); paint(); });
+    root.querySelector("[data-sgredo]")?.addEventListener("click", () => { ++answerRequest; RESULT = null; touch(); paint(); });
     root.querySelectorAll("[data-sgpick]").forEach((b) => (b.onclick = async () => {
       touch();
       try {
-        const r = await api("/api/siguo/answer", { name: BOARD.name, key: CUR, choice: b.dataset.sgpick });
-        RESULT = Object.assign({ key: CUR }, r);
-        const q = BOARD.questions.find((x) => x.key === CUR); if (q) q.record = r.record;
+        const epoch = generation, request = ++answerRequest, board = BOARD, key = CUR;
+        const r = await api("/api/siguo/answer", { name: board.name, key, choice: b.dataset.sgpick });
         if (typeof handleEvents === "function") handleEvents(r.events || []);
+        if (epoch !== generation || request !== answerRequest || BOARD !== board || CUR !== key || !current()) return;
+        RESULT = Object.assign({ key }, r);
+        const q = board.questions.find((x) => x.key === key); if (q) q.record = r.record;
         paint();
       } catch (e) { showError(e); }
     }));
   }
 
   async function render(v, prepare) {
-    DATA = await api("/api/siguo", {});
+    const epoch = ++generation;
+    ++boardRequest; ++answerRequest;
+    const data = await api("/api/siguo", {});
+    if (epoch !== generation || !current() || (prepare && !prepare())) return;
+    DATA = data;
     if (BOARD && !DATA.boards.some((b) => b.name === BOARD.name)) BOARD = null;
-    if (prepare && !prepare()) return;
     root = v;
     v.innerHTML = `<div class="sg-root">${sceneHtml()}</div>`;
     bind(); fit();
@@ -126,11 +137,11 @@
     if (BOARD) openBoard(BOARD.name, CUR).catch(() => {});
   }
 
-  function close() { BOARD = null; RESULT = null; CUR = ""; savePos({ board: "" }); if (root && DATA) paint(); }
+  function close() { ++generation; ++boardRequest; ++answerRequest; BOARD = null; RESULT = null; CUR = ""; savePos({ board: "" }); if (root && DATA) paint(); }
   window.SIGUO = {
     render, close,
     isOpen: () => !!BOARD,
-    active: () => (BOARD && Date.now() - lastAct < 120000 && document.visibilityState !== "hidden" ? BOARD.board : ""),
+    active: () => (current() && BOARD && Date.now() - lastAct < 120000 && document.visibilityState !== "hidden" ? BOARD.board : ""),
     board: () => (BOARD ? BOARD.board : ""),
   };
 })();

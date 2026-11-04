@@ -52,7 +52,7 @@ shared tests/fixture_tablet.py
 shared rpg/inline_images.py
 shared web/question_images.css
 shared tests/test_inline_images.py
-shared tests/ui_fixes359.cjs
+diverged tests/ui_fixes359.cjs
 shared tests/ui_zoom359.cjs
 shared tests/fixture359.py
 shared tools/publish_validated.py
@@ -61,7 +61,7 @@ diverged rpg/mock_imports.py
 diverged tests/test_mock_imports.py
 shared tests/ui_mock_imports.cjs
 shared tests/test_mock_import_time.py
-shared tests/ui_mock_details.cjs
+diverged tests/ui_mock_details.cjs
 diverged rpg/mock_score.py
 diverged tests/test_mock_score.py
 shared web/mock_import.js
@@ -72,7 +72,7 @@ shared web/scene_clock.js
 shared tests/ui_daylight339.cjs
 shared rpg/contest_calendar.py
 shared tests/test_training339.py
-shared tests/ui_training339.cjs
+diverged tests/ui_training339.cjs
 shared tests/ui_layout337.cjs
 shared rpg/task_board.py
 shared web/task_board.js
@@ -105,7 +105,7 @@ shared tests/ui_scene_panels.cjs
 diverged tools/mac_update_repair.py
 diverged tools/mac-update-repair.command
 diverged tests/test_mac_update_repair.py
-shared rpg/report.py
+diverged rpg/report.py
 shared rpg/skeleton.py
 shared rpg/study_status.py
 shared rpg/tutor.py
@@ -135,7 +135,7 @@ shared tests/test_scene_portal.cjs
 shared tests/test_study_status.py
 shared tests/test_world.py
 shared tests/ui_ai_connection.cjs
-shared tests/ui_compact_review.cjs
+diverged tests/ui_compact_review.cjs
 shared tests/ui_fixed_layout.cjs
 shared tests/ui_layout_check.cjs
 shared tests/ui_mac_update.cjs
@@ -152,10 +152,10 @@ shared tests/test_pen_guard.cjs
 shared web/pen_guard.js
 shared tools/sync_shared.py
 shared web/ambience.js
-shared web/contest.js
+diverged web/contest.js
 shared web/draw.js
 shared web/ds.css
-shared web/idioms.js
+diverged web/idioms.js
 shared web/map_navigation.css
 shared web/map_navigation.js
 shared web/mock_rewards.js
@@ -644,11 +644,11 @@ shared web/contest_scene.css
 diverged web/assets/beauty/contest/*
 diverged rpg/peak_tutors.py
 diverged tests/test_peak_tutors.py
-shared tests/ui_contest_scene.cjs
+diverged tests/ui_contest_scene.cjs
 
 # 3.3.5：地图预览、角落工具与时政书架检查。
 shared tests/layout335_fixture.py
-shared tests/ui_layout335.cjs
+diverged tests/ui_layout335.cjs
 
 # 3.3.8 随包美术：别名清单与素材按各仓库科目独立
 diverged tests/test_builtin_art.py
@@ -701,3 +701,5 @@ shared tests/test_xp_reconcile.py
 diverged tests/ui_scene_top.cjs
 
 shared tests/test_scene_layout_version.py
+
+# 2026-11-04：公考4.0词录/模考精简先行，法考保留现有功能；上述对应业务文件及交互断言归入 diverged。

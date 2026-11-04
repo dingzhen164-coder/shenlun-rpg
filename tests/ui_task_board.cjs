@@ -43,7 +43,7 @@ async function open(page){await page.evaluate(()=>go('home'));await page.locator
   assert(await page.locator('.fx-records-list>.card').evaluateAll(es=>es.every(e=>e.scrollWidth<=e.clientWidth+2)),'三栏录入表单展开后不横向溢出');
   await page.locator('#lecMin').fill('35');assert.equal(await page.locator('#lecMin').inputValue(),'35');
   if(subject==='行测'){
-   await page.evaluate(()=>go('tianji'));await page.waitForSelector('.tj-hub');const widths=await page.evaluate(()=>[document.querySelector('.tj-hub').clientWidth,document.querySelector('#view').clientWidth]);assert(widths[0]>=widths[1]-4,'天机台全宽');
+   await page.evaluate(()=>go('tianji'));await page.waitForSelector('.sg-root');const widths=await page.evaluate(()=>[document.querySelector('.sg-root').clientWidth,document.querySelector('#view').clientWidth]);assert(widths[0]>=widths[1]-4,'天机台全宽');
   }
   await page.evaluate(peak=>{STUDY_REGIONS.select(peak);return go('train');},subject==='行测'?'yan':'');if(subject!=='行测')await page.locator('[data-study-region]').first().click();   // 行测五峰无选择页：直接进辨言峰
   await page.waitForSelector('.fx-region-work',{state:'attached'});assert(await page.locator('.subpage-place').isVisible(),'分区标题在顶栏可见');assert.equal(await page.locator('.yj-empty,.yj-moved,[data-yjgear],.ln-slot').count(),0,'空分区没有制作提示和空导图');await fit(page);
