@@ -16,6 +16,14 @@ for(const scene of ['train','skeleton','tianji','settings']){
  assert.match(choose([built,own],[], '申论',scene),new RegExp(`${scene}-dusk\\.webp`));
  assert.match(choose([built,own],[own], '申论',scene),new RegExp(`${scene}\\.webp`));
 }
+// 切换科目后不能串用另一科的缓存图：同名背景、同一修改时间，地址也要因科目不同而不同（踩坑记录“切换科目后背景串科”）。
+function artUrl(subject,rel){const ctx={DASH:{subject},window:{SUBJECT0:subject,ART_FILES:[[rel,1700000000000000000]],ART_CUSTOM:[]},document:{readyState:'loading',documentElement:{dataset:{}},addEventListener:()=>{}}};
+ vm.runInNewContext(fs.readFileSync('web/beauty_art.js','utf8'),ctx);return ctx.window.BeautyArt.url(rel);}
+for(const rel of ['beauty/page/bank-day.webp','beauty/page/dwelling-night.webp','beauty/page/settings-dusk.webp']){
+ const urls=['行测','申论','法考'].map(s=>artUrl(s,rel));
+ assert.equal(new Set(urls).size,3,urls.join(' | '));
+ assert.equal(artUrl('行测',rel),artUrl('行测',rel));
+}
 const training='beauty/page/train-dusk.webp',topic='beauty/page/train-guina-dusk.webp';
 assert.match(choose([training,topic],[],'申论','train','归纳概括'),/train-guina-dusk\.webp/);
 const service=spawn(process.env.PYTHON||'python3',['tests/ui_layout_server.py','申论'],{env:process.env});let logs='',browser,page;
