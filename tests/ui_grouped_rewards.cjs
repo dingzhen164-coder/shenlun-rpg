@@ -26,8 +26,8 @@ await route('contest');await page.waitForTimeout(300);
 if(subject!=='申论'){
  const charts=page.locator('[data-cs-pane="trends"]');assert.equal(await charts.count(),1);assert.equal(await charts.locator(':scope>.card').count(),2);
  for(const id of ['#chScore','#chAcc','#mkPick']){const field=page.locator(id);await reveal(page,field);assert(await field.isVisible());}
- assert.equal(await page.locator('[data-cs-pane="entry"] #mkMarksCard').count(),1);assert.equal(await page.locator('[data-cs-pane="entry"] #mkForm').count(),1);
- await reveal(page,page.locator('#mkMarksCard'));await page.screenshot({path:out+'/'+(subject||'法考')+'-成绩录入.png'});
+ assert.equal(await page.locator('[data-cs-pane="entry"] #mkMarksCard').count(),0,'截图识别入口已取消');assert.equal(await page.locator('[data-cs-pane="entry"] #mkForm').count(),1);
+ await reveal(page,page.locator('#mkForm'));await page.screenshot({path:out+'/'+(subject||'法考')+'-成绩录入.png'});
 }
 await route('settings');assert.equal(await page.locator('#view .fx-shell > .fx-panels > .fx-panel').count(),1);
 assert.equal(await page.locator('.fx-settings .fx-tabs').count(),0);
