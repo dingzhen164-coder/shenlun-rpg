@@ -105,6 +105,38 @@ class WordbookTest(unittest.TestCase):
         self.assertEqual(self.g.state["wordbook_cards"]["成语|夸文章、作品"], links["成语|夸文章、作品"])
         self.assertNotIn(links["成语|事情走不动"], [n["id"] for n in cards.load(self.p)[0]])
 
+    def test_multi_dimension_group_splits_into_subgroups(self):
+        doc = DOC + """
+## 3. 求快求功
+
+**维度一：难处从哪来。**
+
+| 成语 | 一句话区别 |
+|---|---|
+| 步履维艰 | 外部阻力 |
+| 进退维谷 | 两难 |
+
+**维度二：只重复前面的词，不单独成组。**
+
+| 成语 | 一句话区别 |
+|---|---|
+| 进退维谷 | 两难 |
+
+**维度三：做事盯着什么。**
+
+| 成语 | 一句话区别 |
+|---|---|
+| 急功近利 | 盯眼前利益 |
+"""
+        gs = [g for g in wordbook.parse(doc)["groups"] if g["no"] == 3]
+        self.assertEqual([g["name"] for g in gs], ["第三组一—步履维艰、进退维谷", "第三组二—急功近利"])
+        self.assertEqual([g["id"] for g in gs], ["3-1", "3-2"])
+        self.write(doc)
+        wordbook.sync_cards(self.g, "成语")
+        self.assertIn("成语|求快求功|2", self.g.state["wordbook_cards"])
+        where = wordbook.listing(self.g, "成语")["where"]["步履维艰"]
+        self.assertEqual([x["id"] for x in where], ["2-0", "3-1"])
+
     def test_retire_old_auto_book_backs_up_once(self):
         self.g.state["idioms"] = {"方兴未艾": {"word": "方兴未艾", "sources": []}}
         self.g.state["idiom_cards"] = {}

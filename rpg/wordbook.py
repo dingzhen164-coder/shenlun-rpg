@@ -110,8 +110,44 @@ def _blocks(lines):
     return out
 
 
+def _words(blocks):
+    words, diffs = [], {}
+    for b in blocks:
+        if b['type'] != 'table':
+            continue
+        for r in b['rows']:
+            w = _single_word(r[b['word_col']]) if b['word_col'] < len(r) else ''
+            if not w:
+                continue
+            if w not in words:
+                words.append(w)
+            d = r[b['diff_col']] if b['diff_col'] < len(r) and b['diff_col'] != b['word_col'] else ''
+            if d and not _plain(d).startswith('同上') and w not in diffs:
+                diffs[w] = d
+    return words, diffs
+
+
+def _split(blocks):
+    """一组里有几个“维度”（几段加粗判别轴各带一张表）：每个维度拆成一个小组（第二组一、第二组二……）。
+    没有新词的维度（如“说的是什么 | 成语列表”的辅助表，或只重复前面的词）并进前一个小组，不单独成组。"""
+    segs = [[]]
+    for b in blocks:
+        if b['type'] == 'axis' and any(x['type'] == 'table' for x in segs[-1]):
+            segs.append([])
+        segs[-1].append(b)
+    out, seen = [], set()
+    for sg in segs:
+        ws = _words(sg)[0]
+        if out and not set(ws) - seen:      # 没有新词的维度（辅助表，或只重复前面的词）不单独成组
+            out[-1].extend(sg)
+        else:
+            out.append(sg)
+        seen.update(ws)
+    return out
+
+
 def parse(text):
-    """整份文档 → {intro, groups:[{no, heading, name, words, blocks, diffs}], problems}"""
+    """整份文档 → {intro, groups:[{no, sub, id, label, heading, name, words, blocks, diffs}], problems}；有几个维度的组拆成小组"""
     lines = (text or '').replace('\r\n', '\n').split('\n')
     intro, groups, cur, problems = [], [], None, []
     for ln in lines:
@@ -128,24 +164,16 @@ def parse(text):
     out = []
     for gidx, gr in enumerate(groups):
         blocks = _blocks(gr.pop('lines'))
-        words, diffs = [], {}
-        for b in blocks:
-            if b['type'] != 'table':
-                continue
-            for r in b['rows']:
-                w = _single_word(r[b['word_col']]) if b['word_col'] < len(r) else ''
-                if not w:
-                    continue
-                if w not in words:
-                    words.append(w)
-                d = r[b['diff_col']] if b['diff_col'] < len(r) and b['diff_col'] != b['word_col'] else ''
-                if d and not _plain(d).startswith('同上') and w not in diffs:
-                    diffs[w] = d
-        if not words:
+        segs = _split(blocks)
+        if not any(_words(sg)[0] for sg in segs):
             problems.append('第 %d 个分组「%s」里没找到词：表格第一行要有“成语”或“实词”这一列' % (gidx + 1, gr['heading']))
-        name = '第%s组—%s' % (cn_num(gr['no']), '、'.join(words) if words else gr['heading'])
-        out.append(dict(gr, name=name, words=words, blocks=blocks, diffs=diffs))
-    nos = [g['no'] for g in out]
+        for k, sg in enumerate(segs):
+            words, diffs = _words(sg)
+            sub = k + 1 if len(segs) > 1 else 0
+            label = '第%s组%s' % (cn_num(gr['no']), cn_num(sub) if sub else '')
+            name = '%s—%s' % (label, '、'.join(words) if words else gr['heading'])
+            out.append(dict(gr, sub=sub, id='%d-%d' % (gr['no'], sub), label=label, name=name, words=words, blocks=sg, diffs=diffs))
+    nos = [g['no'] for g in out if g['sub'] <= 1]
     if len(set(nos)) != len(nos):
         problems.append('分组编号有重复：%s' % '、'.join(str(n) for n in sorted({n for n in nos if nos.count(n) > 1})))
     return {'intro': '\n'.join(intro).strip(), 'groups': out, 'problems': problems}
@@ -289,7 +317,7 @@ def sync_cards(g, kind):
     for gr in doc['groups']:
         if not gr['words']:
             continue
-        key = '%s|%s' % (kind, gr['heading'])
+        key = '%s|%s' % (kind, gr['heading']) + ('|%d' % gr['sub'] if gr['sub'] else '')
         seen.add(key)
         old = links.get(key)
         nid = cards.upsert(g, old, card_fields(kind, gr))
@@ -310,7 +338,7 @@ def listing(g, kind):
     where = {}
     for gr in doc['groups']:
         for w in gr['words']:
-            where.setdefault(w, []).append(gr['no'])
+            where.setdefault(w, []).append({'id': gr['id'], 'label': gr['label']})
     links = g.state.get('wordbook_cards') or {}
     return {'kind': kind, 'kinds': list(KINDS), 'file': '训练/%s/%s' % (FOLDER, KINDS[kind]),
             'template': '训练/%s/%s' % (FOLDER, TEMPLATE), 'exists': doc['exists'], 'intro': doc['intro'],
