@@ -271,7 +271,9 @@ def answer(g, name, key, choice):
     touch()
     ok = bool(q['answer']) and choice == q['answer']
     r = _rec(g).setdefault('%s|%s' % (name, key), {'tries': 0, 'ok': 0})
-    first_today = r.get('reward_date', r.get('date') if r.get('last') == 'ok' else None) != g.t
+    if 'reward_date' not in r and r.get('last') == 'ok':
+        r['reward_date'] = r.get('date')
+    first_today = r.get('reward_date') != g.t
     r.update(tries=r.get('tries', 0) + 1, ok=r.get('ok', 0) + ok, last='ok' if ok else 'bad', date=g.t, pick=choice)
     events = []
     if ok and first_today:

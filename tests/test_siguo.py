@@ -118,6 +118,17 @@ class SiguoTest(unittest.TestCase):
         self.assertEqual((q["title"], q["answer"], q["options"]["C"]), ("001 · 月牙儿（力透纸背）", "C", "力透纸背"))
         self.assertEqual([s["title"] for s in q["sections"]], ["区别（先看这里）", "解析"])
 
+    def test_legacy_correct_record_keeps_award_after_wrong_attempt(self):
+        siguo.boards(self.g)
+        (self.p.train / "思过崖/中心理解.md").write_text(MULTI, encoding="utf-8")
+        key = siguo.board(self.g, "中心理解")["questions"][0]["key"]
+        siguo.answer(self.g, "中心理解", key, "C")
+        self.g.state["siguo"]["中心理解|" + key].pop("reward_date")
+        xp = self.g.state["xp"]
+        siguo.answer(self.g, "中心理解", key, "B")
+        siguo.answer(self.g, "中心理解", key, "C")
+        self.assertEqual(self.g.state["xp"], xp, "旧格式已领奖记录不能被答错重置")
+
     def test_correct_wrong_correct_cannot_repeat_daily_award(self):
         siguo.boards(self.g)
         (self.p.train / "思过崖/中心理解.md").write_text(MULTI, encoding="utf-8")
