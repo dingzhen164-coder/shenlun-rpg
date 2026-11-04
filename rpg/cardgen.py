@@ -1,4 +1,4 @@
-"""🧙 师傅制卡：把 PDF / Markdown / 粘贴的文字交给 AI，按“一张卡只考一个点”的规则出玉简草稿，学员审过再刻入。
+"""🧙 师傅制卡：把 Markdown / 粘贴的文字交给 AI，按“一张卡只考一个点”的规则出玉简草稿，学员审过再刻入（2026-11 起不再直接读 PDF）。
 
 流程（网页 web/cards.js 的“师傅制卡”）：
 1. load：上传 PDF / .md / .txt（存到 ~/.shenlun-rpg/制卡/），或选库里的一篇笔记、或粘贴文字 → 返回页数、目录（PDF 书签）、分段；
@@ -96,8 +96,8 @@ def load(paths, body):
     if len(raw) > 200 * 1024 * 1024:
         raise GenError("文件太大（超过 200MB）")
     name = str(body.get("name") or "资料")
-    if raw[:4] == b"%PDF" and not name.lower().endswith(".pdf"):
-        name += ".pdf"
+    if raw[:4] == b"%PDF" or name.lower().endswith(".pdf"):     # 2026-11 用户定：直接读 PDF 易出错，先整理成 Markdown 再交给师傅
+        raise GenError("师傅制卡不再直接读 PDF：先把讲义整理成 Markdown（或复制文字粘贴进来）再交给师傅")
     sid, _ = _save(name, raw)
     return _describe(sid)
 

@@ -50,7 +50,7 @@
   }
   // 刻简 / 师傅制卡 / 灵识图 / 导入 / 新简匣：放在藏经阁「玉简 · 知识点」（藏简阁就是那里的一枚枚玉简）
   function toolsHtml() {
-    return `<div class="card yj-tools yj-tools-lib"><button data-yjmode="add">✍ ${esc(T("yj_add"))}</button><button data-yjmode="gen" title="把 PDF / Markdown 笔记交给师傅，自动出${esc(T("yj"))}草稿，你审过再刻入">🧙 师傅制卡</button>
+    return `<div class="card yj-tools yj-tools-lib"><button data-yjmode="add">✍ ${esc(T("yj_add"))}</button><button data-yjmode="gen" title="把 Markdown 笔记或粘贴的文字交给师傅，自动出${esc(T("yj"))}草稿，你审过再刻入">🧙 师傅制卡</button>
         <button data-yjmode="stats">📊 ${esc(T("yj_stats"))}</button><button data-yjmode="import">📥 导入</button>
         <button class="ghost" id="yjNewDeck">＋ 新${esc(T("yj_deck"))}</button></div>`;
   }
@@ -737,7 +737,7 @@
     const s = stage();
     s.innerHTML = head("🧙 师傅制卡", `<span class="small muted">师傅按“一张卡只考一个点”出${esc(T("yj"))}草稿，你审过再刻入</span>`) + `<div class="yj-gen">
       <div class="card"><h3>① 资料</h3>
-        <div class="yj-chips">${[["file", "📄 上传 PDF / Markdown"], ["vault", "📚 库里的笔记"], ["paste", "📋 粘贴文字"]].map(([k, v]) => `<a class="${GEN.tab === k ? "on" : ""}" data-gtab="${k}">${v}</a>`).join("")}</div>
+        <div class="yj-chips">${[["file", "📄 上传 Markdown / TXT"], ["vault", "📚 库里的笔记"], ["paste", "📋 粘贴文字"]].map(([k, v]) => `<a class="${GEN.tab === k ? "on" : ""}" data-gtab="${k}">${v}</a>`).join("")}</div>
         <div id="gSrc" class="yj-gsrc"></div><div id="gInfo"></div></div>
       <div class="card" id="gOpts" ${GEN.src ? "" : "hidden"}><h3>② 怎么出</h3>
         <div class="yj-form-row"><label>放进${esc(T("yj_deck"))}<select id="gDeck">${deckOptions(GEN.deck)}</select></label>
@@ -761,8 +761,8 @@
     const box = document.getElementById("gSrc");
     if (!box) return;
     if (GEN.tab === "file") {
-      box.innerHTML = `<label class="yj-drop"><input type="file" id="gFile" accept=".pdf,.md,.markdown,.txt" hidden>
-        <b>点这里选文件</b><span class="small muted">PDF（书、讲义）、Markdown 笔记、TXT；扫描版 PDF 需要在设置里填识图模型</span></label>`;
+      box.innerHTML = `<label class="yj-drop"><input type="file" id="gFile" accept=".md,.markdown,.txt" hidden>
+        <b>点这里选文件</b><span class="small muted">Markdown 笔记、TXT（PDF 讲义请先整理成 Markdown，或复制文字到“粘贴文字”）</span></label>`;
       document.getElementById("gFile").onchange = (e) => {
         const f = e.target.files[0]; if (!f) return;
         const rd = new FileReader();
