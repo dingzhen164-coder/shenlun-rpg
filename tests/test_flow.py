@@ -613,11 +613,11 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(r["battle"]["position"], 2)
         self.assertFalse(any(b.get("t") == "img" for m in r["messages"] for b in m.get("blocks", [])))  # 3.1.1论证逻辑只显示已提取文字
         self.assertTrue(any("否定论点" in m["text"] or any("否定论点" in b.get("v", "") for b in m.get("blocks", [])) for m in r["messages"]))
-        r = api.session_action({"session": sid, "action": "mr_explain:1"})
-        self.assertIn("复盘笔记", r["messages"][-1]["text"])
-        self.assertIn("🧙 师傅解惑", (sd / "10-论证逻辑.md").read_text(encoding="utf-8"))
-        r = api.session_reply({"session": sid, "text": "为什么不选A"})
-        self.assertEqual(r["messages"][-2]["text"], "为什么不选A")
+        # 2026-11 用户定：模考复盘里不要师傅讲解——没有解惑按钮，也不接文字提问
+        self.assertFalse(any(x["id"].startswith("mr_explain") for x in r["input"]["buttons"]))
+        self.assertEqual(r["input"]["mode"], "buttons")
+        with self.assertRaises(Exception):
+            api.session_reply({"session": sid, "text": "为什么不选A"})
         # 时间：大比复盘算“修炼”，记进复习，也记到论证逻辑这个模块
         self.assertTrue(api.heartbeat({"seconds": 60, "session": sid})["studying"])
         self.assertEqual(trainer.study_kind(sid), "review")
@@ -653,19 +653,7 @@ class FlowTest(unittest.TestCase):
         self.assertNotIn("[!abstract]", text(pin["material"]))
         self.assertFalse(any(ln.startswith(">") for ln in text(pin["material"]).splitlines()))
         sid = r["session"]
-        # 一拖五：师傅解惑整组一起讲（一次 AI），讲解写进这组每一道题的复盘笔记，换到下一题直接看得到
-        calls = []
-        def group_chat(messages, **kw):
-            calls.append(messages[-1]["content"])
-            return "师傅整组讲解：先排表。"
-        with patch.object(ai, "chat", group_chat):
-            r = api.session_action({"session": sid, "action": "mr_explain:0"})
-        self.assertEqual(len(calls), 1)
-        self.assertTrue(all(f"第{n}题" in calls[0] for n in (106, 107, 108)) and "瑜伽馆" in calls[0])
-        self.assertIn("整组讲解", r["messages"][-1]["text"])
-        self.assertEqual((sd / "12-一拖五.md").read_text(encoding="utf-8").count("师傅整组讲解"), 3)
         r = api.session_action({"session": sid, "action": "mr_next"})
-        self.assertTrue(any("师傅整组讲解" in m["text"] for m in r["messages"] if m["who"] == "npc"))
         r = api.session_action({"session": sid, "action": "mr_pause"})
         self.assertTrue(r["finished"])
         self.assertIn("第 107 题", r["messages"][0]["text"])

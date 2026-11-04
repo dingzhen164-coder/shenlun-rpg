@@ -504,7 +504,7 @@ def _reply(g, sid, text):
         return _discuss_reply(g, s, text)
     typ = s["type"]
     if typ == "mock_review":
-        return _mreview_chat(g, s, text)
+        raise TrainError("大比复盘不接文字提问（2026-11 起取消模考复盘里的师傅讲解）")
     if typ in ("recite", "review", "speedrun"):
         return _grade_recite(g, s, text)
     if typ in ("tribulation", "alchemy"):
@@ -1771,22 +1771,12 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         msgs.append(_msg("sys", "", vault.render_blocks(g.paths, {"body":q["analysis"], "dir":q["dir"]}),fold="复盘解析"))
     else:                                           # 还没有复盘解析：只显示答案，不再摆一行“还没写解析”的提示
         msgs.append(_msg("sys", "你的答案：%s · 正确答案：%s%s" % (q["mine"] or "没做", q["correct"] or "?", duration)))
-    if q["icon"] != "✅" and not head and str(i) not in s["explain"]:
+    if q["icon"] != "✅" and not head:
         line = _say(g, "试炼·复盘错题", 你的答案=q["mine"] or "没做", 正确答案=q["correct"])
         if line:
             msgs.append(_msg("npc", line))
-    if str(i) in s["explain"]:
-        msg = _msg("npc", s["explain"][str(i)],fold="🧙 师傅解惑")
-        author = s.get('explain_teacher', {}).get(str(i))
-        msg['skill_mentor'] = _teacher_brief(author, s['board'] or s['source']) if author and author != skillbook.LEGACY_TEACHER else (peak_tutors.profile(g, s['board'] or s['source']) or {})
-        msgs.append(msg)
-    for h in s["chat"].get(str(i), []):
-        msg = _msg("me" if h["role"] == "user" else "npc", h["content"])
-        if h.get('teacher'):
-            msg['skill_mentor'] = _teacher_brief(h['teacher'], s['board'] or s['source'])
-        msgs.append(msg)
     msgs += extra or []
-    btns = [("mr_explain:%d" % i, "🧙 师傅解惑" if str(i) not in s["explain"] else "🧙 再问师傅")]
+    btns = []          # 2026-11 用户定：模考复盘不要师傅讲解，只看题、答案和复盘解析
     if i > 0:
         btns.append(("mr_prev", "← 上一题"))
     if i + 1 < len(qs):
@@ -1798,8 +1788,7 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         btns.append(("mr_board:" + s["boards"][k + 1], "下一板块：%s →" % s["boards"][k + 1]))
     btns.append(("mr_pause", "暂时离开（保存进度）"))
     btns.append(("mr_close", "结束复盘"))
-    inp = {"mode": "text", "placeholder": "对这道题还有疑问？直接问师傅（Ctrl+Enter 发送）；「🧙 师傅解惑」按功法 skill 把整题讲透",
-           "buttons": [{"id": a, "label": b} for a, b in btns]}
+    inp = {"mode": "buttons", "buttons": [{"id": a, "label": b} for a, b in btns]}
     r = _resp(s, msgs, events, input=_remember(s, inp))
     c = _mreview_counts(qs)
     r["battle"] = {"label": "大比复盘 · %s · %s" % (_sname(g, s["season"]), s["source"]), "total": len(qs), "position": i + 1,
@@ -1836,23 +1825,6 @@ def _mreview_action(g, s, act):
         r = _mreview_show(g, s, head=True)
         r["title"] = s["title"]
         return r
-    elif act.startswith("mr_explain:"):
-        if act.split(":")[1] != str(i):
-            raise TrainError("题目已经切换，请重新点")
-        if not ai.available():
-            return _mreview_show(g, s, extra=[_msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。先把解析读三遍。")
-                                                     + "\n（在“设置”里填 AI 的 API key 后，师傅就能按功法给你讲题。）")])
-        q = qs[i]
-        if s["source"] in GROUP_BOARDS and q.get("material"):     # 一拖五：整组一起讲
-            return _mreview_group_explain(g, s, i)
-        text, skill, used = _explain(g, _mreview_pq(s, q), {"answer": q["mine"] or "未作答"}, _selected_teacher(g, s, s["board"] or s["source"]))
-        s["explain"][str(i)] = text
-        s.setdefault("explain_teacher", {})[str(i)] = _selected_teacher(g, s, s["board"] or s["source"])
-        where = vault.save_tutor_note(g.paths, q["key"], text, g.t)
-        note = ("📌 已写进这题的复盘笔记：%s 第 %s 题（再问一次会换成新的）" % (where, q["num"]) if where
-                else "📌 没找到这道题的复盘文件，讲解没存下来")
-        note += _skill_note(skill, used)
-        return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
     elif act in ("mr_pause", "bank_pause"):
         mock_saved(g, s["season"])[s["source"]] = qs[i]["num"]
         text = "进度已保存：%s · %s 停在第 %d/%d 题（第 %s 题）。下次在宗门大比点这个板块，从这题接着复盘。" % (
@@ -1868,43 +1840,3 @@ def _mreview_action(g, s, act):
     else:
         raise TrainError("这一步请使用当前题目的按钮")
     return _mreview_show(g, s)
-
-
-def _mreview_group_explain(g, s, i):
-    """大比复盘里的一拖五：这段材料下的几道题（只看错题时没列出来的也算上）一起讲，讲解写进每一道的复盘笔记"""
-    q = s["qs"][i]
-    d, _ = mock_boards(g, s["season"])
-    allq = [dict(x, key="%s|%s|%s" % (s["season"], s["source"], x["num"]))
-            for x in vault.parse_board_file(vault.board_file(d, s["source"]))]
-    group = [x for x in allq if x["material"] == q["material"]] or [q]
-    items = [{"label": "第%s题" % x["num"], "stem": x["body"], "answer": x["correct"], "mine": x["mine"] or "未作答"} for x in group]
-    text, skill, used = _explain_group(g, s["board"] or s["source"], vault.material_text(q), items, _selected_teacher(g, s, s["board"] or s["source"]))
-    nums = {x["num"] for x in group}
-    for k, x in enumerate(s["qs"]):
-        if x["num"] in nums:
-            s["explain"][str(k)] = text
-            s.setdefault('explain_teacher', {})[str(k)] = _selected_teacher(g, s, s['board'] or s['source'])
-    saved = [x["num"] for x in group if vault.save_tutor_note(g.paths, x["key"], text, g.t)]
-    note = ("📌 一拖五整组讲解：第 %s 题共用这一份，已写进这 %d 道题的复盘笔记（再问一次会换成新的）" % (
-        "、".join(str(n) for n in sorted(nums)), len(saved))) + _skill_note(skill, used)
-    return _mreview_show(g, s, extra=[_msg("sys", note)], scroll_bottom=True)
-
-
-def _mreview_chat(g, s, text):
-    i = s["rpos"]
-    q = s["qs"][i]
-    hist = s["chat"].setdefault(str(i), [])
-    if not ai.available():
-        return _mreview_show(g, s, extra=[_msg("me", text), _msg("npc", (_say(g, "试炼·解惑没AI") or "为师今日闭关（没连上 AI）。")
-                                                                 + "\n（在“设置”里填 AI 的 API key 后才能追问。）")], scroll_bottom=True)
-    pq = _mreview_pq(s, q)
-    teacher = _selected_teacher(g, s, pq['board'])
-    ctx = {"kind": "大比复盘", "title": "%s 第%s题" % (_sname(g, s["season"]), q["num"]), "board": pq["board"], "history": [{"role":h['role'],"content":h['content']} for h in hist if h.get('teacher') == teacher][-10:],
-           "question": pq["stem"], "answer": q["correct"], "mine": q["mine"] or "没做", "reference": q["analysis"][:3000]}
-    try:
-        digest,used=_tutor_material(g,pq['board'],teacher,ctx['question']+'\n'+text)
-        reply = prompts.plain_math(ai.chat(prompts.discuss(_teacher_persona(g, pq["board"],teacher), ctx, digest, text), temperature=0.6, max_tokens=12000))
-    except ai.AIError as e:
-        raise TrainError("师傅没回话：%s" % e)
-    hist += [{"role": "user", "content": text, "teacher":teacher}, {"role": "assistant", "content": reply, "teacher":teacher}]
-    return _mreview_show(g, s, extra=_excerpt_note(used), scroll_bottom=True)
