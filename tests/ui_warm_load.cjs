@@ -6,7 +6,7 @@ let logs='',browser;service.stderr.on('data',x=>logs+=x);
 const ready=new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()=>reject(Error(logs||'服务未启动')),20000);service.stdout.on('data',x=>{text+=x;const m=text.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});service.on('exit',c=>{clearTimeout(timer);reject(Error(logs||'服务退出 '+c));});});
 // 网络事件不受Performance资源缓冲和浏览器测试时钟代理影响，缺项直接报具体地点。
 function warmRequests(page,label){
- const remaining=new Set(['bank-','skeleton-','contest-','dwelling-','notes','tianji-','train-chang-','political_atlas']);
+ const remaining=new Set(['bank-','skeleton-','contest-','dwelling-','notes','tianji','train-chang-','political_atlas']);
  return new Promise((resolve,reject)=>{
   const finish=()=>{clearTimeout(timer);page.off('request',requested);};
   const requested=r=>{for(const n of remaining)if(r.url().includes(n==='political_atlas'?n:'/beauty/page/'+n))remaining.delete(n);if(!remaining.size){finish();resolve();}};
