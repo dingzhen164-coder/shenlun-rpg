@@ -5,7 +5,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  for(const [width,height]of [[1280,860],[820,1180]]){
-  const p=await browser.newPage({viewport:{width,height},hasTouch:true}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());await p.evaluate(()=>go('settings'));
+  const p=await browser.newPage({viewport:{width,height},hasTouch:true,reducedMotion:'reduce'}),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.goto(base);await p.waitForFunction(()=>!!window.DASH_REF?.());await p.evaluate(()=>go('settings'));
   const candle=p.locator('#todayPill');await candle.waitFor();assert.equal(await candle.getAttribute('role'),'button');
   const start=p.waitForResponse(r=>r.url().endsWith('/api/study-lamp/start'));await candle.click();assert.equal(await candle.getAttribute('aria-pressed'),'true');assert((await start).ok());await p.waitForFunction(()=>!!STUDY_LAMP.token());
   await p.waitForTimeout(1300);const beat=p.waitForRequest(r=>r.url().endsWith('/api/heartbeat')&&!!r.postDataJSON()?.lamp);await candle.click();const body=(await beat).postDataJSON();assert(body.seconds>0&&body.seconds<5,'只报真实已累计秒数');assert.equal(await candle.getAttribute('aria-pressed'),'false');await p.evaluate(()=>{updateStudyDot();STUDY_LAMP.sync();});assert.equal(await candle.getAttribute('aria-pressed'),'false');
