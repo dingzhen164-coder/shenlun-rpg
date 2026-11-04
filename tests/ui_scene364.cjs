@@ -8,10 +8,11 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
  for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['landscape',{width:1180,height:820}]]){
   const p=await browser.newPage({viewport});active=p;const errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.addInitScript(()=>{
-   window.__fx={clear:0,sword:0,meteor:0,detached:0};window.__images=[];
+   window.__fx={clear:0,paint:0,sword:0,meteor:0,detached:0};window.__images=[];
    const NativeImage=window.Image;window.Image=class extends NativeImage{constructor(...args){super(...args);__images.push(this);}};
    const proto=CanvasRenderingContext2D.prototype;
    const clear=proto.clearRect;proto.clearRect=function(...a){if(this.canvas.classList.contains('portal-fx')){__fx.clear++;if(!this.canvas.isConnected)__fx.detached++;}return clear.apply(this,a);};
+   const fill=proto.fillRect;proto.fillRect=function(...a){if(this.canvas.classList.contains('portal-fx'))__fx.paint++;return fill.apply(this,a);};
    const draw=proto.drawImage;proto.drawImage=function(...a){if(this.canvas.classList.contains('portal-fx')&&a[0]?.src?.includes('sword-chibi-'))__fx.sword++;return draw.apply(this,a);};
    const stop=CanvasGradient.prototype.addColorStop;CanvasGradient.prototype.addColorStop=function(...a){if(a[1]==='#f4ead7')__fx.meteor++;return stop.apply(this,a);};
   });
@@ -28,7 +29,7 @@ const ready=new Promise((ok,no)=>{let s='';const t=setTimeout(()=>no(Error(logs)
   await p.evaluate(()=>document.documentElement.dataset.motion='full');await p.waitForFunction(n=>__fx.clear>n,stopped);
   await p.emulateMedia({reducedMotion:'reduce'});await p.waitForTimeout(100);const systemStop=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(120);assert.equal(await p.evaluate(()=>__fx.clear),systemStop);await p.emulateMedia({reducedMotion:'no-preference'});
   // 受控可见性事件验证后台暂停/前台恢复，不依赖headless窗口焦点。
-  await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await p.waitForTimeout(100);const hidden=await p.evaluate(()=>__fx.clear);await p.waitForTimeout(120);assert.equal(await p.evaluate(()=>__fx.clear),hidden);
+  await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await p.waitForTimeout(100);const hidden=await p.evaluate(()=>__fx.clear),hiddenPaint=await p.evaluate(()=>__fx.paint);await p.waitForTimeout(120);assert.equal(await p.evaluate(()=>__fx.paint),hiddenPaint,'后台不再绘制粒子像素');assert.equal(await p.locator('.portal-atmosphere').getAttribute('data-fx-running'),'false');
   await p.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await p.waitForFunction(n=>__fx.clear>n,hidden);
   if(subject==='行测'&&label==='desktop'){
    // 等实际动画图片解码，再在同一虚拟时钟下重新启动RAF；不混用安装前后的时间戳。
