@@ -751,11 +751,6 @@ def _discuss_action(g, s, act):
         msgs = [_msg("me", "🧙 师傅，这题给我讲透。")] + reply
         generated = next((m['text'] for m in reply if m.get('fold') == '🧙 师傅解惑'), None)
         if s["type"] == "wrong" and generated is not None:  # 不以历史长度判断成功，历史截到10条后也要保存最新讲解
-            d=s['discuss']
-            if d['board']=='逻辑填空':
-                opts={m.group(2):m.group(3).strip() for m in (OPT_LINE.match(ln) for ln in d.get('question','').splitlines()) if m}
-                idioms.from_explanation(g,dict(board=d['board'],topic='逻辑填空',stem=d.get('question',''),options=opts,
-                    answer=d.get('answer',''),analysis='',key=s['key'],id=s['key']),generated)
             where = vault.save_tutor_note(g.paths, s["key"], generated, g.t)
             if where:
                 msgs.append(_msg("sys", "📌 已存入复盘解析：%s 第 %s 题（再问一次会换成新的）" % (where, s["key"].split("|")[2])))
@@ -1307,14 +1302,6 @@ def _settle(g, s, run, keep=False):
         main = max(group['boards'], key=lambda b: sum(q['board'] == b for q in run['questions']))
         events = g._award(base, 'bank_clear', main if question_bank.is_set(s['board']) else s['board'], ok=True,
                           note='%s · %s 通关' % (g.T('bank'), question_bank.label(s['board'])))
-    # 逻辑填空：正确选项里的成语 / 实词收进藏经阁·成语实词录
-    try:
-        new = idioms.harvest(g, [q for q, _ in zip(run['questions'], run['results'])])
-    except Exception:     # 收录出错不影响交卷
-        new = []
-    if new:
-        events = list(events) + [{'kind': 'info', 'msg': '📗 成语实词录新收 %d 个：%s%s' % (
-            len(new), '、'.join(new[:8]), ' 等' if len(new) > 8 else '')}]
     return group, events
 
 
@@ -1620,7 +1607,6 @@ def _explain(g, q, r, teacher=None):
         text = prompts.plain_math(ai.chat(prompts.bank_explain(_teacher_persona(g, q['board'], teacher), q, digest=digest, skill=teacher or skill), temperature=0.5, max_tokens=12000))
     except ai.AIError as e:
         raise TrainError('师傅没回话：%s' % e)
-    idioms.from_explanation(g,q,text)
     return text, skill, used
 
 

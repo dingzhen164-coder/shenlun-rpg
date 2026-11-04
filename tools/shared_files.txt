@@ -55,8 +55,6 @@ shared tests/test_inline_images.py
 shared tests/ui_fixes359.cjs
 shared tests/ui_zoom359.cjs
 shared tests/fixture359.py
-diverged tests/test_idioms359.py
-diverged rpg/data/idioms/*
 shared tools/publish_validated.py
 shared tests/test_publish_validated.py
 diverged rpg/mock_imports.py

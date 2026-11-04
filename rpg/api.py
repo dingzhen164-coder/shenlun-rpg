@@ -24,11 +24,8 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/heartbeat            {"seconds", "session", "notes"}  网页每 30 秒上报；只有正在修炼的会话、或 1 分钟内动过笔的手札才计时
     POST /api/leave                用请假卡
     POST /api/boss                 {"name", "score", "kind": "大比"|"飞升", "result"?}  宗门大比（模考）/ 飞升大典（国考）
-    GET  /api/idioms               藏经阁·成语实词录：按首字拼音首字母排的词条
-    POST /api/idioms/backfill      把以前做过的逻辑填空题一次收进成语实词录
-    POST /api/idioms/edit          {"word", "new_word"?, "sources": {"0": {"meaning", "compare"}}}  修改词条
-    POST /api/idioms/delete        {"word"}  删除词条（以后收录也不再收回来）
-    POST /api/idioms/tutor         {"word"}  师傅答疑：AI 写一句话辨析，替换原辨析
+    POST /api/wordbook             {"kind": 成语|实词}  藏经阁·词录：读 训练/成语实词录/ 下用户维护的区别汇总文档，按组返回
+    POST /api/wordbook/cards       {"kind"}  每组一张组卡同步到辨言峰（逻辑填空::成语组 / 实词组）
     GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
     POST /api/mock/marks/scan      {"season", "images": [base64]}  读答题卡截图（绿对红错）→ 每题对错
     POST /api/mock/report/scan     {"images": [base64], "text"?}  读粉笔成绩截图（Windows OCR）或粘贴的报告文字 → 成绩单各项
@@ -73,7 +70,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, wordbook, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -467,43 +464,27 @@ def import_split(body):
     return _mock_imported(rep, rep.get("season"))
 
 
-def idioms_list(body):
+def wordbook_list(body):
+    kind = str((body or {}).get("kind") or "成语")
     with open_game() as g:
-        idioms.migrate(g)
-        if idioms.clean_tags(g):
-            idioms.write_file(g)
-        return idioms.listing(g)
+        if g.subject != "行测":
+            raise ApiError("词录只在行测里有")
+        wordbook.retire_old(g)
+        return wordbook.listing(g, kind)
 
 
-def idioms_backfill(body):
+def wordbook_cards(body):
+    kind = str((body or {}).get("kind") or "成语")
+    if kind not in wordbook.KINDS:
+        raise ApiError("不认识的词录：%s" % kind)
     with open_game() as g:
-        r = idioms.backfill(g)
-        return dict(r, **idioms.listing(g))
-
-
-def _idiom_call(fn, *args):
-    with open_game() as g:
+        if g.subject != "行测":
+            raise ApiError("词录只在行测里有")
         try:
-            fn(g, *args)
-        except ValueError as e:
+            r = wordbook.sync_cards(g, kind)
+        except (ValueError, cards.CardError) as e:
             raise ApiError(str(e))
-        except ai.AIError as e:
-            raise ApiError("师傅没回话：%s" % e)
-        return idioms.listing(g)
-
-
-def idioms_edit(body):
-    return _idiom_call(idioms.edit, str(body.get("word") or ""), {"word": body.get("new_word"), "sources": body.get("sources") or {}})
-
-
-def idioms_delete(body):
-    return _idiom_call(idioms.delete, str(body.get("word") or ""))
-
-
-def idioms_tutor(body):
-    if not ai.available():
-        raise ApiError("师傅答疑要用 AI：先在“设置”里填 AI 的 API key")
-    return _idiom_call(idioms.ask_tutor, str(body.get("word") or ""))
+        return dict(wordbook.listing(g, kind), result=r)
 
 
 def mock_marks_scan(body):
@@ -1492,11 +1473,9 @@ ROUTES = {
     ("POST", "/api/mock/rewards/claim"): mock_reward_claim,
     ("POST", "/api/practice"): practice,
     ("GET", "/api/mock"): mock_summary,
-    ("GET", "/api/idioms"): idioms_list,
-    ("POST", "/api/idioms/backfill"): idioms_backfill,
-    ("POST", "/api/idioms/edit"): idioms_edit,
-    ("POST", "/api/idioms/delete"): idioms_delete,
-    ("POST", "/api/idioms/tutor"): idioms_tutor,
+    ("GET", "/api/wordbook"): wordbook_list,
+    ("POST", "/api/wordbook"): wordbook_list,
+    ("POST", "/api/wordbook/cards"): wordbook_cards,
     ("POST", "/api/mock/save"): mock_save,
     ("POST", "/api/exam/list"): exam_list,
     ("POST", "/api/exam/import"): exam_import,

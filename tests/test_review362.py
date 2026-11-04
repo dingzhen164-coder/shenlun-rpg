@@ -26,7 +26,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.q={'board':'类比推理','id':'自编1','stem':'自编题干：甲与乙的关系？','options':{'A':'选项甲','B':'选项乙'},'answer':'A','analysis':'原解析_CANARY','tutor':'旧讲解_CANARY','topic':'标签_CANARY'}
 
     def test_single_wire_payload_ignores_existing_explanations_and_attempt(self):
-        with patch.object(trainer,'_tutor_material',return_value=('自编心法_LOCAL',['SKILL.md'])) as material,patch.object(trainer.ai,'chat',return_value='自编讲解') as chat,patch.object(trainer.idioms,'from_explanation'):
+        with patch.object(trainer,'_tutor_material',return_value=('自编心法_LOCAL',['SKILL.md'])) as material,patch.object(trainer.ai,'chat',return_value='自编讲解') as chat:
             trainer._explain(self.g,self.q,{'answer':'作答_CANARY'})
         payload=str(chat.call_args.args[0])
         material.assert_called_once_with(self.g, '类比推理')

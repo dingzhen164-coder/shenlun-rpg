@@ -1,3 +1,9 @@
+## 开发中（未发布）：词录按组重做、背景串科修复（2026-11-04）
+
+- **词录**：`rpg/wordbook.py`（后端，数据格式写在模块顶部）+ `web/idioms.js`（沿用 `window.IDIOMS` 接口）+ `web/wordbook.css`（wb- 前缀）。只读 `训练/成语实词录/{成语,实词}区别汇总.md`，首次写 `_模板.md`；`##` 分组、加粗“最深区别/维度”为判别轴、表格“成语/实词/词语”列为词、带“区别”列为一句话区别、`**易混**` 为提示。组名 `第N组—各词`（只取单个词格子）。接口 `POST /api/wordbook {kind}`、`POST /api/wordbook/cards {kind}`（仅行测）。组卡牌组 `逻辑填空::成语组/实词组`，`state.wordbook_cards[<种类>|<组标题>]` 记编号，`cards.upsert` 改内容保进度，文档没了的组删卡。原自动收录（`idioms.harvest/from_explanation`、`/api/idioms/*`、`state.idioms/idiom_cards`、`训练/成语实词录.md`、`rpg/data/idioms`）全部移除；`wordbook.retire_old` 首次打开备份到 `训练/词录备份/` 后清除。`rpg/idioms.py` 只剩逻辑填空选项分词（`display_options`）。
+- 行测镂空层会把 table 标 `hx381-paper`/`ig-paper` 并套场景浅色字：词录整块画在纸笺 `.wb-main` 上，在纸笺里改写 `--hx381-base-text/--panel/--ig-library-ink` 等变量为纸笺墨色与底色。
+- **背景串科**：`BeautyArt.url()` 带 `&s=<科目>`（见踩坑记录 1.x）。
+
 ## 开发中（未发布）：整卷模考补充、填空题转文字、藏经阁清除（2026-10-30）
 
 - **删除套卷**：`exam_room.delete_paper(g,n)`，接口 `POST /api/exam/delete`。只删程序自己写在 `训练/模考复盘/第N季/` 的导入套卷（`deletable()`：目录必须在训练/模考复盘下；库里原有的 FB 复盘只读，不给删除按钮）。同时清：`训练/题库/**/*.md` 里 id 以 `粉笔N季-` 开头的题、`训练/题库/图片/**/粉笔N季-*`、`state.exam_runs/mocks/mocks_hidden/mock_practice` 里这一季；已发奖励不收回；PDF 不动。前端 `exam_room.js deletePaper`（二次确认）并清本机 `xrpg-draw:exam:<季>:*` 草稿笔迹。`papers()` 每份带 `deletable`。

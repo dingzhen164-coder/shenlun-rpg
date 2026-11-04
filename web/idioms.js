@@ -1,129 +1,109 @@
-/* 藏经阁·成语实词录（数据来自 /api/idioms，见 rpg/idioms.py）。
-   逻辑填空每做完一组，正确选项里的成语自动收成词条，按首字拼音首字母排：
-   字母索引条 → 每个字母一节 → 词条卡（释义、本题其他选项、辨析、真题跳转）。 */
+/* 藏经阁·词录（成语 / 实词）：以“一组易混词”为单位，读 训练/成语实词录/ 下用户维护的区别汇总文档（后端 rpg/wordbook.py）。
+   左边分组目录（可搜），右边组页：判别轴横幅 → 表格（词、回答的问题、一句话区别、出处与例句；字义默认折叠）→ 易混提示 → 真题出处。
+   “同步到卡片”把每组做成一张组卡，在辨言峰（逻辑填空 › 成语组 / 实词组）温习。类名统一 wb- 前缀。 */
 (function () {
   let DATA = null;
-  let Q = "";          // 词条搜索
-  let EDIT = "";       // 正在修改的词条
+  const POS_KEY = "wb-pos-v1";
+  const S = (() => { try { return Object.assign({ kind: "成语", no: 0, q: "" }, JSON.parse(localStorage.getItem(POS_KEY) || "{}")); } catch (_) { return { kind: "成语", no: 0, q: "" }; } })();
+  const save = () => { try { localStorage.setItem(POS_KEY, JSON.stringify({ kind: S.kind, no: S.no })); } catch (_) {} };
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const LETTERS = "ABCDEFGHJKLMNOPQRSTWXYZ#".split("");
+  const TAGS = { 推断: "推断", 待核: "待核", 二手: "二手", 常识: "常识" };
 
-  function card(e) {
-    const srcs = e.sources.map((s) => `<div class="id-src">
-        <div class="id-mean"><span class="id-k">释义</span>${s.meaning ? esc(s.meaning) : '<span class="faint">解析里没有单独解释，看下面的辨析</span>'}</div>
-        ${s.others.length ? `<div class="id-others"><span class="id-k">本题其他选项</span>${s.others.map((o) => `<span class="id-other" title="${esc(o.meaning || "解析里没有单独解释")}"><b>${esc(o.option)}</b> ${esc(o.word)}${o.meaning ? `<i>：${esc(o.meaning)}</i>` : ""}</span>`).join("")}</div>` : ""}
-        ${s.compare ? (s.tutor || s.edited
-          ? `<div class="id-cmp-short"><span class="id-k">${s.tutor && !s.edited ? "🧙 师傅辨析" : "辨析"}</span>${esc(s.compare).replace(/\n/g, "<br>")}</div>`
-          : `<details class="id-cmp"><summary><span class="id-k">辨析</span>（本题解析里讲第 ${s.blank} 空的那段）</summary><div>${esc(s.compare).replace(/\n/g, "<br>")}</div></details>`) : ""}
-        <div class="id-foot"><button class="ghost small id-jump" data-idkey="${esc(s.key)}" data-idq="${esc(s.id)}" data-idboard="${esc(s.board)}">↗ ${esc(s.id)}</button>
-          <span class="faint small">${esc(s.paper || "")}${s.blanks > 1 ? ` · 第 ${s.blank} 空` : ""} · 收录选项 ${esc(s.option || s.answer)}「${esc(s.option_text)}」 · 正确答案 ${esc(s.answer || '未提供')} · 收于 ${esc(s.date)}</span></div>
-      </div>`).join("");
-    if (EDIT === e.word) return editCard(e);
-    const d = e.detail, o = d?.origin || {};
-    const detail = !d ? "" : `<div class="id-detail">
-        ${(d.chars || []).length ? `<div class="id-chars"><span class="id-k">🔍 逐字</span>${d.chars.map((c) => `<span class="id-char"><b>${esc(c.char)}</b>：${esc(c.meaning)}${
-          (c.like || []).length ? `<i>（同样用法：${c.like.map(esc).join("、")}）</i>` : ""}</span>`).join("")}</div>` : ""}
-        ${o.from || o.text || o.note ? `<div class="id-origin"><span class="id-k">📜 出处</span>${o.from && o.from !== "不详" ? `<b>${esc(o.from)}</b>` : ""}${
-          o.text ? `<span class="id-quote">“${esc(o.text)}”</span>` : ""}${o.note ? `<span class="id-onote">${esc(o.note)}</span>` : ""}</div>` : ""}</div>`;
-    return `<div class="id-card" id="idw-${esc(e.word)}"><div class="id-head"><span class="id-word">${esc(e.word)}</span><span class="id-letter">${esc(e.letter)}</span>
-        ${e.sources.length > 1 ? `<span class="tag">考过 ${e.sources.length} 次</span>` : ""}</div>${detail}${srcs}
-      <div class="id-acts"><button class="ghost small" data-idedit="${esc(e.word)}">✏ 修改</button><button class="ghost small" data-iddel="${esc(e.word)}">🗑 删除</button>
-        <button class="small id-tutor" data-idtutor="${esc(e.word)}" title="让师傅把这几个词的区别用一句话讲清（替换上面的辨析）；成语再讲关键字和出处。答疑过的词会自动做成玉简（修炼殿 · 逻辑填空 › 成语实词录）背">🧙 师傅答疑</button></div></div>`;
+  // 行内：加粗、<br>、〔标签〕、[文字](链接) 只显示文字。先转义，再还原这几种写法。
+  function inline(raw) {
+    let s = esc(raw);
+    s = s.replace(/\[([^\]]+)\]\((?:[^)]+)\)/g, "$1");
+    s = s.replace(/\*\*([^*]+?)\*\*/g, "<b>$1</b>");
+    s = s.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+    s = s.replace(/〔(推断|待核|二手|常识)〕/g, (_, t) => `<span class="wb-tag wb-tag-${t === "待核" ? "warn" : "info"}">${TAGS[t]}</span>`);
+    return s;
+  }
+  // 出处格：<br> 之后以 生僻字 / 熟词僻义 / 类似 开头的字义折起来
+  function cell(raw, isSource) {
+    if (!isSource) return inline(raw);
+    const parts = String(raw || "").split(/<br\s*\/?>/i), main = [], words = [];
+    for (const p of parts) (/^\s*\*\*(生僻字|熟词僻义|类似)/.test(p) ? words : main).push(p);
+    return inline(main.join("<br>")) + (words.length ? `<details class="wb-chars"><summary>字义</summary><div>${inline(words.join("<br>"))}</div></details>` : "");
+  }
+  function para(md) { return md.split(/\n+/).map((l) => `<p>${inline(l)}</p>`).join(""); }
+
+  function table(b, gr) {
+    const src = b.head.findIndex((h) => /出处|例句/.test(h));
+    const head = `<tr>${b.head.map((h, i) => `<th class="${i === b.word_col ? "wb-wcol" : ""}">${inline(h)}</th>`).join("")}</tr>`;
+    const rows = b.rows.map((r) => `<tr>${b.head.map((_, i) => {
+      const v = r[i] || "";
+      if (i === b.word_col) {
+        const w = v.replace(/\*\*/g, "").trim(), more = (DATA.where[w] || []).filter((n) => n !== gr.no);
+        return `<th scope="row" class="wb-word">${inline(v)}${more.length ? `<span class="wb-also">${more.map((n) => `<button type="button" class="wb-link" data-wbgo="${n}">也在第${n}组</button>`).join("")}</span>` : ""}</th>`;
+      }
+      return `<td class="${i === b.diff_col ? "wb-diff" : ""}">${cell(v, i === src)}</td>`;
+    }).join("")}</tr>`).join("");
+    return `<div class="wb-table-wrap"><table class="wb-table"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
   }
 
-  function editCard(e) {
-    return `<div class="id-card editing" id="idw-${esc(e.word)}"><div class="id-head"><label class="small muted">词条 <input id="idEdWord" value="${esc(e.word)}" maxlength="12"></label></div>
-      ${e.sources.map((s, i) => `<div class="id-src"><div class="small faint">${esc(s.id)}${s.blanks > 1 ? ` · 第 ${s.blank} 空` : ""}</div>
-        <label class="small muted">释义<textarea rows="2" data-edmean="${i}">${esc(s.meaning)}</textarea></label>
-        <label class="small muted">辨析<textarea rows="4" data-edcmp="${i}">${esc(s.compare)}</textarea></label></div>`).join("")}
-      <div class="id-acts"><button class="primary small" id="idEdSave">保存</button><button class="ghost small" id="idEdCancel">取消</button>
-        <span class="small muted">改过的不会被以后的收录覆盖</span></div></div>`;
+  function groupView(gr) {
+    if (!gr) return `<div class="wb-empty muted">左边选一组。</div>`;
+    const blocks = gr.blocks.map((b) => b.type === "table" ? table(b, gr)
+      : b.type === "axis" ? `<div class="wb-axis">${para(b.md)}</div>`
+      : b.type === "tip" ? `<div class="wb-tip">${para(b.md)}</div>`
+      : `<div class="wb-para">${para(b.md)}</div>`).join("");
+    const src = gr.words.filter((w) => DATA.sources[w]).map((w) => `<div class="wb-src"><b>${esc(w)}</b>${DATA.sources[w].map((s) =>
+      `<button type="button" class="ghost small wb-jump" data-wbkey="${esc(s.key)}" data-wbq="${esc(s.id)}" data-wbboard="${esc(s.board)}" title="${esc(s.paper || "")}">↗ ${esc(s.id)}</button>`).join("")}</div>`).join("");
+    return `<article class="wb-group" aria-labelledby="wbTitle">
+      <header class="wb-ghead"><span class="wb-no">第${esc(gr.name.split("—")[0].replace(/^第|组$/g, ""))}组</span><h3 id="wbTitle">${esc(gr.words.join("、") || gr.heading)}</h3><p class="small muted">${esc(gr.heading)}</p></header>
+      ${blocks}
+      ${src ? `<details class="wb-srcs"><summary>真题出处（${gr.words.filter((w) => DATA.sources[w]).length} 个词在题库里考过）</summary>${src}</details>` : ""}
+    </article>`;
   }
 
   function html() {
-    const d = DATA;
-    const list = Q ? d.entries.filter((e) => e.word.includes(Q) || e.sources.some((s) => s.others.some((o) => o.word.includes(Q)))) : d.entries;
-    const bar = `<div class="card id-bar"><div class="row">
-        <input id="idQ" placeholder="查词：成语（本题其他选项里的词也能查到）" value="${esc(Q)}">
-        <button class="primary" id="idGo">查</button>
-        <button class="ghost" id="idFill" title="把以前做过的逻辑填空题（作答记录里有的）一次收进来">⟳ 收录以前做过的逻辑填空</button></div>
-      <div class="id-letters">${LETTERS.map((L) => `<a class="${d.letters[L] ? "" : "off"}" data-idletter="${L}">${L}<small>${d.letters[L] || ""}</small></a>`).join("")}</div>
-      <p class="small muted" style="margin:6px 0 0">共 ${d.total} 个词条。逻辑填空交卷收录正确选项成语；点师傅解惑收录全部选项成语（二字、三字词和普通短语不收），同时写进 训练/${esc(d.file)}。</p></div>`;
-    if (!list.length) {
-      return bar + `<p class="muted lib-tip">${Q ? "没有查到这个词。" : "还没有词条：去修炼殿做一组逻辑填空（板块试炼、知识点试炼、整套试炼都行），交卷后自动收录；或者点上面的「收录以前做过的逻辑填空」。"}</p>`;
+    const d = DATA, q = S.q.trim();
+    const list = q ? d.groups.filter((g) => g.name.includes(q) || g.heading.includes(q)) : d.groups;
+    if (!d.groups.some((g) => g.no === S.no)) S.no = (d.groups[0] || {}).no || 0;
+    const cur = d.groups.find((g) => g.no === S.no);
+    const tabs = `<div class="wb-kinds" role="tablist" aria-label="成语或实词">${d.kinds.map((k) => `<button type="button" role="tab" aria-selected="${k === d.kind}" class="${k === d.kind ? "on" : ""}" data-wbkind="${esc(k)}">${esc(k)}</button>`).join("")}</div>`;
+    const bar = `<div class="wb-bar">${tabs}
+      <input id="wbQ" type="search" placeholder="搜${esc(d.kind)}或组名" value="${esc(S.q)}" aria-label="搜索">
+      <button type="button" class="primary small" id="wbSync" ${d.exists ? "" : "disabled"} title="每组一张组卡，放进辨言峰（${esc(d.deck)}）；改了文档再点一次就更新，温习进度保留">🃏 同步到卡片${d.synced ? `（已有 ${d.synced} 张）` : ""}</button></div>`;
+    const warn = d.problems.length ? `<div class="wb-warn" role="alert"><b>文档里有几处没读懂：</b>${d.problems.map((p) => `<div>${esc(p)}</div>`).join("")}</div>` : "";
+    if (!d.exists) {
+      return bar + `<div class="wb-empty"><h3>还没有${esc(d.kind)}文档</h3><p>在本地新建 <b>${esc(d.file)}</b>，照 <b>${esc(d.template)}</b> 的格式按组写：<code>## 1. 组名</code>、加粗的“最深区别”、一张带“${esc(d.kind)}”列和“一句话区别”列的表格。保存后回到这里就能看到。</p></div>`;
     }
-    let cur = null, out = "";
-    for (const e of list) {
-      if (e.letter !== cur) {
-        if (cur !== null) out += "</div>";
-        cur = e.letter;
-        out += `<h3 class="id-sec" id="idl-${esc(cur)}">${esc(cur)}</h3><div class="id-grid">`;
-      }
-      out += card(e);
-    }
-    return bar + out + "</div>";
+    const side = `<nav class="wb-side" aria-label="分组目录">${list.map((g) => `<button type="button" class="wb-gbtn ${g.no === S.no ? "on" : ""}" data-wbgo="${g.no}" aria-current="${g.no === S.no}"><span class="wb-gno">${esc(g.name.split("—")[0])}</span><span class="wb-gwords">${esc(g.words.join("、"))}</span></button>`).join("") || `<p class="small muted">没有搜到。</p>`}</nav>`;
+    const intro = d.intro ? `<details class="wb-intro"><summary>说明</summary>${para(d.intro.replace(/^>\s?/gm, ""))}</details>` : "";
+    return bar + warn + `<div class="wb-body">${side}<div class="wb-main">${intro}${groupView(cur)}<p class="small wb-file">内容来自 ${esc(d.file)}（本地修改后重新打开即可）· 共 ${d.groups.length} 组</p></div></div>`;
   }
 
-  async function render() {
-    DATA = await api("/api/idioms");
-    return html();
-  }
+  async function load() { DATA = await api("/api/wordbook", { kind: S.kind }); }
+  async function render() { await load(); return html(); }
 
   function bind() {
-    const go = () => { Q = $("#idQ").value.trim(); rerender(); };
-    if ($("#idGo")) { $("#idGo").onclick = go; $("#idQ").onkeydown = (e) => { if (e.key === "Enter") go(); }; }
-    const fill = $("#idFill");
-    if (fill) fill.onclick = async () => {
-      fill.disabled = true; fill.textContent = "收录中…";
+    const box = document.querySelector("#view .id-root");
+    if (!box) return;
+    box.querySelectorAll("[data-wbkind]").forEach((b) => (b.onclick = async () => { S.kind = b.dataset.wbkind; S.no = 0; save(); await load(); rerender(); }));
+    box.querySelectorAll("[data-wbgo]").forEach((b) => (b.onclick = () => { S.no = +b.dataset.wbgo; save(); rerender(); box.querySelector(".wb-main")?.scrollTo?.({ top: 0 }); }));
+    const q = box.querySelector("#wbQ");
+    if (q) q.oninput = () => { S.q = q.value; const pos = q.selectionStart; rerender(); const n = document.querySelector("#wbQ"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+    const sync = box.querySelector("#wbSync");
+    if (sync) sync.onclick = async () => {
+      sync.disabled = true; sync.textContent = "同步中…";
       try {
-        const r = await api("/api/idioms/backfill", {});
-        DATA = r;
-        toast(`扫了 ${r.scanned} 道做过的逻辑填空，新收 ${r.new.length} 个词条（共 ${r.total} 个）`);
+        DATA = await api("/api/wordbook/cards", { kind: S.kind });
+        const r = DATA.result;
+        toast(`已同步 ${r.cards} 张组卡（新 ${r.new}、保留进度 ${r.kept}${r.removed ? `、删去 ${r.removed}` : ""}），在辨言峰「${r.deck.replace("::", " › ")}」温习`);
         rerender();
-      } catch (e) { showError(e); fill.disabled = false; }
+      } catch (e) { showError(e); sync.disabled = false; sync.textContent = "🃏 同步到卡片"; }
     };
-    document.querySelectorAll("[data-idletter]").forEach((a) => (a.onclick = () => {
-      const el = document.getElementById("idl-" + a.dataset.idletter);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }));
-    document.querySelectorAll("[data-idedit]").forEach((b) => (b.onclick = () => { EDIT = b.dataset.idedit; rerender(); scrollTo(EDIT); }));
-    if ($("#idEdCancel")) $("#idEdCancel").onclick = () => { const w = EDIT; EDIT = ""; rerender(); scrollTo(w); };
-    if ($("#idEdSave")) $("#idEdSave").onclick = async () => {
-      const sources = {};
-      document.querySelectorAll("[data-edmean]").forEach((t) => { (sources[t.dataset.edmean] ||= {}).meaning = t.value; });
-      document.querySelectorAll("[data-edcmp]").forEach((t) => { (sources[t.dataset.edcmp] ||= {}).compare = t.value; });
-      const nw = $("#idEdWord").value.trim();
-      try {
-        DATA = await api("/api/idioms/edit", { word: EDIT, new_word: nw, sources });
-        toast("已保存「" + nw + "」"); EDIT = ""; rerender(); scrollTo(nw);
-      } catch (e) { showError(e); }
-    };
-    document.querySelectorAll("[data-iddel]").forEach((b) => (b.onclick = async () => {
-      const w = b.dataset.iddel;
-      if (!confirm(`删除词条「${w}」？以后收录也不会再把它收回来。`)) return;
-      try { DATA = await api("/api/idioms/delete", { word: w }); toast("已删除「" + w + "」"); rerender(); } catch (e) { showError(e); }
-    }));
-    document.querySelectorAll("[data-idtutor]").forEach((b) => (b.onclick = async () => {
-      const w = b.dataset.idtutor;
-      b.disabled = true; b.textContent = "🧙 师傅思考中…";
-      try { DATA = await api("/api/idioms/tutor", { word: w }); toast("师傅答疑好了：「" + w + "」的辨析已更新，也收进了修炼殿的玉简（逻辑填空 › 成语实词录）"); rerender(); scrollTo(w); }
-      catch (e) { showError(e); b.disabled = false; b.textContent = "🧙 师傅答疑"; }
-    }));
     // 真题跳转：切到经卷，搜这道题的编号并直接展开
-    document.querySelectorAll(".id-jump").forEach((b) => (b.onclick = () => {
+    box.querySelectorAll(".wb-jump").forEach((b) => (b.onclick = () => {
       LIB.tab = "yujian";
-      Object.assign(LIB.yj, { q: b.dataset.idq, board: b.dataset.idboard, topic: "", status: "", page: 0, openKey: b.dataset.idkey, from: "idioms" });
+      Object.assign(LIB.yj, { q: b.dataset.wbq, board: b.dataset.wbboard, topic: "", status: "", page: 0, openKey: b.dataset.wbkey, from: "idioms" });
       window.scrollTo(0, 0);
       window.render();
     }));
   }
-  function scrollTo(w) {
-    const el = document.getElementById("idw-" + w);
-    if (el) el.scrollIntoView({ block: "center" });
-  }
   function rerender() {
-    const v = document.getElementById("view");
-    const box = v && v.querySelector(".id-root");
+    const box = document.querySelector("#view .id-root");
     if (!box || !DATA) return;
     box.innerHTML = html();
     bind();

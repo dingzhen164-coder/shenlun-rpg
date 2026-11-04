@@ -654,13 +654,6 @@ def tree(g, scope=None):
 def overview(g, scope=None):
     scope = scope_names(scope)
     c = data(g)
-    if g.subject == "行测" and not c.get("idiom_sync"):              # （行测）升级后第一次：把已经师傅答疑过的成语实词补成玉简
-        from . import idioms
-        try:
-            idioms.sync_cards(g)
-        except Exception:
-            pass
-        c["idiom_sync"] = True
     notes, _ = load(g.paths)
     return {"decks": tree(g, scope), "today": {"n": c["today"]["n"], "secs": c["today"]["secs"]}, "defaults": opts(c, ""),
             "cards": sum(1 for _, n, _ in all_cards(notes) if note_in_scope(n, scope)), "notes": len(notes), "can_undo": bool(c["undo"])}

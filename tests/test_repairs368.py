@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from rpg import config, engine, html_mock, idioms, importer, paths, prompts, question_bank, skillbook, store, study_clock, trainer, vault
+from rpg import config, engine, html_mock, importer, paths, prompts, question_bank, skillbook, store, study_clock, trainer, vault
 from test_html_mock import body, fixture
 
 
@@ -32,17 +32,6 @@ class Repairs368Test(unittest.TestCase):
         payload=str(chat.call_args.args[0]); self.assertIn('先比关系，再比方向',payload)
         self.assertEqual(used,['SKILL.md'])
         for value in ('禁止自动读取_REF','答案_CANARY','解析_CANARY','作答_CANARY'): self.assertNotIn(value,payload)
-
-    def test_all_option_idioms_and_deduplicated_sources(self):
-        q=dict(board='逻辑填空',topic='逻辑填空',stem='自编____。',options=dict(A='方兴未艾',B='如火如荼',C='蒸蒸日上',D='崭露头角'),answer='A',analysis='',key='逻辑填空::368',id='368')
-        before={k:copy.deepcopy(self.g.state[k]) for k in ('xp','seconds','boss')}
-        for _ in range(2): idioms.from_explanation(self.g,q,'“如火如荼”形容气势旺盛。')
-        self.assertEqual(set(idioms.data(self.g)),set(q['options'].values()))
-        for entry in idioms.data(self.g).values(): self.assertEqual(len(entry['sources']),1)
-        src=idioms.data(self.g)['如火如荼']['sources'][0]
-        self.assertEqual((src['option'],src['answer']),('B','A'))
-        self.assertNotIn('正确答案是「如火如荼」',str(prompts.idiom_compare(self.g.persona,'如火如荼',src)))
-        for k,v in before.items(): self.assertEqual(v,self.g.state[k])
 
     def test_accuracy_import_and_repeat_preserve_original_review(self):
         b=body(); b['data']=base64.b64encode(fixture().replace('</app-ti>','<div class="answer-accuracy">全站正确率：65.25%</div></app-ti>').encode()).decode()
