@@ -61,7 +61,6 @@ diverged rpg/mock_imports.py
 diverged tests/test_mock_imports.py
 shared tests/ui_mock_imports.cjs
 shared tests/test_mock_import_time.py
-shared tests/test_report_decimal.py
 shared tests/ui_mock_details.cjs
 diverged rpg/mock_score.py
 diverged tests/test_mock_score.py
@@ -89,7 +88,6 @@ shared rpg/data/material_fix.json
 shared rpg/imgtrim.py
 shared rpg/journey.py
 shared rpg/mac_update.py
-shared rpg/marks.py
 shared rpg/mdconf.py
 shared rpg/mock_rewards.py
 shared rpg/narrative.py

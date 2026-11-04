@@ -1,19 +1,12 @@
-"""宗门大比·读成绩截图：粉笔模考报告的两张截图（得分 / 最高分 / 平均分 / 已击败 / 排名，和各模块“共几题、答对几题、正确率、用时”）
-→ 自动填成绩单。
-
-认字用系统自带的 OCR：Windows 用 Windows.Media.Ocr（PowerShell 调，不装东西；Windows 10/11 装了中文语言就有），
-Mac 用苹果的 Vision（Mac App 里带着 pyobjc；源码版要 pip install pyobjc-framework-Vision）。
-都不行时，也可以把报告里的文字复制粘贴进来（手机相册“提取文字”、微信长按图片“提取文字”都行），
-同一个解析器处理。
+"""系统自带 OCR 认字（2026-11 起只剩这一项：成绩截图自动填已取消）：Windows 用 Windows.Media.Ocr（PowerShell 调，不装东西），
+Mac 用苹果的 Vision（Mac App 里带着 pyobjc）。给手札“师傅编纂”等认手写 / 截图文字用（rpg/notes.py）。
 """
 import os
 import re
 import subprocess
 import sys
 import tempfile
-import unicodedata
 
-from . import importer
 
 PS = r'''
 param([string]$Path)
@@ -110,121 +103,3 @@ def ocr(data):
 
 
 # ---------------------------------------------------------------- 解析报告文字
-MODULES = {"政治理论": "政治理论", "常识判断": "常识判断", "言语理解与表达": "言语理解", "言语理解": "言语理解",
-           "数量关系": "数量关系", "判断推理": "判断推理", "资料分析": "资料分析"}
-SUBS = {"图形推理": "判断推理", "定义判断": "判断推理", "类比推理": "判断推理", "逻辑判断": "判断推理",
-        "逻辑填空": "言语理解", "片段阅读": "言语理解", "语句表达": "言语理解"}
-STAT = re.compile(r"共(\d+)题[,，]?答对(\d+)题[,，]?(?:正确率(\d+)%?[,，]?)?(?:用时(\d+)分钟?)?")
-NUM = r"(\d{1,3}(?:\.\d{1,2})?)"
-
-
-def _norm(line):
-    """Windows OCR 认中文时字和字之间常有空格：去掉中文、标点旁边的空格，数字之间的留着"""
-    line = unicodedata.normalize('NFKC',line).replace("：", ":").replace("％", "%")
-    # 小数字体/点号常被OCR分开；只合并明确的小数点，不把“70 6”猜成70.6。
-    line=re.sub(r'(?<=\d)[·。](?=\d)', '.',line)
-    line=re.sub(r'(?<=\d),(?=\d{1,2}(?:\D|$))', '.',line)
-    line = re.sub(r"(?<=[^\x00-\x7f])\s+|\s+(?=[^\x00-\x7f])", "", line)
-    line = re.sub(r"\s*([%/.,，])\s*", r"\1", line)
-    return line.strip()
-
-
-def parse(text):
-    lines = [_norm(x) for x in str(text or "").splitlines()]
-    lines = [x for x in lines if x]
-    joined=[]
-    for ln in lines:
-        if joined and re.fullmatch(r'[.·。]\d{1,2}',ln) and re.search(r'\d{1,3}$',joined[-1]):
-            joined[-1]+='.'+ln[1:]
-        elif joined and re.fullmatch(r'\d{1,2}',ln) and re.search(r'\d[.]$',joined[-1]):joined[-1]+=ln
-        else:joined.append(ln)
-    lines=joined
-    out = {"modules": {}, "sub": {}}
-    # 各模块：模块名一行，下一行“共20题，答对11题，正确率55%，用时8分钟”（也可能在同一行）
-    cur = None
-    for ln in lines:
-        name = next((n for n in list(MODULES) + list(SUBS) if ln.startswith(n)), None)
-        if name:
-            cur = name
-        m = STAT.search(re.sub(r"(?<=\d)\s+(?=\d)", "", ln))    # “答对2 5题”：题数里不会有空格，认字拆开的拼回去
-        if m and cur:
-            v = {"total": int(m.group(1)), "ok": int(m.group(2)), "minutes": int(m.group(4)) if m.group(4) else None}
-            if cur in MODULES:
-                out["modules"].setdefault(MODULES[cur], v)
-            else:
-                out["sub"].setdefault(SUBS[cur], {}).setdefault("类比推理" if cur == "类比推理" else cur, v)
-            cur = None
-
-    RATIO = r"\d+(?:\.\d{1,2})?/\d+"
-    TOKEN = re.compile(RATIO+r"|\d{1,3}(?:\.\d{1,2})?%?")
-
-    def near(label, before_first=True):
-        """标签对应的数：同一行“93.7最高分”→ 上一行 / 下一行按位置对（粉笔报告：得分在数上面，最高分 / 平均分 / 排名在数下面，
-        一行几个标签就对一行里第几个数）"""
-        for i, ln in enumerate(lines):
-            labels = re.findall(r"最高分|平均分|已击败考生|已击败|排名|得分(?!分布)", ln)
-            if label not in labels:
-                continue
-            k = labels.index(label)
-            m = re.search(r"(?<![\d.])("+RATIO+"|"+NUM+r")%?"+re.escape(label),ln) or re.search(re.escape(label)+r":?("+RATIO+"|"+NUM+")",ln)
-            if m:
-                return m.group(1)
-            # 一个标签一行、一个数一行（手机“提取文字”常见）：几行标签对应它上面同样几行数
-            only = lambda x: bool(re.fullmatch(r"(?:最高分|平均分|已击败考生|已击败|排名)", lines[x]))
-            if only(i) and before_first:
-                a, b = i, i
-                while a - 1 >= 0 and only(a - 1):
-                    a -= 1
-                while b + 1 < len(lines) and only(b + 1):
-                    b += 1
-                n = b - a + 1
-                if n > 1 and a - n >= 0 and all(TOKEN.fullmatch(lines[x]) for x in range(a - n, a)):
-                    return lines[a - n + (i - a)].rstrip("%")
-            for j in ((i - 1, i + 1) if before_first else (i + 1, i - 1)):
-                if 0 <= j < len(lines):
-                    toks = TOKEN.findall(lines[j])
-                    if toks and len(toks) >= len(labels) and not re.search(r"[\u4e00-\u9fff]", lines[j]):
-                        return toks[k].rstrip("%")
-        return None
-
-    score = near("得分", before_first=False)
-    if score is None:
-        m = re.search(NUM + r"/100", " ".join(lines))
-        score = m.group(1) if m else None
-    if score and "/" in score:score=score.split("/",1)[0]
-    rank = near("排名") or ""
-    rp = rank.split("/") if "/" in rank else [None, None]
-    fields = {"score": score, "top": near("最高分"), "avg": near("平均分"),
-              "beat": near("已击败考生") or near("已击败"), "rank": rp[0], "people": rp[1]}
-    joined = "\n".join(lines)
-    d = re.search(r"(20\d\d)[.\-/年](\d{1,2})[.\-/月](\d{1,2})", joined)
-    fields["date"] = "%s-%02d-%02d" % (d.group(1), int(d.group(2)), int(d.group(3))) if d else None
-    s = re.search(r"第([一二三四五六七八九十百零\d]+)季", joined)
-    fields["season"] = importer._cn2int(s.group(1)) if s else None
-    out["fields"] = {k: v for k, v in fields.items() if v not in (None, "")}
-    return out
-
-
-def scan(images=(), text=""):
-    """几张截图（和 / 或粘贴的文字）→ 合并后的解析结果"""
-    chunks, engine = [], []
-    if text and str(text).strip():
-        chunks.append(str(text))
-        engine.append("粘贴的文字")
-    for data in images:
-        chunks.append(ocr(data))
-        engine.append("Mac OCR" if sys.platform=="darwin" else "Windows OCR")
-    if not chunks:
-        raise ReportError("先选成绩截图，或者把报告文字粘贴进来")
-    out = {"modules": {}, "sub": {}, "fields": {}}
-    for c in chunks:
-        r = parse(c)
-        for k in ("modules", "fields"):
-            for kk, v in r[k].items():
-                out[k].setdefault(kk, v)
-        for m, subs in r["sub"].items():
-            for kk, v in subs.items():
-                out["sub"].setdefault(m, {}).setdefault(kk, v)
-    out["engine"] = "、".join(dict.fromkeys(engine))
-    out["text"] = "\n\n".join(chunks)[:4000]
-    return out

@@ -30,11 +30,6 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/siguo/board          {"name"}  一个板块文档里的题（只给题干和选项）
     POST /api/siguo/answer         {"name","key","choice"}  重做一题：判对错，返回解析小节；答对每题每天给一次修为
     GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
-    POST /api/mock/marks/scan      {"season", "images": [base64]}  读答题卡截图（绿对红错）→ 每题对错
-    POST /api/mock/report/scan     {"images": [base64], "text"?}  读粉笔成绩截图（Windows OCR）或粘贴的报告文字 → 成绩单各项
-    POST /api/mock/marks/save      {"season", "marks": {题号: ok/bad}}  写回这一季的板块复盘
-    POST /api/mock/analysis        {"season"}  这一季的考情分析对话
-    POST /api/mock/analyze         {"season", "text"?, "fresh"?}  师傅大比分析（无 text 先做完整分析；有 text 接着追问）
     POST /api/mock/save            {"season", "score", "avg", "top", "beat", "rank", "people", "date", "minutes": {模块}, "scores": {模块}}
     POST /api/practice             {"board", "total", "correct", "minutes", "source", "note"}  演武（自练做题）+ 日志；"date" 可补记最近 7 天
     POST /api/practice/delete      {"id"}  删掉记错的一笔自练
@@ -69,7 +64,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, wordbook, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, wordbook, importer, lan, library, mock, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -521,64 +516,11 @@ def siguo_answer(body):
     return _siguo(run, str(body.get("name") or ""), str(body.get("key") or ""), str(body.get("choice") or ""))
 
 
-def mock_marks_scan(body):
-    try:
-        season = int(body.get("season") or 0)
-    except (TypeError, ValueError):
-        raise ApiError("先选是第几季")
-    with open_game(save=False) as g:
-        try:
-            return marks.scan(g.paths, season, marks.decode(body.get("images")))
-        except marks.MarksError as e:
-            raise ApiError(str(e))
-
-
-def mock_report_scan(body):
-    try:
-        return report.scan(marks.decode(body.get("images")), body.get("text") or "")
-    except (report.ReportError, marks.MarksError) as e:
-        raise ApiError(str(e))
-
-
-def mock_marks_save(body):
-    try:
-        season = int(body.get("season") or 0)
-    except (TypeError, ValueError):
-        raise ApiError("先选是第几季")
-    with open_game() as g:
-        try:
-            r = marks.apply(g.paths, season, body.get("marks") or {})
-        except marks.MarksError as e:
-            raise ApiError(str(e))
-        mock.after_marks(g, season)
-        g._acc = {}
-        return dict(r, summary=mock.summary(g))
-
-
 def _season(body):
     try:
         return int(body.get("season") or 0)
     except (TypeError, ValueError):
         raise ApiError("先选是第几季")
-
-
-def mock_analysis_get(body):
-    with open_game(save=False) as g:
-        return {"season": _season(body), "conv": mock.analysis(g, _season(body))}
-
-
-def mock_analyze(body):
-    if not ai.available():
-        raise ApiError("师傅大比分析要用 AI：先在“设置”里填 AI 的 API key")
-    text = str(body.get("text") or "").strip()
-    with open_game() as g:
-        try:
-            conv = mock.analyze(g, _season(body), text or None, fresh=bool(body.get("fresh")))
-        except mock.MockError as e:
-            raise ApiError(str(e))
-        except ai.AIError as e:
-            raise ApiError("师傅没回话：%s" % e)
-        return {"season": _season(body), "conv": conv}
 
 
 def mock_summary(body):
@@ -1481,11 +1423,6 @@ ROUTES = {
     ("POST", "/api/adclean/undo"): adclean_undo,
     ("POST", "/api/adclean/status"): adclean_status,
     ("POST", "/api/adclean/words"): adclean_words,
-    ("POST", "/api/mock/marks/scan"): mock_marks_scan,
-    ("POST", "/api/mock/report/scan"): mock_report_scan,
-    ("POST", "/api/mock/marks/save"): mock_marks_save,
-    ("POST", "/api/mock/analysis"): mock_analysis_get,
-    ("POST", "/api/mock/analyze"): mock_analyze,
     ("POST", "/api/practice/delete"): practice_delete,
     ("POST", "/api/selfstudy"): selfstudy_add,
     ("POST", "/api/selfstudy/delete"): selfstudy_delete,

@@ -93,8 +93,6 @@ class Updates363Test(unittest.TestCase):
         self.assertEqual([s['season'] for s in mock.summary(self.g)['seasons']], [39, 40, 38])
         self.assertEqual(mock.summary(self.g)['overall']['latest'], 75)
         self.assertEqual(self.g.state['events'], before)
-        import json
-        facts = json.loads(mock._facts(self.g, 38)); self.assertEqual(facts['上一季']['季'], 40)
         for bad in ('2026-02-30', 'wrong', '2026-1-2', '2026-10-21xxx'):
             with self.assertRaises(mock.MockError): mock.save(self.g, dict(season=38, date=bad))
 

@@ -154,7 +154,8 @@ class MockRecordsSyncTest(MockImportsTest):
         with api.open_game() as g:
             g.add_boss('第33季',72.3);g.add_boss('第133季',55)         # 第133季不能被当成第33季
             g.state['mocks']['33']['analysis']=[{'role':'user','content':'自编提问','t':'x'}]
-            from rpg import mock;mock.write_analysis(g,33)
+            f=self.p.train/'宗门大比/第33季考情分析.md';f.parent.mkdir(parents=True,exist_ok=True)   # 旧版考情分析留下的文件（该功能 2026-11 已取消）
+            f.write_text('# 第33季 · 宗门大比考情分析\n',encoding='utf-8')
         return self.p.train/'宗门大比/第33季考情分析.md'
 
     def test_delete_removes_season_records_everywhere_and_restore_brings_them_back(self):
