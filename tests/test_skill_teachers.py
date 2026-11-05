@@ -112,7 +112,7 @@ class TeachersTests(unittest.TestCase):
             self.assertTrue(r['mentor']['avatar'].endswith('full-stop.png'))
             with self.assertRaises(trainer.TrainError):
                 trainer.action(g,s['id'],'skill_teacher:不存在')
-            with patch.object(trainer.ai,'chat',return_value='自编讲解') as chat, patch.object(trainer.idioms,'from_explanation'):
+            with patch.object(trainer.ai,'chat',return_value='自编讲解') as chat:
                 trainer._explain(g,{'board':'逻辑填空','stem':'自编题干','options':{'A':'自编A','B':'自编B'},'answer':'绝密答案','analysis':'绝密解析'}, {}, '句号')
                 sent=str(chat.call_args[0][0]);self.assertIn('句号专属标记',sent);self.assertNotIn('猫专属标记',sent)
                 self.assertNotIn('绝密答案',sent);self.assertNotIn('绝密解析',sent)

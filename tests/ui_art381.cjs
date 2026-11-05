@@ -6,7 +6,7 @@ const ready=new Promise((ok,no)=>{let output='';const timer=setTimeout(()=>no(Er
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  for(const [label,width,height]of [['desktop',1280,860],['portrait',800,1280],['landscape',1280,800]]){
   page=await browser.newPage({viewport:{width,height},deviceScaleFactor:2});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.locator('#splash').waitFor({state:'hidden'});await page.evaluate(()=>document.body.classList.add('has-bg'));
-  for(const scene of ['dwelling','bank','contest','skeleton','tianji','settings']){
+  for(const scene of ['dwelling','bank','contest','skeleton','settings']){
    await page.evaluate(scene=>go(scene),scene);await page.evaluate(()=>window.__root381=document.querySelector('#view').firstElementChild);
    for(const phase of (process.argv.includes('--day-only')?['day']:['day','dusk','night'])){
     await page.evaluate(phase=>{localStorage.setItem('scene-time',phase);SCENE_FX.apply();},phase);

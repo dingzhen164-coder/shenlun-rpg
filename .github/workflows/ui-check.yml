@@ -3,14 +3,14 @@ name: article-ui-check
 on:
   push:
     branches: ['validate/**']
-    paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml']
+    paths: ['web/**', 'rpg/**', 'tests/**', '.github/workflows/ui-check.yml', '.github/release-request.json']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   article-ui:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -103,7 +103,6 @@ jobs:
               ['node', 'tests/ui_trial_hall.cjs', '--shots'],
               ['node', 'tests/ui_scene_top.cjs'],
               ['node', 'tests/ui_exam_extras.cjs'],
-              ['node', 'tests/ui_ad_clean.cjs'],
               ['node', 'tests/ui_exam_room.cjs'],
               ['node', 'tests/ui_warm_load.cjs'],
               ['node', 'tests/ui_contest_scene.cjs', '--subject=行测', '--shots'],
@@ -138,6 +137,8 @@ jobs:
           import subprocess
           commands = [
               ['node', 'tests/ui_training339.cjs', '--subject=行测'],
+              ['node', 'tests/ui_siguo.cjs'],
+              ['node', 'tests/test_siguo_races.cjs'],
               ['node', 'tests/ui_daylight339.cjs', '--subject=行测'],
               ['node', 'tests/ui_training339.cjs', '--subject=申论'],
               ['node', 'tests/ui_daylight339.cjs', '--subject=申论'],

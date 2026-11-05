@@ -130,6 +130,11 @@ def main():
             for _f, name, *_r in _art.slots('行测'):
                 if _f == '子地图背景' and not name.endswith(('-白天', '-夜晚')) and '-' not in name:
                     im.save(d / (name + '.png'))
+        if '--siguo-fixture' in sys.argv:
+            # 思过崖：自编两道题（不用真实题目），一个多题文档、一个旧写法单题文档。
+            d = Path(vaults['行测']) / '训练/思过崖'; d.mkdir(parents=True, exist_ok=True)
+            (d / '中心理解.md').write_text('# 中心理解\n\n## 题目索引\n\n| 题 |\n|---|\n| 一 |\n\n## 错题一：自编标题题\n\n### 原题\n\n自编文段甲乙丙。\n\n这段文字意在说明：\n\n- A. 选项甲\n- B. 选项乙\n- C. 选项丙\n- D. 选项丁\n\n### 答案\n\n正确答案：C；我的选择：B\n\n### 错因分析\n\n| 选项 | 迷惑性质 |\n|---|---|\n| B | 自编错因 |\n\n### 一句话教训\n\n> 自编教训。\n', encoding='utf-8')
+            (d / '逻辑填空.md').write_text('# 001 · 自编填空\n\n## 原题\n\n自编文段____。\n\n- A. 词甲\n- B. 词乙　**← 答案**\n- C. 词丙\n- D. 词丁\n\n## 解析\n\n自编解析。\n', encoding='utf-8')
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards

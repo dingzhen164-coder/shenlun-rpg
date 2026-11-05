@@ -265,29 +265,11 @@ class CardGenTest(CardsApiTest):
         doc.set_toc([[1, "第一章 增长", 1], [1, "第二章 比重", 2], [1, "插图", 3]])
         return "data:application/pdf;base64," + __import__("base64").b64encode(doc.tobytes()).decode()
 
-    def test_pdf_to_cards(self):
-        from unittest.mock import patch
-        from rpg import ai
-        info = api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": self._pdf()})
-        self.assertEqual((info["kind"], info["pages"], [t["title"] for t in info["toc"]]), ("pdf", 3, ["第一章 增长", "第二章 比重", "插图"]))
-        plan = api.cardgen_chunks({"src": info["src"], "sections": [0]})
-        self.assertEqual([c["pages"] for c in plan["chunks"]], [[1]])
-        plan = api.cardgen_chunks({"src": info["src"], "pages": [1, 3]})
-        self.assertEqual(sum(len(c["pages"]) for c in plan["chunks"]), 3)
-        reply = ('```json\n{"cards": [{"type": "问答", "front": "隔年增长率公式？", "back": "r1 + r2 + r1×r2", "tags": ["#增长"]},'
-                 '{"type": "填空", "front": "现期比重 = {{c1::部分}} / 整体", "back": "", "tags": "比重"},'
-                 '{"type": "问答", "front": "没有答案的卡", "back": ""}]}\n```')
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "vision_available", return_value=False), \
-                patch.object(ai, "chat", return_value=reply) as chat:
-            r = api.cardgen_gen({"src": info["src"], "chunk": plan["chunks"][0], "deck": "资料分析", "density": "精简", "types": "问答"})
-        self.assertIn("隔年增长率", chat.call_args.args[0][1]["content"])
-        self.assertIn("只出问答卡", chat.call_args.args[0][1]["content"])
-        self.assertEqual(r["skipped"], [3])                                  # 第 3 页没字、没识图模型：跳过
-        self.assertEqual([(c["type"], c["tags"]) for c in r["cards"]], [("问答", ["增长"]), ("填空", ["比重"])])
-        self.assertTrue(r["cards"][0]["extra"].startswith("出自《花生资料分析》"))
-        a = api.cards_add_many({"deck": "资料分析::速算", "cards": r["cards"] + [{"type": "填空", "front": "没挖空"}]})
-        self.assertEqual((a["added"], a["skipped"]), (2, 1))
-        self.assertEqual(api.cards_search({"deck": "资料分析"})["total"], 2)
+    def test_pdf_is_refused(self):
+        """2026-11：师傅制卡不再直接读 PDF，要先整理成 Markdown"""
+        with self.assertRaises(Exception) as ctx:
+            api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": self._pdf()})
+        self.assertIn("Markdown", str(ctx.exception))
 
     def test_markdown_sections(self):
         md = "---\ntags: x\n---\n# 增长\n## 隔年增长\n" + "隔年增长率内容。\n\n" * 5 + "## 混合增长\n混合增长率内容。\n# 比重\n比重内容。\n"
@@ -367,41 +349,3 @@ class CardsMoreTest(CardsApiTest):
             api.mm_get({"board": "../x", "name": "y"})
         api.mm_delete({"board": "资料分析", "name": "速算"})
         self.assertEqual(len(api.mm_list({})["boards"][-1]["maps"]), 1)
-
-
-class IdiomCardsTest(CardsApiTest):
-    """成语实词录里师傅答疑过的词条 → 玉简（逻辑填空::成语实词录）"""
-
-    def entry(self, word, tutor=True):
-        return {"word": word, "letter": "B", "detail": {"chars": [{"char": "刊", "meaning": "删改", "like": ["刊误"]}],
-                                                       "origin": {"from": "《答李翊书》", "text": "", "note": ""}},
-                "sources": [{"key": "k", "id": "真题-1", "board": "逻辑填空", "source": "逻辑填空真题.md", "paper": "2024国考",
-                             "blank": 1, "blanks": 1, "answer": "A", "option_text": word, "meaning": "不能删改的言论",
-                             "others": [{"word": "至理名言", "option": "B", "meaning": "最正确的道理"}],
-                             "compare": "不刊之论强调不可更改", "tutor": tutor, "date": "2026-10-07"}]}
-
-    def test_sync(self):
-        from rpg import idioms
-        with api.open_game() as g:
-            idioms.data(g)["不刊之论"] = self.entry("不刊之论")
-            idioms.data(g)["没答疑"] = self.entry("没答疑", tutor=False)
-        api.cards_overview({})                                              # 第一次打开修炼殿：补做
-        rows = api.cards_search({"deck": "逻辑填空::成语实词录"})["rows"]
-        self.assertEqual([r["front"] for r in rows], ["不刊之论 （成语 · 说出意思和用法）"])
-        n = api.cards_note({"id": rows[0]["id"]})
-        for part in ("**释义**：不能删改的言论", "**逐字**：刊 = 删改（同样用法：刊误）", "**出处**：《答李翊书》",
-                     "**辨析**：不刊之论强调不可更改", "- 至理名言：最正确的道理"):
-            self.assertIn(part, n["back"])
-        self.assertNotIn("真题", n["back"])
-        # 温过之后再答疑：同一枚玉简改内容，进度不丢
-        key = rows[0]["key"]
-        api.cards_answer({"deck": "", "key": key, "rating": 4})
-        with api.open_game() as g:
-            idioms.data(g)["不刊之论"]["sources"][0]["compare"] = "新的辨析"
-            idioms.sync_card(g, "不刊之论")
-        self.assertIn("新的辨析", api.cards_note({"id": rows[0]["id"]})["back"])
-        self.assertEqual(api.cards_info({"key": key})["sched"]["state"], "复习")
-        # 删词条：玉简一起删
-        with api.open_game() as g:
-            idioms.delete(g, "不刊之论")
-        self.assertEqual(api.cards_search({"deck": "逻辑填空"})["total"], 0)

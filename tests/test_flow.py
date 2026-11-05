@@ -490,99 +490,6 @@ class FlowTest(unittest.TestCase):
         self.assertNotIn("practice_minutes", api._mock_imported({}, 37))
         self.assertEqual(api.dashboard({})["timesplit"]["today"]["self"], 120)
 
-    def test_answer_card_screenshot_and_analysis(self):
-        try:
-            import pymupdf
-        except ImportError:
-            self.skipTest("没装 pymupdf")
-        def q(n):
-            return ("### %d. ⚪\n\n题干\n\n> [!check]- 答案\n> 正确答案：**B**　我的答案：**—**　未作答\n\n---\n\n" % n)
-        sd = self.vault / "FB模考试卷复盘/板块复盘/第38季"
-        sd.mkdir(parents=True)
-        (sd / "01-政治理论.md").write_text("---\n作答: 0\n正确: 0\n正确率: \"—\"\n---\n\n| 题号 | 正确答案 | 我的答案 | 结果 |\n| :-: | :-: | :-: | :-: |\n"
-                                         + "".join("| [[#%d. ⚪\\|%d]] | B | — | ⚪ 未作答 |\n" % (n, n) for n in range(1, 14)) + "\n" + "".join(q(n) for n in range(1, 14)), encoding="utf-8")
-        (sd / "02-常识判断.md").write_text("".join(q(n) for n in range(14, 21)), encoding="utf-8")
-        wrong = {2, 5, 13, 16}
-        # 画一张答题卡：一行 11 个，模块之间有标题（间隔更大）
-        doc = pymupdf.open()
-        page = doc.new_page(width=600, height=520)
-        y, n = 40, 1
-        for count in (13, 7):
-            y += 40
-            for k in range(count):
-                if k and k % 11 == 0:
-                    y += 46
-                x = 30 + (k % 11) * 50
-                page.draw_circle((x + 18, y), 18, color=None, fill=(0.94, 0.33, 0.31) if n in wrong else (0.17, 0.75, 0.59))
-                n += 1
-            y += 46
-        png = page.get_pixmap().tobytes("png")
-        import base64
-        r = api.mock_marks_scan({"season": 38, "images": ["data:image/png;base64," + base64.b64encode(png).decode()]})
-        self.assertEqual((r["ok"], r["bad"], r["missing"]), (16, 4, []))
-        self.assertEqual(sorted(int(k) for k, v in r["marks"].items() if v == "bad"), sorted(wrong))
-        r["marks"]["16"] = "ok"                                       # 网页上点一下改判
-        r = api.mock_marks_save({"season": 38, "marks": r["marks"]})
-        self.assertEqual(r["changed"], 20)
-        text = (sd / "01-政治理论.md").read_text(encoding="utf-8")
-        self.assertIn("### 2. ❌", text)
-        self.assertIn("正确答案：**B**　我的答案：**？**　错误", text)
-        self.assertIn("| [[#1. ✅\\|1]] | B | B | ✅ 正确 |", text)
-        self.assertIn("作答: 13", text)
-        s38 = next(s for s in r["summary"]["seasons"] if s["season"] == 38)
-        self.assertEqual((s38["ok"], s38["total"]), (17, 20))
-        # 师傅大比分析：先完整分析，再追问；对话存档并写成文件
-        sent = []
-        def fake(messages, **kw):
-            sent.append(messages)
-            return "分析%d" % len(sent)
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat", side_effect=fake):
-            r = api.mock_analyze({"season": 38})
-            self.assertEqual([m["content"] for m in r["conv"]], ["分析1"])
-            self.assertIn('"错": [2, 5, 13]', sent[0][1]["content"])
-            r = api.mock_analyze({"season": 38, "text": "政治怎么补？"})
-            self.assertEqual([m["role"] for m in r["conv"]], ["assistant", "user", "assistant"])
-            self.assertEqual(sent[1][2]["content"], "分析1")             # 追问带着之前的对话
-        self.assertEqual(len(api.mock_analysis_get({"season": 38})["conv"]), 3)
-        f = self.vault / "训练/宗门大比/第38季考情分析.md"
-        self.assertIn("政治怎么补？", f.read_text(encoding="utf-8"))
-
-    def test_report_text_autofill_and_fixed_sub_boards(self):
-        ocr = ("得 分\n64.5\n/100\n模 考 试 卷 ： 粉 笔 2027 国 考 行 测 模 考 大 赛 （ 第 三 十 九 季 ）\n模 考 时 间 ： 2026.10.04 09:00 - 11:00\n"
-               "93.7 56 71.5 %\n最 高 分 平 均 分 已 击 败 考 生\n10791/41103 93.7 56\n排 名 最 高 分 平 均 分\n"
-               "言 语 理 解 与 表 达\n共 30 题 ， 答 对 25 题 ， 正 确 率 83% ， 用 时 30 分 钟\n"
-               "判 断 推 理\n共 35 题 ， 答 对 23 题 ， 正 确 率 66% ， 用 时 38 分 钟\n"
-               "图 形 推 理\n共 10 题 ， 答 对 5 题 ， 正 确 率 50% ， 用 时 14 分 钟\n"
-               "逻 辑 判 断\n共 10 题 ， 答 对 8 题 ， 正 确 率 80% ， 用 时 6 分 钟")
-        r = api.mock_report_scan({"text": ocr})
-        self.assertEqual(r["fields"], {"score": "64.5", "top": "93.7", "avg": "56", "beat": "71.5", "rank": "10791",
-                                       "people": "41103", "date": "2026-10-04", "season": 39})
-        self.assertEqual(r["modules"]["言语理解"], {"total": 30, "ok": 25, "minutes": 30})
-        self.assertEqual(r["sub"]["判断推理"]["逻辑判断"], {"total": 10, "ok": 8, "minutes": 6})
-        # Mac 认字有时把数字拆开：“答对2 5题”“用时3 0分钟”
-        r2 = api.mock_report_scan({"text": "言语理解与表达\n共30 题答对2 5题正确率83% 用时3 0分钟"})
-        self.assertEqual(r2["modules"]["言语理解"], {"total": 30, "ok": 25, "minutes": 30})
-        # 第 39 季：言语 30 题拆成 逻辑填空 13 / 中心理解 15 / 语句排序 2（拆试卷时猜的），统计按位置 15 / 10 / 5
-        def q(n, icon):
-            return "### %d. %s\n\n题干\n\n> [!check]- 答案\n> 正确答案：**A**　我的答案：**A**\n\n---\n\n" % (n, icon)
-        sd = self.vault / "FB模考试卷复盘/板块复盘/第39季"
-        sd.mkdir(parents=True)
-        ic = lambda n: "❌" if n in (40, 52, 64) else "✅"
-        (sd / "03-逻辑填空.md").write_text("".join(q(n, ic(n)) for n in range(36, 49)), encoding="utf-8")
-        (sd / "04-中心理解.md").write_text("".join(q(n, ic(n)) for n in range(49, 64)), encoding="utf-8")
-        (sd / "05-语句排序.md").write_text("".join(q(n, ic(n)) for n in range(64, 66)), encoding="utf-8")
-        (sd / "07-图形推理.md").write_text("".join(q(n, "⚪") for n in range(76, 111)), encoding="utf-8")
-        api.dashboard({})
-        d = api.mock_save({"season": 39, "score": "64.5", "minutes": {"判断推理": "38"},
-                           "report": {"modules": r["modules"], "sub": r["sub"]}})["summary"]
-        s39 = next(s for s in d["seasons"] if s["season"] == 39)
-        mods = {m["name"]: m for m in s39["modules"]}
-        self.assertEqual([(b["board"], b["ok"], b["total"]) for b in mods["言语理解"]["boards"]],
-                         [("逻辑填空", 14, 15), ("片段阅读", 9, 10), ("语句表达", 4, 5)])
-        # 判断推理没导入答题卡（全是 ⚪）：用成绩截图里的答对数
-        self.assertEqual((mods["判断推理"]["ok"], mods["判断推理"]["total"]), (23, 35))
-        self.assertEqual([(b["board"], b["ok"]) for b in mods["判断推理"]["boards"]], [("图形推理", 5), ("逻辑判断", 8)])
-
     def test_tribulation_failure_needs_healing(self):
         (self.vault / "训练/骨架").mkdir(parents=True, exist_ok=True)
         (self.vault / "训练/骨架/论证逻辑.md").write_text(SKELETON.replace("状态: 草稿", "状态: 已定稿"), encoding="utf-8")
@@ -706,11 +613,11 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(r["battle"]["position"], 2)
         self.assertFalse(any(b.get("t") == "img" for m in r["messages"] for b in m.get("blocks", [])))  # 3.1.1论证逻辑只显示已提取文字
         self.assertTrue(any("否定论点" in m["text"] or any("否定论点" in b.get("v", "") for b in m.get("blocks", [])) for m in r["messages"]))
-        r = api.session_action({"session": sid, "action": "mr_explain:1"})
-        self.assertIn("复盘笔记", r["messages"][-1]["text"])
-        self.assertIn("🧙 师傅解惑", (sd / "10-论证逻辑.md").read_text(encoding="utf-8"))
-        r = api.session_reply({"session": sid, "text": "为什么不选A"})
-        self.assertEqual(r["messages"][-2]["text"], "为什么不选A")
+        # 2026-11 用户定：模考复盘里不要师傅讲解——没有解惑按钮，也不接文字提问
+        self.assertFalse(any(x["id"].startswith("mr_explain") for x in r["input"]["buttons"]))
+        self.assertEqual(r["input"]["mode"], "buttons")
+        with self.assertRaises(Exception):
+            api.session_reply({"session": sid, "text": "为什么不选A"})
         # 时间：大比复盘算“修炼”，记进复习，也记到论证逻辑这个模块
         self.assertTrue(api.heartbeat({"seconds": 60, "session": sid})["studying"])
         self.assertEqual(trainer.study_kind(sid), "review")
@@ -746,19 +653,7 @@ class FlowTest(unittest.TestCase):
         self.assertNotIn("[!abstract]", text(pin["material"]))
         self.assertFalse(any(ln.startswith(">") for ln in text(pin["material"]).splitlines()))
         sid = r["session"]
-        # 一拖五：师傅解惑整组一起讲（一次 AI），讲解写进这组每一道题的复盘笔记，换到下一题直接看得到
-        calls = []
-        def group_chat(messages, **kw):
-            calls.append(messages[-1]["content"])
-            return "师傅整组讲解：先排表。"
-        with patch.object(ai, "chat", group_chat):
-            r = api.session_action({"session": sid, "action": "mr_explain:0"})
-        self.assertEqual(len(calls), 1)
-        self.assertTrue(all(f"第{n}题" in calls[0] for n in (106, 107, 108)) and "瑜伽馆" in calls[0])
-        self.assertIn("整组讲解", r["messages"][-1]["text"])
-        self.assertEqual((sd / "12-一拖五.md").read_text(encoding="utf-8").count("师傅整组讲解"), 3)
         r = api.session_action({"session": sid, "action": "mr_next"})
-        self.assertTrue(any("师傅整组讲解" in m["text"] for m in r["messages"] if m["who"] == "npc"))
         r = api.session_action({"session": sid, "action": "mr_pause"})
         self.assertTrue(r["finished"])
         self.assertIn("第 107 题", r["messages"][0]["text"])

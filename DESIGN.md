@@ -1,3 +1,20 @@
+## 4.0.0 发布验证修复（2026-11-04）
+
+- 广告词库正则缓存按读取到的条目元组复用，不以mtime作为有效性依据；小词库改写、删除立即生效，避免Windows快速改写时间戳不变沿用旧规则。旧JSON转TXT及导入写入使用Path.open，兼容Python3.8。
+
+- 思过崖逐题记录新增 `reward_date`，与最后一次作答日期、对错分离；答对→答错→答对不重领，当天第一次答对后记领取日期。读取既有当天最后答对记录仍视为已领，旧存档兼容。
+- 思过崖异步板块/答题请求使用页面代次、请求编号和发送时的板块/题键校验；离开、返回地图或切题后的旧回包不重画当前页面。保留阅读位置，但仅在当前 `VIEW=tianji` 时计思过崖学习时间。
+- 题库、思过崖、词录首次模板改用 `Path.open` 写入，兼容 Python 3.8/3.9；词录三位及更大组号使用数字显示，避免整份文档读取失败。
+- 本次仅发布公考；法考仍保留原词录、成绩截图、模考AI等业务，相关业务文件与断言在共用清单标为 `diverged`。无主题业务变化的缓存键修复和科目守卫图标随共用文件同步。
+
+## 开发中（未发布）：词录按组重做、背景串科修复（2026-11-04）
+
+- **词录**（一组有几个维度时拆成“第N组一/二…”小组，每小组一张卡，卡键加 `|小组号`）：`rpg/wordbook.py`（后端，数据格式写在模块顶部）+ `web/idioms.js`（沿用 `window.IDIOMS` 接口）+ `web/wordbook.css`（wb- 前缀）。只读 `训练/成语实词录/{成语,实词}区别汇总.md`，首次写 `_模板.md`；`##` 分组、加粗“最深区别/维度”为判别轴、表格“成语/实词/词语”列为词、带“区别”列为一句话区别、`**易混**` 为提示。组名 `第N组—各词`（只取单个词格子）。接口 `POST /api/wordbook {kind}`、`POST /api/wordbook/cards {kind}`（仅行测）。组卡牌组 `逻辑填空::成语组/实词组`，`state.wordbook_cards[<种类>|<组标题>]` 记编号，`cards.upsert` 改内容保进度，文档没了的组删卡。原自动收录（`idioms.harvest/from_explanation`、`/api/idioms/*`、`state.idioms/idiom_cards`、`训练/成语实词录.md`、`rpg/data/idioms`）全部移除；`wordbook.retire_old` 首次打开备份到 `训练/词录备份/` 后清除。`rpg/idioms.py` 只剩逻辑填空选项分词（`display_options`）。
+- 行测镂空层会把 table 标 `hx381-paper`/`ig-paper` 并套场景浅色字：词录整块画在纸笺 `.wb-main` 上，在纸笺里改写 `--hx381-base-text/--panel/--ig-library-ink` 等变量为纸笺墨色与底色。
+- **背景串科**：`BeautyArt.url()` 带 `&s=<科目>`（见踩坑记录 1.x）。
+- **思过崖（行测，替换天机台）**：`rpg/siguo.py`（数据格式见模块顶部）、`web/siguo.js`、`web/siguo.css`（sg- 前缀）。沿用 view id `tianji`（主页地点 id 不变，用户排布照旧），行测渲染 `SIGUO`、申论仍是 `TIANJI`（参阅室）；顶栏名取 `themes.py nav.tianji`。接口 `POST /api/siguo`、`/api/siguo/board {name}`、`/api/siguo/answer {name,key,choice}`（仅行测）。记录 `state.siguo[<板块>|<题指纹>]={last,date,tries,ok,pick}`；题指纹=题干+选项摘要。心跳新增 `siguo:<板块>`（`siguo.studying()` 5 分钟窗口）记做题时间；答对奖 `经验.思过崖答对`（默认 3，每题每天一次，不叠加连胜加成）。场景按“地图类”处理：图片原比例 contain + 模糊底衬，七碑热区按图片像素坐标（`STELES`）定位，字号随画面缩放；`fixed_layout` 对 `.sg-root` 不拆页签。背景 `builtin-art.json` 行测 `beauty/page/tianji(-day/-night).webp` → `scenes/xingce/hd/siguo/`，删除原天机台三张 381 图。色彩：白天黄橙 0.1%、绿 18%、蓝青 66%；夜晚黄橙 0%、蓝青 85%。当前图为聊天压缩版 1672×941，用户原图到后替换（坐标按比例不变）。
+- **天机台并入万象峰**：`wanxiang_journal.ensure_legacy` 标记升到 version 2，首次复制之后又导进 `训练/天机简报/` 的期刊补复制一次（只补比 v1 标记新的文件，删过的副本不复活）。
+
 ## 开发中（未发布）：整卷模考补充、填空题转文字、藏经阁清除（2026-10-30）
 
 - **删除套卷**：`exam_room.delete_paper(g,n)`，接口 `POST /api/exam/delete`。只删程序自己写在 `训练/模考复盘/第N季/` 的导入套卷（`deletable()`：目录必须在训练/模考复盘下；库里原有的 FB 复盘只读，不给删除按钮）。同时清：`训练/题库/**/*.md` 里 id 以 `粉笔N季-` 开头的题、`训练/题库/图片/**/粉笔N季-*`、`state.exam_runs/mocks/mocks_hidden/mock_practice` 里这一季；已发奖励不收回；PDF 不动。前端 `exam_room.js deletePaper`（二次确认）并清本机 `xrpg-draw:exam:<季>:*` 草稿笔迹。`papers()` 每份带 `deletable`。

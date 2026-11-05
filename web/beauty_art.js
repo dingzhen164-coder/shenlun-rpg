@@ -7,7 +7,10 @@
   'use strict';
   const F = new Map((Array.isArray(window.ART_FILES) ? window.ART_FILES : []).map((x) => [x[0], x[1]]));
   const custom = new Set(Array.isArray(window.ART_CUSTOM) ? window.ART_CUSTOM : F.keys());
-  const has = (r) => F.has(r), url = (r) => 'assets/' + r + '?v=' + F.get(r);
+  // 同一相对路径在不同科目下是不同的图（服务器按当前科目取内置别名或本科覆盖），而带 ?v= 的图片会被浏览器“永久”缓存；
+  // 打包后各科图片修改时间常常相同，只用 v 会让切换科目后直接拿到另一科的缓存图，所以地址里再带上科目。
+  const SUB = (() => { try { return String(window.SUBJECT0 || ''); } catch (e) { return ''; } })();
+  const has = (r) => F.has(r), url = (r) => 'assets/' + r + '?v=' + F.get(r) + (SUB ? '&s=' + encodeURIComponent(SUB) : '');
   // 洞府页签名 → key（与 rpg/art.py 的 DWELLING_TABS 对应）
   const TAB_KEY = { '修为与突破': 'growth', '仕途与晋升': 'growth', '成长与晋升': 'growth', '十二经': 'shier', '修行记录': 'records', '学习记录': 'records', '储物袋': 'bag', '修行日志': 'diary', '学时与出勤': 'daily', '时辰与日课': 'daily' };
   const REGION_KEY = { '万象峰': 'chang', '辨言峰': 'yan', '明理峰': 'li', '演数峰': 'shu', '观星峰': 'zi', '归纳概括': 'guina', '综合分析': 'zonghe', '提出对策': 'duice', '贯彻执行': 'guanche', '大作文': 'dazuowen',

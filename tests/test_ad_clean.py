@@ -36,11 +36,55 @@ class Base(unittest.TestCase):
         self.files = sorted(self.folder.glob("[0-9][0-9]-*.md"))
         self.first = self.files[0]
 
+    def add_word(self):
+        f = self.p.train / "清除" / "广告词库.txt"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(AD + "\n", encoding="utf-8")
+        ad_clean._WORDS_CACHE.clear()
+
     def put_ads(self):
         text = self.first.read_text(encoding="utf-8")
         text = text.replace("### 1. ⚪\n自编条件题，仅用于隔离测试。", "### 1. ⚪\n自编条件题，仅用于隔离测试。\n" + AD, 1)                     # 整行广告
         text = text.replace("### 2. ⚪\n自编条件题，仅用于隔离测试。", "### 2. ⚪\n自编条件题，仅用于隔离测试。一手最全 公考资源加微信biguo368 继续正文", 1)   # 夹在句中
         self.first.write_text(text, encoding="utf-8")
+
+
+class WordListTest(Base):
+    """广告词库是本地文档 训练/清除/广告词库.txt（一行一条，# 注释）；旧 json 第一次读到时转成 txt"""
+    def test_word_list_edit_with_unchanged_timestamp_takes_effect(self):
+        self.add_word()
+        f = self.p.train / "清除/广告词库.txt"
+        before = f.stat()
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文")
+        changed = AD.replace("368", "369")
+        f.write_text(changed + "\n", encoding="utf-8")
+        os.utime(f, ns=(before.st_atime_ns, before.st_mtime_ns))
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文" + AD)
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + changed), "正文")
+
+    def test_migration_and_import_writes_support_python38(self):
+        root = self.p.train / "清除"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "广告词库.json").write_text('[{"text": "%s"}]' % AD, encoding="utf-8")
+        original = Path.write_text
+        def legacy_write(path, data, encoding=None, errors=None):
+            return original(path, data, encoding=encoding, errors=errors)
+        self.put_ads()
+        with patch.object(Path, "write_text", legacy_write):
+            self.assertEqual(ad_clean.words(self.p), [{"text": AD}])
+            self.assertGreaterEqual(ad_clean.strip_files(self.p, self.folder), 1)
+        self.assertNotIn(AD, self.first.read_text(encoding="utf-8"))
+
+    def test_text_word_list_and_json_migration(self):
+        root = self.p.train / "清除"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "广告词库.json").write_text('[{"text": "%s", "added": "2026-10-30"}]' % AD, encoding="utf-8")
+        self.assertEqual([w["text"] for w in ad_clean.words(self.p)], [AD])
+        self.assertTrue((root / "广告词库.txt").is_file())
+        self.assertEqual(ad_clean.strip_text(self.p, "第一行\n%s\n第三行" % AD), "第一行\n第三行")
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD + "继续"), "正文继续")
+        (root / "广告词库.txt").write_text("# 注释\n短\n", encoding="utf-8")
+        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文" + AD)          # 太短的跳过，不误删
 
 
 class DeletePaperTest(Base):
@@ -71,70 +115,15 @@ class DeletePaperTest(Base):
 
 
 class AdCleanTest(Base):
-    def test_find_ignores_spaces_and_reports_question(self):
-        self.put_ads()
-        r = ad_clean.find(self.g, {"text": "一手最全公考资源加微信biguo368"})
-        self.assertEqual(r["total"], 2)
-        whole = next(h for h in r["hits"] if h["whole_line"])
-        mid = next(h for h in r["hits"] if not h["whole_line"])
-        self.assertTrue(whole["question"].startswith("1."))
-        self.assertTrue(mid["check"])                          # 夹在句中：提示请核对
-        self.assertIn("套卷/复盘", whole["where"])
-
-    def test_clean_undo_and_backup(self):
-        self.put_ads()
-        before = self.first.read_text(encoding="utf-8")
-        r = ad_clean.clean(self.g, {"text": AD})
-        self.assertEqual((r["cleaned"], r["files"]), (2, 1))
-        after = self.first.read_text(encoding="utf-8")
-        self.assertNotIn("biguo368", after)
-        self.assertNotIn("\n\n\n", after.split("### 2.")[0][-40:])        # 整行广告连行一起删，不留空行
-        self.assertIn("继续正文", after)                                    # 夹在句中的只删广告，两边的字接起来
-        self.assertEqual(ad_clean.find(self.g, {"text": AD})["total"], 0)
-        u = ad_clean.undo(self.g)
-        self.assertEqual((u["restored"], u["skipped"]), (1, []))
-        self.assertEqual(self.first.read_text(encoding="utf-8"), before)
-
-    def test_clean_only_selected_and_undo_skips_edited_files(self):
-        self.put_ads()
-        hits = ad_clean.find(self.g, {"text": AD})["hits"]
-        ad_clean.clean(self.g, {"text": AD, "ids": [hits[0]["id"]]})
-        self.assertEqual(ad_clean.find(self.g, {"text": AD})["total"], 1)
-        with open(self.first, "a", encoding="utf-8") as f:
-            f.write("\n我后来记的笔记\n")
-        u = ad_clean.undo(self.g)
-        self.assertEqual(u["restored"], 0)
-        self.assertEqual(len(u["skipped"]), 1)                   # 清除后你改过的文件不覆盖
-        self.assertIn("我后来记的笔记", self.first.read_text(encoding="utf-8"))
-
-    def test_too_short_text_is_refused_and_scope(self):
-        with self.assertRaises(ad_clean.AdError):
-            ad_clean.find(self.g, {"text": "加微"})
-        self.put_ads()
-        self.assertEqual(ad_clean.find(self.g, {"text": AD, "scopes": ["bank"]})["total"], 0)       # 只查板块题库时不看套卷
-        outside = self.p.vault / "FB模考试卷复盘"; outside.mkdir(parents=True)
-        (outside / "x.md").write_text(AD, encoding="utf-8")
-        self.assertEqual(ad_clean.find(self.g, {"text": AD})["total"], 2)                          # 库里原有的文件不查、不动
-
-    def test_word_list_cleans_future_imports(self):
-        ad_clean.edit_words(self.g, {"act": "add", "text": AD})
-        self.assertEqual(ad_clean.status(self.g)["words"][0]["text"], AD)
-        self.assertTrue(ad_clean.edit_words(self.g, {"act": "add", "text": "一手最全公考资源 加微信biguo368"}).get("again"))   # 同一条不重复
-        self.assertEqual(ad_clean.strip_text(self.p, "第一行\n%s\n第三行" % AD), "第一行\n第三行")
-        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD + "继续"), "正文继续")
-        ad_clean.edit_words(self.g, {"act": "remove", "text": AD})
-        self.assertEqual(ad_clean.status(self.g)["words"], [])
-        self.assertEqual(ad_clean.strip_text(self.p, "正文" + AD), "正文" + AD)
-
     def test_import_finish_applies_word_list(self):
         self.put_ads()
-        ad_clean.edit_words(self.g, {"act": "add", "text": AD})
+        self.add_word()
         self.assertGreaterEqual(ad_clean.strip_files(self.p, self.folder), 1)
-        self.assertEqual(ad_clean.find(self.g, {"text": AD})["total"], 0)
+        self.assertNotIn("biguo368", "".join(f.read_text(encoding="utf-8") for f in self.folder.rglob("*.md")))
 
     def test_bank_import_applies_word_list(self):
         from rpg import importer
-        ad_clean.edit_words(self.g, {"act": "add", "text": AD})
+        self.add_word()
         q = {"id": "自编-001", "board": "逻辑填空", "topic": "x", "stem": "题干正文" + AD, "options": {k: "选项" + k for k in "ABCD"}, "answer": "A"}
         importer._append(self.p, [q])
         text = (self.p.train / "题库" / "逻辑填空真题.md").read_text(encoding="utf-8")

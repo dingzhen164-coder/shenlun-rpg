@@ -24,17 +24,12 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/heartbeat            {"seconds", "session", "notes"}  网页每 30 秒上报；只有正在修炼的会话、或 1 分钟内动过笔的手札才计时
     POST /api/leave                用请假卡
     POST /api/boss                 {"name", "score", "kind": "大比"|"飞升", "result"?}  宗门大比（模考）/ 飞升大典（国考）
-    GET  /api/idioms               藏经阁·成语实词录：按首字拼音首字母排的词条
-    POST /api/idioms/backfill      把以前做过的逻辑填空题一次收进成语实词录
-    POST /api/idioms/edit          {"word", "new_word"?, "sources": {"0": {"meaning", "compare"}}}  修改词条
-    POST /api/idioms/delete        {"word"}  删除词条（以后收录也不再收回来）
-    POST /api/idioms/tutor         {"word"}  师傅答疑：AI 写一句话辨析，替换原辨析
+    POST /api/wordbook             {"kind": 成语|实词}  藏经阁·词录：读 训练/成语实词录/ 下用户维护的区别汇总文档，按组返回
+    POST /api/wordbook/cards       {"kind"}  每组一张组卡同步到辨言峰（逻辑填空::成语组 / 实词组）
+    POST /api/siguo                行测·思过崖：七块石碑（每板块题数、做过、对、错）
+    POST /api/siguo/board          {"name"}  一个板块文档里的题（只给题干和选项）
+    POST /api/siguo/answer         {"name","key","choice"}  重做一题：判对错，返回解析小节；答对每题每天给一次修为
     GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
-    POST /api/mock/marks/scan      {"season", "images": [base64]}  读答题卡截图（绿对红错）→ 每题对错
-    POST /api/mock/report/scan     {"images": [base64], "text"?}  读粉笔成绩截图（Windows OCR）或粘贴的报告文字 → 成绩单各项
-    POST /api/mock/marks/save      {"season", "marks": {题号: ok/bad}}  写回这一季的板块复盘
-    POST /api/mock/analysis        {"season"}  这一季的考情分析对话
-    POST /api/mock/analyze         {"season", "text"?, "fresh"?}  师傅大比分析（无 text 先做完整分析；有 text 接着追问）
     POST /api/mock/save            {"season", "score", "avg", "top", "beat", "rank", "people", "date", "minutes": {模块}, "scores": {模块}}
     POST /api/practice             {"board", "total", "correct", "minutes", "source", "note"}  演武（自练做题）+ 日志；"date" 可补记最近 7 天
     POST /api/practice/delete      {"id"}  删掉记错的一笔自练
@@ -43,12 +38,8 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/bank/add             {"board", "topic", "source", "stem", "options": {A..D}, "answer", "analysis"}  自练好题收进题库
     GET  /api/import               导入真题页：各季模考（已导入数）、待修文件、待分类知识点数
     POST /api/import/preview       {"kind": "season"|"text"|"fix", ...}  拆题预览（不写文件）
+    POST /api/bank/reload          题库文档重新载入并检查格式（每板块题数、答案待补、哪个文件哪题有错）
     POST /api/import/commit        同上 + {"ai": bool}  入库；拆不干净的写进 训练/题库/_待修/
-    POST /api/import/answers       {"prefix", "key"}  按答案表补答案
-    POST /api/import/classify      {"limit"}  DeepSeek 补“待分类”的知识点
-    POST /api/import/remove        {"prefix"}  撤销一批导入（只删没做过的题）
-    POST /api/import/normalize     整理题库格式：选项统一“A. ”，修复 OCR 认错的 ①② / ⅠⅡ
-    POST /api/import/rename        {"old", "new", "boards"?}  改编号前缀（题库 + 作答记录一起改）
     POST /api/import/upload_pdf    {"name", "data"(base64), "season"?}  新模考 PDF 存进 FB模考试卷复盘/模考试卷/
     POST /api/import/split         {"file"}  运行 xingce-mokao-split 拆分并导入那一季
     POST /api/import/install_pymupdf  用户点按钮才运行 pip install pymupdf
@@ -73,7 +64,7 @@ from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, poster, shenlun, subjects, tianji, idioms, importer, lan, library, marks, mock, report, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
+from . import art, shenlun_bank, shenlun_review, shenlun_essay, wording, appapk, articles, appearance, cardgen, cards, mindmap, notes, shenlun, subjects, tianji, wordbook, importer, lan, library, mock, question_bank, ai, config, engine, paths as paths_mod, store, themes, trainer, tutor, vault, skillbook
 from .paths import WEB_DIR, Paths, find_vault, load_settings, looks_like_vault, save_settings
 
 
@@ -438,16 +429,20 @@ def _mock_imported(rep, season, credit=True):
     return rep
 
 
+def bank_reload(body):
+    """题库文档重新载入并检查格式（取代原“导入真题”的 txt/PDF 拆题与维护工具）"""
+    with open_game(save=False) as g:
+        if not g.paths.vault:
+            raise ApiError("请先在设置中指定行测库路径")
+        return question_bank.reload(g)
+
+
 def import_commit(body):
     rep = _import_call(importer.commit, body)
     if body.get("kind") == "season" and not rep.get("dry"):
         # 已有复盘的补导入是维护题库，不代表又考了一次。
         _mock_imported(rep, body.get("season"), credit=False)
     return rep
-
-
-def import_answers(body):
-    return _import_call(importer.fill_answers, body)
 
 
 def import_html(body):
@@ -467,77 +462,58 @@ def import_split(body):
     return _mock_imported(rep, rep.get("season"))
 
 
-def idioms_list(body):
+def wordbook_list(body):
+    kind = str((body or {}).get("kind") or "成语")
     with open_game() as g:
-        idioms.migrate(g)
-        if idioms.clean_tags(g):
-            idioms.write_file(g)
-        return idioms.listing(g)
+        if g.subject != "行测":
+            raise ApiError("词录只在行测里有")
+        wordbook.retire_old(g)
+        return wordbook.listing(g, kind)
 
 
-def idioms_backfill(body):
+def wordbook_cards(body):
+    kind = str((body or {}).get("kind") or "成语")
+    if kind not in wordbook.KINDS:
+        raise ApiError("不认识的词录：%s" % kind)
     with open_game() as g:
-        r = idioms.backfill(g)
-        return dict(r, **idioms.listing(g))
-
-
-def _idiom_call(fn, *args):
-    with open_game() as g:
+        if g.subject != "行测":
+            raise ApiError("词录只在行测里有")
         try:
-            fn(g, *args)
+            r = wordbook.sync_cards(g, kind)
+        except (ValueError, cards.CardError) as e:
+            raise ApiError(str(e))
+        return dict(wordbook.listing(g, kind), result=r)
+
+
+def _siguo(fn, *args, save=True):
+    from . import siguo
+    with open_game(save=save) as g:
+        if g.subject != "行测":
+            raise ApiError("思过崖只在行测里有")
+        try:
+            return fn(g, *args)
         except ValueError as e:
             raise ApiError(str(e))
-        except ai.AIError as e:
-            raise ApiError("师傅没回话：%s" % e)
-        return idioms.listing(g)
 
 
-def idioms_edit(body):
-    return _idiom_call(idioms.edit, str(body.get("word") or ""), {"word": body.get("new_word"), "sources": body.get("sources") or {}})
+def siguo_boards(body):
+    from . import siguo
+    return _siguo(siguo.boards, save=False)
 
 
-def idioms_delete(body):
-    return _idiom_call(idioms.delete, str(body.get("word") or ""))
+def siguo_board(body):
+    from . import siguo
+    return _siguo(siguo.board, str((body or {}).get("name") or ""), save=False)
 
 
-def idioms_tutor(body):
-    if not ai.available():
-        raise ApiError("师傅答疑要用 AI：先在“设置”里填 AI 的 API key")
-    return _idiom_call(idioms.ask_tutor, str(body.get("word") or ""))
-
-
-def mock_marks_scan(body):
-    try:
-        season = int(body.get("season") or 0)
-    except (TypeError, ValueError):
-        raise ApiError("先选是第几季")
-    with open_game(save=False) as g:
-        try:
-            return marks.scan(g.paths, season, marks.decode(body.get("images")))
-        except marks.MarksError as e:
-            raise ApiError(str(e))
-
-
-def mock_report_scan(body):
-    try:
-        return report.scan(marks.decode(body.get("images")), body.get("text") or "")
-    except (report.ReportError, marks.MarksError) as e:
-        raise ApiError(str(e))
-
-
-def mock_marks_save(body):
-    try:
-        season = int(body.get("season") or 0)
-    except (TypeError, ValueError):
-        raise ApiError("先选是第几季")
-    with open_game() as g:
-        try:
-            r = marks.apply(g.paths, season, body.get("marks") or {})
-        except marks.MarksError as e:
-            raise ApiError(str(e))
-        mock.after_marks(g, season)
-        g._acc = {}
-        return dict(r, summary=mock.summary(g))
+def siguo_answer(body):
+    from . import siguo
+    body = body or {}
+    def run(g, *a):
+        r = siguo.answer(g, *a)
+        r["events"] = tutor.enrich(g, r["events"])
+        return r
+    return _siguo(run, str(body.get("name") or ""), str(body.get("key") or ""), str(body.get("choice") or ""))
 
 
 def _season(body):
@@ -545,25 +521,6 @@ def _season(body):
         return int(body.get("season") or 0)
     except (TypeError, ValueError):
         raise ApiError("先选是第几季")
-
-
-def mock_analysis_get(body):
-    with open_game(save=False) as g:
-        return {"season": _season(body), "conv": mock.analysis(g, _season(body))}
-
-
-def mock_analyze(body):
-    if not ai.available():
-        raise ApiError("师傅大比分析要用 AI：先在“设置”里填 AI 的 API key")
-    text = str(body.get("text") or "").strip()
-    with open_game() as g:
-        try:
-            conv = mock.analyze(g, _season(body), text or None, fresh=bool(body.get("fresh")))
-        except mock.MockError as e:
-            raise ApiError(str(e))
-        except ai.AIError as e:
-            raise ApiError("师傅没回话：%s" % e)
-        return {"season": _season(body), "conv": conv}
 
 
 def mock_summary(body):
@@ -652,36 +609,6 @@ def exam_discard(body):
     return _exam(exam_room.discard, int(body.get("season") or 0))
 
 
-def _ad(fn, body, save=False):
-    """藏经阁「清除」：行测的导入套卷 / 板块题目里的广告文字（见 rpg/ad_clean.py）"""
-    from . import ad_clean
-    try:
-        with open_game(save=save) as g:
-            return getattr(ad_clean, fn)(g, body)
-    except ad_clean.AdError as e:
-        raise ApiError(str(e))
-
-
-def adclean_find(body):
-    return _ad("find", body)
-
-
-def adclean_clean(body):
-    return _ad("clean", body)
-
-
-def adclean_undo(body):
-    return _ad("undo", body)
-
-
-def adclean_status(body):
-    return _ad("status", body)
-
-
-def adclean_words(body):
-    return _ad("edit_words", body)
-
-
 def exam_delete(body):
     from . import exam_room
     return _exam(exam_room.delete_paper, int(body.get("season") or 0))
@@ -689,52 +616,6 @@ def exam_delete(body):
 
 def import_install(body):
     return _import_call(importer.install_pymupdf, body)
-
-
-def import_rename(body):
-    """改编号前缀：题库文件和存档里的作答记录一起改，所以要拿存档"""
-    with open_game() as g:
-        if not g.paths.vault:
-            raise ApiError("请先在设置中指定行测库路径")
-        try:
-            return importer.rename_prefix(g.paths, body, g.state)
-        except importer.ImportError_ as e:
-            raise ApiError(str(e))
-
-
-def import_dedupe(body):
-    """题库去重：要动存档里的作答记录，所以拿存档；预览不保存"""
-    with open_game(save=not body.get("dry")) as g:
-        if not g.paths.vault:
-            raise ApiError("请先在设置中指定行测库路径")
-        return importer.dedupe_bank(g.paths, body, g.state)
-
-
-def import_distill(body):
-    """给已入库的真题补蒸馏解析（读本机的蒸馏笔记文件夹）"""
-    from . import zhenti
-    p = _import_paths()
-    folder = str(body.get("folder") or "").strip().strip('"')
-    if not folder:
-        raise ApiError("填蒸馏笔记所在的文件夹")
-    try:
-        return zhenti.merge_distilled(p.train, folder, dry=bool(body.get("dry")))
-    except ValueError as e:
-        raise ApiError(str(e))
-
-
-def import_normalize(body):
-    return _import_call(importer.normalize_bank, body)
-
-
-def import_remove(body):
-    with open_game(save=False) as g:   # 做过的题有作答记录，不删
-        done = set(question_bank.state(g)["records"])
-    return _import_call(lambda p, b: importer.remove(p, b, done), body)
-
-
-def import_classify(body):
-    return _import_call(lambda p, b: importer.classify(p, max(1, min(300, int(b.get("limit") or 100)))), body)
 
 
 def contest_calendar(body):
@@ -937,6 +818,8 @@ def heartbeat(body):
     carding = not studying and not noting and bool(body.get("cards")) and cards.reviewing()        # 后端核对近期取卡、翻卡或答卡，前端另核对可见性及操作时限
     answer = not (studying or noting or carding) and bool(body.get("answering")) and shenlun.answering()   # 申论：在作答页写答案
     tj = body.get("tianji") if not (studying or noting or carding or answer) and tianji.studying() else None  # 在天机简报里学（5 分钟内翻过、填过、答过）
+    from . import siguo
+    sg = body.get("siguo") if not (studying or noting or carding or answer or tj) and siguo.studying() else None  # 思过崖重做（5 分钟内翻过、答过）
     with open_game() as g:
         mapping = mindmap.reading(g.paths, body.get("mindmap")) if not (studying or noting or carding) and g.paths.vault else None
         from . import study_clock
@@ -950,6 +833,8 @@ def heartbeat(body):
             ev = tutor.enrich(g, g.add_seconds(sec, "practice", body.get("answering") if body.get("answering") in g.boards else ""))
         elif mapping is not None and sec:
             ev = tutor.enrich(g, g.add_seconds(sec, "review", mapping if mapping in g.boards else ""))
+        elif sg and sec:      # 思过崖重做算做题，记在这块石碑对应的板块
+            ev = tutor.enrich(g, g.add_seconds(sec, "practice", sg if sg in g.boards else ""))
         elif tj and sec:      # 精卷算做题，研读 / 消化算复习，都记在政治理论
             ev = tutor.enrich(g, g.add_seconds(sec, "practice" if tj == "quiz" else "review", g.news_board() if g.news_board() in g.boards else ""))
         else:
@@ -957,7 +842,7 @@ def heartbeat(body):
             lamp = study_lamp.seconds(g.paths, body.get('lamp'), sec) if body.get('lamp') else None
             ev = tutor.enrich(g, g.add_seconds(lamp[0], 'review', lamp[1] if lamp[1] in g.boards else '')) if lamp and lamp[0] else []
             studying = bool(lamp) or studying
-        studying = studying or noting or carding or mapping is not None or answer or bool(tj)
+        studying = studying or noting or carding or mapping is not None or answer or bool(tj) or bool(sg)
         from . import study_status
         return {"events": ev, "xp": g.state["xp"], "realm": g.realm_info(), "study_status": study_status.view(g),
                 "today": g.t, "minutes": int(g.minutes(g.t)), "studying": studying, "other_device": g.store.heartbeat(),
@@ -1459,13 +1344,7 @@ ROUTES = {
     ("POST", "/api/import/season/remove"): import_season_remove,
     ("POST", "/api/import/season/restore"): import_season_restore,
     ("POST", "/api/import/commit"): import_commit,
-    ("POST", "/api/import/answers"): import_answers,
-    ("POST", "/api/import/classify"): import_classify,
-    ("POST", "/api/import/remove"): import_remove,
-    ("POST", "/api/import/normalize"): import_normalize,
-    ("POST", "/api/import/distill"): import_distill,
-    ("POST", "/api/import/dedupe"): import_dedupe,
-    ("POST", "/api/import/rename"): import_rename,
+    ("POST", "/api/bank/reload"): bank_reload,
     ("POST", "/api/import/upload_pdf"): import_upload_pdf,
     ("POST", "/api/import/html"): import_html,
     ("POST", "/api/import/split"): import_split,
@@ -1492,11 +1371,12 @@ ROUTES = {
     ("POST", "/api/mock/rewards/claim"): mock_reward_claim,
     ("POST", "/api/practice"): practice,
     ("GET", "/api/mock"): mock_summary,
-    ("GET", "/api/idioms"): idioms_list,
-    ("POST", "/api/idioms/backfill"): idioms_backfill,
-    ("POST", "/api/idioms/edit"): idioms_edit,
-    ("POST", "/api/idioms/delete"): idioms_delete,
-    ("POST", "/api/idioms/tutor"): idioms_tutor,
+    ("GET", "/api/wordbook"): wordbook_list,
+    ("POST", "/api/wordbook"): wordbook_list,
+    ("POST", "/api/wordbook/cards"): wordbook_cards,
+    ("POST", "/api/siguo"): siguo_boards,
+    ("POST", "/api/siguo/board"): siguo_board,
+    ("POST", "/api/siguo/answer"): siguo_answer,
     ("POST", "/api/mock/save"): mock_save,
     ("POST", "/api/exam/list"): exam_list,
     ("POST", "/api/exam/import"): exam_import,
@@ -1508,16 +1388,6 @@ ROUTES = {
     ("POST", "/api/exam/result"): exam_result,
     ("POST", "/api/exam/discard"): exam_discard,
     ("POST", "/api/exam/delete"): exam_delete,
-    ("POST", "/api/adclean/find"): adclean_find,
-    ("POST", "/api/adclean/clean"): adclean_clean,
-    ("POST", "/api/adclean/undo"): adclean_undo,
-    ("POST", "/api/adclean/status"): adclean_status,
-    ("POST", "/api/adclean/words"): adclean_words,
-    ("POST", "/api/mock/marks/scan"): mock_marks_scan,
-    ("POST", "/api/mock/report/scan"): mock_report_scan,
-    ("POST", "/api/mock/marks/save"): mock_marks_save,
-    ("POST", "/api/mock/analysis"): mock_analysis_get,
-    ("POST", "/api/mock/analyze"): mock_analyze,
     ("POST", "/api/practice/delete"): practice_delete,
     ("POST", "/api/selfstudy"): selfstudy_add,
     ("POST", "/api/selfstudy/delete"): selfstudy_delete,
@@ -1862,29 +1732,6 @@ def mm_export(body):
     return r
 
 
-# ---------------------------------------------------------------- 🖼 修炼战报（见 rpg/poster.py、web/poster.js）
-def poster_stats(body):
-    with open_game(save=False) as g:
-        try:
-            d = poster.stats(g, body.get("span") or "day")
-        except poster.PosterError as e:
-            raise ApiError(str(e))
-        d.update(persona=_persona_view(g), today=g.t, theme=g.theme)
-        return d
-
-
-def poster_save(body):
-    with open_game(save=False) as g:
-        if not g.paths.vault:
-            raise ApiError("还没找到行测库")
-        try:
-            r = poster.save(g.paths, body.get("data"), body.get("span") or "day", g.t)
-        except poster.PosterError as e:
-            raise ApiError(str(e))
-    r["url"] = "/notes-file?p=%s&t=%s" % (quote(r["path"]), export_token(r["path"]))
-    return r
-
-
 # ---------------------------------------------------------------- 🔮 天机简报（见 rpg/tianji.py、web/tianji.js）
 def _tj(fn, *a, save=True):
     with open_game(save=save) as g:
@@ -2102,7 +1949,6 @@ ROUTES[("GET", "/api/mindmap")] = mm_list
 for _n, _f in (("get", mm_get), ("save", mm_save), ("create", mm_create), ("rename", mm_rename), ("delete", mm_delete), ("export", mm_export)):
     ROUTES[("POST", "/api/mindmap/" + _n)] = _f
 ROUTES[("POST", "/api/settings/ai_profile")] = ai_profile
-ROUTES[("POST", "/api/poster/stats")] = poster_stats
 ROUTES[("GET", "/api/tianji")] = tj_list
 for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta", tj_meta), ("delete", tj_delete), ("cards", tj_cards), ("pdf", tj_pdf), ("ask", tj_ask)):
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
@@ -2111,7 +1957,6 @@ for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import
                ("category", ar_category), ("delete", ar_delete), ("digest_save", ar_digest_save), ("digest_remove", ar_digest_remove), ("jd", ar_jd), ("notebook", ar_notebook)):
     ROUTES[("POST", "/api/articles/" + _n)] = _f
 ROUTES[("GET", "/api/articles/digest")] = ar_digest_list
-ROUTES[("POST", "/api/poster/save")] = poster_save
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),
                ("update", cards_update), ("delete", cards_delete), ("suspend", cards_suspend), ("forget", cards_forget),
                ("move", cards_move), ("deck", cards_deck), ("search", cards_search), ("info", cards_info),

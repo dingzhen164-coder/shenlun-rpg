@@ -317,8 +317,7 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.time, 'time', return_value=100):
             r = trainer.start(self.g, task)
         sid = r['session']
-        self.assertIn('1-5  1·_  2·_  3·_  4·_  5·_', str(r))
-        self.assertIn('6-10  6·_  7·_  8·_  9·_  10·_', str(r))
+        self.assertNotIn('答题卡', str(r))                                      # 做题界面不再显示答题卡
         with patch.object(trainer.time, 'time', return_value=112):
             r = trainer.action(self.g, sid, 'exam_rest')
         self.assertEqual(r['battle']['timer']['question'], 12)
@@ -336,7 +335,7 @@ class BankTest(unittest.TestCase):
         with patch.object(trainer.time, 'time', return_value=515):
             r = trainer.action(self.g, sid, 'exam_pick:0:A')
         self.assertEqual(r['battle']['timer']['total'], 15)
-        self.assertIn('1·A', str(r))
+        self.assertEqual(r['battle']['answered'], 1)
 
     def test_exam_submit_review_explain(self):
         f = self.paths.train / '题库/类比推理真题.md'
@@ -355,7 +354,8 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_pick:0:A')                   # 回去改答案
         trainer.action(self.g, sid, 'exam_pick:1:A')
         r = trainer.action(self.g, sid, 'exam_pick:2:C')
-        self.assertIn('1-3  1·A  2·A  3·C', str(r))
+        self.assertEqual(r['battle']['answered'], 3)
+        self.assertIn("'label': '✓ C'", str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
         self.assertEqual((r['battle']['correct'], r['battle']['total']), (2, 3))
         self.assertTrue(r['messages'][0]['pin'])
@@ -435,123 +435,6 @@ class BankTest(unittest.TestCase):
             bad = {'A': '一二三四五六', 'B': '七八九十百千', 'C': '甲乙丙丁戊己', 'D': '子丑寅卯辰巳'}
             self.assertEqual(len(idioms.display_options(self.g, stem, bad)['A'].split('　')), 2)   # AI 乱答：用自己的切法
 
-    def test_idiom_book_from_logic_fill(self):
-        from rpg import idioms
-        fill = ('\n## 题目 F1\n### 知识点\n逻辑填空-成语辨析\n### 题干\n这种理念____，乡村游____。\n### 选项\n'
-                'A. 主张  如火如荼\nB. 强调  此起彼伏\nC. 遵循  崭露头角\nD. 蕴含  方兴未艾\n### 答案\nD\n### 解析\n'
-                '第一空，搭配“农业文明”，A项“主张”的主语通常是人，排除；D项“蕴含”指包含，放入此处恰当，当选。\n'
-                '第二空，A项“如火如荼”形容气势旺盛、热烈或激烈，D项“方兴未艾”形容形势或事物正在蓬勃发展，均能体现，保留。B项“此起彼伏”形容此处起来，彼处落下，排除。\n'
-                '故正确答案为D。\n【文段出处】《某文》\n'
-                '\n## 题目 F2\n### 知识点\n逻辑填空\n### 题干\n只有____才____。\n### 选项\nA. 只有 才\nB. 只要 就\nC. 无论 都\nD. 即使 也\n### 答案\nA\n### 解析\n关联词。\n')
-        (self.paths.train / '题库/逻辑填空真题.md').write_text(fill, encoding='utf-8')
-        self.assertEqual([idioms.letter(w) for w in ('蕴含', '方兴未艾', '长治久安', '龃龉')], ['Y', 'F', 'C', '#'])
-        task = {'type': 'bank', 'board': '逻辑填空', 'title': '实战', 'target': '逻辑填空', 'id': 'bank:逻辑填空'}
-        sid = trainer.start(self.g, task)['session']
-        trainer.action(self.g, sid, 'exam_pick:0:D')
-        r = trainer.action(self.g, sid, 'exam_pick:1:B')
-        r = trainer.action(self.g, sid, 'exam_submit')
-        self.assertIn('成语实词录新收 1 个：方兴未艾', str(r['events']))      # 关联词不收
-        book = idioms.listing(self.g)
-        self.assertEqual([e['word'] for e in book['entries']], ['方兴未艾'])
-        self.assertEqual(book['letters'], {'F': 1})
-        e = next(x for x in book['entries'] if x['word'] == '方兴未艾')
-        s = e['sources'][0]
-        self.assertEqual(s['meaning'], '形容形势或事物正在蓬勃发展')
-        self.assertEqual([(o['option'], o['word'], o['meaning']) for o in s['others']],
-                         [('A', '如火如荼', '形容气势旺盛、热烈或激烈'), ('B', '此起彼伏', '形容此处起来，彼处落下'), ('C', '崭露头角', '')])
-        self.assertTrue(s['compare'].startswith('第二空'))
-        self.assertEqual((s['key'], s['blank'], s['answer'], s['source']), ('逻辑填空::F1', 2, 'D', '逻辑填空真题.md'))
-        self.assertNotIn('蕴含', idioms.data(self.g))
-        text = (self.paths.train / '成语实词录.md').read_text(encoding='utf-8')
-        self.assertIn('## F\n\n### 方兴未艾', text)
-        self.assertIn('[[逻辑填空真题#题目 F1|F1]]', text)
-        self.assertIn('如火如荼（A项）：形容气势旺盛、热烈或激烈', text)
-        # 补收以前做过的：不重复
-        r = idioms.backfill(self.g)
-        self.assertEqual((r['new'], r['total']), ([], 1))
-        self.assertEqual(len(idioms.data(self.g)['方兴未艾']['sources']), 1)
-        # 师傅答疑：一句话辨析替换原辨析，解析没写的释义补上
-        reply = {'辨析': '方兴未艾重“正在兴起”，如火如荼重“热烈”，此处写发展势头，选方兴未艾。', '释义': {'崭露头角': '比喻初显才能'}}
-        detail = {'逐字': [{'字': '艾', '义': '停止、尽', '同用法': ['自怨自艾']}],
-                  '出处': {'出自': '宋·陆游《上殿札子》', '原文': '方兴未艾', '说明': '形容正在兴起、一时不会停止'}}
-        fake = lambda msgs, **kw: detail if '逐字' in msgs[-1]['content'] else reply        # 并发请求，回来的先后不定：按提示词内容返回
-        with patch.object(trainer.ai, 'chat_json', side_effect=fake) as m:
-            idioms.ask_tutor(self.g, '方兴未艾')
-        prompts_sent = [c[0][0][-1]['content'] for c in m.call_args_list]
-        self.assertEqual(len(prompts_sent), 2)
-        self.assertEqual(sum('逐字' in t for t in prompts_sent), 1)                       # 成语：再问关键字和出处
-        self.assertTrue(all('方兴未艾' in t for t in prompts_sent))
-        self.assertTrue(all(c.kwargs.get('think') is False for c in m.call_args_list))   # 辨析和出处都关思考，答疑才不会等很久
-        det = idioms.data(self.g)['方兴未艾']['detail']
-        self.assertEqual((det['chars'][0]['char'], det['chars'][0]['like'], det['origin']['from']), ('艾', ['自怨自艾'], '宋·陆游《上殿札子》'))
-        self.assertIn('- **逐字**：艾 = 停止、尽（同样用法：自怨自艾）', (self.paths.train / '成语实词录.md').read_text(encoding='utf-8'))
-        s = idioms.data(self.g)['方兴未艾']['sources'][0]
-        self.assertEqual((s['compare'], s['tutor']), (reply['辨析'], True))
-        self.assertEqual(s['others'][2]['meaning'], '比喻初显才能')
-        s['others'][1]['meaning'] = '（师傅补）旧版带标记'                          # 旧版存的：去掉标记
-        self.assertTrue(idioms.clean_tags(self.g))
-        self.assertEqual(s['others'][1]['meaning'], '旧版带标记')
-        self.assertFalse(idioms.clean_tags(self.g))
-        self.assertIn('辨析（🧙 师傅）', (self.paths.train / '成语实词录.md').read_text(encoding='utf-8'))
-        idioms.backfill(self.g)                                                    # 再收一次不覆盖师傅的
-        self.assertEqual(idioms.data(self.g)['方兴未艾']['sources'][0]['compare'], reply['辨析'])
-        # 仅允许改为有效成语；失败的短词改名不能覆盖原释义。
-        with self.assertRaises(ValueError):idioms.edit(self.g,'方兴未艾',{'word':'蕴涵','sources':{'0':{'meaning':'不能写入'}}})
-        self.assertEqual(idioms.data(self.g)['方兴未艾']['sources'][0]['compare'],reply['辨析'])
-        idioms.edit(self.g,'方兴未艾',{'word':'蒸蒸日上','sources':{'0':{'meaning':'自己写的释义'}}})
-        self.assertNotIn('方兴未艾',idioms.data(self.g))
-        self.assertEqual(idioms.data(self.g)['蒸蒸日上']['sources'][0]['meaning'],'自己写的释义')
-        idioms.backfill(self.g)
-        self.assertNotIn('方兴未艾',idioms.data(self.g))
-        idioms.delete(self.g,'蒸蒸日上')
-        self.assertEqual(idioms.backfill(self.g)['new'],[])
-        self.assertEqual(idioms.data(self.g),{})
-        with self.assertRaises(ValueError):idioms.delete(self.g,'方兴未艾')
-
-    def test_idiom_tutor_asks_all_sources_at_once(self):
-        """多条出处并发请求：全部同时发出；有一条失败整体不改；成语的出处讲不出来不影响辨析"""
-        import threading
-        from rpg import idioms
-        src = lambda k: {'key': '逻辑填空::' + k, 'id': k, 'blank': 1, 'option': 'A', 'option_text': '不落窠臼', 'answer': 'A', 'meaning': '释' + k,
-                         'compare': '原', 'source': '', 'paper': '', 'date': '2026-10-29', 'others': []}
-        idioms.data(self.g)['不落窠臼'] = {'word': '不落窠臼', 'letter': 'B', 'sources': [src('A1'), src('A2'), src('A3')]}
-        barrier = threading.Barrier(4, timeout=5)                # 3 条辨析 + 1 次出处必须同时在路上，排队的话这里会超时
-        def fake(msgs, **kw):
-            barrier.wait()
-            if '逐字' in msgs[-1]['content']:
-                return {'逐字': [], '出处': {'出自': '不详', '原文': '', '说明': ''}}
-            return {'辨析': '新辨析'}
-        with patch.object(trainer.ai, 'chat_json', side_effect=fake) as m:
-            idioms.ask_tutor(self.g, '不落窠臼')
-        self.assertEqual(m.call_count, 4)
-        self.assertEqual([x['compare'] for x in idioms.data(self.g)['不落窠臼']['sources']], ['新辨析'] * 3)
-        boom = lambda msgs, **kw: (_ for _ in ()).throw(ValueError('断网')) if '逐字' not in msgs[-1]['content'] and '释A2' in msgs[-1]['content'] else {'辨析': '又新'}
-        with patch.object(trainer.ai, 'chat_json', side_effect=boom):
-            with self.assertRaises(ValueError):
-                idioms.ask_tutor(self.g, '不落窠臼')
-        self.assertEqual([x['compare'] for x in idioms.data(self.g)['不落窠臼']['sources']], ['新辨析'] * 3)   # 失败：保持原样
-
-    def test_idiom_book_splits_joined_options(self):
-        from rpg import idioms
-        hist = ('\n## 题目 H1\n### 知识点\n逻辑填空\n### 题干\n____，____。\n### 选项\nA. 克服  纠正\nB. 破除  矫正\nC. 消除  修正\nD. 根除  改正\n### 答案\nA\n### 解析\n无\n'
-                '\n## 题目 H2\n### 知识点\n逻辑填空\n### 题干\n____，____。\n### 选项\nA. 满足  挫伤\nB. 顺应  消磨\nC. 契合  抑制\nD. 迎合  影响\n### 答案\nA\n### 解析\n无\n')
-        mock = ('\n## 题目 粉笔36季-047\n### 知识点\n逻辑填空\n### 题干\n才能____弊端，往往具有____。若未被及时____。\n### 选项\n'
-                'A. 克服渐进性纠正\nB. 破除持续性矫正\nC. 消除阶段性修正\nD. 根除累积性改正\n### 答案\nA\n### 解析\n（待补）\n'
-                '\n## 题目 粉笔36季-045\n### 知识点\n逻辑填空\n### 题干\n____，____，____。\n### 选项\n'
-                'A. 满足屡禁不止挫伤\nB. 顺应层出不穷消磨\nC. 契合沉渣泛起抑制\nD. 迎合俯拾皆是影响\n### 答案\nA\n### 解析\n（待补）\n')
-        (self.paths.train / '题库/逻辑填空真题.md').write_text(hist + mock, encoding='utf-8')
-        qs = {q['id']: q for q in bank.read(self.paths, '逻辑填空')[0]}
-        # 旧版收录：整串当一个词
-        self.g.state['idioms'] = {'克服渐进性纠正': {'word': '克服渐进性纠正', 'letter': 'K', 'added': '2026-09-01', 'sources': [
-            {'key': '逻辑填空::粉笔36季-047', 'board': '逻辑填空', 'date': '2026-09-01', 'blank': 1}]}}
-        self.assertTrue(idioms.migrate(self.g))
-        book = idioms.data(self.g)
-        self.assertEqual(sorted(book), [])
-        self.assertFalse(idioms.migrate(self.g))
-        new = idioms.harvest(self.g, [qs['粉笔36季-045']])
-        self.assertEqual(new, ['屡禁不止'])
-        self.assertEqual([o['word'] for o in book['屡禁不止']['sources'][0]['others']], ['层出不穷', '沉渣泛起', '俯拾皆是'])
-
     def test_tutor_reads_question_options_and_local_skill_without_correct_answer(self):
         from rpg import skillbook
         skillbook.save(self.paths, '逻辑填空', 'SKILL.md', '---\nname: x\n---\n# 逻辑填空\n先读方法总纲', '')
@@ -612,7 +495,7 @@ class BankTest(unittest.TestCase):
         r = trainer.action(self.g, sid, 'exam_close')
         self.assertEqual(r['messages'][0]['blocks'][0]['rows'][-1][7], '11:45')
 
-    def test_point_run_and_dedupe(self):
+    def test_point_run(self):
         from rpg import importer
         f = self.paths.train / '题库/论证逻辑真题-2020.md'
         blk = lambda i, topic, stem, paper, num: ('\n## 题目 %s\n### 知识点\n%s\n### 试卷\n%s\n### 模块\n判断推理\n### 题号\n%s\n'
@@ -635,17 +518,15 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_close')
         with self.assertRaises(trainer.TrainError):
             trainer.start(self.g, task)                                   # 这一类做完了
-        # 去重：1 和 9 题干选项一样（只差来源括号和标点）；两份都做过 → 记录合并到留下的那份，试卷并过去
-        r = importer.dedupe_bank(self.paths, {'dry': True}, self.g.state)
-        self.assertEqual((r['groups'], r['removed']), (1, 1))
-        r = importer.dedupe_bank(self.paths, {}, self.g.state)
-        self.assertEqual(r['records'], 1)
-        qs = {q['id']: q for q in bank.read(self.paths, '论证逻辑')[0]}
-        keep = '真题-1' if '真题-1' in qs else '真题-9'
-        self.assertEqual(sorted(qs), sorted(['真题-2', '真题-3', keep]))
-        self.assertEqual(sorted(qs[keep]['papers']), ['乙卷', '甲卷'])
-        self.assertEqual(len(bank.state(self.g)['records']['论证逻辑::' + keep]['history']), 2)
-        self.assertEqual(importer.dedupe_bank(self.paths, {}, self.g.state)['removed'], 0)
+
+    def test_reload_reports_counts_errors_and_writes_template(self):
+        (self.paths.train / '题库/类比推理真题.md').write_text(question('01') + '## 题目 02\n### 知识点\nx\n### 题干\n题\n### 选项\nA. 甲\nB. 乙\n### 答案\nA\n', encoding='utf-8')
+        r = bank.reload(self.g)
+        row = next(x for x in r['boards'] if x['board'] == '类比推理')
+        self.assertEqual(row['count'], 2)
+        self.assertTrue(any('类比推理真题.md' in e and '02' in e for e in row['errors']))
+        self.assertTrue((self.paths.train / '题库/_模板.md').is_file())
+        self.assertEqual(bank.read_all(self.paths, '数量关系')[0], [])          # 模板不会被当成题
 
     def test_argument_board_defaults_to_normal_answering(self):
         self.file.write_text(''.join(question(x) for x in ('01', '02')), encoding='utf-8')

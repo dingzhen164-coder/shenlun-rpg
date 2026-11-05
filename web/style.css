@@ -743,40 +743,12 @@ html.in-chat .chat .composer { position: static; margin: 0 -18px -16px; border-r
 @media (max-width: 480px) { .mods { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------------ 藏经阁 · 成语实词录（web/idioms.js） */
-.id-bar input#idQ { flex: 1; }
-.id-letters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.id-letters a { cursor: pointer; min-width: 34px; text-align: center; padding: 4px 6px; border-radius: var(--ds-r-8); border: 1px solid var(--line);
   font-family: var(--display); font-weight: 700; color: var(--gold); background: color-mix(in srgb, var(--panel2) 50%, transparent); }
-.id-letters a small { display: block; font-size: var(--ds-fs-10); font-weight: 400; color: var(--faint); line-height: 1; min-height: 10px; }
-.id-letters a.off { opacity: .35; cursor: default; }
-.id-letters a:not(.off):hover { border-color: var(--gold); box-shadow: 0 0 8px color-mix(in srgb, var(--gold) 35%, transparent); }
-.id-sec { font-family: var(--display); font-size: var(--ds-fs-26); color: var(--gold); margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
   letter-spacing: .2em; scroll-margin-top: 80px; }
-.id-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-.id-card { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c-review, var(--gold)); border-radius: var(--ds-r-12); padding: 12px 14px;
   box-shadow: var(--shadow); }
-.id-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.id-word { font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: .12em; color: var(--text); }
-.id-letter { font-size: var(--ds-fs-11); color: var(--faint); border: 1px solid var(--line); border-radius: var(--ds-r-4); padding: 0 5px; }
-.id-src + .id-src { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
-.id-k { display: inline-block; font-size: var(--ds-fs-11); font-weight: 600; color: var(--text); border: 1px solid var(--accent2); border-radius: var(--ds-r-4);
   border-color: color-mix(in srgb, var(--accent2) 65%, transparent); background: color-mix(in srgb, var(--accent2) 14%, transparent);
   padding: 0 5px; margin-right: 6px; vertical-align: 1px; }    /* 小标签用深色字 + 蓝灰底：以前是金色字压在米黄底上，看不清 */
-.id-mean { font-size: var(--ds-fs-14); line-height: 1.6; }
-.id-others { margin-top: 6px; font-size: var(--ds-fs-13); line-height: 1.7; }
-.id-other { display: inline-block; margin: 2px 8px 2px 0; padding: 1px 8px; border-radius: var(--ds-r-6); background: var(--panel2); }
-.id-other i { font-style: normal; color: var(--muted); }
-.id-cmp { margin-top: 6px; font-size: var(--ds-fs-13); }
-.id-cmp summary { cursor: pointer; color: var(--muted); }
-.id-cmp div { margin-top: 4px; color: var(--muted); line-height: 1.7; }
-.id-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-.id-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
-.id-tutor { margin-left: auto; border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--gold); }
-.id-cmp-short { margin-top: 6px; font-size: var(--ds-fs-13); line-height: 1.7; padding: 6px 8px; border-radius: var(--ds-r-8);
   background: color-mix(in srgb, var(--accent2) 9%, transparent); }
-.id-card.editing { border-left-color: var(--accent); }
-.id-card.editing label { display: block; margin-top: 6px; }
-.id-card.editing textarea, .id-card.editing input { display: block; width: 100%; box-sizing: border-box; margin-top: 2px; resize: vertical; }
 
 /* 宗门大比 · 考情分析、答题卡截图 */
 .an-card { border-top: 3px solid var(--gold); }
@@ -1057,14 +1029,8 @@ html.no-cmix .st-btn { background: var(--st) !important; }
 .opts.measure .opt { white-space: nowrap; width: max-content; }
 
 /* 成语实词录 · 师傅答疑：逐字、出处 */
-.id-detail { margin: 6px 0 4px; padding: 8px 12px; border-radius: var(--ds-r-8); background: var(--panel2); border-left: 3px solid var(--accent2); font-size: var(--ds-fs-14); line-height: 1.8; }
 /* 轻透界面会把 .id-detail 当“阅读纸面”铺成和卡片一样的米黄底；这里用更高优先级压回蓝灰淡底，和金色卡片拉开 */
 html:not(.in-chat):not(.in-sl-exam):not(.drawing) body .id-card .id-detail.id-detail { background: var(--panel2) !important; background: color-mix(in srgb, var(--accent2) 12%, var(--panel)) !important; }
-.id-chars, .id-origin { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
-.id-origin { margin-top: 4px; }
-.id-char i, .id-onote { font-style: normal; color: var(--muted); }
-.id-quote { font-family: var(--display); }
-.id-onote { flex-basis: 100%; }
 
 /* ------------------------------------------------------------ 🪶 灵台手札（web/notes.js）：左边本子 / 调阅，右边纸页和阅读 */
 html.in-notes main { max-width: 1600px; padding-bottom: 12px; }
@@ -1391,30 +1357,7 @@ input.yj-gtags { width: 180px; padding: 3px 8px; font-size: var(--ds-fs-12); }
 .yj-pen.has { position: relative; }
 .yj-pen.has::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
 
-/* ------------------------------------------------------------ 🖼 修炼战报（web/poster.js） */
-.ps-open { white-space: nowrap; }
-.hero-score .ps-open { margin-top: 8px; }
-.modal-box.ps-box { width: min(980px, calc(100vw - 32px)); display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-.ps-preview { position: relative; display: flex; justify-content: center; }
-.ps-preview canvas { width: auto; height: min(74vh, 720px); max-width: 100%; aspect-ratio: 3 / 4; border-radius: var(--ds-r-10); box-shadow: var(--shadow); background: var(--panel2); }
-.ps-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-family: var(--display); letter-spacing: .3em; }
-.ps-wait[hidden] { display: none; }
-.ps-side h3 { margin: 0 0 10px; font-family: var(--display); letter-spacing: .15em; }
-.ps-label { margin: 14px 0 6px; font-size: var(--ds-fs-13); color: var(--muted); }
-.ps-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--ds-r-10); overflow: hidden; }
-.ps-seg a { padding: 6px 18px; cursor: pointer; color: var(--muted); }
-.ps-seg a.on { background: var(--accent); color: #fff; }
-.ps-styles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-.ps-styles a { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; font-size: var(--ds-fs-12); color: var(--muted); }
-.ps-styles i { width: 40px; height: 52px; border-radius: var(--ds-r-8); background: linear-gradient(var(--a), var(--b)); border: 2px solid transparent; box-shadow: inset 0 0 0 3px var(--a), inset 0 0 0 4px var(--c); }
-.ps-styles a.on i { border-color: var(--gold); }
-.ps-styles a.on { color: var(--text); }
-.ps-quote { gap: 6px; }
-.ps-quote input { flex: 1; min-width: 0; }
-.ps-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 @media (max-width: 760px) {
-  .modal-box.ps-box { grid-template-columns: 1fr; }
-  .ps-preview canvas { height: auto; width: 100%; max-height: 62vh; }
 }
 
 /* ------------------------------------------------------------ ◎ 专注模式（web/focus.js） */
@@ -2194,29 +2137,3 @@ body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .dg-root :is(.dg
 .dg-art > summary { cursor: pointer; padding: 4px 0; }
 .dg-art h5 { margin: 8px 0 2px; font-size: var(--ds-fs-13); color: var(--muted); }
 
-/* 🧹 清除（藏经阁 · 行测，web/ad_clean.js）：查找广告文字、勾选清除、广告词库、撤销。块不用 .card（档案室的 .card 全透明），自带磨砂底 */
-.ac-top .ac-search { margin-bottom: 0; }
-.ac-intro { margin: 0 0 10px; color: var(--muted); font-size: var(--ds-fs-13); line-height: 1.7; }
-.ac-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-.ac-search input[type="text"] { flex: 1 1 280px; min-width: 0; min-height: var(--ds-touch); }
-.ac-search label { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: var(--ds-fs-13); white-space: nowrap; }
-.ac-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 12px; align-items: start; }
-.ac-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
-.ac-group h4, .ac-side h4 { margin: 0 0 6px; font-size: var(--ds-fs-14); }
-.ac-group h4 small { color: var(--faint); font-weight: 400; }
-.ac-hit { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); line-height: 1.6; cursor: pointer; }
-.ac-hit input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
-.ac-q { flex: none; min-width: 4em; color: var(--muted); font-size: var(--ds-fs-12); }
-.ac-ctx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.ac-ctx mark { background: color-mix(in srgb, var(--red) 28%, transparent); color: inherit; border-radius: var(--ds-r-3); padding: 0 2px; }
-.ac-tag { flex: none; font-style: normal; font-size: var(--ds-fs-11); padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--ds-r-10); color: var(--muted); }
-.ac-tag.ac-warn { color: var(--orange); border-color: currentColor; }
-.ac-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
-.ac-words { margin: 0 0 8px; padding: 0; list-style: none; }
-.ac-words li { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.ac-words li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .ac-root :is(.ac-top, .ac-group, .ac-side, .ac-note, .ac-summary, .ac-actions) {
-  background: color-mix(in srgb, var(--panel) 82%, transparent) !important; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent) !important;
-  border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; -webkit-backdrop-filter: blur(8px) !important; backdrop-filter: blur(8px) !important; }
-.ac-root :is(.ac-top, .ac-group, .ac-side, .ac-note, .ac-summary, .ac-actions) { background: var(--panel); border: 1px solid var(--line); border-radius: var(--ds-r-10); padding: 10px 14px; margin: 0 0 10px; }
-@media (max-width: 900px) { .ac-main { grid-template-columns: minmax(0, 1fr); } }

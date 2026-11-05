@@ -729,3 +729,64 @@ def tower(g):
             'floor_total': target - lower, 'next_at': target,
             'remaining': max(0, target - completed),
             'per_floor': (total + layers - 1) // layers}
+
+
+# ---------------------------------------------------------------- 题库文档模板 + 重新载入（2026-11：取代“导入真题”）
+TEMPLATE = '_模板.md'
+TEMPLATE_TEXT = """# 题库格式说明（模板）
+
+> 题库只读本地文档：每个板块 `训练/题库/<板块>真题.md`，也可以拆成几份 `<板块>真题-任意名.md`（如 `论证逻辑真题-花生600.md`）。
+> 照下面的格式加题，保存后在 藏经阁 › 经卷 · 题库 › 📥 题库文档 里点「重新载入」，软件会指出哪个文件哪一题写得不对。本文件是说明，不会被当成题。
+
+规则：
+1. 每题以 `## 题目 编号` 开头。编号是这道题的固定身份（作答记录跟着它），做过的题不要改编号，也不要重复使用。
+2. 下面依次写小节：`### 知识点`、`### 题干`、`### 选项`（A. B. C. D. 各一行）、`### 答案`（一个字母，不知道写“（待补）”，待补的题先不出）、`### 解析`。
+3. 可选小节：`### 试卷`（一行一张卷子）、`### 题号`、`### 模块`、`### 原题正确率`。
+4. 有来源的题在题干最前面用括号写来源，如“（2025年国考）”。题干里的图写 `![[训练/题库/图片/板块名/编号.png]]`，把图片放进对应文件夹。
+5. 让 AI 帮你把讲义整理成题时，把这份说明一起发给它，要求“严格照这个格式输出”。
+
+## 题目 示例-001
+### 知识点
+削弱论证
+### 题干
+（2025年国考）这里写完整题干。
+### 选项
+A. 选项一
+B. 选项二
+C. 选项三
+D. 选项四
+### 答案
+B
+### 解析
+写正确答案的依据和其他选项的排除理由。
+"""
+
+
+def ensure_template(paths):
+    if not paths.train:
+        return
+    f = paths.train / '题库' / TEMPLATE
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        if not f.exists():
+            tmp = f.with_suffix('.tmp')
+            with tmp.open('w', encoding='utf-8', newline='\n') as stream:
+                stream.write(TEMPLATE_TEXT)
+            import os
+            os.replace(tmp, f)
+    except OSError:
+        pass
+
+
+def reload(g):
+    """重新读一遍所有板块的题库文档：每板块题数、答案待补数、格式问题（哪个文件哪一题）"""
+    ensure_template(g.paths)
+    _CACHE.clear()
+    out = []
+    for b in boards(g):
+        qs, errs = read_all(g.paths, b)
+        names = [f.name for f in files(g.paths, b)]
+        out.append({'board': b, 'count': sum(not q['pending'] for q in qs), 'pending': sum(q['pending'] for q in qs),
+                    'files': names, 'errors': ['%s · %s' % ('、'.join(names) or b, e) for e in errs]})
+    return {'boards': out, 'total': sum(x['count'] for x in out), 'pending': sum(x['pending'] for x in out),
+            'folder': '训练/题库/', 'template': '训练/题库/' + TEMPLATE}

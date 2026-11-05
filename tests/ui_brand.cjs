@@ -11,7 +11,7 @@ async function main(){
  async function settings(){
   await page.evaluate(()=>go('settings'));
   const button=page.locator('[data-subject="行测"]');await button.waitFor({state:'attached'});
-  if(await button.evaluate(el=>{const d=el.closest('details');return d&&!d.open;}))await page.locator('details').filter({has:button}).locator('summary').first().click();
+  await page.locator('.fx-settings-group').first().waitFor({state:'attached'});await require('./fixed_ui_helpers.cjs').reveal(page,button);
   await button.waitFor({state:'visible'});
  }
  for(const subject of ['申论','行测']){

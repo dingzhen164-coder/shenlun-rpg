@@ -8,14 +8,6 @@
   let MOCK = null, CALENDAR = null;
   let PICK = "avg";          // 模块统计看哪一季："avg" = 历次平均
   let EDIT = null;           // 正在录入的季
-  let AN = null;             // 考情分析看哪一季
-  const CONV = {};           // 季 → 考情分析对话
-  let AN_BUSY = false;
-  let AN_FOLD = (() => { try { return localStorage.getItem("xrpg-an-fold") !== "0"; } catch (e) { return true; } })();   // 考情分析默认收起
-  const setFold = (v) => { AN_FOLD = v; try { localStorage.setItem("xrpg-an-fold", v ? "1" : "0"); } catch (e) { /* 只管这一次 */ } };
-  let MK = null;             // 答题卡截图识别结果 {season, marks, sections, images, ...}
-  let MK_SEASON = null;
-  let REPORT = null;         // 成绩截图认出来的各模块答对数（保存时一起存）
   const NAMES = {};          // 季号 → 试卷名（后端 season.name；整卷考试用试卷自己的名字，旧的是“第N季”）
   const nm = (n) => NAMES[n] || `第${n}季`;
   let RV = null;             // 大比复盘看哪一季
@@ -119,11 +111,6 @@
       return `<label>${esc(m)} <input type="number" step="0.01" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${ph}"></label>`;
     }).join("");
     return `<div class="card contest-card" id="mkForm"><h3>📝 录入成绩单 <small>照抄粉笔模考报告上的数字；空着的不算。第一次录分数时也记进${esc(W("boss"))}（固定录分奖励、手动领取悟道与突破信物）</small></h3>
-      <div class="rp-auto"><b>📷 从成绩截图自动填</b> <span class="small muted">粉笔模考报告里“得分 / 最高分 / 平均分 / 排名”和“各模块共几题、答对几题、用时”那两张截图（Windows 自带 OCR 认字）</span>
-        <div class="row mk-row"><input type="file" id="rpFiles" accept="image/png,image/jpeg" multiple><button class="primary small" id="rpScan">识别并填入</button></div>
-        <details class="fold"><summary>不是 Windows / 认不出：把报告文字粘贴进来（手机相册、微信“提取文字”都行）</summary>
-          <textarea id="rpText" rows="4" placeholder="得分 64.5 … 最高分 93.7 平均分 56 已击败考生 71.5% … 政治理论 共20题，答对11题，正确率55%，用时8分钟 …"></textarea></details>
-        <div id="rpResult" class="small"></div></div>
       ${scoreInfo}
       <div class="row mk-row">
         <label>哪份试卷 <select id="mkSeason">${opts}</select></label>
@@ -145,51 +132,6 @@
       <div class="row" style="margin-top:8px"><button class="primary" id="mkSave">保存成绩单</button><span class="small muted">对错题数从这份试卷的复盘文件自动统计，不用填</span></div></div>`;
   }
 
-  // ---------------------------------------------------------------- 考情分析：师傅大比分析 + 追问（存档，也写进 训练/宗门大比/第N季考情分析.md）
-  function analysisCard(d) {
-    const ss = d.seasons.slice().reverse();
-    if (AN == null) AN = ss[0]?.season;
-    const conv = CONV[AN] || [];
-    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === AN ? "selected" : ""}>${esc(nm(x.season))}</option>`).join("");
-    const msgs = conv.map((m) => m.role === "assistant"
-      ? `<div class="npc an-msg">${tutorFace()}<div class="say"><div class="who">${esc(DASH?.persona?.tutor || "师尊")} <span class="faint small">${esc(m.t || "")}</span></div>${md(m.content)}</div></div>`
-      : `<div class="msg me an-me">${esc(m.content)}</div>`).join("");
-    const fold = AN_FOLD && !AN_BUSY;
-    return `<div class="card contest-card an-card ${fold ? "folded" : ""}"><div class="row" style="flex-wrap:wrap;gap:8px"><h3 style="margin:0">🧙 考情分析 <small>师傅看这一季的成绩、各模块 / 各板块对错和用时，和以前比；分析完可以接着问，对话会保存</small></h3>
-        <span class="spacer"></span><select id="anSeason" style="width:auto">${opts}</select>
-        <button class="${conv.length ? "ghost" : "primary"}" id="anGo" ${AN_BUSY ? "disabled" : ""}>${AN_BUSY ? "师傅分析中…" : conv.length ? "🔄 重新分析" : "🧙 师傅大比分析"}</button>
-        <button class="ghost" id="anFold">${fold ? "▸ 展开" : "▾ 收起"}</button></div>
-      ${fold ? `<p class="small muted" style="margin:8px 0 0">${conv.length ? `「${nm(AN)}」已分析（${conv.filter((m) => m.role === "assistant").length} 段师傅的话），点「展开」看。` : `还没分析过「${nm(AN)}」。`}</p></div>` : `
-      <div class="an-body">${msgs || `<p class="muted small">还没分析过「${nm(AN)}」。先导入答题卡截图、录好成绩单，师傅分析得更准。</p>`}</div>
-      ${conv.length ? `<div class="an-ask"><textarea id="anText" rows="2" placeholder="接着问师傅：比如“数量关系该先补哪类题？”“时间怎么分配？”（Ctrl+Enter 发送）"></textarea>
-        <button class="primary" id="anSend" ${AN_BUSY ? "disabled" : ""}>问师傅</button></div>` : ""}
-      <p class="small faint" style="margin:6px 0 0">对话存在 训练/宗门大比/${esc(nm(AN))}考情分析.md</p></div>`}`;
-  }
-
-  // ---------------------------------------------------------------- 导入答题卡截图（绿对红错）
-  function marksCard(d) {
-    const ss = d.seasons.slice().reverse();
-    if (MK_SEASON == null) MK_SEASON = ss[0]?.season;
-    const opts = ss.map((x) => `<option value="${x.season}" ${x.season === MK_SEASON ? "selected" : ""}>${esc(nm(x.season))}</option>`).join("");
-    let preview = "";
-    if (MK && MK.season === MK_SEASON) {
-      const cell = (n) => { const v = MK.marks[n]; return `<span class="mk-dot ${v === "ok" ? "ok" : v === "bad" ? "bad" : "none"}" data-mkdot="${n}" title="点一下改对 / 错">${n}</span>`; };
-      const ok = Object.values(MK.marks).filter((v) => v === "ok").length, bad = Object.values(MK.marks).filter((v) => v === "bad").length;
-      const miss = MK.total - ok - bad;
-      preview = `<div class="mk-sum">对 <b class="ok">${ok}</b> · 错 <b class="bad">${bad}</b>${miss ? ` · 没识别到 <b>${miss}</b>（灰色，点一下设成对 / 错，或再加一张截图）` : ""}
-          <span class="faint small">${MK.images.map((x) => x.matched ? `第 ${x.image} 张：${x.from}–${x.to} 题${x.ambiguous ? "（位置不太确定，核对一下）" : ""}` : `第 ${x.image} 张没对上：${esc(x.why)}`).join("；")}</span></div>
-        ${MK.sections.map((sec) => `<div class="mk-sec"><div class="small muted">${esc(sec.name)}</div><div class="mk-dots">${Array.from({ length: sec.to - sec.from + 1 }, (_, i) => cell(String(sec.from + i))).join("")}</div></div>`).join("")}
-        <div class="row" style="margin-top:8px"><button class="primary" id="mkMarksSave">保存到「${esc(nm(MK.season))}」复盘</button>
-          <span class="small muted">写进这份试卷的复盘文件（错题“我的答案”记成“？”）；心魔录、正确率、灵根跟着更新</span></div>`;
-    }
-    return `<div class="card contest-card" id="mkMarksCard"><h3>📸 导入答题卡截图 <small>粉笔模考报告里的答题卡（绿 = 对、红 = 错）；可以选几张，滚动截的重叠也行</small></h3>
-      <div class="row mk-row"><label>哪份试卷 <select id="mkMarksSeason">${opts}</select></label>
-        <label>截图 <input type="file" id="mkMarksFiles" accept="image/png,image/jpeg" multiple></label>
-        <button class="primary" id="mkMarksScan">识别</button></div>${preview}</div>`;
-  }
-
-  // ---------------------------------------------------------------- 大比复盘
-  // 整卷模考的战绩小结：分数、用时、平均每题、最慢几题（每题用时在复盘时也会逐题显示）
   function examLine(s) {
     const x = s && s.exam;
     if (!x) return "";
@@ -268,7 +210,7 @@
         <td class="num"><b>${f1(s.score)}</b>${s.score_from_boss ? '<span class="faint small"> 修仙录</span>' : ""}</td>
         <td class="num">${s.ok}/${s.total}（${pc(s.acc)}）</td><td class="num">${s.minutes == null ? "—" : s.minutes + " 分"}</td>
         <td><button class="ghost small" data-mk-edit="${s.season}">${s.score == null ? "录入" : "改"}</button></td></tr>`).join("");
-    return head + reviewCard(d) + analysisCard(d) + (window.MOCK_REWARDS?.html(DASH)||"") + `
+    return head + reviewCard(d) + (window.MOCK_REWARDS?.html(DASH)||"") + `
       <div class="grid g2 contest-grid" style="margin-top:14px">
         <div class="card contest-card"><h3>📈 分数走势 <small>按提交日期排列，每个点标试卷名与日期（满分 100，y 轴从 ${lo} 起）</small></h3>${scoreChart}</div>
         <div class="card contest-card"><h3>🎯 各模块正确率走势 <small>点图例看各条线；悬停看每份试卷</small></h3>${accChart}</div>
@@ -278,106 +220,13 @@
         <div class="tbl-wrap"><table class="mk-table"><thead><tr><th>试卷</th><th>日期</th><th>我的分数</th><th>答对</th><th>用时</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
       ${window.MOCK_IMPORT?.html()||''}
-      ${marksCard(d)}
       ${form(d)}
-      <p class="small muted">${window.SUBJECT0==='行测'?'录入流程：① 展开试卷导入（PDF / HTML）→ ② 核对答题卡对错 → ③ 展开成绩单并保存 → ④ 返回场景进入复盘、考情。':'展开答题卡核对对错、填写并保存成绩单，再返回场景进入本科复盘与分析。'}</p>`;
+      <p class="small muted">${window.SUBJECT0==='行测'?'录入流程：① 展开试卷导入（PDF / HTML）→ ② 填写并保存成绩单 → ③ 返回场景进入复盘。':'填写并保存成绩单，再返回场景进入本科复盘。'}</p>`;
   }
 
-  async function loadConv(season) {
-    if (season == null || CONV[season]) return;
-    try { CONV[season] = (await api("/api/mock/analysis", { season })).conv; } catch (e) { CONV[season] = []; }
-  }
-  async function ask(body) {
-    AN_BUSY = true; rerender();
-    try { CONV[AN] = (await api("/api/mock/analyze", { season: AN, ...body })).conv; }
-    catch (e) { showError(e); }
-    AN_BUSY = false; rerender();
-    const last = [...document.querySelectorAll(".an-msg")].pop();
-    if (last) last.scrollIntoView({ block: "start" });
-  }
-  function bindReport() {
-    const btn = document.getElementById("rpScan");
-    if (!btn) return;
-    btn.onclick = async () => {
-      const files = [...document.getElementById("rpFiles").files], text = document.getElementById("rpText").value;
-      if (!files.length && !text.trim()) return toast("先选成绩截图，或者粘贴报告文字");
-      btn.disabled = true; btn.textContent = "识别中…";
-      try {
-        const images = await Promise.all(files.map((f) => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(f); })));
-        const r = await api("/api/mock/report/scan", { images, text });
-        const f = r.fields || {};
-        const sel = document.getElementById("mkSeason");
-        if (f.season && [...sel.options].some((o) => o.value === String(f.season))) sel.value = String(f.season);
-        const set = (id, v) => { if (v != null && v !== "") {const e=document.getElementById(id);e.value=v;if(id==="mkScore")e.dataset.scoreSource="ocr";} };
-        set("mkScore", f.score); set("mkAvg", f.avg); set("mkTop", f.top); set("mkBeat", f.beat);
-        set("mkRank", f.rank); set("mkPeople", f.people); set("mkDate", f.date);
-        let mins = 0;
-        for (const [m, v] of Object.entries(r.modules || {})) {
-          const inp = document.querySelector(`[data-mk-minutes="${m}"]`);
-          if (inp && v.minutes != null) { inp.value = v.minutes; mins++; }
-        }
-        if (mins) document.getElementById("mkModsFold").open = true;
-        REPORT = { season: sel.value, modules: r.modules || {}, sub: r.sub || {} };
-        const got = ["score:得分", "avg:平均分", "top:最高分", "beat:已击败", "rank:排名", "date:日期"].filter((x) => f[x.split(":")[0]] != null).map((x) => x.split(":")[1]);
-        const mods = Object.entries(r.modules || {}).map(([m, v]) => `${esc(m)} ${v.ok}/${v.total}${v.minutes != null ? ` · ${v.minutes}分` : ""}`).join("；");
-        document.getElementById("rpResult").innerHTML = `✅ 认出（${esc(r.engine)}）：${got.join("、") || "（成绩数字没认出）"}${f.season ? ` · 第 ${f.season} 季` : ""}<br>${mods || "（各模块没认出）"}
-          <br><span class="muted">已填进下面的表，核对一下再点「保存这一季」。各模块答对数会一起存（没导入答题卡截图时用它算正确率）。</span>`;
-      } catch (e) { showError(e); }
-      btn.disabled = false; btn.textContent = "识别并填入";
-    };
-  }
-  function bindExtra() {
-    bindReport();
-    const an = document.getElementById("anSeason");
-    if (an) an.onchange = async () => { AN = Number(an.value); await loadConv(AN); rerender(); };
-    const go = document.getElementById("anGo");
-    if (go) go.onclick = () => {
-      if ((CONV[AN] || []).length && !confirm("重新分析会清掉这一季之前的考情对话，确定吗？")) return;
-      setFold(false);
-      ask({ fresh: true });
-    };
-    const fb = document.getElementById("anFold");
-    if (fb) fb.onclick = () => { setFold(!AN_FOLD); rerender(); };
-    const send = document.getElementById("anSend"), ta = document.getElementById("anText");
-    if (send) {
-      const fire = () => { const t = ta.value.trim(); if (t) ask({ text: t }); };
-      send.onclick = fire;
-      ta.onkeydown = (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); fire(); } };
-    }
-    const ms = document.getElementById("mkMarksSeason");
-    if (ms) ms.onchange = () => { MK_SEASON = Number(ms.value); rerender(); };
-    const scan = document.getElementById("mkMarksScan");
-    if (scan) scan.onclick = async () => {
-      const files = [...document.getElementById("mkMarksFiles").files];
-      if (!files.length) return toast("先选答题卡截图");
-      scan.disabled = true; scan.textContent = "识别中…";
-      try {
-        const images = await Promise.all(files.map((f) => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(f); })));
-        MK = await api("/api/mock/marks/scan", { season: MK_SEASON, images });
-        rerender();
-        document.getElementById("mkMarksCard")?.scrollIntoView({ block: "start" });
-      } catch (e) { showError(e); scan.disabled = false; scan.textContent = "识别"; }
-    };
-    document.querySelectorAll("[data-mkdot]").forEach((el) => (el.onclick = () => {
-      const n = el.dataset.mkdot;
-      MK.marks[n] = MK.marks[n] === "ok" ? "bad" : "ok";
-      rerender();
-      document.getElementById("mkMarksCard")?.scrollIntoView({ block: "start" });
-    }));
-    const save = document.getElementById("mkMarksSave");
-    if (save) save.onclick = async () => {
-      try {
-        const r = await api("/api/mock/marks/save", { season: MK.season, marks: MK.marks });
-        MOCK = r.summary; MK = null;
-        toast(`「${nm(MK_SEASON)}」的对错已写进复盘（改了 ${r.changed} 题）`);
-        await refresh(); rerender();
-      } catch (e) { showError(e); }
-    };
-  }
   function bind() {
     window.MOCK_IMPORT?.bind();
     bindCharts();
-    bindExtra();
     bindReview();
     // 点图例：隐藏 / 显示那条线（颜色跟着线走，不重排）
     document.querySelectorAll(".chart .lg").forEach((lg, k) => (lg.onclick = () => {
@@ -411,8 +260,7 @@
       try {
         const r = await api("/api/mock/save", { season: g("mkSeason"), date: g("mkDate"), name: g("mkName"), score: g("mkScore"), score_source:document.getElementById("mkScore").dataset.scoreSource, avg: g("mkAvg"), top: g("mkTop"),
           beat: g("mkBeat"), rank: g("mkRank"), people: g("mkPeople"), minutes: pickMods("minutes"), scores: pickMods("score"),
-          report: REPORT && String(REPORT.season) === String(g("mkSeason")) ? REPORT : null });
-        REPORT = null;
+        });
         MOCK = r.summary; EDIT = g("mkSeason");
         toast(`「${nm(EDIT)}」成绩单已保存`);
         rerender();
@@ -438,8 +286,6 @@
   }
   async function render(v, beforeCommit=()=>true) {
     [MOCK,CALENDAR] = await Promise.all([api("/api/mock"),api("/api/contest/calendar",{})]);
-    if (AN == null && MOCK.seasons.length) AN = MOCK.seasons[MOCK.seasons.length - 1].season;
-    await loadConv(AN);
     if(typeof VIEW!=='undefined'&&VIEW!=='contest'||!beforeCommit())return;
     v.innerHTML = html(MOCK);mountScene(v);
     bind();
@@ -448,7 +294,7 @@
     if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
     const form=document.getElementById('mkForm'),draft=form?[...form.querySelectorAll('input:not([type=file]),textarea,select')].map(e=>({id:e.id,key:e.getAttribute('data-mk-score')?'score':e.getAttribute('data-mk-minutes')?'minutes':'',board:e.getAttribute('data-mk-score')||e.getAttribute('data-mk-minutes'),value:e.value,source:e.dataset.scoreSource,dirty:e.tagName==='SELECT'?[...e.options].some(o=>o.selected!==o.defaultSelected):e.value!==e.defaultValue})):[];
     const keep=draft.some(x=>x.dirty);MOCK=await api('/api/mock');if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;
-    if(!keep){EDIT=season;if(!MK)MK_SEASON=season;}await refresh();if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;rerender();
+    if(!keep){EDIT=season;}await refresh();if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;rerender();
     if(keep)for(const item of draft){const el=item.id?document.getElementById(item.id):document.querySelector('[data-mk-'+item.key+'="'+CSS.escape(item.board)+'"]');if(el){el.value=item.value;if(item.source)el.dataset.scoreSource=item.source;}}
   }
   window.CONTEST = { render, importDone };

@@ -1,5 +1,5 @@
 {
-  "version": "3.11.0",
+  "version": "4.0.0",
   "action": "validate-and-release",
-  "attempt": 1
+  "attempt": 6
 }

@@ -138,9 +138,12 @@ jobs:
 
   mac:
     if: startsWith(github.ref, 'refs/heads/validate/')
-    runs-on: macos-latest          # Apple 芯片（M / A 系列）
+    runs-on: macos-15              # 标准 Apple 芯片构建机；固定受支持版本，避免 latest 漂移
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify Apple Silicon runner
+        run: test "$(uname -m)" = arm64
 
       - name: Isolate test HOME
         run: |

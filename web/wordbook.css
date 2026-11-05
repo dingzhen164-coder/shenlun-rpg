@@ -1,0 +1,57 @@
+/* 藏经阁·词录（成语 / 实词，web/idioms.js）：分组目录 + 组页表格。类名统一 wb- 前缀；颜色、字号、圆角只用令牌。
+   沿用藏经阁“淡底磨砂、保留轮廓”的做法：容器只用半透明面板色，不加重框；表格是正文保护区，底色实一些保证可读。 */
+.id-root{display:flex;flex-direction:column;gap:var(--ds-sp-8);min-height:0;height:100%}
+.wb-bar{display:flex;align-items:center;gap:var(--ds-sp-8);flex-wrap:wrap;flex:none}
+.wb-bar input{flex:1;min-width:160px}
+.wb-kinds{display:inline-flex;gap:var(--ds-sp-4);padding:var(--ds-sp-4);border-radius:var(--ds-r-pill);background:var(--ds-surface-2)}
+.wb-kinds button{border:0;background:transparent;color:var(--ds-muted);padding:6px var(--ds-sp-16);border-radius:var(--ds-r-pill);min-height:34px;font-weight:600}
+.wb-kinds button.on{background:var(--ds-accent);color:var(--ds-on-accent)}
+.wb-warn{flex:none;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border-left:3px solid var(--ds-warn);background:var(--ds-surface-2);font-size:var(--ds-fs-13)}
+.wb-body{flex:1;min-height:0;display:grid;grid-template-columns:clamp(200px,24%,280px) minmax(0,1fr);gap:var(--ds-sp-12)}
+.wb-side{display:flex;flex-direction:column;gap:var(--ds-sp-4);overflow:auto;overscroll-behavior:contain;min-height:0;padding:var(--ds-sp-4)}
+.wb-gbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border:1px solid transparent;background:var(--ds-surface);color:var(--ds-text);min-height:var(--ds-touch);flex:none}
+.wb-gbtn:hover{border-color:var(--ds-line)}
+.wb-gbtn.on{border-color:var(--ds-accent);box-shadow:inset 3px 0 0 var(--ds-accent)}
+.wb-gno{font-size:var(--ds-fs-12);color:var(--ds-accent);font-weight:700;letter-spacing:.08em}
+.wb-gwords{font-size:var(--ds-fs-13);color:var(--ds-muted);line-height:1.45}
+.wb-main{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--ds-sp-16) var(--ds-sp-20) var(--ds-sp-24);border-radius:var(--ds-r-12);background:var(--ds-paper);color:var(--ds-paper-ink);box-shadow:var(--ds-shadow-1);text-shadow:none}
+.wb-main *{text-shadow:none}
+.wb-intro{margin-bottom:var(--ds-sp-8);font-size:var(--ds-fs-13);opacity:.8}
+.wb-intro summary{cursor:pointer}
+.wb-intro p{margin:var(--ds-sp-4) 0}
+.wb-group{display:flex;flex-direction:column;gap:var(--ds-sp-12)}
+.wb-ghead{display:grid;grid-template-columns:auto 1fr;align-items:baseline;column-gap:var(--ds-sp-12);padding-bottom:var(--ds-sp-8);border-bottom:1px solid var(--ds-paper-line)}
+.wb-ghead h3{margin:0;font-family:var(--ds-font-title);font-size:var(--ds-fs-22);line-height:1.35}
+.wb-ghead p{grid-column:2;margin:0;opacity:.75}
+.wb-no{font-family:var(--ds-font-title);font-size:var(--ds-fs-14);color:var(--ds-paper);background:var(--ds-paper-accent);padding:var(--ds-sp-4) var(--ds-sp-12);border-radius:var(--ds-r-pill);white-space:nowrap}
+.wb-axis{padding:var(--ds-sp-12) var(--ds-sp-16);border-radius:var(--ds-r-10);background:var(--ds-seal-bg);border-left:4px solid var(--ds-paper-accent);font-size:var(--ds-fs-16);font-weight:600;line-height:1.6}
+.wb-axis p,.wb-tip p,.wb-para p{margin:0}
+.wb-axis p+p,.wb-tip p+p,.wb-para p+p{margin-top:var(--ds-sp-4)}
+.wb-para{font-size:var(--ds-fs-14);opacity:.85;line-height:1.6}
+.wb-tip{padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border:1px dashed var(--ds-paper-accent);font-size:var(--ds-fs-14);line-height:1.6}
+.wb-table-wrap{overflow-x:auto;border-radius:var(--ds-r-10);border:1px solid var(--ds-paper-line)}
+.wb-table{width:100%;border-collapse:collapse;font-size:var(--ds-fs-14);line-height:1.6}
+.wb-table th,.wb-table td{padding:var(--ds-sp-8) var(--ds-sp-12);text-align:left;vertical-align:top;border-bottom:1px solid var(--ds-paper-line);color:inherit}
+.wb-table thead th{background:var(--ds-paper);font-size:var(--ds-fs-13);font-weight:600;white-space:nowrap;opacity:.85}
+.wb-table tbody tr:last-child>*{border-bottom:0}
+.wb-table tbody tr:hover{background:var(--ds-seal-bg)}
+.wb-word{font-family:var(--ds-font-title);font-size:var(--ds-fs-18);white-space:nowrap;min-width:6em}
+.wb-diff{min-width:14em}
+.wb-diff b{color:var(--ds-paper-accent)}
+.wb-also{display:flex;flex-wrap:wrap;gap:var(--ds-sp-4);margin-top:var(--ds-sp-4)}
+.wb-link{border:1px solid var(--ds-paper-line);background:transparent;color:var(--ds-paper-accent);font-size:var(--ds-fs-11);padding:2px var(--ds-sp-8);border-radius:var(--ds-r-pill);font-family:inherit;font-weight:400}
+.wb-tag{display:inline-block;font-size:var(--ds-fs-11);line-height:1.5;padding:0 6px;margin:0 2px;border-radius:var(--ds-r-pill);vertical-align:1px;border:1px solid var(--ds-paper-line);color:inherit;opacity:.8}
+.wb-tag-warn{border-color:var(--ds-warn);color:var(--ds-warn)}
+.wb-chars{margin-top:var(--ds-sp-4)}
+.wb-chars summary{cursor:pointer;font-size:var(--ds-fs-12);color:var(--ds-paper-accent);min-height:28px;display:inline-flex;align-items:center}
+.wb-chars div{font-size:var(--ds-fs-13);opacity:.85;padding-top:var(--ds-sp-4)}
+.wb-srcs summary{cursor:pointer;font-size:var(--ds-fs-13);opacity:.8}
+.wb-src{display:flex;flex-wrap:wrap;align-items:center;gap:var(--ds-sp-4);margin-top:var(--ds-sp-4)}
+.wb-src b{margin-right:var(--ds-sp-4)}
+.wb-file{margin-top:var(--ds-sp-16)}
+.wb-empty{padding:var(--ds-sp-24);border-radius:var(--ds-r-12);background:var(--ds-paper);color:var(--ds-paper-ink);line-height:1.7}
+@media (max-width:900px){.wb-body{grid-template-columns:1fr}.wb-side{flex-direction:row;overflow-x:auto;overflow-y:hidden;max-height:none}.wb-gbtn{min-width:180px}}
+/* 行测的“镂空”层（hollow381.js）会把 table 标成 hx381-paper，用场景的浅色字 var(--text) 和面板底 var(--panel)；
+   词录整块已经是纸笺，就把这两个变量在纸笺里换成纸笺的墨色和底色（变量在 .wb-main 上先解析成实际颜色再继承）。 */
+.wb-main{--wb-ink:var(--ds-paper-ink);--wb-paper:var(--ds-paper)}
+.wb-main{--hx381-base-text:var(--wb-ink);--hx381-base-muted:var(--wb-ink);--text:var(--wb-ink);--muted:var(--wb-ink);--panel:var(--wb-paper);--ig-library-ink:var(--wb-ink);--ig-library-halo:transparent}

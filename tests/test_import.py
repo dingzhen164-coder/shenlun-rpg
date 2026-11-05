@@ -114,23 +114,6 @@ class ImportTest(unittest.TestCase):
         self.assertEqual([q["answer"] for q in bank.read(self.p, "论证逻辑")[0]], ["B", "B"])
         self.assertEqual(bank.pending(self.p, "论证逻辑"), 0)
 
-    def test_set_markers_answer_table_and_remove(self):
-        q = lambda n: "%d.某研究认为甲导致乙（样本%s）。以下哪项如果为真，最能削弱上述结论：\nA。选项一 B.选项二\nC．选项三 D。选项四\n" % (n, "一二三"[n - 1])
-        text = ("目录\n001 练习题01\n007 02 练习题\n"                       # 目录里的“练习题”不算一套
-                "#01 练习题\n" + q(1) + q(2) +
-                "页02 练习题\n" + q(2).replace("甲", "丙") + q(3).replace("甲", "丁"))   # 第 2 套第 1 题题号没认出
-        r = importer.commit(self.p, {"kind": "text", "text": text, "prefix": "花生", "no_source": True})
-        ids = [x["id"] for x in bank.read_all(self.p, "论证逻辑")[0]]
-        self.assertEqual(ids, ["花生-01-01", "花生-01-02", "花生-02-03"])          # 按标记分套，套号不错位
-        self.assertEqual(r["fix"], 1)                                             # 第 2 套从 2 开始 → 待修核对
-        r = importer.fill_answers(self.p, {"prefix": "花生", "key": "练习01 AB\n练习02 CDB"})
-        self.assertEqual(r["filled"], 3)
-        self.assertEqual([x["answer"] for x in bank.read_all(self.p, "论证逻辑")[0]], ["A", "B", "B"])
-        r = importer.remove(self.p, {"prefix": "花生"}, {"论证逻辑::花生-01-01"})
-        self.assertEqual((r["removed"], r["kept"]), (3, 1))                       # 做过的保留，待修里的也删
-        self.assertEqual([x["id"] for x in bank.read_all(self.p, "论证逻辑")[0]], ["花生-01-01"])
-        self.assertFalse((self.p.train / "题库/_待修/花生.md").exists())
-
     def test_upload_pdf_split_and_import(self):
         import base64
         sd = self.p.vault / "copilot/skills/xingce-mokao-split/scripts"
@@ -194,64 +177,8 @@ class ImportTest(unittest.TestCase):
         qs = importer._collect(self.p, {"kind": "text", "text": text, "prefix": "书", "no_source": True})[0]
         self.assertEqual([(q["id"], q["board"]) for q in qs], [("书-01-01", "论证逻辑"), ("书-01-02", "形式逻辑")])
 
-    def test_ocr_symbols_restored_and_bank_normalized(self):
-        stem, opts, probs = importer.fix_symbols(
-            "可推出以下哪项结论： I：甲。Ⅱ：乙。 III。丙。", {"A": "仅I", "B": "I和H", "C": "II, III", "D": "I、I和II都推不出"})
-        self.assertEqual(stem, "可推出以下哪项结论： Ⅰ：甲。Ⅱ：乙。 Ⅲ。丙。")
-        self.assertEqual(opts, {"A": "仅Ⅰ", "B": "Ⅰ和Ⅱ", "C": "Ⅱ、Ⅲ", "D": "Ⅰ、Ⅰ和Ⅱ都推不出"})
-        self.assertEqual(len(probs), 1)                                                   # Ⅰ、Ⅰ 重复 → 人工核对
-        stem, opts, probs = importer.fix_symbols("③乙 4丁 由此可以推出：", {"A": "@②4", "B": "②34", "C": "1号和2号", "D": "③"})
-        self.assertEqual((stem, opts), ("③乙 ④丁 由此可以推出：", {"A": "①②④", "B": "②③④", "C": "1号和2号", "D": "③"}))
-        stem, opts, probs = importer.split_options("某研究对A型血的人进行调查。以下哪项最能削弱：A。甲 B.乙 C．丙 D。丁", False)
-        self.assertEqual((stem[-7:], opts["A"]), ("哪项最能削弱：", "甲"))                 # 题干里的“A型”不当选项
-        f = self.p.train / "题库/形式逻辑真题.md"
-        f.write_text("\n## 题目 书-01-01\n### 知识点\n真假推理\n### 题干\n断言：I：甲。II：乙。\n### 选项\nA．仅I\nB、仅II\nC. I和II\nD：都不对\n"
-                     "### 答案\nC\n### 解析\n（待补）\n", encoding="utf-8")
-        r = importer.normalize_bank(self.p, {})
-        self.assertEqual(r["changed"], 1)
-        q = bank.read(self.p, "形式逻辑")[0][0]
-        self.assertEqual((q["stem"], q["options"], q["answer"]), ("断言：Ⅰ：甲。Ⅱ：乙。", {"A": "仅Ⅰ", "B": "仅Ⅱ", "C": "Ⅰ和Ⅱ", "D": "都不对"}, "C"))
-        self.assertIn("A. 仅Ⅰ\nB. 仅Ⅱ\nC. Ⅰ和Ⅱ\nD. 都不对", f.read_text(encoding="utf-8"))   # 选项标点统一
-
-    def test_prefix_clash_rename_and_verbal_book(self):
-        q = lambda n, kind: ("%d.某研究认为甲导致乙（样本%d）。以下哪项如果为真，最能削弱上述结论：\nA。选项一 B.选项二 C．选项三 D。选项四\n" % (n, n)
-                             if kind == "逻辑" else "%d.科学研究需要____的态度（第%d题）。依次填入画横线部分最恰当的一项是：\nA．严谨 B．推敲 C．斟酌 D．周密\n" % (n, n))
-        logic = "练习题01\n" + q(1, "逻辑") + q(2, "逻辑") + q(3, "逻辑")
-        verbal = "练习题01\n" + q(1, "言语") + q(2, "言语") + q(3, "言语")
-        importer.commit(self.p, {"kind": "text", "text": logic, "prefix": "花生", "no_source": True})
-        with self.assertRaises(importer.ImportError_):     # 同前缀导另一本书：拒绝，不写入
-            importer.commit(self.p, {"kind": "text", "text": verbal, "prefix": "花生", "no_source": True})
-        self.assertEqual(bank.read_all(self.p, "逻辑填空")[0], [])
-        state = {"bank": {"records": {"论证逻辑::花生-01-01": {"question": {"id": "花生-01-01", "board": "论证逻辑", "key": "论证逻辑::花生-01-01"},
-                                                              "history": [{"ok": True}], "wrong": False, "streak": 1}},
-                          "runs": {}, "groups": [{"board": "论证逻辑", "ids": ["花生-01-01"]}]}}
-        r = importer.rename_prefix(self.p, {"old": "花生", "new": "花生逻辑", "boards": ["论证逻辑"]}, state)
-        self.assertEqual((r["renamed"], r["records"]), (3, 1))
-        self.assertEqual([x["id"] for x in bank.read_all(self.p, "论证逻辑")[0]][:1], ["花生逻辑-01-01"])
-        self.assertIn("论证逻辑::花生逻辑-01-01", state["bank"]["records"])                 # 作答记录跟着改
-        self.assertEqual(state["bank"]["groups"][0]["ids"], ["花生逻辑-01-01"])
-        with self.assertRaises(importer.ImportError_):
-            importer.rename_prefix(self.p, {"old": "x", "new": "花生逻辑"}, state)          # 新前缀已被占用
-        r = importer.commit(self.p, {"kind": "text", "text": verbal, "prefix": "花生言语", "no_source": True})
-        self.assertEqual([(x["id"], x["board"]) for x in bank.read_all(self.p, "逻辑填空")[0]],
-                         [("花生言语-01-01", "逻辑填空"), ("花生言语-01-02", "逻辑填空"), ("花生言语-01-03", "逻辑填空")])
-
     def test_empty_option_line_does_not_swallow_next(self):
         self.assertEqual(importer.parse_opts("A. 甲\nB. 乙\nC. \nD. 丁"), {"A": "甲", "B": "乙", "C": "", "D": "丁"})
-
-    def test_ai_classify_only_touches_unsorted_topics(self):
-        importer.commit(self.p, {"kind": "season", "season": 36})
-        self.assertEqual(importer.status(self.p)["unsorted"], 2)
-
-        def fake(msgs, **kw):
-            ids = [ln[1:ln.index("]")] for ln in msgs[-1]["content"].splitlines() if ln.startswith("[")]
-            return {"items": [{"id": i, "板块": "资料分析", "知识点": "现期量"} for i in ids]}
-
-        with patch.object(ai, "available", return_value=True), patch.object(ai, "chat_json", side_effect=fake) as m:
-            r = importer.classify(self.p, 100)
-        self.assertNotIn("A. 100", m.call_args[0][0][-1]["content"])           # 只发题干，不发选项答案
-        self.assertEqual((r["done"], r["left"]), (2, 0))
-        self.assertEqual({q["topic"] for q in bank.read(self.p, "资料分析")[0]}, {"现期量"})
 
     def test_text_pdf_keeps_blanks(self):
         try:

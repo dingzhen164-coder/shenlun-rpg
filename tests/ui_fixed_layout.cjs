@@ -43,7 +43,7 @@ async function reveal(selector){
    for(let i=0;i<labels.length;i++){await page.locator('.subpage-nav>.fx-tabs>.fx-tab').nth(i).click();await fits(route+'/'+labels[i]);assert.ok((await page.locator('.fx-panel:not([hidden])').innerText()).trim().length>0,'标签内容保留');}
   }
  }
- await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>go('settings'));await reveal('#sModel');
+ await page.setViewportSize({width:1280,height:860});await page.evaluate(()=>go('settings'));await page.locator('.fx-settings-group[data-fx-group=ai]').waitFor({state:'attached'});await reveal('#sModel');
  await page.locator('#sModel').fill('3.0.4未保存示例');const count=await page.locator('#view input').count();
  await page.locator('#sModel').evaluate(e=>e.closest('details').open=false);await reveal('#sModel');assert.equal(await page.locator('#sModel').inputValue(),'3.0.4未保存示例');assert.equal(await page.locator('#view input').count(),count,'切标签不能销毁设置输入');
  const sc=page.locator('.fx-panel:not([hidden])>.fx-scroll');await sc.evaluate(e=>{const long=document.createElement('p');long.textContent='固定区域长文验证。'.repeat(2000);e.append(long);e.scrollTop=e.scrollHeight;});assert.ok(await sc.evaluate(e=>e.scrollTop>0),'长内容在框内滚动');await fits('长设置');

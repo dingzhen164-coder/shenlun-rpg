@@ -32,7 +32,7 @@ class Art381Test(unittest.TestCase):
         manifest = art.builtin_map('行测')
         if not manifest:
             self.skipTest('公考场景不随法考打包')
-        names = {scene + '-' + phase for scene in ('dwelling', 'bank', 'contest', 'skeleton', 'tianji', 'settings') for phase in ('day', 'dusk', 'night')}
+        names = {scene + '-' + phase for scene in ('dwelling', 'bank', 'contest', 'skeleton', 'settings') for phase in ('day', 'dusk', 'night')}
         names |= {'bank-dawn'} | {'selection-' + phase for phase in ('dawn', 'day', 'dusk', 'night')}
         folder = assets / 'beauty/scenes/xingce/hd/381'
         self.assertEqual({p.stem for p in folder.glob('*.webp')}, names)
@@ -57,7 +57,19 @@ class Art381Test(unittest.TestCase):
                 self.assertRegex(tile['sha256'], r'^[0-9a-f]{64}$')
             self.assertLessEqual(image.stat().st_size, 8 * 1024 * 1024)
             hashes.add(digest)
-        self.assertEqual(len(hashes), 23, '时段必须是独立重绘文件而非别名复用')
+        self.assertEqual(len(hashes), 20, '时段必须是独立重绘文件而非别名复用（2026-11 天机台三张改为思过崖，见下一项）')
+
+    def test_siguo_cliff_scene_replaces_tianji(self):
+        """行测天机台改为思过崖：页面背景指向悬崖昼/夜图（横屏，黄橙像素很少），不再有黄昏专图。"""
+        assets = paths.WEB_DIR / 'assets'
+        manifest = art.builtin_map('行测')
+        if not manifest:
+            self.skipTest('公考场景不随法考打包')
+        for rel, phase in (('beauty/page/tianji-day.webp', 'day'), ('beauty/page/tianji-night.webp', 'night'), ('beauty/page/tianji.webp', 'day')):
+            self.assertEqual(manifest[rel], 'beauty/scenes/xingce/hd/siguo/siguo-%s.webp' % phase)
+            with Image.open(assets / manifest[rel]) as im:
+                self.assertTrue(1.33 <= im.size[0] / im.size[1] <= 1.78)
+        self.assertNotIn('beauty/page/tianji-dusk.webp', manifest)
 
 
 if __name__ == '__main__':

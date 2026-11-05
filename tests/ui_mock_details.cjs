@@ -11,7 +11,7 @@ async function bounds(p){assert.deepEqual(await p.evaluate(()=>{const bad=[];if(
   assert.equal(await p.evaluate(async()=>(await api('/api/mock')).seasons[0].score),null,'导入建议不自动录分');
   await p.locator('#mkUseEstimate').click();assert.equal(await p.locator('#mkScore').inputValue(),'99.15');assert(await p.locator('#mkScore').evaluate(e=>e.validity.valid));await p.locator('#mkUseReported').click();
  }
- const auto=p.locator('details').filter({has:p.locator('#rpFiles')}).last();await auto.locator(':scope>summary').click();const text=p.locator('#rpText');await text.evaluate(e=>e.closest('details').open=true);await text.fill('得分\n70\n.6');const scanned=p.waitForResponse(r=>r.url().endsWith('/api/mock/report/scan'));await p.locator('#rpScan').click();assert.equal((await(await scanned).json()).fields.score,'70.6');assert.equal(await p.locator('#mkScore').inputValue(),'70.6');
+ assert.equal(await p.locator('#rpFiles').count(),0,'成绩截图自动填已取消');
  for(const theme of ['light','dark']){await p.evaluate(t=>document.documentElement.dataset.theme=t,theme);await bounds(p);}
  if(!law){
   await p.locator('#mkScore').fill('77.77');await p.evaluate(()=>CONTEST.importDone(39));assert.equal(await p.locator('#mkScore').inputValue(),'77.77');assert.equal(await p.locator('#mkScore').getAttribute('data-score-source'),'manual');
