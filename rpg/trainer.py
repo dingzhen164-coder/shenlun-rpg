@@ -1242,10 +1242,49 @@ def _bank_blocks(g, board, text, question=False):
     return blocks
 
 
+BANK_GONE = '这组已经在另一台设备上结束（或已结束复盘）。成绩和复盘都在练习记录里，需要时可以再点开。'
+
+
+def _bank_lost(g, s):
+    """这一页手里的组凭据已失效（2026-11-11，原来每点一次就报“本组已经结束”，页面卡死）：
+    同一组被另一台设备重新打开（练习记录复盘会换新凭据）→ 接上最新进度，不执行这次点的旧按钮；
+    组已不在（另一台点了结束复盘等）→ 结束本会话并带 gone，网页提示一次后回试炼塔主页。"""
+    run = question_bank.state(g)['runs'].get(s['board'])
+    if run:
+        s['token'] = run['token']
+        note = [_msg('sys', '已接上另一台设备上的最新进度。')]
+        if run.get('exam') and run['phase'] == 'review':
+            r = _review_show(g, s, run, extra=note)        # 复盘：提示放在本题下面
+        else:
+            r = _bank_show(g, s, run)
+            r['messages'] = note + r['messages']
+        r['rejoined'] = True
+        return r
+    r = _resp(s, [_msg('sys', BANK_GONE)], finished=True)
+    r['gone'] = BANK_GONE
+    return r
+
+
+def _exam_stale(run, act):
+    """同一组两台设备都开着时，这一页点的按钮是否已过时；过时返回一句说明，否则空串。"""
+    answer_acts = act.startswith('exam_pick:') or act in ('exam_prev', 'exam_next', 'exam_submit')
+    if run['phase'] == 'review':
+        if answer_acts:
+            return '这组已经交卷（在另一台设备上），已显示最新复盘。'
+        if act.startswith('exam_explain:') and act.split(':')[1] != str(run.get('rpos', 0)):
+            return '复盘已翻到别的题（在另一台设备上），已显示最新位置，请再点一次。'
+        return ''
+    if act.startswith('exam_pick:') and act.split(':')[1] != str(run['pos']):
+        return '题目已翻到第 %d 题（在另一台设备上），已显示最新进度。' % (run['pos'] + 1)
+    if act.startswith(('exam_r', 'exam_explain:')) or act == 'exam_close':
+        return '这组还没交卷，已显示最新进度。'
+    return ''
+
+
 def _bank_action(g, s, act):
     run = question_bank.state(g)['runs'].get(s['board'])
     if not run or run['token'] != s['token']:
-        raise TrainError('本组已经结束，请重新进入实战')
+        return _bank_lost(g, s)
     if act in ('exam_rest', 'exam_resume'):
         if not run.get('exam') or run['phase'] == 'review':
             raise TrainError('当前不在答题计时中')
@@ -1262,6 +1301,9 @@ def _bank_action(g, s, act):
             _tick(run)      # 暂离不计时
         return _resp(s, [_msg('sys', '试炼进度已保存，下次进入这个板块续闯。')], finished=True)
     if run.get('exam'):
+        stale = _exam_stale(run, act)
+        if stale:          # 另一台设备上已经往前走了：这一页的按钮过时，直接换成最新进度，不让人反复点到报错
+            return _exam_show(g, s, run, extra=[_msg('sys', stale)])
         return _exam_action(g, s, run, act)
     if act.startswith('bank_answer:'):
         if run.get('reasoning'):
@@ -1644,9 +1686,11 @@ def _review_chat(g, s, run, text):
 
 def _bank_reply(g, s, text):
     run = question_bank.state(g)["runs"].get(s["board"])
-    if run and run["token"] == s["token"] and run.get("exam") and run["phase"] == "review":
+    if not run or run["token"] != s["token"]:
+        return _bank_lost(g, s)
+    if run.get("exam") and run["phase"] == "review":
         return _review_chat(g, s, run, text)
-    if not run or run["token"] != s["token"] or run["phase"] != "answer":
+    if run["phase"] != "answer":
         raise TrainError("题目已提交或组已切换，请恢复当前进度")
     if not run.get("reasoning"):
         raise TrainError("请使用选项按钮")
