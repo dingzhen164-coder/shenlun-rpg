@@ -2019,7 +2019,8 @@ html.in-sl-exam .sl-writing { overflow:auto; padding:12px; }
 .sl-material-scroll { flex:1; min-height:0; overflow:auto; padding:0 12px; overscroll-behavior:contain; }
 .sl-sheet-window { position:relative; }
 .sl-material-sheet { position:relative; width:800px; box-sizing:border-box; padding:18px 24px; transform-origin:top left; font:20px/1.8 sans-serif; }
-.sl-material-sheet .sl-material-text p { font-size:var(--ds-fs-20); line-height:36px; text-indent:40px; margin:0 0 16px; }
+/* 材料字号（--sl-mfs 倍数，放大镜按钮）：800 宽里重新换行，整张再按栏宽缩放 */
+.sl-material-sheet .sl-material-text p { font-size:calc(var(--ds-fs-20) * var(--sl-mfs,1)); line-height:calc(36px * var(--sl-mfs,1)); text-indent:calc(40px * var(--sl-mfs,1)); margin:0 0 calc(16px * var(--sl-mfs,1)); }
 .sl-material-ink { position:absolute; left:0; top:0; width:800px; touch-action:none; pointer-events:none; }
 html.in-sl-exam #slRes:empty { display:none; }
 html.in-sl-exam #slRes { margin-top:16px; }
@@ -2137,3 +2138,35 @@ body.interface-glass:has(#view[data-fx-route="skeleton"]) #view .dg-root :is(.dg
 .dg-art > summary { cursor: pointer; padding: 4px 0; }
 .dg-art h5 { margin: 8px 0 2px; font-size: var(--ds-fs-13); color: var(--muted); }
 
+/* ===== 2026-11-11 参阅室阅读页：一行工具（返回 / 精读栏 / ⋯更多 并进批注本工具栏）；精读栏宽度可拖（--ar-side-w，默认 30%）；
+   窄屏 / 竖屏时精读栏是右侧抽屉，盖在文章上，不挤文章。 ===== */
+.ar-annotate { grid-template-columns: minmax(0, 1fr) 12px var(--ar-side-w, 30%); gap: 0; }
+.ar-annotate > .ar-split { cursor: col-resize; touch-action: none; align-self: stretch; position: relative; min-height: 40px; }
+.ar-annotate > .ar-split::after { content: ""; position: absolute; left: 5px; top: 30%; bottom: 30%; width: 2px; border-radius: var(--ds-r-2); background: var(--line); }
+.ar-annotate.ar-side-closed { grid-template-columns: minmax(0, 1fr); }
+.ar-annotate.ar-side-closed > .ar-split { display: none; }
+.ar-annotate.ar-narrow, .fixed-app .ar-cols.ar-narrow { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); position: relative; }
+.ar-annotate.ar-narrow > .ar-split { display: none; }
+.ar-annotate.ar-narrow > .ar-side, .fixed-app .ar-cols.ar-narrow > .ar-side { position: absolute; top: var(--ar-drawer-top, 48px); right: 0; bottom: 0; width: min(88%, 440px); z-index: 30; max-height: none; overflow: auto; box-shadow: var(--ds-shadow-3); }
+.ar-annotate.ar-narrow.ar-side-closed > .ar-side { display: none; }
+.nt-ar-lead, .nt-ar-tail { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.ar-notebook .nt-bar #arSideToggle[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ar-more { position: relative; }
+.ar-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; min-height: 34px; padding: 3px 10px; border: 1px solid var(--line); border-radius: var(--ds-r-6); }
+.ar-more > summary::-webkit-details-marker { display: none; }
+.ar-more-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; min-width: 170px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--ds-r-8); box-shadow: var(--ds-shadow-2); }
+.ar-more-list label { display: flex; align-items: center; gap: 6px; }
+.ar-more-list .btn, .ar-more-list button { text-align: left; }
+.ar-jd-edit { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.ar-jd-edit textarea { flex: 1 1 auto; min-height: 320px; width: 100%; box-sizing: border-box; font-size: var(--ds-fs-14); line-height: 1.7; resize: vertical; }
+.ar-jd-md .ar-md-body h2, .ar-jd-md .ar-md-body h3 { font-size: var(--ds-fs-16); margin: 12px 0 6px; color: var(--accent); }
+.ar-import-note { margin-top: 6px; }
+/* 竖屏平板（约 800 宽）：批注本工具栏压成一行——工具按钮收窄，“精读栏 / 更多”只留图标 */
+@media (max-width: 900px) {
+  .fixed-app .ar-notebook .nt-bar { flex-wrap: nowrap; gap: 3px; padding: 4px 6px; overflow-x: auto; scrollbar-width: none; }
+  .fixed-app .ar-notebook .nt-tools button, .fixed-app .ar-notebook .nt-tools button.nt-dot, .fixed-app .ar-notebook .nt-tools button.nt-w { width: 32px; min-width: 30px; }
+  .fixed-app .ar-notebook .nt-jump { padding: 0 4px; }
+  .fixed-app .ar-notebook .nt-jump input { width: 40px; }
+  .ar-notebook .nt-bar .ar-lbl { display: none; }
+  .ar-notebook .nt-bar > .spacer { flex: 1 0 0; min-width: 0; }
+}

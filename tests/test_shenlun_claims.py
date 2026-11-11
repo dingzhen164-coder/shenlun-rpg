@@ -47,3 +47,31 @@ class ClaimsTest(unittest.TestCase):
         self.assertNotIn('references',self.item());self.assertNotIn('answer',self.item())
 
 if __name__=='__main__':unittest.main()
+
+class UnclaimTest(unittest.TestCase):
+    """2026-11-11：已领取的题可以移出目录；草稿和批改保留，不会被“已有作答自动收录”拉回，重新领取接着用。"""
+    setUp=fixture.CompleteTest.setUp
+    tearDown=fixture.CompleteTest.tearDown
+
+    def test_unclaim_keeps_draft_and_reclaim_restores(self):
+        claims.claim(self.p,{'qids':[self.qid]})
+        bank.answer_save(self.p,{'qid':self.qid,'text':'自编作答','revision':0})
+        draft=bank.answer_get(self.p,self.qid)
+        r=api.shenlun_claims({'unclaim':True,'qids':[self.qid]})
+        self.assertEqual(r['count'],0)
+        self.assertEqual(claims.listing(self.p)['items'],[])               # 有草稿也不被自动收回
+        self.assertEqual(claims.read(self.p)['removed'],[self.qid])
+        self.assertEqual(bank.answer_get(self.p,self.qid)['text'],draft['text'])   # 草稿原样保留
+        self.assertEqual(claims.claim(self.p,{'qids':[self.qid]})['added'],1)
+        self.assertEqual(claims.read(self.p)['removed'],[])
+        item=claims.listing(self.p)['items'][0]
+        self.assertEqual((item['qid'],item['status']),(self.qid,'待批改'))   # 重新领取：接着用原草稿
+
+    def test_unclaim_validation_and_old_file_compatible(self):
+        old=claims.path(self.p)
+        bank._write(old,{'schema':1,'qids':[self.qid]})                      # 旧格式没有 removed
+        self.assertEqual(claims.listing(self.p)['items'][0]['qid'],self.qid)
+        before=old.read_bytes()
+        for ids in [[],['../bad'],[self.qid]*101]:
+            with self.assertRaises(bank.BankError):claims.unclaim(self.p,{'qids':ids})
+        self.assertEqual(before,old.read_bytes())

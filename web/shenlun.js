@@ -36,8 +36,7 @@
     root.querySelectorAll("[data-slq]").forEach((c) => (c.onclick = () => { open(c.dataset.slq); }));
     const back = root.querySelector("#slBack");
     if (back) back.onclick = async () => { if (!(await leaveAnswer())) return; S.page = "list"; S.result = null;if(S.origin==="library"){LIB.tab="bank";go("skeleton");}else rerender(); };
-    const ta = root.querySelector("#slAns");
-    if (ta && S.q.complete_bank) { bindFullAnswer(root, ta);SL_TRAINING.bindNavigation(root,S.qid,open); return; }
+    if (root.querySelector(".sl-writing") && S.q.complete_bank) { bindFullAnswer(root);SL_TRAINING.bindNavigation(root,S.qid,open); return; }
   }
 
   async function open(qid,training=false) {
@@ -157,11 +156,8 @@
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
       <div class="sl-full-grid"><section class="card sl-materials${tabs||notice?' sl-has-label':''}"><div class="sl-material-toolbar">${SL_MATERIALS.toolbar()}<div class="sl-material-labels">${tabs}${notice}</div></div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article data-mat-article="${i}"${i?' class="sl-mat-off"':''}><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
       <section class="card sl-writing"><div class="row sl-write-top"><h3 class="sl-sr-only">我的作答</h3><b id="slElapsed" class="small" title="本题作答用时">用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button><span class="spacer"></span>${SL_CARD.tools()}</div>
-      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存文字</button>':''}${SL_CARD.html(q)}
-      <details class="sl-transcription" open><summary>识别文字核对 / 打字作答</summary><p class="small muted">红格作答：笔写字、手指拖动滚动。红格不参与识别，识别后请核对原文再交卷。</p><textarea id="slAns" class="sl-ta" spellcheck="false" placeholder="手写识别结果在这里核对；也可直接打字作答。"></textarea><button class="ghost small" id="slConfirmText">确认文字并保存</button><span id="slOcrStatus" class="small muted"></span></details>
-      <p class="small muted">材料、题干和本次答案会发给设置中的AI。先建立材料评分标准，再按含义判断；失败不计分，草稿保留。</p>
-      ${B.history.length?`<details><summary>历史作答与批改（${B.history.length}稿）</summary>${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</details>`:''}
-      <div class="row sl-submit-row">${SL_CARD.pager()}<span class="spacer"></span><span class="small muted" id="slCnt"></span><button class="ghost small sl-save-chip" id="slDraftSave" title="点击立即保存 · 自动保存已开启 · 有效编辑${Math.floor(B.seconds/60)}分钟"><span id="slSaveStatus">已保存</span></button><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div></section></div>
+      ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存的作答</button>':''}${SL_CARD.html(q)}
+      <div class="row sl-submit-row">${SL_CARD.pager()}<span class="spacer"></span>${B.history.length?`<details class="sl-history-pop"><summary class="ghost small">历史 ${B.history.length} 稿</summary><div class="sl-history-list">${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</div></details>`:''}<span class="small muted" id="slCnt"></span><button class="ghost small sl-save-chip" id="slDraftSave" title="点击立即保存 · 自动保存已开启 · 有效编辑${Math.floor(B.seconds/60)}分钟"><span id="slSaveStatus">已保存</span></button><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div></section></div>
       <section id="slRes">${S.result?comprehensiveHtml(S.result):''}</section>`;
   }
   // 材料页签、题干折叠、左右分栏：只改显示，不动材料内容和笔迹。
@@ -265,29 +261,68 @@
   }
   async function leaveAnswer(){if(S.busy||B.ocrBusy){toast(B.ocrBusy?'正在识别，请等本次识别完成':'正在批改，请等本次批改完成');return false;}B.marksView?.destroy();B.cardView?.destroy();if(!(await flushDraft()))return false;clearInterval(B.clockTimer);B.clockTimer=null;if(S.q?.complete_bank)await clockTick(false);return true;}
   async function clockTick(active){if(!S.q?.complete_bank)return;const qid=S.qid;try{const d=await post('/api/shenlun/card/clock',{qid,session:B.clockSession,active});if(qid!==S.qid)return;B.seconds=d.seconds;B.clockStamp=Date.now();const el=document.getElementById('slElapsed');if(el)el.textContent='用时 '+String(Math.floor(d.seconds/60)).padStart(2,'0')+':'+String(d.seconds%60).padStart(2,'0');}catch(e){B.clockOn=false;toast(e.message);}}
-  function bindFullAnswer(root,ta) {
-    ta.value=S.draftText||'';
-    const changed=()=>{S.lastKey=Date.now();B.confirm=false;root.querySelector('#slOcrStatus').textContent='笔迹已修改，请识别并核对文字后确认。';B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
+  // 交卷（2026-11-11 用户要求）：右栏只留红格，不再常驻打字框和“识别手写文字”按钮。
+  // 点交卷 → 有笔迹就先识别 → 弹窗显示识别结果、可以改错字 → 确认后才保存并送去批改；取消就回到红格接着写。
+  // 以前打字交过、没有笔迹的草稿：弹窗直接显示原文字确认。程序算分规则不变（未确认的笔迹服务端仍拒绝批改）。
+  function confirmText(text,engine,fromInk){
+    return new Promise(done=>{
+      const modal=document.getElementById('modal');
+      modal.innerHTML=`<section class="card sl-submit-dialog" role="dialog" aria-modal="true" aria-label="核对交卷文字"><h3>核对交卷文字</h3>
+        <p class="small muted">${fromInk?`${esc(engine||'手写识别')}：请对照红格改正错字、标点和段落；`:''}确认后这段文字和题干、材料一起发给设置中的 AI 批改，失败不计分，草稿保留。</p>
+        <textarea id="slSubmitText" class="sl-ta" spellcheck="false">${esc(text)}</textarea>
+        <div class="row"><span class="small muted" id="slSubmitCount"></span><span class="spacer"></span><button class="ghost" id="slSubmitCancel">返回修改</button><button class="primary" id="slSubmitConfirm">确认交卷 · 综合批改</button></div></section>`;
+      modal.classList.remove('hidden');
+      const ta=modal.querySelector('#slSubmitText'),cnt=modal.querySelector('#slSubmitCount'),ok=modal.querySelector('#slSubmitConfirm');
+      const count=()=>{const n=[...ta.value.replace(/\s/g,'')].length;cnt.textContent=n+'字'+(S.q?.words?' / '+S.q.words:'');ok.disabled=!n;};count();ta.oninput=count;
+      const close=v=>{modal.classList.add('hidden');modal.innerHTML='';done(v);};
+      modal.querySelector('#slSubmitCancel').onclick=()=>close(null);
+      ok.onclick=()=>close(ta.value);
+      setTimeout(()=>ta.focus(),0);
+    });
+  }
+  const inkOf=card=>(card?.pages||[]).some(p=>p.strokes.some(s=>!s.erase&&s.points.length));
+  function bindFullAnswer(root) {
+    const count=()=>{const el=root.querySelector('#slCnt');if(!el)return;const n=[...String(S.draftText||'').replace(/\s/g,'')].length,done=n&&(B.confirm||!inkOf(B.card));el.textContent=done?n+'字'+(S.q.words?' / '+S.q.words:''):(S.q.words?'限 '+S.q.words+' 字':'');};
+    const changed=()=>{S.lastKey=Date.now();B.confirm=false;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
+    const marked=()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);};
+    const mountMarks=()=>{B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,marked,()=>mountMarks());};   // 材料字号变了：按新字号重排并换成那个字号的勾画
     bindLayout(root);
     bindEssay(root);
     bindCalibration(root.querySelector('#slRes'));
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
-    B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);});
+    mountMarks();
     root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};
     clearInterval(B.clockTimer);S.lastKey=Date.now();clockTick(true);let ticks=0;B.clockTimer=setInterval(()=>{if(!root.isConnected){clearInterval(B.clockTimer);return;}const active=B.clockOn&&!S.busy&&!B.ocrBusy&&!document.hidden&&Date.now()-S.lastKey<120000;if(++ticks%10===0)clockTick(active);const seconds=B.seconds+(active&&B.clockStamp?Math.min(10,Math.floor((Date.now()-B.clockStamp)/1000)):0);root.querySelector('#slElapsed').textContent='用时 '+String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');},1000);
     root.querySelector('.sl-materials').onpointerdown=()=>{S.lastKey=Date.now();};
-    root.querySelector('#slRecognize').onclick=async()=>{const btn=root.querySelector('#slRecognize');btn.disabled=true;B.ocrBusy=true;try{await clockTick(false);if(!(await flushDraft()))return;const seq=B.seq;const images=B.cardView.images();if(!images.length)throw Error('先在答题卡上写字');root.querySelector('#slOcrStatus').textContent='正在识别原文……';const d=await post('/api/shenlun/card/recognize',{qid:S.qid,revision:B.revision,images});if(seq!==B.seq)throw Error('识别期间笔迹已修改，请重新识别');ta.value=d.text;ta.oninput();root.querySelector('#slOcrStatus').textContent=d.engine+'：请核对错字、标点和段落，再确认文字。';}catch(e){root.querySelector('#slOcrStatus').textContent=e.message;}finally{btn.disabled=false;B.ocrBusy=false;S.lastKey=Date.now();}};
-    root.querySelector('#slConfirmText').onclick=async()=>{B.confirm=true;B.dirty=true;B.seq++;if(await flushDraft())root.querySelector('#slOcrStatus').textContent='文字已确认，可以提交批改。';};
-    const count=()=>{const n=[...ta.value.replace(/\s/g,'')].length;root.querySelector('#slCnt').textContent=n+'字'+(S.q.words?' / '+S.q.words:'');};
-    ta.oninput=()=>{B.confirm=false;S.lastKey=Date.now();S.draftText=ta.value;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);if(Date.now()-S.lastPing>15000){S.lastPing=Date.now();post('/api/shenlun/active').catch(()=>{});}};count();
+    count();
     root.querySelector('#slDraftSave').onclick=flushDraft;
-    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{ta.value=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,()=>ta.oninput());B.cardView?.destroy();B.cardView=SL_CARD.mount(root,S.q,B.card,changed);ta.oninput();recover.remove();};
-    root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);});
-    root.querySelector('#slSubmit').onclick=async()=>{if(S.busy||!ta.value.trim())return;S.busy=true;const btn=root.querySelector('#slSubmit');btn.disabled=true;ta.disabled=true;
+    const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{S.draftText=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;mountMarks();B.cardView?.destroy();B.cardView=SL_CARD.mount(root,S.q,B.card,changed);changed();recover.remove();};
+    root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);b.closest('details').open=false;root.querySelector('#slRes').scrollIntoView?.({block:'start'});});
+    const btn=root.querySelector('#slSubmit'),label='交卷 · 综合批改';
+    btn.onclick=async()=>{
+      if(S.busy||B.ocrBusy)return;
+      const ink=inkOf(B.card);let text=S.draftText||'',engine='';
+      if(!ink&&!text.trim()){toast('先在红格里作答，再交卷');return;}
+      btn.disabled=true;B.ocrBusy=true;
+      try{
+        await clockTick(false);
+        if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');
+        if(ink&&!(B.confirm&&text.trim())){     // 笔迹改过或从没确认过：重新识别；已确认、笔迹没动：直接核对原文字
+          btn.textContent='识别手写中……';const seq=B.seq;
+          const d=await post('/api/shenlun/card/recognize',{qid:S.qid,revision:B.revision,images:B.cardView.images()});
+          if(seq!==B.seq)throw Error('识别期间笔迹已修改，请重新交卷');
+          text=d.text;engine=d.engine||'';
+        }
+      }catch(e){toast(esc(e.message));return;}
+      finally{B.ocrBusy=false;btn.disabled=false;btn.textContent=label;S.lastKey=Date.now();}
+      const final=await confirmText(text,engine,ink);
+      if(final==null||!root.isConnected)return;
+      S.draftText=final;B.confirm=true;B.dirty=true;B.seq++;keepDraft();count();
+      S.busy=true;btn.disabled=true;
       try{await clockTick(false);if(!(await flushDraft()))throw Error('答案尚未保存，请先重试保存');btn.textContent='建立标准并阅卷中……';root.querySelector('#slRes').innerHTML='<div class="card thinking">领导正在核对题干、材料与作答证据……</div>';
         const r=await post('/api/shenlun/comprehensive',{qid:S.qid,answer:S.draftText,revision:B.revision,submission_id:(B.pending?.text===S.draftText&&B.pending.qid===S.qid?B.pending.id:(B.pending={text:S.draftText,qid:S.qid,id:uid()}).id)});B.pending=null;S.result=r;root.querySelector('#slRes').innerHTML=comprehensiveHtml(r);B.history=(await post('/api/shenlun/history',{qid:S.qid})).history;handleEvents(r.events);await refresh();
       }catch(e){root.querySelector('#slRes').innerHTML=`<div class="card warn">${esc(e.message)}。答案草稿仍保留；若网络断开，重试会核对本次交卷记录。</div>`;}
-      S.busy=false;btn.disabled=false;ta.disabled=false;btn.textContent='交卷 · 综合批改';};
+      S.busy=false;btn.disabled=false;btn.textContent=label;};
     if(B.dirty)B.timer=setTimeout(flushDraft,800);
   }
   document.addEventListener('visibilitychange',()=>{if(document.getElementById('slElapsed'))clockTick(!document.hidden&&B.clockOn&&!S.busy&&!B.ocrBusy);});

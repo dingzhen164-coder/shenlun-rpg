@@ -25,8 +25,9 @@ class Update241Test(unittest.TestCase):
     def test_thousand_chars_fit_two_pages_without_truncation(self):
         self.assertGreater(sum(map(len, self.art['paras'])), 1000)
         b = notes.get(self.p, article_notes.open_book(self.p, self.art['id'])['id'])
-        self.assertLessEqual(len(b['pages']), 2)
-        self.assertEqual(''.join(''.join(p['article_lines']) for p in b['pages']).replace('　', ''), ''.join(self.art['paras']))
+        # 2026-11-11 用户嫌挤：行距加大、段间空半行，千字由两页放宽到三页以内；原文一字不少
+        self.assertLessEqual(len(b['pages']), 3)
+        self.assertEqual(''.join(''.join(x.lstrip('\x01') for x in p['article_lines']) for p in b['pages']).replace('　', ''), ''.join(self.art['paras']))
 
     def old_book(self, ink):
         nid = article_notes.open_book(self.p, self.art['id'])['id']
@@ -51,7 +52,7 @@ class Update241Test(unittest.TestCase):
         self.assertEqual(new['text'], old['text'])
         self.assertEqual(new['compiled'], old['compiled'])
         self.assertEqual(new['revision'], 8)
-        self.assertEqual(new['article']['layout'], 2)
+        self.assertEqual(new['article']['layout'], 3)
         self.assertFalse(any(p['strokes'] for p in new['pages']))
         with self.assertRaises(notes.NotesError):
             notes.save(self.p, old)

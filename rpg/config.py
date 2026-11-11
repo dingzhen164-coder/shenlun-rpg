@@ -176,6 +176,16 @@ DEFAULT_RULES = {
 }
 
 # 申论规则文件的官场叫法 → 标准键（和行测共用引擎）。前缀族单独列在 ALIAS_PREFIX_SHENLUN
+# 申论与行测不同的默认值（规则文件里缺这一项时用）。2026-11-11 用户要求：申论每日目标 2 小时，
+# 每分钟政绩 2.5，学满 2 小时仍是“每日理想经验”300，综合评价的进度节奏不变。
+DEFAULT_RULES_SHENLUN = {
+    "每日目标分钟": 120,
+    "经验.修炼每分钟": 2.5,
+    "经验.听道每分钟": 2.5,
+    "经验.静修每分钟": 2.5,
+    "经验.自练每分钟": 2.5,
+}
+
 ALIASES_SHENLUN = {
  "晋升分数线": "渡劫分数线",
  "晋升关数": "天劫雷数",
@@ -286,14 +296,19 @@ class Rules:
         self.subject = subject
         self.raw = {canon_key(k, subject): v for k, v in mdconf.parse(text).items()}
 
+    def default(self, key):
+        if self.subject == "申论" and key in DEFAULT_RULES_SHENLUN:
+            return DEFAULT_RULES_SHENLUN[key]
+        return DEFAULT_RULES.get(key)
+
     def get(self, key):
-        return self.raw.get(key, DEFAULT_RULES.get(key))
+        return self.raw.get(key, self.default(key))
 
     def has(self, key):
         return key in self.raw or key in DEFAULT_RULES
 
     def num(self, key):
-        return mdconf.to_num(self.get(key), DEFAULT_RULES[key])
+        return mdconf.to_num(self.get(key), self.default(key) if key in DEFAULT_RULES else DEFAULT_RULES[key])
 
     def date(self, key):
         return _date(self.get(key), DEFAULT_RULES[key])

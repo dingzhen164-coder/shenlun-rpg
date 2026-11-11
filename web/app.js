@@ -154,6 +154,7 @@ async function go(view) {
   if (window.CARDS && CARDS.isOpen()) CARDS.close();
   if (window.MINDMAP && MINDMAP.isOpen() && (await MINDMAP.close()) === false) return;
   if(ticket!==navigationTicket)return;
+  if (view !== VIEW && VIEW === TRAIN_ROUTE) leaveBankReview();
   VIEW = view;
   window.STUDY_LAMP?.context(view);
   if (view === "train" || view === "bank") HALL = view === "bank" ? "shizhan" : "xiulian";
@@ -1067,6 +1068,7 @@ async function startTask(body) {
 }
 let ASK_OPEN = false;     // 复盘时“师傅求助”打字框开着没有（换题就收起，追问中保持打开）
 function applyResp(r) {
+  if (r.gone) { SESSION_SNAP = null; return dropSession(r.gone); }   // 这组已在另一台设备结束：提示一次，回试炼塔主页
   T.skillTeachers=r.skill_teachers||null;
   T.mentor = r.mentor || null;
   T.session = r.session; T.title = r.title; T.busy = false; T_TYPE = r.type;
@@ -1164,13 +1166,34 @@ async function submitText() {
   if (!text) return;
   T.msgs.push({ who: "me", text }); T.busy = true; renderTrain();
   try { applyResp(await api("/api/session/reply", { session: T.session, text })); }
-  catch (e) { T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
+  catch (e) { if (sessionLost(e)) return; T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
   renderTrain();
 }
 async function doAction(act) {
   T.busy = true; renderTrain();
   try { applyResp(await api("/api/session/action", { session: T.session, action: act })); }
-  catch (e) { T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
+  catch (e) { if (sessionLost(e)) return; T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
+  renderTrain();
+}
+// 试炼塔复盘（2026-11-11）：题都答完、在复盘时离开页面 = 结束复盘（成绩早已记好，复盘内容存进练习记录），
+// 回来再点试炼塔/五峰看到的是主页，不再停在这组的复盘页。还在答题时离开照旧保留，回来接着答。
+function leaveBankReview() {
+  if (!T.session || T.finished || !["bank", "bank_review"].includes(T_TYPE)) return;
+  if (!(T.input?.buttons || []).some((b) => b.id === "exam_close")) return;
+  const sid = T.session;
+  Object.assign(T, { session: null, msgs: [], battle: null, busy: false, finished: false, input: { mode: "none" } });
+  api("/api/session/action", { session: sid, action: "exam_close" }).then(() => refresh()).catch(() => {});
+}
+// 这一页的会话已失效（另一台设备结束了这组 / 程序重启过）：只提示一次，回到当前板块主页，不再每点一次报一次错
+function sessionLost(e) {
+  if (!/已经结束或程序重启过/.test(e?.message || "")) return false;
+  dropSession(e.message);
+  return true;
+}
+function dropSession(text) {
+  Object.assign(T, { session: null, msgs: [], battle: null, busy: false, finished: false, input: { mode: "none" } });
+  toast(esc(text));
+  refresh().finally(() => { if (VIEW === TRAIN_ROUTE) renderTrain(); });
   renderTrain();
 }
 // ------------------------------------------------------------ 修炼殿：两个独立页面（修炼 / 实战），没在做功课时显示

@@ -18,8 +18,17 @@
   head.prepend(bar);
   wire(bar);
  }
+ // 思过崖等没有 .chat 的页面：按钮放进学习顶栏 #studyHud 的工具区；show=false 时拿掉。字号同样读 chatLayout.fs（--chat-fs 倍数）
+ function hud(show){
+  const existing=document.querySelector('#studyHud .reading-size-tools');
+  if(!show){existing?.remove();return;}
+  try{document.documentElement.style.setProperty('--chat-fs',String(Math.max(80,Math.min(160,chatPrefs().fs))/100));}catch(_){}
+  const head=document.querySelector('#studyHud .subpage-tools');if(!head||existing)return;
+  const bar=document.createElement('span');bar.className='reading-size-tools';bar.setAttribute('role','group');bar.setAttribute('aria-label','题目字号');
+  bar.innerHTML=buttons();head.prepend(bar);wire(bar);
+ }
  // 整卷考场等自带顶栏的页面：html() 给出按钮的 HTML，放进去以后对容器调用 bind()
  const html=()=>`<span class="reading-size-tools" role="group" aria-label="答题字号">${buttons()}</span>`;
  const bind=root=>root?.querySelectorAll('.reading-size-tools').forEach(bar=>{if(!bar.dataset.wired){bar.dataset.wired='1';wire(bar);}});
- window.READING_TOOLS={mount,html,bind};
+ window.READING_TOOLS={mount,html,bind,hud};
 })();

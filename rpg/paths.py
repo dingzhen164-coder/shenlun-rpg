@@ -131,6 +131,9 @@ def guess_vault(home=None, limit=6000, subject=None):
     return None
 
 
+
+SHENLUN_2H_MARK = "2026-11 申论每日目标改为 120 分钟（2 小时），每分钟政绩 2.5：学满仍是 300 政绩，综合评价节奏不变。"
+
 class Paths:
     """一个库对应的全部路径。vault 为 None 时各属性也为 None。subject 缺省 = 当前科目（rpg/subjects.py）。"""
 
@@ -162,8 +165,8 @@ class Paths:
             return
         t = f.read_text(encoding="utf-8")
         from .mdconf import parse
-        # 新任务设置显式选择的120分钟不再当作旧默认值迁移。
-        n = t if parse(t).get('任务板.每日内容') else re.sub(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)120\b[^\n]*$",
+        # 新任务设置显式选择的120分钟不再当作旧默认值迁移。申论 2026-11 起默认就是 120（见下），不再往回改成 300。
+        n = t if parse(t).get('任务板.每日内容') or self.subject == "申论" else re.sub(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)120\b[^\n]*$",
                    r"\g<1>300  # 修炼 + 听道（网课）合计", t)
         daily_changed = n != t
         # 经验与周常只看学习时间和模考：仍是旧默认值的行才改；改过的值不动。
@@ -175,12 +178,24 @@ class Paths:
         for key, old, new in (("经验.实战答对", "5", "0"), ("经验.实战答错", "1", "0"), ("经验.实战通关", "30", "0"), ("经验.自练每题", "2", "0"),
                               ("经验.听道每分钟", "0.5", "1"), ("经验.听课每分钟", "0.5", "1"), ("经验.静修每分钟", "0.5", "1")):
             x = re.sub(r"(?m)^(\s*-\s*%s\s*[:：]\s*)%s(?![\d.])[^\n]*$" % (re.escape(key), re.escape(old)), r"\g<1>%s" % new, x)
+        # 2026-11-11 用户要求：申论每日目标 5 小时 → 2 小时。只迁移一次（文件里留一行说明作记号）；
+        # 只有每日目标仍是 300 才改，同时把每分钟政绩 1 → 2.5（学满 2 小时仍是每日理想经验 300，综合评价不跳）；改过的值不动。
+        two_hours = False
+        if self.subject == "申论" and SHENLUN_2H_MARK not in x:
+            m = re.search(r"(?m)^(\s*-\s*每日目标分钟\s*[:：]\s*)300(?![\d.])[^\n]*$", x)
+            if m:
+                x = x[:m.start()] + m.group(1) + "120  # 每天 办理 + 听课合计；2026-11 起 2 小时\n> " + SHENLUN_2H_MARK + x[m.end():]
+                for key in ("经验.办理每分钟", "经验.听课每分钟", "经验.静修每分钟", "经验.自练每分钟", "经验.修炼每分钟", "经验.听道每分钟"):
+                    x = re.sub(r"(?m)^(\s*-\s*%s\s*[:：]\s*)1(?![\d.])[^\n]*$" % re.escape(key), r"\g<1>2.5  # 学满 2 小时仍是 300 政绩", x)
+                two_hours = True
         if x != t:
             with open(f, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(x)
             if daily_changed:
                 NOTICES.append("规则.md 已调整：每日目标 120 → 300 分钟（修炼 + 听道合计）。")
-            if x != n:
+            if two_hours:
+                NOTICES.append("规则.md 已调整：申论每日目标 300 → 120 分钟（2 小时），办理、听课、自习每分钟政绩 1 → 2.5；学满 2 小时仍是 300 政绩，综合评价不变。你改过的值不受影响。")
+            elif x != n:
                 NOTICES.append("规则.md 已调整：修为主要看学习时间（听道、静修、自练每分钟 1，做题不再按题数额外发），周常只看学习时间和模考（功行每周 840 分钟）；你改过的值不受影响。")
 
     def ensure_train_dir(self):

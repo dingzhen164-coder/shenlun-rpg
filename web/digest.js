@@ -3,7 +3,7 @@
    三种看法：对策按领域、黄金句式按类型、按文章。每篇可“移出摘编”（只删这份摘编，不删文章和精读）。 */
 (() => {
   const MODES = [["act", "对策 · 按领域"], ["quote", "黄金句式 · 按类型"], ["art", "按文章"]];
-  const QKINDS = [["巧用形象", "巧用形象的"], ["辩证论述", "辩证论述的"], ["标题段首句", "标题 / 段首句"]];
+  const QKINDS = [["巧用形象", "巧用形象的"], ["辩证论述", "辩证论述的"], ["标题段首句", "标题 / 段首句"], ["自己整理", "自己整理的"]];   // 自己整理：手写精读里“金句”小标题下的条目
   let MODE = "act", DATA = [];
   const tag = (t) => `<span class="tag">${esc(t)}</span>`;
   const from = (a) => `<span class="faint small dg-from">《${esc(a.title)}》${a.source ? " · " + esc(a.source) : ""}</span>`;
@@ -17,14 +17,15 @@
     }
     if (MODE === "art") {
       return DATA.map((a) => `<details class="dg-art" open><summary><b>${esc(a.title)}</b> <span class="faint small">${esc(a.source || "")} ${esc(a.date || "")} · 存于 ${esc(a.saved || "")}</span></summary>
-        ${(a.countermeasures || []).length ? `<h5>万能对策</h5>${a.countermeasures.map((x) => `<div class="ar-act">${tag(x.domain)} <span class="ar-act-dir">原文：${esc(x.direction)}</span><div>落地：${esc(x.landing)} ${tag(x.source)}</div></div>`).join("")}` : ""}
+        ${(a.countermeasures || []).length ? `<h5>万能对策</h5>${a.countermeasures.map((x) => `<div class="ar-act">${tag(x.domain)} <span class="ar-act-dir">原文：${esc(x.direction)}</span><div>${x.landing ? "落地：" + esc(x.landing) + " " : ""}${tag(x.source)}</div></div>`).join("")}` : ""}
         ${(a.quotes || []).length ? `<h5>黄金句式</h5>${a.quotes.map((q) => `<blockquote>${tag(q.kind)} ${esc(q.text)}${q.use ? `<small>${esc(q.use)}</small>` : ""}</blockquote>`).join("")}` : ""}
+        ${a.text ? `<div class="dg-text">${window.MDLITE ? MDLITE.render(a.text) : `<pre>${esc(a.text)}</pre>`}</div>` : ""}
         <div class="row"><button class="ghost small" data-dg-rm="${esc(a.id)}">移出摘编</button></div></details>`).join("");
     }
     const byDomain = {};
     DATA.forEach((a) => (a.countermeasures || []).forEach((x) => (byDomain[x.domain] = byDomain[x.domain] || []).push({ a, x })));
     const order = ["人才", "科技", "民生", "治理", "经济", "生态", "文化", "其他"].filter((d) => byDomain[d]);
-    return order.map((d) => `<section class="dg-sec"><h3>${esc(d)} <small>${byDomain[d].length}</small></h3>${byDomain[d].map(({ a, x }) => `<div class="ar-act"><div class="ar-act-dir">原文：${esc(x.direction)}</div><div>落地：${esc(x.landing)} ${tag(x.source)}</div>${from(a)}</div>`).join("")}</section>`).join("") || `<div class="muted dg-empty">摘编里还没有对策。</div>`;
+    return order.map((d) => `<section class="dg-sec"><h3>${esc(d)} <small>${byDomain[d].length}</small></h3>${byDomain[d].map(({ a, x }) => `<div class="ar-act"><div class="ar-act-dir">原文：${esc(x.direction)}</div><div>${x.landing ? "落地：" + esc(x.landing) + " " : ""}${tag(x.source)}</div>${from(a)}</div>`).join("")}</section>`).join("") || `<div class="muted dg-empty">摘编里还没有对策。</div>`;
   }
   async function render() {
     try { DATA = (await api("/api/articles/digest")).items || []; } catch (e) { return `<div class="warn dg-empty">摘编打开失败：${esc(e.message)}</div>`; }

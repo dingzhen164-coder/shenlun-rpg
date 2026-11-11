@@ -876,6 +876,7 @@ def shenlun_topics(body):
 
 def shenlun_claims(body):
     from . import shenlun_claims as claims
+    if body.get('unclaim'):return _sl_bank(claims.unclaim,body)
     return _sl_bank(claims.claim,body) if body.get('claim') else _sl_bank(claims.listing)
 
 
@@ -1924,7 +1925,15 @@ def ar_jd(body):
     else:
         raise ApiError("精读没成功（%s），稍后再试" % err)
     jd = articles.save_jd(paths, iid, jd)
+    if art.get("jd_md"):                 # 网页已确认过“会覆盖你改过的精读”：AI 新版代替自己写的那段
+        with open_game(save=False) as g:
+            articles.save_jd_md(g.paths, iid, "")
     return {"jd": jd, "cached": False}
+
+
+def ar_jd_save(body):
+    """自己写 / 改的精读：写回文章 .md 的“## 精读”段"""
+    return _ar(lambda g: articles.save_jd_md(g.paths, str(body.get("id") or ""), body.get("text", "")), save=False)
 
 
 
@@ -1954,7 +1963,7 @@ for _n, _f in (("import", tj_import), ("get", tj_get), ("mark", tj_mark), ("meta
     ROUTES[("POST", "/api/tianji/" + _n)] = _f
 ROUTES[("GET", "/api/articles")] = ar_list
 for _n, _f in (("get", ar_get), ("mark", ar_mark), ("crawl", ar_crawl), ("import_url", ar_import_url), ("source", ar_source),
-               ("category", ar_category), ("delete", ar_delete), ("digest_save", ar_digest_save), ("digest_remove", ar_digest_remove), ("jd", ar_jd), ("notebook", ar_notebook)):
+               ("category", ar_category), ("delete", ar_delete), ("digest_save", ar_digest_save), ("digest_remove", ar_digest_remove), ("jd", ar_jd), ("jd_save", ar_jd_save), ("notebook", ar_notebook)):
     ROUTES[("POST", "/api/articles/" + _n)] = _f
 ROUTES[("GET", "/api/articles/digest")] = ar_digest_list
 for _n, _f in (("next", cards_next), ("answer", cards_answer), ("undo", cards_undo), ("add", cards_add), ("note", cards_note),

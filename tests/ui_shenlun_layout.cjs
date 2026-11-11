@@ -14,7 +14,7 @@ async function main(){
  await page.goto(base);await page.evaluate(()=>go('skeleton'));await page.locator('[data-libtab="bank"]').click();await page.locator('#slBankRefresh').click();
  await page.locator('#slFilterRegion').selectOption('验证专用');
  assert.ok((await page.locator('.sl-material-stats').textContent()).includes('待确认 1 题'));
- const open=async n=>{await page.locator('.sl-paper summary').filter({hasText:'2026版面验证自编卷'}).click().catch(()=>{});await page.locator('.sl-paper-q').nth(n).locator('[data-slq]').click();await page.locator('#slAns').waitFor();await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);};
+ const open=async n=>{await page.locator('.sl-paper summary').filter({hasText:'2026版面验证自编卷'}).click().catch(()=>{});await page.locator('.sl-paper-q').nth(n).locator('[data-slq]').click();await page.locator('.sl-card-ink').waitFor();await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);};
  const shot=async name=>{if(shots)await page.screenshot({path:path.join(shots,name+'.png')});};
  const sizes=[['desktop',1280,860],['tablet-landscape',1280,800],['tablet-portrait',800,1280]];
  // 第1题：题干写明资料2，只显示材料2；批改也只用它
@@ -86,11 +86,12 @@ async function main(){
  await shot('3-picked');
  // 批改后：“查看批改/返回作答”切换，评分标准校准可用且不计成绩
  await page.locator('#slBack').click();await open(0);
- await page.locator('#slAns').fill('走访居民了解需求，推动部门共享资料。');await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
+ {const b=await page.locator('.sl-card-ink').boundingBox(),v=await page.locator('.sl-card-viewport').boundingBox();const y=Math.max(b.y,v.y)+40;await page.mouse.move(b.x+b.width*.2,y);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,y+20,{steps:8});await page.mouse.up();}   // 红格写一笔（没有打字框了）
+ await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
  assert.equal(await page.locator('#slViewResult').isVisible(),false);
- await page.locator('#slSubmit').click();await page.locator('.sl-review-total').waitFor({timeout:8000}).catch(async e=>{console.log('SLRES:',await page.locator('#slRes').textContent(),await page.locator('#slViewResult').count());throw e;});
+ await page.locator('#slSubmit').click();await page.locator('#slSubmitText').waitFor();await page.locator('#slSubmitConfirm').click();await page.locator('.sl-review-total').waitFor({timeout:8000}).catch(async e=>{console.log('SLRES:',await page.locator('#slRes').textContent(),await page.locator('#slViewResult').count());throw e;});
  assert.ok((await page.locator('#slViewResult').textContent()).includes('返回作答'));
- await page.locator('#slViewResult').click();await page.locator('#slAns').waitFor();assert.ok((await page.locator('#slViewResult').textContent()).includes('查看批改'));
+ await page.locator('#slViewResult').click();await page.locator('.sl-card-ink').waitFor({state:'visible'});assert.ok((await page.locator('#slViewResult').textContent()).includes('查看批改'));
  await page.locator('#slViewResult').click();await page.locator('.sl-calibrate summary').click();await page.locator('#slCalibrateRun').click();
  await page.locator('.sl-calibrate-body').filter({hasText:'得分率'}).waitFor();await shot('6-calibrate');
  // 大作文助手：立意拆解 + 提纲点评；小题没有入口

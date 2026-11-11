@@ -567,3 +567,62 @@ class BankTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TwoDeviceReviewTest(unittest.TestCase):
+    """2026-11-11：电脑和平板同时开着同一组复盘，一台结束或重新打开后，另一台不能卡在“本组已经结束”。"""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.paths = paths.Paths(Path(self.tmp.name))
+        self.paths.ensure_train_dir()
+        self.day = dt.date(2026, 9, 30)
+        self.g = engine.Game(self.paths, config.Rules(), config.Persona(), config.Lines(), store.new_state(self.day), self.day)
+        (self.paths.train / '题库/论证逻辑真题.md').write_text(''.join(question('%02d' % n) for n in range(1, 4)), encoding='utf-8')
+        self.task = {'type': 'bank', 'board': '论证逻辑', 'title': '实战', 'target': '论证逻辑', 'id': 'bank:论证逻辑'}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+        trainer.SESSIONS.clear()
+
+    def _finish(self):
+        sid = trainer.start(self.g, self.task)['session']
+        for pos in range(3):
+            trainer.action(self.g, sid, 'exam_pick:%s:A' % pos)
+        r = trainer.action(self.g, sid, 'exam_submit')
+        self.assertIn('exam_close', str(r['input']))
+        return sid
+
+    def test_other_device_closed_review_ends_once_with_gone(self):
+        pc = self._finish()
+        tablet = trainer.start(self.g, self.task)['session']        # 平板进同一板块：接上同一组复盘
+        self.assertIn('exam_close', str(trainer.action(self.g, tablet, 'exam_rnext')['input']))
+        trainer.action(self.g, tablet, 'exam_close')
+        r = trainer.action(self.g, pc, 'exam_rnext')                 # 电脑上再点：不再报错，只结束一次
+        self.assertTrue(r['finished'])
+        self.assertIn('另一台设备', r['gone'])
+        with self.assertRaises(trainer.TrainError):                   # 会话已收掉，网页据 gone 回主页，不会再点到它
+            trainer.action(self.g, pc, 'exam_rnext')
+        self.assertEqual(bank.state(self.g)['runs'], {})
+
+    def test_reopened_history_review_rejoins_latest_progress(self):
+        sid = self._finish()
+        trainer.action(self.g, sid, 'exam_close')
+        task = {'type': 'bank_review', 'board': '论证逻辑', 'title': '复盘', 'target': '论证逻辑', 'group': 0}
+        pc = trainer.start(self.g, task)['session']
+        tablet = trainer.start(self.g, task)['session']               # 另一台再点同一条记录：换了新凭据
+        trainer.action(self.g, tablet, 'exam_rnext')
+        r = trainer.action(self.g, pc, 'exam_rnext')                  # 电脑接上最新进度（第 2 题），这次点的旧按钮不执行
+        self.assertTrue(r.get('rejoined'))
+        self.assertFalse(r['finished'])
+        self.assertIn('最新进度', str(r['messages']))
+        self.assertEqual(bank.state(self.g)['runs']['历史:0']['rpos'], 1)
+        r = trainer.action(self.g, pc, 'exam_rnext')                  # 接上后照常操作
+        self.assertEqual(bank.state(self.g)['runs']['历史:0']['rpos'], 2)
+        self.assertFalse(r.get('rejoined'))
+
+    def test_answer_phase_two_devices_share_progress(self):
+        pc = trainer.start(self.g, self.task)['session']
+        tablet = trainer.start(self.g, self.task)['session']
+        trainer.action(self.g, tablet, 'exam_pick:0:A')
+        r = trainer.action(self.g, pc, 'exam_pick:1:B')              # 同一组同一凭据：两边都能接着答，不报“本组已经结束”
+        self.assertFalse(r['finished'])

@@ -316,3 +316,19 @@ html.in-sl-exam .sl-submit-row #slSubmit { padding:5px 14px; }
 .sl-essay-dialog section { margin-top:12px; }
 .sl-essay-dialog h4 { margin:0 0 6px; }
 .sl-essay-dialog textarea { width:100%; box-sizing:border-box; }
+/* ===== 2026-11-11 右栏红格占满：顶栏工具一行 + 红格（自己上下滚）+ 底栏一行；打字框与识别按钮去掉，交卷时弹窗核对 ===== */
+html.in-sl-exam .sl-writing { display:flex; flex-direction:column; overflow:hidden; }
+html.in-sl-exam .sl-writing > .sl-write-top, html.in-sl-exam .sl-writing > .sl-submit-row, html.in-sl-exam .sl-writing > #slRecover { flex:none; }
+html.in-sl-exam .sl-writing > .fx-scroll { display:flex; flex-direction:column; overflow:hidden; min-height:0; }   /* 固定布局把中段包进 .fx-scroll */
+html.in-sl-exam .sl-writing #slRecover { flex:none; align-self:flex-start; }
+html.in-sl-exam .sl-writing .sl-card-viewport { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; }
+html.in-sl-exam .sl-writing .sl-card-paper { margin-bottom:2px; }
+.sl-history-pop { position:relative; }
+.sl-history-pop > summary { list-style:none; cursor:pointer; padding:3px 9px; min-height:36px; display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:var(--ds-r-6); }
+.sl-history-pop > summary::-webkit-details-marker { display:none; }
+.sl-history-list { position:absolute; bottom:calc(100% + 4px); left:0; z-index:20; display:flex; flex-direction:column; gap:4px; padding:6px; min-width:max-content; background:var(--panel); border:1px solid var(--line); border-radius:var(--ds-r-8); box-shadow:var(--ds-shadow-2); }
+.sl-submit-dialog { width:min(92vw,720px); max-height:86dvh; display:flex; flex-direction:column; gap:8px; }
+.sl-submit-dialog h3 { margin:0; }
+.sl-submit-dialog .sl-ta { flex:1 1 auto; min-height:min(46dvh,420px); width:100%; box-sizing:border-box; resize:vertical; font-size:var(--ds-fs-16); line-height:1.8; }
+.sl-claim-remove { color:var(--muted); }
+.sl-claim-remove.armed { color:var(--ds-danger); border-color:var(--ds-danger); }

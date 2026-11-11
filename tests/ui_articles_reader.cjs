@@ -21,8 +21,8 @@ const SIZES=[['电脑',1280,860],['平板横屏',1280,800],['平板竖屏',800,1
   assert.ok(m.sh>m.ch+50,tag+'：文章应比可视区长');assert.ok(/auto|scroll/.test(m.ov),tag+'：.nt-pages 必须是滚动容器');
   assert.ok(m.sw<=m.vw+1,tag+'：横向溢出');assert.equal(m.tjhead,false,tag+'：阅读时不再显示“每日文章”大标题块');
   assert.ok(m.viewOverflow<=2,tag+'：整页内容不能被裁掉 '+m.viewOverflow);
-  assert.ok(m.hud.h<=44,tag+'：顶部只留细条 '+m.hud.h);assert.ok(m.rhead.h<=60,tag+'：题头一行 '+m.rhead.h);
-  assert.ok(m.pages.h>=m.vh*(name==='平板竖屏'?.42:.5),tag+'：文章区占比太小 '+Math.round(m.pages.h)+'/'+m.vh);
+  assert.ok(m.hud.h<=44,tag+'：顶部只留细条 '+m.hud.h);assert.equal(m.rhead,null,tag+'：题头不再单独占一行');assert.ok(await page.locator('.nt-bar #arBack').count()&&await page.locator('.nt-bar #arSideToggle').count()&&await page.locator('.nt-bar .ar-more').count(),tag+'：返回 / 精读栏 / 更多 并进批注本工具栏');
+  assert.ok(m.pages.h>=m.vh*.74,tag+'：文章区占比太小 '+Math.round(m.pages.h)+'/'+m.vh);   // 2026-11-11 用户：越大越好（原来平板约一半）
   // 滚动：脚本滚动 + 手指拖动（笔记本页面是 touch-action:none，靠脚本拖动）
   await page.evaluate(()=>{document.querySelector('.nt-pages').scrollTop=0;});
   if(name!=='电脑'){
@@ -47,7 +47,7 @@ const SIZES=[['电脑',1280,860],['平板横屏',1280,800],['平板竖屏',800,1
    assert.equal(await page.evaluate(()=>api('/api/cards').then(c=>JSON.stringify(c).includes('每日文章'))),false,'摘编不生成复习卡片');
   }
   // 旧版精读兼容
-  await page.evaluate(()=>go('tianji'));await page.locator('.ar-read,[data-open]').first().waitFor();if(await page.locator('.ar-read').count()){await page.locator('#arBack').click();await page.locator('.ar-read').waitFor({state:'detached'});await page.waitForTimeout(300);}await page.locator('[data-open="beef0001"]').click();await page.locator('#arSide').waitFor();
+  await page.evaluate(()=>go('tianji'));await page.locator('.ar-read,[data-open]').first().waitFor();if(await page.locator('.ar-read').count()){await page.locator('#arBack').click();await page.locator('.ar-read').waitFor({state:'detached'});await page.waitForTimeout(300);}await page.locator('[data-open="beef0001"]').click();await page.locator('#arSide').waitFor({state:'attached'});   // 竖屏时精读栏是收起的抽屉
   assert.ok((await page.locator('#arSide').innerText()).includes('旧版精读'),tag+'：旧版精读照常显示并提示重新精读');
   assert.deepEqual(errors,[],tag);await ctx.close();
  }

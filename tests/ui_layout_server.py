@@ -39,6 +39,12 @@ def main():
             from tests.politics_fixture import atlas_data
             pp = paths.Paths(Path(vaults['行测']), '行测')
             data = atlas_data()
+            if '--sprint-many' in sys.argv:
+                # 研习目录长列表：多复制 30 份自编资料，检查点下面的资料目录不跳回顶部
+                import copy
+                for i in range(30):
+                    extra = copy.deepcopy(data['materials'][0]); extra.update(id='mx%d' % i, title='自编长目录资料第%d份' % (i + 1), chapter=i % 4, questions=[])
+                    data['materials'].append(extra)
             politics.atomic_json(pp.train / '时政知识地图/内容.json', data)
             news = {'id': '2026-10-上', 'kind': 'month', 'title': '自编十月上时政', 'label': '自编时政', 'year': 2026,
                     'month': 10, 'half': '上', 'category': '其他', 'overview': '自编理解练习', 'groups': [],
@@ -135,6 +141,8 @@ def main():
             d = Path(vaults['行测']) / '训练/思过崖'; d.mkdir(parents=True, exist_ok=True)
             (d / '中心理解.md').write_text('# 中心理解\n\n## 题目索引\n\n| 题 |\n|---|\n| 一 |\n\n## 错题一：自编标题题\n\n### 原题\n\n自编文段甲乙丙。\n\n这段文字意在说明：\n\n- A. 选项甲\n- B. 选项乙\n- C. 选项丙\n- D. 选项丁\n\n### 答案\n\n正确答案：C；我的选择：B\n\n### 错因分析\n\n| 选项 | 迷惑性质 |\n|---|---|\n| B | 自编错因 |\n\n### 一句话教训\n\n> 自编教训。\n', encoding='utf-8')
             (d / '逻辑填空.md').write_text('# 001 · 自编填空\n\n## 原题\n\n自编文段____。\n\n- A. 词甲\n- B. 词乙　**← 答案**\n- C. 词丙\n- D. 词丁\n\n## 解析\n\n自编解析。\n', encoding='utf-8')
+            # 定义判断：30 道自编题，用来检查长目录点下面的题不跳回顶部、题目字号按钮只放大题目。
+            (d / '定义判断.md').write_text(''.join('## 错题%d：自编定义题第%d号（较长的标题用来换行检查）\n\n### 原题\n\n自编定义文段%d。\n\n- A. 甲\n- B. 乙\n- C. 丙\n- D. 丁\n\n### 答案\n\n正确答案：A；我的选择：B\n\n### 解析\n\n自编解析%d。\n\n' % (i, i, i, i) for i in range(1, 31)), encoding='utf-8')
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards
@@ -179,6 +187,11 @@ def main():
                         body += '### %d. %s\n自编题：增长率为多少？\n- **A.** 20%%\n- **B.** 30%%\n\n> [!check]- 答案\n> 正确答案：**A**　我的答案：**B**　错误\n\n> [!note] 复盘\n> 自编解析：用增加量除以原值。\n\n---\n' % (i, icon)
                     (folder / ('01-' + board + '.md')).write_text(body, encoding='utf-8')
                 api.bank_add(dict(board=board, topic='自编条件验证', source='UI测试', stem='自编题：哪个选项符合条件？', options=dict(A='符合', B='不符合', C='无关', D='无关'), answer='A', analysis='自编解析：逐项核对条件。'))
+        if '--bank-leave-fixture' in sys.argv:
+            # 试炼塔复盘离开/两台设备：三道自编题写进论证逻辑题库
+            with api.open_game() as g:
+                f = g.paths.train / '题库/论证逻辑真题.md'
+                f.write_text(''.join('\n## 题目 %02d\n### 知识点\n削弱\n### 题干\n自编题干 %02d\n### 选项\nA. 甲\nB. 乙\nC. 丙\nD. 丁\n### 答案\nA\n### 解析\n自编解析\n' % (n, n) for n in range(1, 4)), encoding='utf-8')
         if '--review362-fixture' in sys.argv:
             from rpg import ai
             ai.available = lambda: True

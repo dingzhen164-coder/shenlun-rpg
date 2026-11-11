@@ -47,7 +47,7 @@
     const I = DATA.items, shown = filtered();
     const srcNames = [...new Set(I.map((a) => a.source))];
     const cats = DATA.categories.filter((c) => I.some((a) => a.category === c));
-    const job = DATA.job || {};
+    const job = DATA.job || {}, imp = DATA.imports || { added: [], problems: [] };   // 手动导入：照模板写的 .md 放进 训练/时政文章/导入/
     const today = new Date().toISOString().slice(0, 10);
     const stat = `共 ${I.length} 篇 · 今日 ${I.filter((a) => a.date === today).length} · 未读 ${I.filter((a) => !a.read).length} · 已精读 ${I.filter((a) => a.jd).length}`;
     ROOT.innerHTML = `<div class="ar-wrap">
@@ -55,9 +55,12 @@
         <div class="row"><b>📅 每日文章</b><span class="muted small">${stat}</span><span class="spacer"></span>
           <input id="arQ" type="search" placeholder="搜标题 / 来源…" value="${esc(F.q)}">
           <button class="ghost small" id="arUrl">🔗 粘贴链接</button>
+          <span class="faint small" title="照 训练/时政文章/导入模板.md 写好 .md，放进 训练/时政文章/导入/，打开这里就会读进来">手动导入：模板在 训练/时政文章/</span>
           <button class="ghost small" id="arSrc">⚙ 来源</button>
           <button class="primary" id="arCrawl" ${job.running ? "disabled" : ""}>${job.running ? `抓取中 ${job.done}/${job.total}…` : "⬇ 立即抓取"}</button></div>
         ${job.log && job.log.length ? `<div class="ar-log small">${job.log.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : ""}
+        ${imp.added.length ? `<div class="ok small ar-import-note">已从 导入 文件夹读进 ${imp.added.length} 篇：${imp.added.map((t) => "《" + esc(t) + "》").join("、")}</div>` : ""}
+        ${imp.problems.length ? `<div class="warn small ar-import-note"><b>导入文件夹里有几篇没读懂（照 训练/时政文章/导入模板.md 改好会自动再读）：</b>${imp.problems.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : ""}
         <div class="ar-chips"><span class="faint small">来源</span>${chips("src", [["", "全部", I.length], ...srcNames.map((n) => [n, n, I.filter((a) => a.source === n).length])], F.src)}</div>
         <div class="ar-chips"><span class="faint small">分类</span>${chips("cat", [["", "全部", null], ...cats.map((c) => [c, c, I.filter((a) => a.category === c).length])], F.cat)}</div>
         <div class="ar-chips"><span class="faint small">状态</span>${chips("st", [["", "全部"], ["unread", "未读"], ["read", "已读"], ["star", "★ 收藏"], ["jd", "已精读"]], F.st)}</div>
@@ -143,7 +146,8 @@
   const JD_INTRO = "让 AI 按五步拆解心法精读这篇：①圈核心概念 ②拆行文骨架 ③挖万能对策 ④记黄金句式 ⑤做题型映射。词语、原文方向、金句保证是原文里真有的。结果会存下来，不重复花钱。";
   function jdHtml(jd) {
     if (!jd) return `<div class="muted small">${JD_INTRO}</div>
-      <button class="primary" id="arJd" ${JDING ? "disabled" : ""}>${JDING ? "精读中…" : "🔍 一键精读"}</button>`;
+      <button class="primary" id="arJd" ${JDING ? "disabled" : ""}>${JDING ? "精读中…" : "🔍 一键精读"}</button>
+      <p class="muted small">也可以不用 AI：<button class="ghost small" id="arEdit">✎ 自己写精读</button>（写好会存进这篇文章的 .md 文件末尾“## 精读”段）</p>`;
     if (jd.version === 2) return jdHtmlV2(jd);
     const li = (a) => `<ul>${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
     return `<div class="ar-jd-box"><p class="small warn">这是旧版精读。点最下面“重新精读”换成五步拆解（会再花一次 AI 费用）。</p><div class="ar-theme">${esc(jd.theme)}</div>
@@ -153,7 +157,7 @@
       ${(jd.materials || []).length ? `<h4>可用素材</h4>${jd.materials.map((m) => `<div class="ar-mat"><span class="tag">${esc(m.kind)}</span> ${esc(m.text)}</div>`).join("")}` : ""}
       ${(jd.tixing || []).length ? `<h4>适合练的题型</h4><div>${jd.tixing.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")}</div>` : ""}
       ${jd.writing ? `<h4>运用思路</h4><p>${esc(jd.writing)}</p>` : ""}
-      <div class="row ar-jd-foot"><button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
+      <div class="row ar-jd-foot"><button class="ghost small" id="arEdit">✎ 编辑</button><button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
   }
   function jdHtmlV2(jd) {
     const s1 = jd.step1 || {}, s2 = jd.step2 || {}, s3 = jd.step3 || {}, s4 = jd.step4 || {}, s5 = jd.step5 || {};
@@ -175,49 +179,128 @@
     const saved = !!(CUR && CUR.digest);
     return `<div class="ar-jd-box ar-jd2">${step(1, "圈核心概念", p1)}${step(2, "拆行文骨架", p2)}${step(3, "挖万能对策", p3)}${step(4, "记黄金句式", p4)}${step(5, "做题型映射", p5)}
       <div class="row ar-jd-foot"><button class="small" id="arDigest" title="把第三步的对策和第四步的黄金句式存到 档案室 › 摘编，只翻阅，不生成复习卡片">${saved ? "✓ 已存入摘编（再点覆盖）" : "📎 存入摘编"}</button>${saved ? '<button class="ghost small" id="arDigestGo">去档案室看</button>' : ""}
-        <button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
+        <button class="ghost small" id="arEdit">✎ 编辑</button><button class="ghost small" id="arRe">重新精读</button><span class="faint small">${esc(jd.time || "")}</span></div></div>`;
+  }
+  // ---- 自己写 / 改的精读（2026-11-11）：存在文章 .md 末尾“## 精读”段，显示时优先于 AI 精读 ----
+  let EDITING = false;
+  const md = (t) => (window.MDLITE ? MDLITE.render(t || "") : `<pre>${esc(t)}</pre>`);
+  const MD_TEMPLATE = "## 第一步 · 圈核心概念\n\n## 第二步 · 拆行文骨架\n\n## 第三步 · 挖万能对策\n- \n\n## 第四步 · 记黄金句式（金句）\n- \n\n## 第五步 · 做题型映射\n";
+  function jdToMd(jd) {                 // AI 精读转成文字，放进编辑框接着改
+    if (!jd) return MD_TEMPLATE;
+    const L = (rows) => rows.map((x) => "- " + x).join("\n");
+    if (jd.version !== 2) return ["## 主旨", jd.theme || "", "## 核心观点", L(jd.points || []), "## 论证脉络", L(jd.structure || []), "## 金句", L((jd.quotes || []).map((q) => q.text + (q.use ? "（" + q.use + "）" : ""))), "## 运用思路", jd.writing || ""].join("\n\n");
+    const s1 = jd.step1 || {}, s2 = jd.step2 || {}, s3 = jd.step3 || {}, s4 = jd.step4 || {}, s5 = jd.step5 || {};
+    return ["## 第一步 · 圈核心概念", L([...(s1.old_words || []).map((x) => x.term + (x.note ? "：" + x.note : "")), ...(s1.verbs || []).map((x) => x.term + (x.note ? "：" + x.note : "")), ...(s1.new_terms || []).map((x) => x.term + (x.definition ? "：" + x.definition : ""))]),
+      "## 第二步 · 拆行文骨架", ["总论点：" + (s2.thesis || ""), L((s2.parts || []).map((x) => "【" + x.kind + "】" + x.point))].join("\n"),
+      "## 第三步 · 挖万能对策", L((s3.items || []).map((x) => x.direction + (x.landing ? " → " + x.landing : ""))),
+      "## 第四步 · 记黄金句式（金句）", L((s4.quotes || []).map((q) => q.text + (q.use ? "（" + q.use + "）" : ""))),
+      "## 第五步 · 做题型映射", L([...(s5.yuyan || []), ...(s5.shenlun || [])].map((x) => "【" + x.type + "】" + x.question))].join("\n\n");
+  }
+  function sideHtml(a) {
+    if (EDITING) return `<div class="ar-jd-edit"><p class="small muted">用 Markdown 写；“对策”“金句 / 句式”小标题下的条目可以存入摘编。保存后写进这篇文章 .md 文件末尾的“## 精读”段，在 Obsidian 里改也一样。</p>
+      <textarea id="arJdText" spellcheck="false">${esc(a.jd_md || jdToMd(a.jd))}</textarea>
+      <div class="row"><button class="primary small" id="arJdSave">保存精读</button><button class="ghost small" id="arJdCancel">取消</button>${a.jd_md ? '<span class="spacer"></span><button class="ghost small" id="arJdDrop" title="去掉自己写的这段，回到 AI 精读（没有就是空白）">删掉自己写的</button>' : ""}</div></div>`;
+    if (!a.jd_md) return jdHtml(a.jd);
+    const saved = !!a.digest;
+    return `<div class="ar-jd-box ar-jd-md"><div class="ar-md-body">${md(a.jd_md)}</div>
+      <div class="row ar-jd-foot"><button class="ghost small" id="arEdit">✎ 编辑</button><button class="small" id="arDigest" title="“对策”“金句”小标题下的条目存进 档案室 › 摘编；没有这两个小标题就整份存进去">${saved ? "✓ 已存入摘编（再点覆盖）" : "📎 存入摘编"}</button>${saved ? '<button class="ghost small" id="arDigestGo">去档案室看</button>' : ""}
+      <button class="ghost small" id="arRe" title="让 AI 重新精读，会替换你自己写的这段">AI 重新精读</button><span class="faint small">自己写的精读</span></div></div>`;
+  }
+  // 阅读页（2026-11-11 用户：平板上文章只占一半）：去掉单独的一行题头，返回 / 精读栏 / 更多 并进批注本工具栏；
+  // 分类、收藏、原网页、公务手账、导出 PDF、删除收进“⋯ 更多”。横屏时精读栏默认约 30% 宽、中间拖动改比例并记住；
+  // 竖屏（窄屏）时精读栏改成从右边滑出的抽屉，盖在文章上，点“精读栏”开关。
+  const narrow = () => matchMedia("(max-width: 900px), (orientation: portrait) and (max-width: 1100px)").matches;
+  const sideW = () => Math.max(20, Math.min(50, Number(store.get("sidew", "30")) || 30));
+  function moreMenu(a) {
+    return `<details class="ar-more"><summary class="ghost small" title="更多">⋯<span class="ar-lbl"> 更多</span></summary><div class="ar-more-list">
+      <label class="small">分类 <select id="arCat">${DATA.categories.map((c) => `<option ${c === a.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+      <button class="ghost small" id="arStar">${a.star ? "★ 已收藏" : "☆ 收藏"}</button>
+      ${a.url ? `<a class="ghost small btn" href="${esc(a.url)}" target="_blank" rel="noopener">🌐 原网页</a>` : ""}
+      <button class="ghost small" id="arLedger">📓 公务手账</button>
+      <button class="ghost small" id="arPdf">📄 导出 PDF</button>
+      <button class="ghost small" id="arDel">🗑 删除这篇</button></div></details>`;
   }
   async function reader() {
     if (!(await NOTES.leaveArticle())) return;
     const a = CUR, version = ++readerVer;
+    EDITING = false;
     if(a&&VIEW==='tianji'&&ROOT?.isConnected)window.STUDY_LAMP?.reader({key:'article:'+a.id,board:''});
     if (!a || !ROOT?.isConnected) return;
+    if (!DATA) { try { await load(); } catch (_) { DATA = { categories: [a.category], items: [] }; } }
+    const closed = narrow() ? true : store.get("side", "open") === "closed";
     ROOT.innerHTML = `<div class="ar-read">
-      <div class="card ar-rhead"><button class="ghost" id="arBack">← 返回文章列表</button><span class="spacer"></span>
-        <select id="arCat">${DATA.categories.map((c) => `<option ${c === a.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
-        <button class="ghost small" id="arStar">${a.star ? "★ 已收藏" : "☆ 收藏"}</button>
-        ${a.url ? `<a class="ghost small btn" href="${esc(a.url)}" target="_blank" rel="noopener">🌐 原网页</a>` : ""}
-        <button class="ghost small" id="arSideToggle" title="展开 / 收起右侧精读栏">🔍 精读栏</button>
-        <button class="ghost small" id="arLedger">📓 公务手账</button><button class="ghost small" id="arDel">🗑</button></div>
-      <div class="ar-cols ar-annotate ${store.get("side", "open") === "closed" ? "ar-side-closed" : ""}"><article id="arBook"><div class="card">正在打开文章批注本…</div></article>
-        <aside class="card ar-side" id="arSide">${jdHtml(a.jd)}</aside></div></div>`;
+      <div class="card ar-rhead" id="arHead"><button class="ghost small" id="arBack">← 返回</button><span class="spacer"></span>
+        <button class="ghost small" id="arSideToggle" title="展开 / 收起右侧精读栏" aria-pressed="${!closed}">🔍<span class="ar-lbl"> 精读栏</span></button>${moreMenu(a)}</div>
+      <div class="ar-cols ar-annotate ${closed ? "ar-side-closed" : ""} ${narrow() ? "ar-narrow" : ""}" style="--ar-side-w:${sideW()}%"><article id="arBook"><div class="card">正在打开文章批注本…</div></article>
+        <div class="ar-split" id="arSplit" role="separator" aria-label="拖动调整精读栏宽度" title="拖动调整精读栏宽度"></div>
+        <aside class="card ar-side" id="arSide">${sideHtml(a)}</aside></div></div>`;
     bindReader();
     const el = ROOT.querySelector("#arBook");
-    try { await NOTES.mountArticle(el, a.id); }
+    try {
+      await NOTES.mountArticle(el, a.id);
+      if (version !== readerVer || !el.isConnected) return;
+      // 题头那一行的按钮挪进批注本工具栏，整页只留一行工具
+      const head = ROOT.querySelector("#arHead"), lead = el.querySelector(".nt-ar-lead"), tail = el.querySelector(".nt-ar-tail");
+      if (head && lead && tail) { lead.append(head.querySelector("#arBack")); tail.append(head.querySelector("#arSideToggle"), head.querySelector(".ar-more")); head.remove(); }
+      const bar = el.querySelector(".nt-bar"), cols = ROOT.querySelector(".ar-cols");
+      if (bar && cols) cols.style.setProperty("--ar-drawer-top", (bar.offsetHeight + 4) + "px");   // 竖屏抽屉从工具栏下面开始，不挡“精读栏”开关
+    }
     catch (e) { if (version === readerVer && el.isConnected) el.innerHTML = `<div class="card ar-art"><p class="warn">批注本未打开：${esc(e.message)}。返回列表重试；已保存的笔迹仍在公务手账。</p><h2>${esc(a.title)}</h2>${a.paras.map((p) => `<p>${esc(p)}</p>`).join("")}</div>`; }
   }
   function bindReader() {
     const R = ROOT, a = CUR;
     R.querySelector("#arBack").onclick = close;
     R.querySelector("#arLedger").onclick = () => go("notes");
-    R.querySelector("#arSideToggle").onclick = () => { const cols = R.querySelector(".ar-cols"); const closed = cols.classList.toggle("ar-side-closed"); store.set("side", closed ? "closed" : "open"); dispatchEvent(new Event("resize")); };
-    R.querySelector("#arStar").onclick = async () => { a.star = !a.star; await api("/api/articles/mark", { id: a.id, star: a.star }); reader(); };
+    R.querySelector("#arPdf").onclick = () => { R.querySelector(".ar-more").open = false; document.getElementById("ntPdf")?.click(); };
+    const cols = R.querySelector(".ar-cols"), toggle = R.querySelector("#arSideToggle");
+    // 平板转屏 / 改窗口大小：横竖两种摆法跟着切（竖屏抽屉默认收起，横屏按记住的开关）
+    const mq = matchMedia("(max-width: 900px), (orientation: portrait) and (max-width: 1100px)");
+    const relayout = () => {
+      if (!cols.isConnected) { mq.removeEventListener?.("change", relayout); return; }
+      const n = narrow(), closed = n || store.get("side", "open") === "closed";
+      cols.classList.toggle("ar-narrow", n); cols.classList.toggle("ar-side-closed", closed); toggle.setAttribute("aria-pressed", String(!closed));
+      const bar = R.querySelector(".nt-bar"); if (bar) cols.style.setProperty("--ar-drawer-top", (bar.offsetHeight + 4) + "px");
+      dispatchEvent(new Event("resize"));
+    };
+    mq.addEventListener?.("change", relayout);
+    toggle.onclick = () => { const closed = cols.classList.toggle("ar-side-closed"); toggle.setAttribute("aria-pressed", String(!closed)); if (!narrow()) store.set("side", closed ? "closed" : "open"); dispatchEvent(new Event("resize")); };
+    // 拖动中间的分隔条改精读栏宽度（20%–50%），松手记住
+    const split = R.querySelector("#arSplit");
+    split.onpointerdown = (e) => {
+      if (narrow()) return;
+      e.preventDefault(); try { split.setPointerCapture(e.pointerId); } catch (_) {}
+      const box = cols.getBoundingClientRect();
+      split.onpointermove = (m) => { const w = Math.max(20, Math.min(50, (box.right - m.clientX) / box.width * 100)); cols.style.setProperty("--ar-side-w", w.toFixed(1) + "%"); };
+      split.onpointerup = split.onpointercancel = () => { split.onpointermove = null; const w = parseFloat(cols.style.getPropertyValue("--ar-side-w")) || 30; store.set("sidew", String(Math.round(w))); dispatchEvent(new Event("resize")); };
+    };
+    // 点“更多”外面收起菜单
+    const more = R.querySelector(".ar-more");
+    document.addEventListener("pointerdown", function off(e) { if (!more.isConnected) return document.removeEventListener("pointerdown", off, true); if (more.open && !more.contains(e.target)) more.open = false; }, true);
+    R.querySelector("#arStar").onclick = async () => { a.star = !a.star; await api("/api/articles/mark", { id: a.id, star: a.star }); R.querySelector("#arStar").textContent = a.star ? "★ 已收藏" : "☆ 收藏"; };
     R.querySelector("#arCat").onchange = async (e) => { try { await api("/api/articles/category", { id: a.id, category: e.target.value }); a.category = e.target.value; } catch (x) { showError(x); } };
     R.querySelector("#arDel").onclick = async () => { if (!confirm("删掉这篇文章（连精读一起）？公务手账里的批注本和已存入的摘编会保留。")) return; try { if (!(await NOTES.leaveArticle())) return; await api("/api/articles/delete", { id: a.id }); CUR = null; mount(ROOT); } catch (e) { showError(e); } };
     bindSide();
   }
+  function paintSide() { const a = CUR; if (!a || !ROOT) return; const side = ROOT.querySelector("#arSide"); if (!side) return; side.innerHTML = sideHtml(a); bindSide(); }
   function bindSide() {
     const R = ROOT, a = CUR;
     const run = async (force) => {
-      JDING = true; act(); R.querySelector("#arSide").innerHTML = jdHtml(null);
-      try { const r = await api("/api/articles/jd", { id: a.id, force: !!force }); a.jd = r.jd; } catch (e) { showError(e); }
-      JDING = false; if (CUR === a) { R.querySelector("#arSide").innerHTML = jdHtml(a.jd); bindSide(); }
+      JDING = true; act(); EDITING = false; const keep = a.jd_md; a.jd_md = ""; R.querySelector("#arSide").innerHTML = jdHtml(null);
+      try { const r = await api("/api/articles/jd", { id: a.id, force: !!force }); a.jd = r.jd; } catch (e) { a.jd_md = keep; showError(e); }
+      JDING = false; if (CUR === a) paintSide();
     };
     const b = R.querySelector("#arJd"); if (b) b.onclick = () => run(false);
-    const re = R.querySelector("#arRe"); if (re) re.onclick = () => { if (confirm("重新精读会再花一次 AI 费用，确定？")) run(true); };
+    const re = R.querySelector("#arRe"); if (re) re.onclick = () => { if (confirm(a.jd_md ? "AI 重新精读会替换你自己写 / 改过的精读，并再花一次 AI 费用。确定？" : "重新精读会再花一次 AI 费用，确定？")) run(true); };
+    const edit = R.querySelector("#arEdit"); if (edit) edit.onclick = () => { EDITING = true; paintSide(); R.querySelector("#arJdText")?.focus(); };
+    const cancel = R.querySelector("#arJdCancel"); if (cancel) cancel.onclick = () => { EDITING = false; paintSide(); };
+    const save = async (text) => {
+      try { const r = await api("/api/articles/jd_save", { id: a.id, text }); a.jd_md = r.jd_md; EDITING = false; paintSide(); toast(text ? "精读已保存（写在这篇文章的 .md 文件末尾）" : "已去掉自己写的精读"); } catch (e) { showError(e); }
+    };
+    const ok = R.querySelector("#arJdSave"); if (ok) ok.onclick = () => save(R.querySelector("#arJdText").value);
+    const drop = R.querySelector("#arJdDrop"); if (drop) drop.onclick = () => { if (confirm("去掉自己写的这段精读？AI 精读（如果有）会重新显示。")) save(""); };
     const c = R.querySelector("#arDigest");
     if (c) c.onclick = async () => {
-      try { const r = await api("/api/articles/digest_save", { id: a.id }); a.digest = true; toast(`📎 已存入摘编：${r.countermeasures} 条对策、${r.quotes} 句黄金句式（档案室 › 摘编）`); R.querySelector("#arSide").innerHTML = jdHtml(a.jd); bindSide(); } catch (e) { showError(e); }
+      try { const r = await api("/api/articles/digest_save", { id: a.id }); a.digest = true; toast(r.whole ? "📎 已整份存入摘编（档案室 › 摘编）" : `📎 已存入摘编：${r.countermeasures} 条对策、${r.quotes} 句黄金句式（档案室 › 摘编）`); paintSide(); } catch (e) { showError(e); }
     };
     const go2 = R.querySelector("#arDigestGo"); if (go2) go2.onclick = () => { LIB.tab = "digest"; go("skeleton"); };
   }

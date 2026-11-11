@@ -138,6 +138,12 @@ jobs:
           commands = [
               ['node', 'tests/ui_training339.cjs', '--subject=行测'],
               ['node', 'tests/ui_siguo.cjs'],
+              ['node', 'tests/ui_siguo_reading.cjs'],
+              ['node', 'tests/ui_sprint_index.cjs'],
+              ['node', 'tests/ui_bank_leave.cjs'],
+              ['node', 'tests/ui_legacy_glass.cjs'],
+              ['node', 'tests/ui_shenlun_practice.cjs'],
+              ['node', 'tests/ui_articles_update.cjs'],
               ['node', 'tests/test_siguo_races.cjs'],
               ['node', 'tests/ui_daylight339.cjs', '--subject=行测'],
               ['node', 'tests/ui_training339.cjs', '--subject=申论'],

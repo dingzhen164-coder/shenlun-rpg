@@ -93,7 +93,7 @@ async function main() {
     await page.locator('#arSideToggle').click(); assert.equal(await page.locator('#arSide').isVisible(), false); await page.locator('#arSideToggle').click();
     await page.locator('#ntFull').click(); assert.equal(await page.locator('html').evaluate(el=>el.classList.contains('nt-full')), true); await page.locator('#ntFull').click();
     const pdfResult = page.waitForResponse(r => r.url().endsWith('/api/notes/pdf') && r.request().method() === 'POST');
-    await page.locator('#ntPdf').click(); const pdf = await (await pdfResult).json(); assert.ok(!pdf.error, pdf.error); assert.equal(pdf.pages, (await book()).pages.length + 1);
+    await page.locator('.ar-more > summary').click(); await page.locator('#arPdf').click(); const pdf = await (await pdfResult).json();   // 2026-11-11：导出 PDF 收进“⋯ 更多” assert.ok(!pdf.error, pdf.error); assert.equal(pdf.pages, (await book()).pages.length + 1);
     const file = await page.request.get(base + pdf.url); assert.equal(file.status(), 200); const data = await file.body(); assert.ok(data.subarray(0,4).equals(Buffer.from('%PDF'))); fs.writeFileSync(path.join(out, 'article-notes.pdf'), data);
     await page.locator('.nt-pdf-toast [data-o="x"]').click();
     for (const [name, width, height] of [['desktop',1280,860],['tablet',800,1280]]) {
