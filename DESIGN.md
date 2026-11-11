@@ -1,3 +1,22 @@
+## 开发中（未发布）：2026-11-11 七条需求
+
+- **思过崖题目字号**：`web/reading_tools.js` 新增 `READING_TOOLS.hud(show)`，按钮挂在学习顶栏 `#studyHud .subpage-tools`，与答题页共用 `localStorage.chatLayout.fs`（80–160%，CSS 变量 `--chat-fs`，默认 1.1 = 原大小）。只放大 `.sg-qtitle / .sg-md.sg-stem / .sg-opt`；题干恢复 18px（原来被 `.sg-md` 14px 覆盖）。`study_hud.js` 重画顶栏后补回按钮。
+- **目录不跳回顶部**：`web/siguo.js` 的 `paint(opts)` 只替换 `.sg-root`（不再冲掉 #view 里的学习顶栏），重画前后保留 `.sg-list` 滚动；`reveal()` 只滚目录自己（当前题不可见才挪，进板块时居中）。`web/atlas.js` 的 `render()` 包住 `renderPage()` 保留 `.sprint-index` 滚动；本机 `wx-sprint-<考试>` = `{last: 资料id, closed: [收起的分组]}`。
+- **试炼塔凭据失效**：`rpg/trainer.py` 的 `_bank_lost`：组还在（练习记录重开换了新凭据）→ 接上最新进度、返回带 `rejoined`；组不在 → 结束会话并带 `gone`（提示文案 `BANK_GONE`）。`_exam_stale` 把同组过时按钮（已交卷后点选项、题号对不上、未交卷点复盘键）直接重画。网页 `applyResp` 见 `gone` 提示一次回主页；`go()` 离开试炼塔页时若在复盘（按钮里有 `exam_close`）自动发 `exam_close`；“会话已结束或程序重启过”的报错也只提示一次。
+- **旧内核兜底**（`web/legacy_css.js`，两仓库共用）：颜色变量补 `--lc-x: r,g,b`（`--x: var(--y)` → `--lc-x: var(--lc-y, 兜底)`），`color-mix(var(--x) p, transparent)` → `rgba(var(--lc-x, 当时值), p)`，透明度变量原样保留；两个具体颜色相混直接算；`<html style>` 上的颜色变量由观察器补 `--lc-x`。内核不认 `:has()` 时把 `A:has(B)` 换成类 `.lchN`，DOM 变化后 50ms 内给“含 B 的 A”挂类。测试：`?legacycss=1`、`&nohas=1`（iframe 跟父页）。
+- **申论实操训练中心**：
+  - 材料字号：`localStorage['sl.materialFs']`（100–200，步长 10），CSS 变量 `--sl-mfs`；800 宽正文内重新换行。`material_marks` 键 = 材料指纹（默认字号）或 `指纹@130`（其它字号，110–200），`rpg/shenlun_materials.validate` 已放开。
+  - 答题卡：大格卡新增 `card.rows`（5–30，按右栏高度排；写下第一笔后随笔迹保存，空白卡每次按当前屏幕重算），`rpg/shenlun_handwriting.card` 校验并按 `80 + rows×64` 限制坐标；没有 rows 的旧卡照旧。
+  - 交卷：不再有打字框 / 识别按钮。点交卷 → 有笔迹且未确认就 `/api/shenlun/card/recognize` → 弹窗 `#slSubmitText` 核对可改 → 确认后带 `confirm_handwriting` 保存再 `/api/shenlun/comprehensive`；没笔迹的旧打字草稿弹窗直接确认原文字。
+  - 领取目录：`训练/题库/申论领取目录.json` 增加 `removed:[qid]`；`POST /api/shenlun/claims {unclaim:true, qids}` 只移出题号，草稿与批改保留；`removed` 里的题不被“已有作答自动收录”拉回，重新领取时移出 `removed`。
+- **参阅室**：
+  - 批注本 `layout=3`（`rpg/article_notes.py` 的 `L3`）：正文 24px / 行距 46 / 段间 `""` 占 20px / 电头与括号副标题行首 `\x01` 淡色；旁批线 880；按高度分页，每页 `article_top` 是第一行基线，前端照着画。抓来的正文先 `tidy()`（去多余空格、杂点，单独断开的句末标点接回，句中断开的段合并）。旧版（layout 1/2）有笔迹的另存 `article-<id>-v<旧版号>`，新本从头排、心得保留。
+  - 自己写的精读：文章 .md 末尾 `## 精读` 段（`articles.JD_HEAD`），`_read_file` 返回 `jd_md`；`POST /api/articles/jd_save {id,text}` 写回（空串去掉）；显示优先于 AI；AI 重新精读成功后清掉这一段。手写精读存摘编：`对策` 小标题下条目 → `countermeasures`（source=自己整理），`金句/句式` → `quotes`（kind=自己整理），都没有就 `text` 整份。
+  - 手动导入：`训练/时政文章/导入模板.md`（缺了自动建），照模板写的 .md 放 `训练/时政文章/导入/`，打开参阅室时 `articles.absorb()` 读成文章（编号 = `aid('import:'+标题+'|'+日期)`），原文件移到 `导入/已导入/`；读不懂的留在原处，列表顶上提示。
+  - 存盘：`web/notes.js` 停笔 3 秒、只送改动页 `page_patch: {页号: {strokes}}`（`rpg/notes.save` 合并，页号只能是已有页或下一页），翻页 / 切后台 / 离开立刻存；状态字只在失败时出现。手札同一套（法考已同步）。
+  - 布局：阅读页没有单独题头，返回 / 精读栏 / ⋯更多 挪进批注本工具栏的 `.nt-ar-lead/.nt-ar-tail`；精读栏宽 `--ar-side-w`（本机 `articles.sidew`，20–50，默认 30）；窄屏 / 竖屏 `.ar-narrow` 时精读栏是抽屉（从工具栏下沿开始），随 matchMedia 切换。
+- **申论每日目标**：`config.DEFAULT_RULES_SHENLUN`（每日目标 120、办理/听课/静修/自练每分钟 2.5）；`paths._migrate_rules` 一次性把仍是默认 300 的申论规则改为 120，并把每分钟政绩 1 → 2.5，文件里留 `SHENLUN_2H_MARK` 一行作记号；每日理想经验仍 300，综合评价不跳；行测不变。
+
 ## 4.0.0 发布验证修复（2026-11-04）
 
 - 广告词库正则缓存按读取到的条目元组复用，不以mtime作为有效性依据；小词库改写、删除立即生效，避免Windows快速改写时间戳不变沿用旧规则。旧JSON转TXT及导入写入使用Path.open，兼容Python3.8。
