@@ -93,7 +93,7 @@ class TaskBoardTest(unittest.TestCase):
         p2=paths.Paths(Path(self.tmp.name)/'office', '申论');p2.ensure_train_dir()
         g2=engine.Game(p2, config.Rules(p2.rules.read_text(encoding='utf-8'),'申论'),config.Persona(),config.Lines(),store.new_state(self.day),self.day)
         c=task_board.settings(g2)
-        self.assertEqual(c['daily_minutes'],300)
+        self.assertEqual(c['daily_minutes'],120)   # 申论 2026-11 起默认每天 2 小时
         task_board.save(g2,dict(c,daily_title='公文研习',daily_minutes=180,tasks=[]))
         self.assertEqual(task_board.settings(g2)['daily_title'],'公文研习')
         self.assertNotEqual(task_board.settings(self.g)['daily_title'],'公文研习')
