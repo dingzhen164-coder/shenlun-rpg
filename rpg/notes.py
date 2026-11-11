@@ -95,6 +95,23 @@ def writing(nid, window=WRITE_GRACE + 35):
     return time.time() - LAST_WRITE.get(str(nid or ""), 0) <= window
 
 
+def _patch(old, patch):
+    """只存改动过的页（2026-11-11：原来停笔 1 秒就整本重存，平板上写字卡）：{页号: 页}，页号只能是已有的页或紧接着的新页。"""
+    pages = [dict(p) for p in (old.get("pages") or [{"strokes": []}])]
+    if not isinstance(patch, dict) or len(patch) > 400:
+        raise NotesError("保存的页不对，请刷新后重试")
+    for k in sorted(patch, key=lambda x: int(x) if str(x).isdigit() else -1):
+        if not str(k).isdigit() or int(k) > len(pages):
+            raise NotesError("保存的页号不对，请刷新后重试")
+        page = _clean_pages([patch[k]])[0]
+        i = int(k)
+        if i == len(pages):
+            pages.append(page)
+        else:
+            pages[i] = dict(pages[i], **page)
+    return pages
+
+
 def save(paths, body):
     nid = body.get("id") or (dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-%03d" % (int(time.time() * 1000) % 1000))
     f = _file(paths, nid)
@@ -104,7 +121,7 @@ def save(paths, body):
     d = {"id": nid,
          "title": (str(body.get("title") or "").strip() or old.get("title") or dt.datetime.now().strftime("手札 %m-%d %H:%M"))[:60],
          "paper": body.get("paper") if body.get("paper") in PAPERS else old.get("paper", "lines"),
-         "pages": _clean_pages(body["pages"]) if "pages" in body else old.get("pages") or [{"strokes": []}],
+         "pages": _clean_pages(body["pages"]) if "pages" in body else _patch(old, body.get("page_patch")) if body.get("page_patch") else old.get("pages") or [{"strokes": []}],
          "text": str(body["text"])[:20000] if "text" in body else old.get("text", ""),
          "compiled": old.get("compiled", ""),
          "updated": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -114,6 +131,8 @@ def save(paths, body):
         pages = d["pages"][:len(olds)] + [{"strokes": []} for _ in range(len(olds) - len(d["pages"]))]
         for pg, original in zip(pages, olds):
             pg["article_lines"] = original["article_lines"]
+            if "article_top" in original:
+                pg["article_top"] = original["article_top"]
         d["pages"] = pages
         d["revision"] = old.get("revision", 0) + 1
     if old.get("pdf"):                     # PDF 批注本：页数、每页高度跟着 PDF 走，网页改不了

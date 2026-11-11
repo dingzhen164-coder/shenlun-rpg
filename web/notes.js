@@ -194,7 +194,7 @@
     const sel = (v, t) => `<option value="${v}" ${NB.paper === v ? "selected" : ""}>${t}</option>`;
     return `<div class="nt-book ${NB.article ? "nt-article" : ""}">
       <div class="nt-bar">
-        <input class="nt-title" id="ntTitle" value="${esc(NB.title)}" maxlength="60" title="${NB.pdf ? "批注本的名字（导出的 PDF 也用这个名字）" : "本子名字（导出的 PDF 也用这个名字）"}">
+        ${NB.article ? '<span class="nt-ar-lead"></span>' : ""}<input class="nt-title" id="ntTitle" value="${esc(NB.title)}" maxlength="60" ${NB.article ? "hidden" : ""} title="${NB.pdf ? "批注本的名字（导出的 PDF 也用这个名字）" : "本子名字（导出的 PDF 也用这个名字）"}">
         ${NB.pdf || NB.article ? "" : `<select id="ntPaper" title="纸">${sel("lines", "横线纸")}${sel("grid", "方格纸")}${sel("blank", "白纸")}</select>`}
         <span class="nt-jump" title="${NB.pdf ? esc(NB.pdf) + " · " : ""}输入页码回车跳过去">${NB.pdf ? "📕" : "📄"} 第<input id="ntJump" type="number" min="1" max="${NB.pages.length}" value="1" inputmode="numeric">/ <span id="ntTotal">${NB.pages.length}</span> 页</span>
         <span class="nt-tools">
@@ -206,8 +206,8 @@
           <button data-act="redo" title="重做（Ctrl+Y）" ${redo.length ? "" : "disabled"}>↷</button>
         </span>
         <span class="spacer"></span>
-        ${NB.article ? '<button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存在公务手账；点击可立即重试保存">已保存</button>' : ""}
-        <button class="primary nt-compile" id="ntPdf" title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : NB.article ? "📄 PDF" : "📄 导出 PDF"}</button>
+        <button class="ghost small ar-save-status" id="ntSaveStatus" title="自动保存在公务手账；点击立即重试保存" hidden></button>
+        ${NB.article ? '<span class="nt-ar-tail"></span>' : ""}<button class="primary nt-compile" id="ntPdf" ${NB.article ? "hidden" : ""} title="${NB.pdf ? "把勾画叠到原 PDF 上：训练/手札/导出/名字（批注）.pdf" : "整本（连横线 / 方格纸）存成 A4 PDF：训练/手札/导出/本子名.pdf"}">${NB.pdf ? "📄 导出批注 PDF" : NB.article ? "📄 PDF" : "📄 导出 PDF"}</button>
         <button class="ghost small nt-fullbtn" id="ntFull" title="全屏写（再点一次退出）">${fullIcon(isFull())}</button>
         <button class="ghost small" id="ntClose" title="收起本子（已自动保存）">✕</button>
       </div>
@@ -267,7 +267,11 @@
     sizePages();
     restorePos(readPos()[NB.id]);
     let posT = 0;
-    document.getElementById("ntPages").addEventListener("scroll", () => { clearTimeout(posT); posT = setTimeout(() => { savePos(); showPage(); }, 150); }, { passive: true });
+    let lastPg = (readPos()[NB.id] || {}).pg || 0;
+    document.getElementById("ntPages").addEventListener("scroll", () => { clearTimeout(posT); posT = setTimeout(() => {
+      savePos(); showPage();
+      const p = curPos(); if (p && p.pg !== lastPg) { lastPg = p.pg; if (dirty) flush(); }   // 翻到别的页：把刚写的存上
+    }, 150); }, { passive: true });
     showPage();
     const jump = document.getElementById("ntJump");
     const goPage = () => {
@@ -294,7 +298,7 @@
       const jp = document.getElementById("ntJump"); if (jp) jp.max = NB.pages.length;
       queueSave();
     };
-    if ($$("ntArticleText")) $$("ntArticleText").oninput = () => { NB.text = $$("ntArticleText").value; lastWrite = Date.now(); queueSave(); };
+    if ($$("ntArticleText")) $$("ntArticleText").oninput = () => { NB.text = $$("ntArticleText").value; lastWrite = Date.now(); queueSave("text"); };
     if (EMBED) { $$("ntClose").hidden = true; $$("ntTitle").title = "文章批注本，自动保存在公务手账"; }
     $$("ntClose").onclick = async () => { if (await flush()) { setFull(false); NB = null; repaintSide(); paintMain(); } };
     $$("ntFull").onclick = () => setFull(!isFull());
@@ -360,7 +364,7 @@
     x.setTransform(k, 0, 0, k, 0, 0);
     x.fillStyle = "#fffdf6"; x.fillRect(0, 0, PW, PH);
     x.lineWidth = 1.2;
-    if (NB.article) { drawArticle(x, NB.article, NB.pages[i]?.article_lines || []); return; }
+    if (NB.article) { drawArticle(x, NB.article, NB.pages[i] || {}, i); return; }
     if (NB.paper === "lines") {
       x.strokeStyle = "rgba(70, 120, 190, .22)";
       for (let y = 120; y < PH - 40; y += 46) { x.beginPath(); x.moveTo(40, y); x.lineTo(PW - 40, y); x.stroke(); }
@@ -445,10 +449,10 @@
       NB.pages[i].strokes.push(s);
       undo.push({ page: i, stroke: s }); redo = [];
       commitLive(i, s); lastWrite = Date.now();
-      syncTools(); queueSave();
+      syncTools(); queueSave(i);
     };
     const pt = (e) => { const r = c.getBoundingClientRect(); return [Math.round((e.clientX - r.left) * PW / r.width * 10) / 10, Math.round((e.clientY - r.top) * ph(i) / r.height * 10) / 10]; };
-    const box = () => document.getElementById("ntPages");
+    const box = scrollBox;
     c.onpointerdown = (e) => {
       e.preventDefault();
       if (e.pointerType === "pen") lastPen = Date.now();
@@ -509,9 +513,18 @@
     };
   }
   let flingT = 0;
+  // 手指拖动滚哪一块：正常是本子自己（#ntPages）；万一它没被限高（旧内核不认某些样式时），就滚外面真正能滚的那一层，手指不会“滑不动”
+  function scrollBox() {
+    const b = document.getElementById("ntPages");
+    if (!b || b.scrollHeight > b.clientHeight + 1) return b;
+    for (let el = b.parentElement; el; el = el.parentElement) {
+      if (/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+    }
+    return document.scrollingElement || b;
+  }
   function stopFling() { cancelAnimationFrame(flingT); flingT = 0; }
   function fling(v, vx) {                                     // 松手后惯性滑一段
-    const b = document.getElementById("ntPages");
+    const b = scrollBox();
     const cap = (x) => Math.max(-4, Math.min(4, x));
     v = cap(v); vx = cap(vx);
     if (!b || (Math.abs(v) < 0.05 && Math.abs(vx) < 0.05)) return;
@@ -546,12 +559,12 @@
     const u = undo.pop(); if (!u) return;
     const arr = NB.pages[u.page].strokes, k = arr.lastIndexOf(u.stroke);
     if (k >= 0) arr.splice(k, 1);
-    redo.push(u); repaint(u.page); syncTools(); queueSave();
+    redo.push(u); repaint(u.page); syncTools(); queueSave(u.page);
   }
   function doRedo() {
     const u = redo.pop(); if (!u) return;
     NB.pages[u.page].strokes.push(u.stroke);
-    undo.push(u); repaint(u.page); syncTools(); queueSave();
+    undo.push(u); repaint(u.page); syncTools(); queueSave(u.page);
   }
   document.addEventListener("keydown", (e) => {
     if ((VIEW !== "notes" && !EMBED) || !NB || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
@@ -561,21 +574,27 @@
   });
 
   // ---------------------------------------------------------------- 存
+  // 2026-11-11（用户：批注时“待保存 / 已保存”一直闪，平板卡）：写字时不再改状态字，只有存失败才显示“保存失败 · 点此重试”；
+  // 停笔 3 秒才存（原来 1.2 秒），写字过程中不存；翻页、离开、切到后台时立刻存；只送改过的页（page_patch），不再每次整本重存。
   let ver = 0, saving = null;      // ver：每改一次加一；存的时候又写了新笔画，存完还要再存（以前会把存盘途中写的几笔当成已存，丢掉）
-  function queueSave() {
+  let dirtyPages = new Set(), wholeBook = false;
+  function queueSave(page) {        // page：改了哪一页；不给 = 加页、改名、换纸，整本存
     dirty = true; ver++;
-    saveStatus("待保存…");
+    if (page == null) wholeBook = true; else if (page !== "text") dirtyPages.add(page);
     clearTimeout(saveT);
-    saveT = setTimeout(flush, 1200);
+    saveT = setTimeout(flush, 3000);
   }
-  function saveStatus(text) { const b = document.getElementById("ntSaveStatus"); if (b) b.textContent = text; }
+  function saveStatus(failed) { const b = document.getElementById("ntSaveStatus"); if (b) { b.hidden = !failed; b.textContent = failed ? "保存失败 · 点此重试" : ""; } }
   async function flush() {
     clearTimeout(saveT);
     if (saving) { await saving; }
     if (!NB || !dirty) return true;
-    const v0 = ver, book = NB;
-    saveStatus("保存中…");
-    const body = JSON.stringify({ id: book.id, title: book.title, paper: book.paper, pages: book.pages, text: book.text, revision: book.revision });
+    const v0 = ver, book = NB, pages = [...dirtyPages], whole = wholeBook;
+    dirtyPages = new Set(); wholeBook = false;
+    const payload = { id: book.id, title: book.title, paper: book.paper, text: book.text, revision: book.revision };
+    if (whole) payload.pages = book.pages;
+    else if (pages.length) payload.page_patch = Object.fromEntries(pages.filter((i) => book.pages[i]).map((i) => [i, { strokes: book.pages[i].strokes }]));
+    const body = JSON.stringify(payload);
     let done;
     saving = new Promise((r) => (done = r));
     try {
@@ -586,10 +605,16 @@
       const b = BOOKS.find((x) => x.id === book.id);
       if (b && (b.title !== r.title || b.pages !== book.pages.length)) { b.title = r.title; b.pages = book.pages.length; repaintSide(); }
       if (NB === book && ver !== v0) return flush();       // 存的这会儿又写了：接着存，直到存上最新的
-      if (NB === book) { dirty = false; saveStatus("已保存"); }
+      if (NB === book) { dirty = false; saveStatus(false); }
       return true;
-    } catch (e) { saving = null; done(); saveStatus("保存失败 · 点此重试"); showError(e); return false; }
+    } catch (e) {
+      saving = null; done();
+      pages.forEach((i) => dirtyPages.add(i)); if (whole) wholeBook = true;     // 没存上：下次接着存这些页
+      saveStatus(true); showError(e); return false;
+    }
   }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && dirty) flush(); });   // 平板切到后台 / 锁屏：立刻存
+  addEventListener("pagehide", () => { if (dirty) flush(); });
   addEventListener("beforeunload", () => { if (NB && dirty) navigator.sendBeacon?.("/api/notes/save", new Blob([JSON.stringify({ id: NB.id, title: NB.title, paper: NB.paper, pages: NB.pages, text: NB.text, revision: NB.revision })], { type: "application/json" })); });
 
   // ---------------------------------------------------------------- 📄 导出 PDF
@@ -797,7 +822,36 @@
     }
     if (line) out.push(line); return out;
   }
-  function drawArticle(x, a, lines) {
+  const FONT = '"Microsoft YaHei", "PingFang SC", sans-serif';
+  function drawArticle(x, a, page, i) {
+    const lines = page.article_lines || [];
+    if (a.layout >= 3) {         // 2026-11-11 新排版（数字与 rpg/article_notes.py 的 L3 一致）：行距大、段间空半行、电头副标题淡色、旁批栏收窄
+      const ink = "#222222", muted = "#6b6f68", rule = "#d6d4ca";
+      let top;
+      if (!i) {
+        x.fillStyle = "#24363d"; x.font = "bold 30px " + FONT;
+        const tl = textLines(a.title, 58).slice(0, 3);
+        tl.forEach((t, k) => x.fillText(t, 60, 64 + k * 40));
+        const my = 64 + (tl.length - 1) * 40 + 46;
+        x.fillStyle = muted; x.font = "18px " + FONT; x.fillText([a.source, a.date].filter(Boolean).join(" · "), 60, my);
+        x.strokeStyle = rule; x.lineWidth = 1; x.beginPath(); x.moveTo(60, my + 20); x.lineTo(940, my + 20); x.stroke();
+        top = my + 20;
+      } else {
+        x.fillStyle = "#9a9a92"; x.font = "16px " + FONT; x.fillText((textLines(a.title, 70)[0] || "") + "（续）", 60, 56);
+        x.strokeStyle = rule; x.lineWidth = 1; x.beginPath(); x.moveTo(60, 72); x.lineTo(940, 72); x.stroke();
+        top = 72;
+      }
+      let y = page.article_top || top + 50;
+      for (const t of lines) {
+        if (t === "") { y += 20; continue; }
+        if (t.charCodeAt(0) === 1) { x.fillStyle = muted; x.font = "20px " + FONT; x.fillText(t.slice(1), 60, y); }
+        else { x.fillStyle = ink; x.font = "24px " + FONT; x.fillText(t, 60, y); }
+        y += 46;
+      }
+      x.strokeStyle = rule; x.setLineDash([5, 5]); x.beginPath(); x.moveTo(880, top + 14); x.lineTo(880, 1278); x.moveTo(60, 1296); x.lineTo(940, 1296); x.stroke(); x.setLineDash([]);
+      x.fillStyle = "#8a8a82"; x.font = "15px " + FONT; x.fillText("旁批", 892, top + 40); x.fillText("心得 / 仿写 / 金句运用", 60, 1322);
+      return;
+    }
     if (a.layout >= 2) {
       x.fillStyle = "#24363d"; x.font = 'bold 26px "Microsoft YaHei", sans-serif';
       textLines(a.title, 64).slice(0, 3).forEach((t, i) => x.fillText(t, 60, 55 + i * 30));

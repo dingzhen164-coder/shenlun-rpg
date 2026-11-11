@@ -9,13 +9,18 @@
  *   color-mix(in srgb, var(--x) 32%, transparent) → rgba(var(--lc-x, 当时的r,g,b), .32)，透明度照原样；
  *   透明度本身是变量（设置里的透明度滑块）：color-mix(…, var(--x) var(--interface-panel-alpha,32%), transparent) → rgba(var(--lc-x…), var(--interface-panel-alpha,32%))；
  *   两个具体颜色相混 → 直接算出混合色；认不出的（currentColor、两个变量相混）照旧取占比大的那个颜色。
- *   JS 直接写在 <html style> 上的颜色变量（时政地图 iframe 抄父页配色）由 MutationObserver 补上对应的 --lc-x。 */
+ *   JS 直接写在 <html style> 上的颜色变量（时政地图 iframe 抄父页配色）由 MutationObserver 补上对应的 --lc-x。
+ *   :has()（Chrome 105 才有）：内核不认时，把 “A:has(B)” 换成 “A.lch3” 这样的类，页面变化时由脚本给“含有 B 的 A”挂上这个类。
+ *   参阅室阅读页的定高、题头隐藏等都靠它（2026-11-11：安卓上大标题卡不隐藏、两栏不定高一起滑，就是这个原因）。测试加 &nohas=1 强制走这一路。 */
 (() => {
   'use strict';
   let force = /[?&]legacycss=1\b/.test(location.search);
   try { force = force || (parent !== window && /[?&]legacycss=1\b/.test(parent.location.search)); } catch (e) { /* 跨域 iframe 不管 */ }   // 测试：时政地图 iframe 跟着父页强制
   let modern = false;
   try { modern = CSS.supports('color', 'color-mix(in srgb, red 50%, transparent)') && CSS.supports('height', '1dvh'); } catch (e) { modern = false; }
+  let hasOk = true;
+  try { hasOk = CSS.supports('selector(:has(a))'); } catch (e) { hasOk = false; }
+  try { if (/[?&]nohas=1\b/.test(location.search) || (parent !== window && /[?&]nohas=1\b/.test(parent.location.search))) hasOk = false; } catch (e) { /* 跨域 iframe */ }
   if (modern && !force) return;
   const root = document.documentElement;
   root.classList.add('legacy-css');
@@ -141,7 +146,42 @@
     }
     return css;
   }
-  const fix = (css) => addTriplets(fixMix(css.replace(/(\d)dvh\b/g, '$1vh')));
+  // ---- :has() 替身 ----
+  const HAS = [];                                                         // [{cls, anchor, inner}]
+  function hasRule(prelude) {
+    return splitTop(prelude, ',').map((sel) => {
+      let guard = 0;
+      while (sel.includes(':has(') && guard++ < 4) {
+        const at = sel.indexOf(':has(');
+        let depth = 0, j = at + 4;
+        for (; j < sel.length; j++) { if (sel[j] === '(') depth++; else if (sel[j] === ')' && --depth === 0) break; }
+        const inner = sel.slice(at + 5, j).trim();
+        if (/^[+~]/.test(inner)) return null;                             // 兄弟关系的 :has 不做，整条照旧丢掉
+        const anchor = sel.slice(0, at).replace(/:has\((?:[^()]|\([^()]*\))*\)/g, '').trim() || '*';
+        const cls = 'lch' + HAS.length;
+        HAS.push({ cls, anchor: /[\s>+~]$/.test(anchor) ? anchor + '*' : anchor, inner: /^>/.test(inner) ? ':scope ' + inner : inner });
+        sel = sel.slice(0, at) + '.' + cls + sel.slice(j + 1);
+      }
+      return sel;
+    }).filter((x) => x != null).join(',');
+  }
+  function fixHas(css) {
+    if (hasOk || !css.includes(':has(')) return css;
+    return css.replace(/([^{};]+)\{/g, (m, prelude) => (prelude.trim().startsWith('@') || !prelude.includes(':has(')) ? m : (hasRule(prelude) || ':not(*)') + '{');
+  }
+  let hasQueued = false;
+  function syncHas() {
+    hasQueued = false;
+    for (const h of HAS) {
+      let want = [];
+      try { want = [...document.querySelectorAll(h.anchor)].filter((el) => el.querySelector(h.inner)); } catch (e) { continue; }
+      document.querySelectorAll('.' + h.cls).forEach((el) => { if (!want.includes(el)) el.classList.remove(h.cls); });
+      want.forEach((el) => { if (!el.classList.contains(h.cls)) el.classList.add(h.cls); });
+    }
+  }
+  const queueHas = () => { if (HAS.length && !hasQueued) { hasQueued = true; setTimeout(syncHas, 50); } };   // 页面一阵变化合并成一次，平板上不每帧都查
+
+  const fix = (css) => addTriplets(fixMix(fixHas(css.replace(/(\d)dvh\b/g, '$1vh'))));
 
   const done = new WeakSet();
   function read(link) {
@@ -179,7 +219,13 @@
   }
   all();
   inlineVars();
+  if (!hasOk) {
+    root.classList.add('legacy-has');
+    new MutationObserver(queueHas).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'id'] });   // 自己挂的类再触发一次，查完没有变化就停
+    document.addEventListener('DOMContentLoaded', queueHas);
+    queueHas();
+  }
   new MutationObserver(all).observe(root, { childList: true, subtree: true });
   new MutationObserver(inlineVars).observe(root, { attributes: true, attributeFilter: ['style'] });
-  window.LEGACY_CSS = { fix, colorVars: () => [...COLOR_VARS] };          // 测试用
+  window.LEGACY_CSS = { fix, colorVars: () => [...COLOR_VARS], has: () => HAS.map((h) => ({ ...h })), syncHas };          // 测试用
 })();

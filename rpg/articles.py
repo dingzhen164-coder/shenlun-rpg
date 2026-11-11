@@ -19,6 +19,10 @@
   step4{quotes[{kind,text,use}]}, step5{yuyan[{type,question}], shenlun[{type,question}]}}
   词语 / 原文方向 / 金句必须是原文里真有的，不在的丢掉；段号必须在送审范围内；shenlun 的题型只能是本科目题型名；第六步“模拟输出”由用户自己做，不生成。
   旧版精读（无 version 字段）照常显示，点“重新精读”才换成新版。
+自己写的精读（2026-11-11）：写在文章 .md 末尾的“## 精读”段（Markdown），网页里“编辑”保存也写回这里；显示时优先于 AI 精读，
+  “重新精读”（AI）前网页会先确认，成功后清掉这一段。存入摘编时“对策”“金句/句式”小标题下的条目分别收进对策和句式，都没有就整份存进去。
+手动导入（2026-11-11）：照 训练/时政文章/导入模板.md 写好 .md 放进 训练/时政文章/导入/，打开参阅室时程序读成普通文章
+  （编号按标题+日期生成），原文件挪到 导入/已导入/；读不懂的留在原处并在列表顶上提示原因。
 摘编：训练/时政文章/摘编/<编号>.json  {id,title,source,url,date,saved,countermeasures[step3.items],quotes[step4.quotes]}，在档案室「摘编」翻阅（只读），不是复习卡片。
 调用：rpg/api.py 的 /api/articles*；网页 web/articles.js。
 """
@@ -218,9 +222,14 @@ def _file(paths, art):
     return folder(paths) / art["date"][:7] / ("%s-%s-%s.md" % (art["date"], art["id"], _safe(art["title"])))
 
 
+JD_HEAD = re.compile(r"(?m)^##\s*精读\s*$")
+
+
 def _dump(art):
     head = "\n".join("%s: %s" % (k, str(art.get(k, "")).replace("\n", " ")) for k in ("id", "title", "source", "category", "url", "date", "fetched"))
-    return "---\n%s\n---\n%s\n" % (head, "\n".join(art["paras"]))
+    body = "\n".join(art["paras"])
+    jd = str(art.get("jd_md") or "").strip()
+    return "---\n%s\n---\n%s\n%s" % (head, body, ("\n## 精读\n\n%s\n" % jd) if jd else "")
 
 
 def _read_file(f):
@@ -237,7 +246,12 @@ def _read_file(f):
         art[k.strip()] = v.strip()
     if not art.get("id"):
         return None
-    art["paras"] = [x for x in m.group(2).split("\n") if x.strip()]
+    body, jd = m.group(2), ""
+    cut = JD_HEAD.search(body)
+    if cut:                                   # “## 精读”之后是自己写的精读，不算正文
+        body, jd = body[:cut.start()], body[cut.end():].strip()
+    art["paras"] = [x for x in body.split("\n") if x.strip()]
+    art["jd_md"] = jd
     art["chars"] = sum(len(x) for x in art["paras"])
     art["file"] = f
     return art
@@ -359,6 +373,7 @@ def remove_source(g, name):
 
 def listing(g):
     s = st(g)
+    imports = absorb(g.paths)
     items = []
     for f in all_files(g.paths):
         a = _read_file(f)
@@ -367,10 +382,10 @@ def listing(g):
         iid = a["id"]
         items.append({"id": iid, "title": a.get("title", ""), "source": a.get("source", ""), "category": a.get("category", "其他"),
                       "date": a.get("date", ""), "url": a.get("url", ""), "chars": a["chars"], "lead": (a["paras"][0] if a["paras"] else "")[:80],
-                      "read": iid in s["read"], "star": iid in s["star"], "jd": jd_file(g.paths, iid).is_file()})
+                      "read": iid in s["read"], "star": iid in s["star"], "jd": jd_file(g.paths, iid).is_file() or bool(a.get("jd_md"))})
     items.sort(key=lambda x: (x["date"], x["id"]), reverse=True)
     return {"items": items, "sources": [{k: x[k] for k in ("name", "url", "cat", "builtin", "on", "untested")} for x in sources(g)],
-            "categories": CATEGORIES, "job": job_status()}
+            "categories": CATEGORIES, "job": job_status(), "imports": imports}
 
 
 def get(g, iid):
@@ -380,7 +395,7 @@ def get(g, iid):
     from . import tianji
     tianji.touch()
     return {"id": iid, "title": a["title"], "source": a.get("source", ""), "category": a.get("category", "其他"), "date": a.get("date", ""),
-            "url": a.get("url", ""), "paras": a["paras"], "star": iid in s["star"], "jd": load_jd(g.paths, iid),
+            "url": a.get("url", ""), "paras": a["paras"], "star": iid in s["star"], "jd": load_jd(g.paths, iid), "jd_md": a.get("jd_md", ""),
             "digest": digest_file(g.paths, iid).is_file()}
 
 
@@ -738,6 +753,115 @@ def check_jd(raw, art, tixing):
             "step3": {"items": items[:10]}, "step4": {"quotes": quotes[:10]}, "step5": {"yuyan": yuyan, "shenlun": shenlun}}
 
 
+def save_jd_md(paths, iid, text):
+    """自己写 / 改的精读写回文章 .md 的“## 精读”段；空串 = 去掉这一段（回到 AI 精读）。"""
+    text = str(text or "").replace("\r\n", "\n").strip()
+    if len(text) > 30000:
+        raise ArticleError("精读太长了（最多 3 万字）")
+    if JD_HEAD.search(text):
+        text = JD_HEAD.sub("### 精读", text)          # 防止正文里再出现一个“## 精读”把文件切错
+    a = find(paths, iid)
+    a["jd_md"] = text
+    save_article(paths, a)
+    return {"ok": True, "jd_md": text}
+
+
+IMPORT_DIR = "导入"
+TEMPLATE = """# 文章标题（第一行写“# ”加标题，必填）
+来源：人民网
+日期：2026-11-11
+栏目：社论评论
+原网址：
+
+正文第一段写在这里，一段一行（中间空行也可以）。
+正文第二段……
+
+## 精读
+
+（这一段可以不写。写了就作为这篇的精读栏，用 Markdown；网页里也能再编辑。）
+
+### 第三步 · 挖万能对策
+- 对策一……
+
+### 第四步 · 记黄金句式（金句）
+- 金句一……
+"""
+# 栏目只认这几个：社论评论、党政治理、经济、民生社会、文化教育、生态、科技、国际、其他；不写或写错按标题自动归类。
+# 写好后把文件放进 训练/时政文章/导入/，打开参阅室就会读进来，原文件挪到 导入/已导入/。
+
+
+def parse_import(text):
+    """导入模板 → 文章字典（没有 id）；读不懂抛 ArticleError"""
+    text = text.replace("\r\n", "\n").lstrip("\ufeff")
+    cut = JD_HEAD.search(text)
+    body, jd = (text[:cut.start()], text[cut.end():].strip()) if cut else (text, "")
+    lines = body.split("\n")
+    title, meta, paras = "", {}, []
+    keys = {"来源": "source", "日期": "date", "栏目": "category", "分类": "category", "原网址": "url", "网址": "url"}
+    for ln in lines:
+        t = ln.strip()
+        if not t:
+            continue
+        if not title:
+            if not t.startswith("# "):
+                raise ArticleError("第一行要写“# 标题”")
+            title = t[2:].strip()
+            continue
+        m = re.match(r"^(来源|日期|栏目|分类|原网址|网址)\s*[:：]\s*(.*)$", t)
+        if m and not paras:
+            meta[keys[m.group(1)]] = m.group(2).strip()
+            continue
+        paras.append(t)
+    if not title:
+        raise ArticleError("没有标题（第一行写“# 标题”）")
+    if not paras:
+        raise ArticleError("没有正文")
+    date = meta.get("date") or dt.date.today().isoformat()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise ArticleError("日期要写成 2026-11-11 这样")
+    cat = meta.get("category") if meta.get("category") in CATEGORIES else guess_category(title)
+    return {"title": title[:120], "source": meta.get("source") or "手动导入", "category": cat or "其他", "url": meta.get("url", ""),
+            "date": date, "paras": paras,
+            "jd_md": "\n".join(x for x in jd.split("\n") if not re.fullmatch(r"\s*（[^）]*）\s*", x)).strip()}   # 模板里的括号说明行不算
+
+
+def absorb(paths):
+    """把 训练/时政文章/导入/ 里照模板写的 .md 读成普通文章；返回 {added:[标题], problems:[说明]}"""
+    root = folder(paths)
+    out = {"added": [], "problems": []}
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        tpl = root / "导入模板.md"
+        if not tpl.exists():
+            tpl.write_text(TEMPLATE, encoding="utf-8")
+        inbox = root / IMPORT_DIR
+        inbox.mkdir(exist_ok=True)
+    except OSError:
+        return out
+    for f in sorted(inbox.glob("*.md")):
+        try:
+            art = parse_import(f.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as e:
+            out["problems"].append("%s：读不出来（%s）" % (f.name, e))
+            continue
+        except ArticleError as e:
+            out["problems"].append("%s：%s" % (f.name, e))
+            continue
+        art["id"] = aid("import:" + art["title"] + "|" + art["date"])
+        if art["id"] in known_ids(paths):
+            out["problems"].append("%s：同标题同日期的文章已经有了，没有重复导入" % f.name)
+            continue
+        save_article(paths, art)
+        done = inbox / "已导入"
+        done.mkdir(exist_ok=True)
+        target = done / f.name
+        if target.exists():
+            target = done / ("%s-%s.md" % (f.stem, art["id"]))
+        f.replace(target)
+        out["added"].append(art["title"])
+    return out
+
+
 def save_jd(paths, iid, jd):
     f = jd_file(paths, iid)
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -754,6 +878,8 @@ def digest_file(paths, iid):
 def digest_save(g, iid):
     """精读里的“万能对策”和“黄金句式”存成一份摘编（每篇一份，再存会覆盖），放在档案室里按领域 / 类型翻阅"""
     a = find(g.paths, iid)
+    if a.get("jd_md"):
+        return _digest_manual(g, a)
     jd = load_jd(g.paths, iid)
     if not jd:
         raise ArticleError("这篇还没精读")
@@ -770,6 +896,34 @@ def digest_save(g, iid):
             "saved": dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "countermeasures": items, "quotes": quotes}
     f.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"ok": True, "again": again, "countermeasures": len(items), "quotes": len(quotes)}
+
+
+def _md_items(md, words):
+    """Markdown 里标题含 words 的小节下的条目（列表项或成行文字）"""
+    out, on = [], False
+    for ln in md.split("\n"):
+        t = ln.strip()
+        if t.startswith("#"):
+            on = any(w in t for w in words)
+            continue
+        if on and t and not re.fullmatch(r"（[^）]*）", t):
+            out.append(re.sub(r"^(?:[-*+]|\d+[.、)])\s*", "", t))
+    return [x for x in out if x]
+
+
+def _digest_manual(g, a):
+    md = a["jd_md"]
+    items = [{"domain": "其他", "direction": x, "landing": "", "source": "自己整理"} for x in _md_items(md, ("对策",))]
+    quotes = [{"kind": "自己整理", "text": x, "use": ""} for x in _md_items(md, ("金句", "句式"))]
+    f = digest_file(g.paths, a["id"])
+    again = f.is_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    data = {"id": a["id"], "title": a["title"], "source": a.get("source", ""), "url": a.get("url", ""), "date": a.get("date", ""),
+            "saved": dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "countermeasures": items, "quotes": quotes, "manual": True}
+    if not items and not quotes:
+        data["text"] = md                     # 没有“对策”“金句”小标题：整份存进去
+    f.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"ok": True, "again": again, "countermeasures": len(items), "quotes": len(quotes), "whole": not items and not quotes}
 
 
 def digest_list(paths):
