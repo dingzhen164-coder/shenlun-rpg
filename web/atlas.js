@@ -38,7 +38,7 @@ function updateSidebar(){let done=D.materials.filter(m=>state.status[m.id]==='do
 $('#atlasBack').onclick=()=>parent.STUDY_REGIONS.back();
 $('#atlasSearch').onclick=()=>{const bar=$('#atlasSearchBar'),open=bar.hidden;bar.hidden=!open;$('#atlasSearch').setAttribute('aria-expanded',String(open));if(open)$('#search').focus();else{query='';$('#search').value='';render();}};
 $('#sideTopics').innerHTML=D.categories.map(c=>`<button data-category="${c.id}"><span class="dot" style="background:${c.color}"></span>${c.name}</button>`).join('');
-function navigate(v,id=null){view=v;selected=id;query='';$('#search').value='';if(v==='material')tab='original';render();window.scrollTo({top:0,behavior:'instant'})}
+function navigate(v,id=null){view=v;selected=id;if(v==='material'&&id)saveSprintMemo({last:id});query='';$('#search').value='';if(v==='material')tab='original';render();window.scrollTo({top:0,behavior:'instant'})}
 // 移除站点大标题和说明，页面首屏直接进入知识与正文。
 function head(){return ''}
 function crumb(){return ''}
@@ -99,8 +99,14 @@ function card(m){return `<article class="material" style="${routeStyle(routeForM
 function categoryView(){const c=cat(selected),ms=D.materials.filter(m=>m.tags.some(t=>c.themes.includes(t)));return crumb([esc(c.name)])+head('LEARNING ROUTE',c.name,c.question+' '+c.desc)+`<div class="topicintro" style="--c:${c.color};${routeStyle(c)}"><strong>这条主线关注什么</strong><p>${{goal:'先定位总体目标、发展要求与阶段任务，再把历史经验和新征程使命放回这条时间线。',engine:'从需求、技术、产业、制度与空间组织五方面，看发展动力怎样形成。',people:'把政策还原为人的就业、收入、成长、健康与居住需求，理解发展成果怎样进入生活。',support:'把组织执行、规则约束、生态可持续与风险治理放在一起看。这些领域也有独立目标，保障只是学习视角。',world:'区分经济开放、国际平台合作与两岸关系；不同对象和场合，对应不同重点表述。'}[c.id]||c.desc}</p></div><div class="toolbar">${c.themes.map(t=>`<button class="btn" data-theme="${t}">${theme(t).name} · ${materialsFor(t).length}</button>`).join('')}</div><div class="section-title"><h2>关联材料</h2><small>${ms.length}份 · 跨章节汇集</small></div><div class="material-grid">${ms.map(card).join('')}</div>`}
 function themeView(){const t=theme(selected),c=cat(t.category),ms=materialsFor(t.id);return crumb([`<button data-category="${c.id}">${c.name}</button>`,esc(t.name)])+head('TOPIC CONNECTIONS',t.name,t.question,`<button class="btn primary" data-practice-theme="${t.id}">练相关题目</button>`)+`<div class="topicintro" style="--c:${c.color};${routeStyle(c)}"><strong>理解提示 · 学习框架</strong><p>${t.meaning}</p><strong>做题时分清</strong><p>${t.pitfall}</p></div><div class="section-title"><h2>同一主题，不同出处</h2><button class="btn primary" data-practice-theme="${t.id}">练相关题目</button></div><div class="material-grid">${ms.map(card).join('')}</div>`}
 const sourceKinds=['重大会议','讲话','指导','文件'];
+// 研习目录的位置记忆（2026-11-11）：整页重画会把目录滚动清零（点下面一份就跳回顶部），重画前记下、画完放回；
+// 收起的分组和上次读的那份按考试记在本机，重进时目录直接露出上次那份。
+const SPRINT_KEY='wx-sprint-'+EXAM;
+const sprintMemo=()=>{try{return JSON.parse(localStorage.getItem(SPRINT_KEY)||'{}')||{};}catch(_){return {};}};
+const saveSprintMemo=patch=>{try{localStorage.setItem(SPRINT_KEY,JSON.stringify({...sprintMemo(),...patch}));}catch(_){}};
 function sprintDirectory(){
- const groups=sourceKinds.map((kind,i)=>{const items=D.materials.filter(m=>m.chapter===i&&!m.practice_only);return `<details class="sprint-group" open><summary>${kind}<small>${items.length}份</small></summary><div>${items.map(m=>`<button class="sprint-document titlebtn" data-material="${m.id}"><span>${esc(m.title)}</span><small>共计${Array.from(String(m.original||'').replace(/\s/g,'')).length}字</small></button>`).join('')||'<p class="hint">暂无资料，可在政治理论页统一导入。</p>'}</div></details>`;});
+ const closed=sprintMemo().closed||[];
+ const groups=sourceKinds.map((kind,i)=>{const items=D.materials.filter(m=>m.chapter===i&&!m.practice_only);return `<details class="sprint-group" data-kind="${esc(kind)}" ${closed.includes(kind)?'':'open'}><summary>${kind}<small>${items.length}份</small></summary><div>${items.map(m=>`<button class="sprint-document titlebtn" data-material="${m.id}"><span>${esc(m.title)}</span><small>共计${Array.from(String(m.original||'').replace(/\s/g,'')).length}字</small></button>`).join('')||'<p class="hint">暂无资料，可在政治理论页统一导入。</p>'}</div></details>`;});
  return `<aside class="sprint-index" aria-label="冲刺学习目录"><div class="sprint-index-label">研习目录</div>${D.materials.some(m=>!m.practice_only)?'':'<p class="empty">尚未加入冲刺学习资料，请返回政治理论页统一导入PDF。</p>'}${groups.join('')}</aside>`;
 }
 function sprintView(){
@@ -133,7 +139,23 @@ function answerImport(){
 }
 function practiceView(){const qs=practiceList();practiceIndex=Math.min(practiceIndex,Math.max(0,qs.length-1));const attempted=D.questions.filter(q=>isImportedQuestion(q)&&state.attempts[q.id]),correct=attempted.filter(q=>state.attempts[q.id].choice===q.answer);return head('RECALL & PRACTICE','把理解，变成判断依据',`${D.questions.filter(isImportedQuestion).length}道已导入配套题`)+`<div class="practice-stats"><div><b>${attempted.length}</b><span class="hint">已作答</span></div><div><b>${correct.length}</b><span class="hint">当前答对</span></div><div><b>${attempted.length-correct.length}</b><span class="hint">待订正</span></div></div><div class="toolbar">${paperPicker()}<select id="practiceTheme" aria-label="练习主题"><option value="all">全部主题</option>${D.themes.map(t=>`<option value="${t.id}" ${practiceTheme===t.id?'selected':''}>${t.name}</option>`).join('')}</select><select id="practiceChapter" aria-label="练习章节"><option value="all">全部章节</option>${D.chapters.map((c,i)=>`<option value="${i}" ${String(practiceChapter)===String(i)?'selected':''}>${c}</option>`).join('')}</select><button class="btn ${practiceWrong?'primary':''}" data-action="wrong">${practiceWrong?'✓ ':''}只看错题</button>${practiceMaterial?`<button class="btn" data-action="clearMaterial">清除材料筛选：${esc(mat(practiceMaterial).title)} ×</button>`:''}</div><div class="section-title"><h2>${qs.length?`当前 ${practiceIndex+1} / ${qs.length}`:'没有符合条件的题目'}</h2><div><button class="btn" data-action="prev" ${practiceIndex===0?'disabled':''}>← 上一题</button> <button class="btn" data-action="next" ${practiceIndex>=qs.length-1?'disabled':''}>下一题 →</button></div></div>${qs.length?questionCard(qs[practiceIndex]):`<div class="empty sprint-practice-empty">${D.questions.some(isImportedQuestion)?'当前筛选下没有题目，请调整条件。':'冲刺刷题暂未导入题目。请返回政治理论页，在统一导入区选择“冲刺刷题”添加PDF。'}</div>`}`}
 function searchView(){const q=query.trim().toLowerCase(),ts=D.themes.filter(t=>(t.name+t.meaning+t.question).toLowerCase().includes(q)),ms=D.materials.filter(m=>(m.title+m.original+m.why+m.trap+JSON.stringify(m.understanding)).toLowerCase().includes(q)),qs=D.questions.filter(x=>x.text.toLowerCase().includes(q));return head('SEARCH THE ATLAS','找到知识之间的联系',`“${esc(query)}” · ${ts.length}个主题 / ${ms.length}份材料 / ${qs.length}道题`)+`<div class="toolbar">${ts.map(t=>`<button class="btn" data-theme="${t.id}">${t.name} ↗</button>`).join('')}</div><div class="material-grid">${ms.map(card).join('')}</div>${qs.length?`<div class="section-title"><h2>匹配题目</h2><small>前20条 · 点击进入对应材料练习</small></div>${qs.slice(0,20).map(q=>`<button class="relatedbtn" data-question-link="${q.id}"><b>第${q.id}题</b> ${esc(q.text.slice(0,160))}…</button>`).join('')}`:''}${!ms.length&&!qs.length&&!ts.length?'<div class="empty">没有找到匹配内容，试试缩短关键词。</div>':''}`}
+// 只滚目录自己：当前那份不在可见范围才挪一点；center=true 时放到中间（重进时）
+function revealSprint(idx,center){
+ const on=idx.querySelector('.sprint-document.current,.sprint-document.last');if(!on||!on.offsetParent)return;
+ const a=idx.getBoundingClientRect(),b=on.getBoundingClientRect();
+ if(center)idx.scrollTop+=(b.top+b.bottom)/2-(a.top+a.bottom)/2;else if(b.top<a.top)idx.scrollTop-=a.top-b.top+8;else if(b.bottom>a.bottom)idx.scrollTop+=b.bottom-a.bottom+8;
+}
 function render(){
+ const oldIndex=app.querySelector('.sprint-index'),indexTop=oldIndex?oldIndex.scrollTop:null;
+ renderPage();
+ const idx=app.querySelector('.sprint-index');if(!idx)return;
+ const last=sprintMemo().last;
+ if(!selected&&last)idx.querySelectorAll('.sprint-document').forEach(b=>b.classList.toggle('last',b.dataset.material===last));
+ idx.querySelectorAll('details.sprint-group').forEach(d=>d.addEventListener('toggle',()=>saveSprintMemo({closed:[...idx.querySelectorAll('details.sprint-group:not([open])')].map(x=>x.dataset.kind)})));
+ if(indexTop!=null)idx.scrollTop=indexTop;
+ revealSprint(idx,indexTop==null);
+}
+function renderPage(){
  const journal=!query&&(view==='month'||view==='topic');
  const importHost=$('#answerImportHost');
  importHost.hidden=!!query||view==='practice'||view==='material';

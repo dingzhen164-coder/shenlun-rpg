@@ -83,10 +83,34 @@
       <div class="sg-main">${questionHtml()}</div></div></div>`;
   }
 
-  function paint() {
+  // 整页重画会把左侧目录的滚动位置清零（点下面的题就跳回第一页）：画之前记下，画完放回。
+  // opts.fresh：刚进板块，不沿用旧位置；opts.reveal：当前题不在可见范围才挪一点（"center"=放到中间）；opts.keepMain：正文也保持原位（作答、再做一次）。
+  function paint(opts = {}) {
     if (!root || !current()) return;
-    root.innerHTML = `<div class="sg-root">${sceneHtml()}${BOARD ? roomHtml() : ""}</div>`;
+    const list = root.querySelector(".sg-list"), main = root.querySelector(".sg-main");
+    const keep = list && !opts.fresh ? [list.scrollTop, list.scrollLeft] : null, mainTop = main ? main.scrollTop : 0;
+    // 只换 .sg-root：#view 里还挂着学习顶栏（#studyHud），整块 innerHTML 会把它冲掉、再被补回来，高度一变目录位置就对不上
+    const html = `<div class="sg-root">${sceneHtml()}${BOARD ? roomHtml() : ""}</div>`, host = root.querySelector(":scope > .sg-root");
+    if (host) host.outerHTML = html; else root.innerHTML = html;
     bind(); fit();
+    const nl = root.querySelector(".sg-list"), nm = root.querySelector(".sg-main");
+    if (nl && keep) { nl.scrollTop = keep[0]; nl.scrollLeft = keep[1]; }
+    if (nm && opts.keepMain) nm.scrollTop = mainTop;
+    if (nl && opts.reveal) reveal(nl, opts.reveal === "center");
+    window.READING_TOOLS?.hud?.(!!(BOARD && BOARD.questions.length));   // 题目字号按钮只在重做题目时出现
+  }
+
+  // 只滚目录自己（scrollIntoView 会连带滚外层页面）
+  function reveal(list, center) {
+    const on = list.querySelector(".sg-q.on"); if (!on) return;
+    const lr = list.getBoundingClientRect(), r = on.getBoundingClientRect(), pad = 8;
+    const row = getComputedStyle(list).flexDirection === "row";
+    const [a0, a1, b0, b1] = row ? [lr.left, lr.right, r.left, r.right] : [lr.top, lr.bottom, r.top, r.bottom];
+    let d = 0;
+    if (center) d = (b0 + b1) / 2 - (a0 + a1) / 2;
+    else if (b0 < a0) d = b0 - a0 - pad;
+    else if (b1 > a1) d = b1 - a1 + pad;
+    if (row) list.scrollLeft += d; else list.scrollTop += d;
   }
 
   async function openBoard(name, key) {
@@ -97,17 +121,17 @@
     BOARD = result;
     const keys = BOARD.questions.map((q) => q.key);
     CUR = keys.includes(key) ? key : keys.includes(pos()[name]) ? pos()[name] : keys[0] || "";
-    RESULT = null; touch(); savePos({ board: name, [name]: CUR }); paint();
+    RESULT = null; touch(); savePos({ board: name, [name]: CUR }); paint({ fresh: true, reveal: "center" });
   }
 
   function bind() {
     root.querySelectorAll("[data-sgboard]").forEach((b) => (b.onclick = () => openBoard(b.dataset.sgboard).catch(showError)));
     root.querySelector("[data-sgback]")?.addEventListener("click", () => close());
     root.querySelectorAll("[data-sgq]").forEach((b) => (b.onclick = () => {
-      ++answerRequest; CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint();
+      ++answerRequest; CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint({ reveal: true });
       root.querySelector(".sg-main")?.scrollTo?.({ top: 0 });
     }));
-    root.querySelector("[data-sgredo]")?.addEventListener("click", () => { ++answerRequest; RESULT = null; touch(); paint(); });
+    root.querySelector("[data-sgredo]")?.addEventListener("click", () => { ++answerRequest; RESULT = null; touch(); paint({ keepMain: true }); });
     root.querySelectorAll("[data-sgpick]").forEach((b) => (b.onclick = async () => {
       touch();
       try {
@@ -117,7 +141,7 @@
         if (epoch !== generation || request !== answerRequest || BOARD !== board || CUR !== key || !current()) return;
         RESULT = Object.assign({ key }, r);
         const q = board.questions.find((x) => x.key === key); if (q) q.record = r.record;
-        paint();
+        paint({ keepMain: true });
       } catch (e) { showError(e); }
     }));
   }

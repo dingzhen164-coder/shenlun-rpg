@@ -31,6 +31,7 @@
     const tools=root.querySelector('.subpage-tools');if(draw){draw.setAttribute('aria-label','打开笔记草稿');draw.title='笔记草稿：保存当前题目的笔迹';tools.append(draw);}
     if(pill){pill.innerHTML=`<svg class="study-candle" viewBox="0 0 24 32" aria-hidden="true"><path class="candle-flame" d="M12 1c-1 5-5 6-4 10 1 5 9 4 8-1-1-3-3-4-4-9Z"/><path class="candle-body" d="M8 14h8v13H8zM5 29h14M12 11v4"/></svg>${meter('今日（分钟）',m.today,m.goal,'time')}`;tools.append(pill);}
     document.getElementById('view')?.prepend(root);
+    if(window.SIGUO?.isOpen?.()&&window.SIGUO?.board?.())window.READING_TOOLS?.hud?.(true);   // 顶栏重画后补回思过崖的题目字号按钮
     // 原藏经阁标题已有分类导航；地点统一由同一标题展示，不重复占位置。
     document.querySelectorAll('#view .lib-head h2').forEach(h=>h.hidden=true);
   }

@@ -101,3 +101,5 @@ body{background:transparent}.atlas-toolbar{background:color-mix(in srgb,var(--pa
 .question-flags{margin:var(--ds-sp-8) 0 0;color:var(--orange)}
 
 .sprint-digest .digest-tools{display:flex;justify-content:flex-end;margin:0 0 var(--ds-sp-8)}.sprint-digest button.digest-reset{min-height:42px;padding:0 var(--ds-sp-12);border:1px solid var(--line);border-radius:var(--ds-r-8);background:var(--panel);color:var(--ds-text);font:inherit;font-size:var(--ds-fs-13);cursor:pointer}.sprint-digest button.digest-reset:disabled{opacity:.5;cursor:default}
+/* 2026-11-11：重进时目录直接露出上次读的那份（还没打开时淡淡标一下） */
+.sprint-workspace .sprint-document.last{box-shadow:inset 3px 0 0 color-mix(in srgb,var(--gold) 55%,transparent)}

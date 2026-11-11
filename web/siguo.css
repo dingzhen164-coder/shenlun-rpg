@@ -19,8 +19,8 @@
 .sg-file{opacity:.7}
 .sg-warn{flex:none;margin-top:var(--ds-sp-8);padding:var(--ds-sp-8) var(--ds-sp-12);border-left:3px solid var(--ds-warn);border-radius:var(--ds-r-6);font-size:var(--ds-fs-13);background:var(--ds-seal-bg)}
 .sg-body{flex:1;min-height:0;display:grid;grid-template-columns:clamp(200px,24%,280px) minmax(0,1fr);gap:var(--ds-sp-16);margin-top:var(--ds-sp-12)}
-.sg-list{display:flex;flex-direction:column;gap:var(--ds-sp-4);overflow:auto;overscroll-behavior:contain;min-height:0}
-.sg-q{display:grid;grid-template-columns:auto 1fr;column-gap:var(--ds-sp-8);align-items:center;text-align:left;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;min-height:var(--ds-touch);flex:none;font-family:inherit}
+.sg-list{display:flex;flex-direction:column;flex-wrap:nowrap;gap:var(--ds-sp-4);overflow:auto;overflow-x:hidden;overscroll-behavior:contain;min-height:0}
+.sg-q{display:grid;grid-template-columns:auto 1fr;column-gap:var(--ds-sp-8);align-items:center;text-align:left;padding:var(--ds-sp-8) var(--ds-sp-12);border-radius:var(--ds-r-8);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;min-height:var(--ds-touch);flex:none;font-family:inherit;min-width:0;max-width:100%;box-sizing:border-box}
 .sg-q span{font-size:var(--ds-fs-13);line-height:1.4}
 .sg-q small{grid-column:2;font-size:var(--ds-fs-11);opacity:.7}
 .sg-q.on{border-color:var(--ds-paper-accent);box-shadow:inset 3px 0 0 var(--ds-paper-accent)}
@@ -28,10 +28,11 @@
 .sg-dot.ok{background:var(--ds-ok);border-color:var(--ds-ok)}
 .sg-dot.bad{background:var(--ds-danger);border-color:var(--ds-danger)}
 .sg-main{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:var(--ds-sp-4)}
-.sg-qtitle{display:block;margin:0 0 var(--ds-sp-8);font-family:var(--ds-font-title);font-size:var(--ds-fs-20)}
-.sg-stem{font-size:var(--ds-fs-18);line-height:1.8}
+.sg-qtitle{display:block;margin:0 0 var(--ds-sp-8);font-family:var(--ds-font-title);font-size:calc(var(--ds-fs-20) * var(--chat-fs, 1.1) / 1.1)}
+/* 题干原设计 18 号字，曾被后面的 .sg-md 14 号盖掉；双类提高优先级。只放大题目（标题/题干/选项），解析 .sg-sec 不跟着变 */
+.sg-md.sg-stem{font-size:calc(var(--ds-fs-18) * var(--chat-fs, 1.1) / 1.1);line-height:1.8}
 .sg-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--ds-sp-8);margin:var(--ds-sp-16) 0}
-.sg-opt{display:flex;gap:var(--ds-sp-8);align-items:baseline;text-align:left;padding:var(--ds-sp-12) var(--ds-sp-14);border-radius:var(--ds-r-10);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;font-size:var(--ds-fs-16);min-height:var(--ds-touch);font-family:inherit}
+.sg-opt{display:flex;gap:var(--ds-sp-8);align-items:baseline;text-align:left;padding:var(--ds-sp-12) var(--ds-sp-14);border-radius:var(--ds-r-10);border:1px solid var(--ds-paper-line);background:transparent;color:inherit;font-size:calc(var(--ds-fs-16) * var(--chat-fs, 1.1) / 1.1);min-height:var(--ds-touch);font-family:inherit}
 .sg-opt b{color:var(--ds-paper-accent)}
 .sg-opt:not([disabled]):hover{border-color:var(--ds-paper-accent)}
 .sg-opt.right{border:2px solid var(--ds-ok)}
