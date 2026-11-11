@@ -2019,7 +2019,8 @@ html.in-sl-exam .sl-writing { overflow:auto; padding:12px; }
 .sl-material-scroll { flex:1; min-height:0; overflow:auto; padding:0 12px; overscroll-behavior:contain; }
 .sl-sheet-window { position:relative; }
 .sl-material-sheet { position:relative; width:800px; box-sizing:border-box; padding:18px 24px; transform-origin:top left; font:20px/1.8 sans-serif; }
-.sl-material-sheet .sl-material-text p { font-size:var(--ds-fs-20); line-height:36px; text-indent:40px; margin:0 0 16px; }
+/* 材料字号（--sl-mfs 倍数，放大镜按钮）：800 宽里重新换行，整张再按栏宽缩放 */
+.sl-material-sheet .sl-material-text p { font-size:calc(var(--ds-fs-20) * var(--sl-mfs,1)); line-height:calc(36px * var(--sl-mfs,1)); text-indent:calc(40px * var(--sl-mfs,1)); margin:0 0 calc(16px * var(--sl-mfs,1)); }
 .sl-material-ink { position:absolute; left:0; top:0; width:800px; touch-action:none; pointer-events:none; }
 html.in-sl-exam #slRes:empty { display:none; }
 html.in-sl-exam #slRes { margin-top:16px; }

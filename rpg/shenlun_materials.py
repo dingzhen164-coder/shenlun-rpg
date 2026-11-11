@@ -1,5 +1,6 @@
 """真题只读材料的独立批注校验，由shenlun_bank草稿保存调用。
-material_marks={SHA256材料标识:{width:800,height,strokes:[{tool,width,points:[[x,y]]}]}}。
+material_marks={SHA256材料标识[@字号]:{width:800,height,strokes:[{tool,width,points:[[x,y]]}]}}。
+默认字号的键就是材料标识；放大字号后正文重新换行，勾画按字号分开存（键加“@130”这样的后缀，110–200）。
 与答案共享revision以防覆盖；不改变题库原文、答题卡确认和评分输入。
 """
 import math
@@ -11,10 +12,10 @@ def validate(value):
     def number(v,low,high):
         if type(v) not in (int,float) or not math.isfinite(v) or not low<=v<=high:fail()
         return v
-    if not isinstance(value,dict) or len(value)>100:fail()
+    if not isinstance(value,dict) or len(value)>400:fail()
     result={};count=0
     for key,sheet in value.items():
-        if not isinstance(key,str) or not re.fullmatch('[0-9a-f]{64}',key) or not isinstance(sheet,dict):fail()
+        if not isinstance(key,str) or not re.fullmatch(r'[0-9a-f]{64}(?:@(?:1[1-9]0|200))?',key) or not isinstance(sheet,dict):fail()
         if sheet.get('width')!=800:fail()
         height=number(sheet.get('height'),1,30000)
         strokes=sheet.get('strokes')

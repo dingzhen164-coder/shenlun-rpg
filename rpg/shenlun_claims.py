@@ -1,6 +1,8 @@
 """实操领取目录，由申论API调用；只保存题号，不复制真题或另记成绩。
-训练/题库/申论领取目录.json={schema:1,qids:[qid]}，同导入锁原子追加、重复领取幂等。
+训练/题库/申论领取目录.json={schema:1,qids:[qid],removed:[qid]}，同导入锁原子追加、重复领取幂等。
 作答和批改状态实时读取原草稿/综合报告，旧版已有作答自动收录。
+移出（2026-11-11）：只从目录拿掉题号并记进 removed，草稿与批改记录原样保留；removed 里的题不再被“已有作答自动收录”拉回，
+重新领取时从 removed 删掉，接着用原来的草稿和批改。
 """
 import json
 from . import shenlun_bank as bank, shenlun_review as review, shenlun_handwriting as hw
@@ -12,7 +14,8 @@ def read(p):
     try:
         d=json.loads(path(p).read_text(encoding='utf-8'))
         if not isinstance(d,dict) or d.get('schema')!=1 or not isinstance(d.get('qids'),list):raise ValueError()
-        for qid in d['qids']:bank._safe(qid)
+        if not isinstance(d.get('removed',[]),list):raise ValueError()
+        for qid in d['qids']+d.get('removed',[]):bank._safe(qid)
         return d
     except (OSError,ValueError,bank.BankError):raise bank.BankError('领取目录无法读取，请保留并核对训练/题库/申论领取目录.json')
 
@@ -24,24 +27,37 @@ def claim(p,body):
         for qid in qids:
             bank._safe(qid)
             if qid not in known:raise bank.BankError('领取的题目不存在，请刷新题库')
-        d=read(p);added=0
+        d=read(p);added=0;removed=d.get('removed',[]);back=[q for q in qids if q in removed]
         for qid in qids:
             if qid not in d['qids']:d['qids'].append(qid);added+=1
-        if added:bank._write(path(p),d)
+        if back:d['removed']=[q for q in removed if q not in back]
+        if added or back:bank._write(path(p),d)
         return {'added':added,'count':len(d['qids'])}
+
+def unclaim(p,body):
+    """移出办理目录：只动题号，草稿和批改记录不删；题目回到题库可再领取。"""
+    with bank._IMPORT_LOCK:
+        qids=body.get('qids')
+        if not isinstance(qids,list) or not qids or len(qids)>100:raise bank.BankError('请选择1至100道题移出')
+        for qid in qids:bank._safe(qid)
+        d=read(p);removed=d.get('removed',[])
+        d['qids']=[q for q in d['qids'] if q not in qids]
+        d['removed']=removed+[q for q in qids if q not in removed]
+        bank._write(path(p),d)
+        return {'removed':len(qids),'count':len(d['qids'])}
 
 def listing(p):
     with bank._IMPORT_LOCK:
         known={q['qid'] for paper in bank.papers(p) for q in paper['questions']}
-        d=read(p);qids=list(dict.fromkeys(d['qids']));before=list(qids)
+        d=read(p);qids=list(dict.fromkeys(d['qids']));before=list(qids);hidden=set(d.get('removed',[]))
         # 旧版本没有领取日志；只收录实际有答案/笔迹/批改的题，空白计时草稿不算领取。
         for f in sorted((p.reviews/'草稿').glob('*.json')):
-            if f.stem in known and f.stem not in qids:
+            if f.stem in known and f.stem not in qids and f.stem not in hidden:
                 draft=bank.answer_get(p,f.stem)
                 if str(draft.get('text') or '').strip() or hw.has_ink(draft.get('card') or {'pages':[]}):qids.append(f.stem)
         for f in sorted((p.reviews/'综合').glob('*')):
-            if f.is_dir() and f.name in known and f.name not in qids and review.history(p,f.name):qids.append(f.name)
-        if before!=qids:bank._write(path(p),{'schema':1,'qids':qids})
+            if f.is_dir() and f.name in known and f.name not in qids and f.name not in hidden and review.history(p,f.name):qids.append(f.name)
+        if before!=qids:bank._write(path(p),dict(d,schema=1,qids=qids))
         out=[]
         for qid in qids:
             if qid not in known:continue

@@ -16,7 +16,10 @@ def card(value):
         raise bank.BankError('答题卡页数不正确（最多10页）')
     layout=value.get('layout',1)
     if type(layout) is not int or layout not in (1,2):raise bank.BankError('答题卡排版版本不正确')
-    max_height=1360 if layout==2 else 900
+    # rows（2026-11-11）：大格卡按右栏高度排的每页行数（5–30）；没有就是旧卡，按原来的最多 20 行
+    rows=value.get('rows')
+    if rows is not None and (layout!=2 or type(rows) is not int or not 5<=rows<=30):raise bank.BankError('答题卡行数不正确')
+    max_height=80+rows*64 if rows else 1360 if layout==2 else 900
     count=0;out=[]
     for page in value['pages']:
         if not isinstance(page,dict) or not isinstance(page.get('strokes'),list):raise bank.BankError('答题卡笔迹格式不正确')
@@ -34,7 +37,8 @@ def card(value):
             if type(w) not in (int,float) or not 1<=w<=30:raise bank.BankError('笔宽不正确')
             strokes.append({'points':pts,'erase':bool(stroke.get('erase')),'width':w})
         out.append({'strokes':strokes})
-    return {'pages':out,'layout':2} if layout==2 else {'pages':out}
+    if layout!=2:return {'pages':out}
+    return {'pages':out,'layout':2,'rows':rows} if rows else {'pages':out,'layout':2}
 
 
 def digest(c):return hashlib.sha256(json.dumps(c,sort_keys=True,ensure_ascii=False).encode('utf-8')).hexdigest()

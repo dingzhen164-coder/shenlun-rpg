@@ -876,6 +876,7 @@ def shenlun_topics(body):
 
 def shenlun_claims(body):
     from . import shenlun_claims as claims
+    if body.get('unclaim'):return _sl_bank(claims.unclaim,body)
     return _sl_bank(claims.claim,body) if body.get('claim') else _sl_bank(claims.listing)
 
 
