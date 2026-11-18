@@ -23,7 +23,7 @@ async function main(){
  assert.ok((await page.locator('.sl-material-scroll').textContent()).includes('材料2'));
  assert.ok((await page.locator('#slMaterialPick').getAttribute('title')).includes('题干写明'));
  // 笔工具在顶栏固定：红格滚到底后仍可见，且没有“滚动模式”
- assert.equal(await page.locator('[data-card="scroll"]').count(),0);
+ assert.equal(await page.locator('[data-card="scroll"],#slDraftSave,#slSaveStatus').count(),0);
  for(const [name,w,h] of sizes)for(const theme of ['light','dark']){
   await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);
   await page.setViewportSize({width:w,height:h});await page.waitForTimeout(250);
@@ -31,16 +31,25 @@ async function main(){
   assert.ok(m.sw<=m.vw+1,name+' 横向溢出');
   assert.ok(m.head.h<=Math.max(150,m.vh*.2),name+' 题干卡过高 '+m.head.h);
   assert.ok(m.pen&&m.pen.y>=0&&m.pen.y+m.pen.h<=m.vh,name+' 笔按钮不在屏内');
-  // 用户2026-10-29：材料和红格要占绝大部分，工具条各压成一行、无关行并走
+  // 用户2026-10-29 & 4.2.0：材料和红格要占绝大部分，40:60 / 50:50 / 60:40 分栏下上下工具条都必须保持单行
   assert.ok(m.wtop.h<=52,name+' 作答顶栏（计时+笔工具）应是一行 '+m.wtop.h);
-  assert.ok(m.wbot.h<=56,name+' 底栏（翻页+识别+字数+保存状态+交卷）应是一行 '+m.wbot.h);
+  assert.ok(m.wbot.h<=56,name+' 底栏（翻页+字数+交卷）应是一行 '+m.wbot.h);
   assert.ok(m.hud.h<=44,name+' 作答时顶部只留细条 '+m.hud.h);
   assert.equal(await page.locator('.sl-write-top h3').evaluate(e=>getComputedStyle(e).position),'absolute',name+' “我的作答”标题不占位');
   assert.ok(m.vp.h>=m.vh*(w<900?.38:.55),name+' 红格可见高度占比太小 '+Math.round(m.vp.h)+'/'+m.vh);
   assert.ok(m.mscroll.h>=m.vh*(w<900?.2:.6),name+' 材料正文占比太小 '+Math.round(m.mscroll.h)+'/'+m.vh);
   assert.ok(m.mtool.h<=(w<900?56:84),name+' 材料工具条应压成一两行 '+m.mtool.h);
   for(const sel of ['.sl-submit-row','.sl-write-top']){const hit=await page.evaluate(q=>{const b=[...document.querySelector(q).querySelectorAll('button')].map(x=>x.getBoundingClientRect()),c=[...document.querySelectorAll('.beauty-audio,.page-settings-gear,.page-back-btn')].map(x=>x.getBoundingClientRect()).filter(r=>r.width>0);return b.some(x=>x.width>0&&c.some(y=>x.left<y.right-1&&x.right>y.left+1&&x.top<y.bottom-1&&x.bottom>y.top+1));},sel);assert.ok(!hit,name+' '+sel+' 的按钮被角落圆钮压住');}
-  if(w>=1000)assert.ok(m.mat.w<m.wr.w,name+' 作答区应宽于材料区');
+  if(w>=1000){
+   assert.ok(m.mat.w<m.wr.w,name+' 40:60下作答区应宽于材料区');
+   for(let si=0;si<4;si++){
+    await page.locator('#slSplit').click();await page.waitForTimeout(80);
+    const sm=await page.evaluate(()=>{const r=s=>document.querySelector(s).getBoundingClientRect();return {label:document.querySelector('#slSplit').textContent,wtop:r('.sl-write-top').height,wbot:r('.sl-submit-row').height,vp:r('.sl-card-viewport').height,vh:innerHeight};});
+    assert.ok(sm.wtop<=52,`${name} ${sm.label} 作答顶栏换成了两排 ${sm.wtop}`);
+    assert.ok(sm.wbot<=56,`${name} ${sm.label} 作答底栏换成了两排 ${sm.wbot}`);
+    assert.ok(sm.vp>=sm.vh*.55,`${name} ${sm.label} 红格被挤压 ${Math.round(sm.vp)}/${sm.vh}`);
+   }
+  }
   if(w<900)assert.ok(m.mat.y+m.mat.h<=m.wr.y+2,name+' 竖屏应上材料下红格');
   await page.evaluate(()=>{const s=document.querySelector('.sl-writing .fx-scroll')||document.querySelector('.sl-writing');s.scrollTop=s.scrollHeight;});
   const after=await page.locator('[data-card="pen"]').boundingBox();assert.ok(after.y>=0&&after.y<m.vh,name+' 滚动后笔按钮丢失');
@@ -87,7 +96,7 @@ async function main(){
  // 批改后：“查看批改/返回作答”切换，评分标准校准可用且不计成绩
  await page.locator('#slBack').click();await open(0);
  {const b=await page.locator('.sl-card-ink').boundingBox(),v=await page.locator('.sl-card-viewport').boundingBox();const y=Math.max(b.y,v.y)+40;await page.mouse.move(b.x+b.width*.2,y);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,y+20,{steps:8});await page.mouse.up();}   // 红格写一笔（没有打字框了）
- await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
+ await page.evaluate(()=>SHENLUN.saveDraft());
  assert.equal(await page.locator('#slViewResult').isVisible(),false);
  await page.locator('#slSubmit').click();await page.locator('#slSubmitText').waitFor();await page.locator('#slSubmitConfirm').click();await page.locator('.sl-review-total').waitFor({timeout:8000}).catch(async e=>{console.log('SLRES:',await page.locator('#slRes').textContent(),await page.locator('#slViewResult').count());throw e;});
  assert.ok((await page.locator('#slViewResult').textContent()).includes('返回作答'));

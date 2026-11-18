@@ -355,14 +355,14 @@ def action(g, sid, act):
         if who not in [r["name"] for r in skillbook.teachers(g.paths, board)]:
             raise TrainError("这位老师没有当前板块的心法，请重新选择")
         run = g.state.get("bank", {}).get("runs", {}).get(s.get("board"), {})
+        if s["type"] == "mock_review":
+            raise TrainError("大比复盘不设心法讲解")
         if s["type"] in ("bank", "bank_review") and run.get("phase") != "review":
             raise TrainError("请在交卷复盘后选择老师")
         s.setdefault("skill_teachers", {})[board] = who
         # 不重新讲题、不调用AI、不清空历史，也不结算奖励。
         if s["type"] in ("bank", "bank_review"):
             r = _review_show(g, s, run, head=True)
-        elif s["type"] == "mock_review":
-            r = _mreview_show(g, s, head=True)
         else:
             r = _resp(s, [], input=s.get("last_input") or {"mode": "none"})
     else:
@@ -398,7 +398,7 @@ def _teacher_response(g, response):
     if g.subject != "行测":
         return response
     s = ALL.get(response.get("session"), {})
-    if not s or s.get("type") not in ("bank", "bank_review", "mock_review", "wrong"):
+    if not s or response.get("finished") or s.get("type") not in ("bank", "bank_review", "wrong"):
         return response
     # 正式答题阶段不展示选择器，不能让选老师遮住试卷。
     if response.get("battle", {}).get("phase") not in (None, "review"):
@@ -1135,7 +1135,7 @@ def _bank_show(g, s, run, events=None):
         return _bank_resp(g, s, run, msgs + [_msg('npc', g.T('bank_good' if r['ok'] else 'bank_bad'))], events,
                           _buttons(('bank_next', g.T('bank_result') if run['pos'] + 1 == len(run['questions']) else g.T('bank_next')),
                                    ('bank_pause', g.T('bank_pause'))))
-    msg = '%s · 第 %s/%s 关 · 编号 %s' % (question_bank.label(run['board']), run['pos'] + 1, len(run['questions']), q['id'])
+    msg = '%s · 第 %s/%s 关' % (question_bank.label(run['board']), run['pos'] + 1, len(run['questions']))
     blocks, mat = _bank_q(g, q)
     if run.get('reasoning'):
         msg += '\n\n独立拆题：问法方向 → 结论（主体/结果）→ 论据 → 底层结构 → A/B/C/D的作用与排除理由。最后单独写一行【答案】B（填你的选择）。提交后才显示标准答案。'
@@ -1425,7 +1425,7 @@ def _exam_show(g, s, run, events=None, extra=None):
     q = qs[pos]
     run['shown'] = None if run.get('resting') else [pos, time.time()]
     left = [str(i + 1) for i in range(len(qs)) if str(i) not in picks]
-    msg = '%s · 第 %s/%s 题 · 编号 %s' % (question_bank.label(run['board']), pos + 1, len(qs), q['id'])
+    msg = '%s · 第 %s/%s 题' % (question_bank.label(run['board']), pos + 1, len(qs))
     blocks, mat = _bank_q(g, q)
     mine = picks.get(str(pos))
     btns = [('exam_pick:%s:%s' % (pos, k), ('✓ ' if k == mine else '') + k) for k in 'ABCD']
@@ -1500,7 +1500,7 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     q, r = qs[i], res[i]
     msgs = []
     qb, mat = _bank_q(g, q)
-    msgs.append(_msg('sys', '复盘 第 %s/%s 题 · 编号 %s · %s · 用时 %s' % (i + 1, len(qs), q['id'], '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
+    msgs.append(_msg('sys', '复盘 第 %s/%s 题 · %s · 用时 %s' % (i + 1, len(qs), '✓ 答对' if r['ok'] else '✗ 答错', _clock(r.get('seconds'))),
                      qb, pin=True, material=mat, qkey='bank:' + q['id']))
     if q['analysis']:
         msgs.append(_msg('sys','你的答案：%s · 正确答案：%s\n知识点：%s' % (r['answer'],q['answer'],q['topic'])))

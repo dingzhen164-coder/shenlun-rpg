@@ -957,6 +957,11 @@ html.in-app main { padding-bottom: max(60px, env(safe-area-inset-bottom)); }
   background: var(--panel); color: var(--muted); z-index: 1; }
 .q-pin .mat-btn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
 .q-pin .mat-btn.on { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+.q-pin .q-pin-head { font-size: .86em; color: var(--muted); line-height: 1.5; min-height: 1.6em; padding-bottom: .5em; margin-bottom: .75em; border-bottom: 1px dashed var(--line); }
+.q-pin.mini .q-pin-head { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.q-pin .q-pin-note { clear: right; font-size: .92em; color: var(--muted); margin-bottom: .65em; line-height: 1.65; }
+.q-pin .q-text { line-height: 1.78; }
+.q-pin .q-text:first-of-type { clear: right; }
 
 /* 弹出材料（资料分析 / 一拖五）：材料在左，题目、解析、师傅在右；窄屏时材料叠在上面 */
 .chat.with-mat { display: grid; grid-template-columns: minmax(0, 56fr) minmax(0, 44fr); grid-template-rows: auto minmax(0, 1fr) auto; column-gap: 14px; }
@@ -1021,8 +1026,8 @@ html.no-cmix .st-btn { background: var(--st) !important; }
 #drawBtn { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
 /* 题目里的选项：一行 4 个 / 2 个 / 1 个（app.js layoutOpts 按最长的选项量出来，保证选项不折行） */
-.q-pin .q-text + .q-text { margin-top: 2px; }
-.opts { display: grid; grid-template-columns: 1fr; gap: 4px 18px; margin: 6px 0 2px; }
+.q-pin .q-text + .q-text { margin-top: .45em; }
+.opts { display: grid; grid-template-columns: 1fr; gap: .55em 18px; margin: .85em 0 .25em; line-height: 1.65; }
 .opts .opt { min-width: 0; }
 .opts .opt b { color: var(--accent2); }
 .opts.measure { grid-template-columns: max-content !important; }

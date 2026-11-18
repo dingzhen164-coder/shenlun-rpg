@@ -110,7 +110,8 @@ class ZhentiTest(unittest.TestCase):
         self.assertEqual((books[0]['book'], books[0]['sets'][0]['total']), ('历年真题·判断推理', 5))
         # 卷子里的顺序：图形 → 逻辑（按题号） → 科学推理；题干里不出现知识点和解析
         r = trainer.start(g, {'type': 'bank', 'board': '套:' + books[0]['next'], 'title': '卷', 'target': ''})
-        self.assertIn('编号 真题-20', str(r))
+        self.assertIn('题干20', str(r))
+        self.assertNotIn('编号 真题-20', r['messages'][0]['text'])
         self.assertNotIn('官方20', str(r))
         self.assertNotIn('数量规律', str(r))
         order = [x['id'] for x in bank.state(g)['runs']['套:' + books[0]['next']]['questions']]

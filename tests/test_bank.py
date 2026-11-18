@@ -59,7 +59,8 @@ class BankTest(unittest.TestCase):
     def test_order_resume_no_answer_leak_and_duplicate_submission(self):
         self.file.write_text(''.join(question(x) for x in ['20', '01'] + [str(x) for x in range(30, 42)]), encoding='utf-8')
         r = trainer.start(self.g, self.task)
-        self.assertIn('编号 20', str(r))
+        self.assertIn('题干 20', str(r))
+        self.assertNotIn('编号 ', r['messages'][0]['text'])
         self.assertNotIn('秘密解析', str(r))
         self.assertNotIn('正确答案', str(r))
         sid = r['session']
@@ -76,7 +77,7 @@ class BankTest(unittest.TestCase):
         self.assertIn('秘密解析', str(r))
         sid = r['session']
         r = bank_action(self.g, sid, 'bank_next')
-        self.assertIn('编号 01', str(r))
+        self.assertIn('题干 01', str(r))
         for pos in range(1, 10):
             bank_action(self.g, sid, 'bank_answer:%s:A' % pos)
             r = bank_action(self.g, sid, 'bank_next')
@@ -85,7 +86,7 @@ class BankTest(unittest.TestCase):
         self.assertEqual((stats['first_total'], stats['first_correct'], stats['wrong']), (10, 9, 1))
         self.assertIn('正确率 90.0%', str(r))
         r = trainer.start(self.g, self.task)
-        self.assertIn('编号 38', str(r))
+        self.assertIn('题干 38', str(r))
         self.assertEqual(len(bank.state(self.g)['runs']['论证逻辑']['questions']), 4)
 
     def test_wrong_review_snapshot_stats_and_no_extra_xp(self):
@@ -203,7 +204,7 @@ class BankTest(unittest.TestCase):
         bank_action(self.g,r['session'],'bank_next')
         self.file.write_text(question('999') + question('001'), encoding='utf-8')
         r = trainer.start(self.g,self.task)
-        self.assertIn('编号 001',str(r))
+        self.assertIn('题干 001',str(r))
         self.assertEqual(len(bank.state(self.g)['runs']['论证逻辑']['questions']),1)
 
     def test_reasoning_answer_field_no_leak_and_method_separate(self):
@@ -256,12 +257,15 @@ class BankTest(unittest.TestCase):
         self.assertEqual(sets[0]['sets'][0]['total'], 20)
         task = {'type': 'bank', 'board': '套:懒猫-01', 'title': '整套', 'target': '套:懒猫-01'}
         r = trainer.start(self.g, task)
-        self.assertIn('懒猫 第01套 · 第 1/20 题 · 编号 懒猫-01-01', str(r))
+        pin = next(m['text'] for m in r['messages'] if m.get('pin'))
+        self.assertEqual(pin.splitlines()[0], '懒猫 第01套 · 第 1/20 题')
+        self.assertNotIn('· 编号', pin)
+        self.assertIn('题干 懒猫-01-01', str(r))
         sid = r['session']
         for pos in range(20):
             r = trainer.action(self.g, sid, 'exam_pick:%s:%s' % (pos, 'A' if pos else 'B'))
             if pos == 0:
-                self.assertIn('编号 懒猫-01-02', str(r))          # 选完自动翻页，不判对错
+                self.assertIn('题干 懒猫-01-02', str(r))          # 选完自动翻页，不判对错
                 self.assertNotIn('秘密解析', str(r))
         r = trainer.action(self.g, sid, 'exam_submit')
         self.assertEqual((r['battle']['correct'], r['battle']['total']), (19, 20))
@@ -348,7 +352,7 @@ class BankTest(unittest.TestCase):
         trainer.action(self.g, sid, 'exam_pick:0:B')
         r = trainer.action(self.g, sid, 'exam_submit')                 # 还有两道没选：不交卷，跳到第 2 题
         self.assertIn('2、3', str(r))
-        self.assertIn('编号 02', str(r))
+        self.assertIn('题干 02', str(r))
         self.assertEqual(bank.state(self.g)['records'], {})
         trainer.action(self.g, sid, 'exam_prev')
         trainer.action(self.g, sid, 'exam_pick:0:A')                   # 回去改答案
@@ -370,7 +374,8 @@ class BankTest(unittest.TestCase):
         sid = r['session']
         self.assertIn('复盘 第 1/3 题', str(r))
         r = trainer.action(self.g, sid, 'exam_rwrong')
-        self.assertIn('复盘 第 3/3 题 · 编号 03 · ✗ 答错', str(r))
+        self.assertIn('复盘 第 3/3 题 · ✗ 答错', str(r))
+        self.assertIn('题干 03', str(r))
         with patch.object(trainer.ai, 'available', return_value=False):
             r = trainer.action(self.g, sid, 'exam_explain:2')
         self.assertIn('API key', str(r))

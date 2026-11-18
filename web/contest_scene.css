@@ -19,6 +19,8 @@ body.has-page-art .cs-landscape{background-image:var(--ds-page-art)}
 .cs-entrance:hover span{transform:translateY(-4px)}
 .cs-entrance:focus-visible{outline:2px solid var(--ds-sign-focus);outline-offset:var(--ds-sp-4)}
 .cs-overview{left:17%;top:42%}.cs-review{left:83%;top:42%}.cs-trends{left:29%;top:79%}.cs-entry{left:71%;top:79%}
+.cs-self_exam{left:50%;top:79%}
+.cs-five .cs-trends{left:22%;top:79%}.cs-five .cs-self_exam{left:50%;top:79%}.cs-five .cs-entry{left:78%;top:79%}
 .cs-pane{min-width:0;min-height:0;width:100%;padding:var(--ds-sp-16);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .cs-pane[hidden]{display:none!important}
 .cs-pane>.card{background:transparent;box-shadow:none;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;margin:0 0 var(--ds-sp-16);padding:var(--ds-sp-12) 0}
@@ -45,7 +47,7 @@ body.has-page-art .cs-landscape{background-image:var(--ds-page-art)}
 @keyframes cs-clouds{from{transform:translateX(-3%)}to{transform:translateX(3%)}}
 @media(prefers-reduced-motion:reduce){.contest-scene *{animation:none!important;transition:none!important}}
 [data-motion=reduced] .contest-scene *,[data-motion=paused] .contest-scene *{animation:none!important;transition:none!important}
-@container(max-width:900px){.cs-overview{left:15%;top:42%}.cs-review{left:85%;top:42%}.cs-trends{left:25%;top:76%}.cs-entry{left:75%;top:76%}}
+@container(max-width:900px){.cs-overview{left:15%;top:42%}.cs-review{left:85%;top:42%}.cs-trends{left:25%;top:76%}.cs-entry{left:75%;top:76%}.cs-five .cs-trends{left:19%;top:77%}.cs-five .cs-self_exam{left:50%;top:77%}.cs-five .cs-entry{left:81%;top:77%}}
 @container(max-width:460px){.cs-pane{padding:var(--ds-sp-12)}.cs-pane .kpis,.cs-pane .mods{grid-template-columns:minmax(0,1fr)}.cs-foot{flex-wrap:wrap}.cs-pane .rv-board{min-width:0}}
 
 @media(min-width:721px) and (max-width:1100px),(min-width:721px) and (pointer:coarse){

@@ -189,4 +189,157 @@ class CompleteTest(unittest.TestCase):
         self.assertEqual(bank.question(self.p,qid)['materials'][0]['text'],'旧第一段。\n旧第二段。')
         self.assertEqual(json.loads(f.read_text(encoding='utf-8'))['materials'][0]['text'],data['materials'][0]['text'])
 
+    def test_markdown_bank_reload_and_paragraphs(self):
+        tpl=bank.folder(self.p)/'_模板.md'
+        self.assertTrue(tpl.exists())
+        self.assertFalse(any('示例卷' in p['title'] for p in bank.listing(self.p)))
+        sc_md="""---
+考试: 省考
+地区: 四川
+年份: 2025
+卷型: 县乡卷
+真题性质: 考生回忆版
+来源: 粉笔公考题库
+源试卷ID: 99001
+---
+
+# 2025年四川省公务员录用考试《申论》试卷（县乡卷）
+
+## 给定材料
+
+### 材料 1
+
+第一自然段：基层社工⾛访居⺠需求。
+
+第二自然段：跨部门协同办理。
+
+### 材料 2
+
+第三则材料第一段。
+
+## 题目
+
+### 第 1 题
+
+关联材料：材料 1
+
+根据“给定资料1”，概括基层便民举措。（20分）
+
+作答要求：全面准确，不超过200字。
+
+<details>
+<summary>展开答案与解析</summary>
+
+**参考答案（单一版）**
+
+1. 走访居民需求；2. 跨部门协同办理。
+
+**解析**
+
+定位材料1两段分别提炼。
+![思维导图](assets/map.png)
+
+**考点**
+
+归纳概括
+
+</details>
+
+### 第 2 题
+
+关联材料：材料 1、材料 2
+
+围绕基层治理现代化的思考，自选角度，自拟题目，写一篇文章。（40分）
+
+要求：观点明确，800-1000字。
+
+<details>
+<summary>展开答案与解析</summary>
+
+**参考答案**
+
+以民为本赋能治理
+
+第一段引出中心论点。
+
+**基层善治，需要我们俯身倾听民意**。结合走访实践展开论述。
+
+**解析**
+
+文章写作立意解析。
+
+**考点**
+
+文章写作
+
+</details>
+"""
+        md_file=bank.folder(self.p)/'2025-四川-县乡卷.md'
+        md_file.write_text(sc_md,encoding='utf-8')
+        info=api.shenlun_bank_reload({})
+        self.assertEqual(info['errors'],[])
+        paper=next(x for x in bank.listing(self.p) if '2025年四川省' in x['title'])
+        self.assertEqual((paper['region'],paper['year'],paper['count']),('四川','2025',2))
+        q1=bank.question(self.p,paper['questions'][0]['qid'],reveal=True)
+        self.assertEqual(q1['materials'][0]['text'],'第一自然段：基层社工走访居民需求。\n第二自然段：跨部门协同办理。')
+        self.assertEqual((q1['material_ids'],q1['material_source'],q1['total'],q1['words']),(['1'],'import',20.0,200))
+        self.assertNotIn('map.png',q1['analysis'])
+        q2=bank.question(self.p,paper['questions'][1]['qid'],reveal=True)
+        self.assertEqual((q2['type'],q2['total'],q2['words']),('大作文',40.0,1000))
+        self.assertIn('基层善治，需要我们俯身倾听民意',q2['references'][0]['answer'])
+
+    def test_gwy_source_download_and_errrc_migration(self):
+        import hashlib, time
+        from rpg import shenlun_claims, shenlun_training
+        errrc_used={
+            'source_id':'errrc-paper-77',
+            'title':'2024年贵州省公务员录用考试《申论》试卷（A卷）（网友回忆版）',
+            'region':'贵州','year':'2024',
+            'sourceName':'ERRRC/kaogong-shuati',
+            'materials':[{'id':'1','label':'材料1','text':'贵州山村发展特色林下经济，带动村民家门口增收致富。'}],
+            'questions':[{'source_id':'errrc-q-1','text':'概括林下经济的主要做法。（15分）不超过200字。','score':15,'limit':200}],
+        }
+        errrc_unused=copy.deepcopy(errrc_used)
+        errrc_unused.update(source_id='errrc-paper-78',title='2023年未作答旧卷',year='2023')
+        bank.import_packages(self.p,[errrc_used,errrc_unused])
+        old_paper=next(x for x in bank.listing(self.p) if '贵州省' in x['title'])
+        old_qid=old_paper['questions'][0]['qid']
+        bank.answer_save(self.p,{'qid':old_qid,'text':'发展林下特色种植，拓宽增收渠道。','revision':0})
+        shenlun_claims.claim(self.p,{'qids':[old_qid]})
+        rev=shenlun_training.read(self.p)['revision']
+        shenlun_training.save(self.p,{'id':old_qid,'topics':['农村'],'revision':rev})
+        raw_dir=self.p.train/'题库原始库';raw_dir.mkdir(parents=True,exist_ok=True);(raw_dir/'materials.db').write_bytes(b'old')
+
+        gz_md=("---\n考试: 省考\n地区: 贵州\n年份: 2024\n卷型: A卷\n真题性质: 考生回忆版\n来源: 粉笔\n源试卷ID: 8801\n---\n\n"
+               "# 2024年贵州省公务员录用考试《申论》试卷（A卷）\n\n## 给定材料\n\n### 材料 1\n\n"
+               "贵州山村发展特色林下经济，带动村民家门口增收致富。\n\n第二段补充产业联农机制。\n\n"
+               "## 题目\n\n### 第 1 题\n\n关联材料：材料 1\n\n请概括林下经济的主要做法。（15分）\n\n要求：不超过200字。\n").encode('utf-8')
+        manifest_entry={
+            'path':'真题/申论/2024/贵州/2024年贵州省公务员录用考试《申论》试卷（A卷）.md',
+            'subject':'申论','year':'2024','area':'贵州',
+            'bytes':len(gz_md),'sha256':hashlib.sha256(gz_md).hexdigest(),
+        }
+        manifest_bytes=(json.dumps(manifest_entry,ensure_ascii=False)+'\n').encode('utf-8')
+        def fake_fetch(url,max_bytes,timeout=45):
+            if url.endswith('manifest.jsonl'):return manifest_bytes
+            self.assertNotIn('贵州',url)  # URL中文路径必须经过quote编码
+            return gz_md
+        with patch.object(bank,'_fetch_bytes',fake_fetch):
+            bank.source_start(self.p)
+            for _ in range(50):
+                st=bank.source_status(self.p)
+                if not st.get('running'):break
+                time.sleep(0.02)
+        self.assertFalse(st.get('error'),st)
+        self.assertFalse(raw_dir.exists())
+        titles=[x['title'] for x in bank.listing(self.p)]
+        self.assertNotIn('2023年未作答旧卷',titles)
+        gz_papers=[x for x in bank.listing(self.p) if '贵州省' in x['title']]
+        self.assertEqual(len(gz_papers),1)
+        new_qid=gz_papers[0]['questions'][0]['qid']
+        self.assertNotEqual(new_qid,old_qid)
+        self.assertEqual(bank.answer_get(self.p,new_qid)['text'],'发展林下特色种植，拓宽增收渠道。')
+        self.assertIn(new_qid,[x['qid'] for x in shenlun_claims.listing(self.p)['items']])
+        self.assertEqual(gz_papers[0]['questions'][0]['topics'],['农村'])
+
 if __name__=='__main__':unittest.main()
