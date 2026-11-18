@@ -31,7 +31,7 @@ async function main(){
  const inkCount=()=>page.locator('.sl-material-ink').first().evaluate(el=>{const pixels=el.getContext('2d').getImageData(0,0,el.width,el.height).data;let n=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i])n++;return n;});
  const marked=await inkCount();assert.ok(marked>0);
 
- await write();await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();await screenshots('answer');
+ await write();assert.equal(await page.locator('#slDraftSave,#slSaveStatus').count(),0,'取消保存跳动提示');await page.waitForTimeout(950);await page.evaluate(()=>SHENLUN.saveDraft());await screenshots('answer');
  await page.locator('#slBack').click();await page.locator('.sl-paper summary').filter({hasText:'2026手动自编报告'}).click();await page.locator('[data-slq]').click();await page.waitForFunction(()=>document.querySelector('.sl-card-ink')?.height>0);assert.ok(await cardInk()>0,'红格笔迹重开还在');await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.width===800);assert.equal(await inkCount(),marked);assert.ok(await page.locator('main').evaluate(el=>el.getBoundingClientRect().width>=innerWidth-2));
  assert.equal(await submitAs('走访居民了解需求。'),'走访居民了解需求，推动部门共享资料。','交卷先识别手写，弹窗可改字');await page.locator('.sl-review-total').filter({hasText:'12/20'}).waitFor();await page.locator('#slSubmit:not([disabled])').waitFor();
  assert.equal(await submitAs('走访居民了解需求，推动部门共享资料。'),'走访居民了解需求。','笔迹没改：直接核对上次确认的文字');await page.locator('.sl-review-total').filter({hasText:'20/20'}).waitFor();await page.locator('.sl-comparison').filter({hasText:'+8'}).waitFor();await page.locator('#slSubmit:not([disabled])').waitFor();assert.equal(await page.locator('.sl-point-detail[open]').count(),0);await page.locator('.sl-point-detail summary').first().click();assert.ok(await page.locator('.sl-point-detail[open] .sl-ev').first().isVisible());await page.locator('.sl-point-detail summary').first().click();assert.ok((await page.locator('#slRes').textContent()).includes('已由程序核验'));await screenshots('review');
@@ -45,10 +45,10 @@ async function main(){
  const bounds=await page.locator('.sl-card-ink').boundingBox();
  const visible=await page.locator('.sl-card-ink').evaluate(el=>{const r=el.getBoundingClientRect(),panel=el.closest('.sl-writing').getBoundingClientRect();return {top:Math.max(r.top,panel.top+120),bottom:Math.min(r.bottom,panel.bottom-24,innerHeight-24)};});
  await page.mouse.move(bounds.x+bounds.width*.1,visible.top+(visible.bottom-visible.top)*.3);await page.mouse.down();await page.mouse.move(bounds.x+bounds.width*.15,visible.top+(visible.bottom-visible.top)*.4,{steps:10});await page.mouse.up();
- await page.locator('[data-card="undo"]').click();await page.locator('[data-card="redo"]').click();await page.locator('[data-card="expand"]').click();await page.locator('#slDraftSave').click();
+ await page.locator('[data-card="undo"]').click();await page.locator('[data-card="redo"]').click();await page.locator('[data-card="expand"]').click();await page.evaluate(()=>SHENLUN.saveDraft());
 
 
- await page.locator('#slClockPause').click();assert.equal(await page.locator('#slClockPause').textContent(),'继续计时');await page.locator('#slClockPause').click();await screenshots('handwriting');
+ await page.locator('#slClockPause').click();assert.equal(await page.locator('#slClockPause').textContent(),'继续');await page.locator('#slClockPause').click();await screenshots('handwriting');
  assert.equal(await submitAs(null),'走访居民了解需求，推动部门共享资料。','改了笔迹：交卷重新识别');await page.locator('.sl-review-total').filter({hasText:'20/20'}).waitFor();await page.locator('#slRes').filter({hasText:'作答用时'}).waitFor();
  await page.locator('#slBack').click();await page.locator('.sl-paper summary').filter({hasText:'2026手动自编报告'}).click();await page.locator('[data-slq]').click();
 await page.locator('#slSubmit').click();await page.locator('#slSubmitText').waitFor();await page.locator('#slSubmitCancel').click();await page.locator('#slSubmitText').waitFor({state:'detached'});assert.equal(await page.locator('#slAns').count(),0,'不再有打字框');

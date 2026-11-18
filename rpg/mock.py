@@ -138,12 +138,57 @@ def _mark_credited(g, n):
         c.append(str(n))
 
 
+def _q_sec(num, q, exam_qtimes, html_qsec):
+    for v in (exam_qtimes.get(str(num)), q.get("seconds"), html_qsec.get(str(num))):
+        if v is not None:
+            try:
+                s = float(v)
+                if s > 0:
+                    return s
+            except (TypeError, ValueError):
+                pass
+    return 0.0
+
+
+def _season_seconds(season_dir, rec):
+    """按每一小题用时求和：返回 (模块总秒数, 模块下小板块秒数, 复盘文件板块秒数)。"""
+    exam_qtimes = ((rec or {}).get("exam") or {}).get("qtimes") or {}
+    html_qsec = (((rec or {}).get("html_import") or {}).get("question_seconds")) or {}
+    mod_qsec = {m: {} for m in MODULE_NAMES}
+    mod_board_sec = {m: {} for m in MODULE_NAMES}
+    file_board_sec = {}
+    for f in sorted(season_dir.glob("[0-9][0-9]-*.md")):
+        board = f.stem[3:]
+        qs = vault.parse_board_file(f)
+        if not qs:
+            continue
+        b_sec = sum(_q_sec(q["num"], q, exam_qtimes, html_qsec) for q in qs)
+        file_board_sec[board] = file_board_sec.get(board, 0.0) + b_sec
+        m = MODULE_OF.get(board)
+        if not m:
+            continue
+        mod_board_sec[m][board] = mod_board_sec[m].get(board, 0.0) + b_sec
+        for q in qs:
+            mod_qsec[m][q["num"]] = _q_sec(q["num"], q, exam_qtimes, html_qsec)
+    mod_sec = {}
+    for m, qmap in mod_qsec.items():
+        mod_sec[m] = sum(qmap.values())
+        fixed = FIXED.get(m)
+        if fixed and len(qmap) == sum(n for _, n in fixed):
+            order = sorted(qmap)
+            mod_board_sec[m], k = {}, 0
+            for name, n in fixed:
+                mod_board_sec[m][name] = sum(qmap[x] for x in order[k:k + n])
+                k += n
+    return mod_sec, mod_board_sec, file_board_sec
+
+
 def set_score(g, n, score, source):
     """只更新这一季的总分和来源（不动成绩单里的其他字段）。第一次有分时和录入一样记进宗门大比，奖励只发一次"""
     rec = g.state.setdefault("mocks", {}).setdefault(str(n), {})
     had = rec.get("score") is not None or _boss_score(g, n) is not None or _credited(g, n)
     rec["score"] = _num(score, 0, 100)
-    rec["score_source"] = source if source in ("html", "estimate", "ocr", "manual", "exam") else "manual"
+    rec["score_source"] = source if source in ("html", "estimate", "ocr", "manual", "exam", "paper") else "manual"
     rec["date"] = str(rec.get("date") or g.t)[:10]
     unhide(g, n)
     if rec["score"] is not None and not had:
@@ -164,6 +209,7 @@ def summary(g):
         if not total_q:
             continue
         rec = data.get(str(n), {})
+        mod_sec, mod_board_sec, file_board_sec = _season_seconds(d, rec)
         score = rec.get("score")
         if score is None:
             score = _boss_score(g, n)
@@ -191,10 +237,23 @@ def summary(g):
             else:
                 est = 100 * c["ok"] / total_q
             real = (rec.get("scores") or {}).get(m)
+            manual_min = (rec.get("minutes") or {}).get(m)
+            msec = mod_sec.get(m, 0.0)
+            auto_min = round(msec / 60.0, 1) if msec > 0 else None
+            b_items = []
+            for b, v in c["boards"].items():
+                bsec = mod_board_sec.get(m, {}).get(b, 0.0)
+                bd = {"board": b, "ok": v[0], "wrong": v[1], "blank": v[2], "total": v[3]}
+                if bsec > 0:
+                    bd["seconds"] = round(bsec)
+                    bd["minutes"] = round(bsec / 60.0, 1)
+                b_items.append(bd)
             mods.append({"name": m, "ok": c["ok"], "total": c["total"], "acc": c["ok"] / c["total"],
                          "score": real if real is not None else round(est, 2), "estimated": real is None,
-                         "minutes": (rec.get("minutes") or {}).get(m),
-                         "boards": [{"board": b, "ok": v[0], "wrong": v[1], "blank": v[2], "total": v[3]} for b, v in c["boards"].items()]})
+                         "minutes": manual_min if manual_min is not None else auto_min,
+                         "minutes_auto": manual_min is None and auto_min is not None,
+                         "seconds": round(msec) if msec > 0 else None,
+                         "boards": b_items})
         mins = [x["minutes"] for x in mods if x["minutes"] is not None]
         rv = rec.get("reviewed") or {}             # 大比复盘：各板块复盘过哪些题（trainer.mock_review）
         pos = rec.get("review_pos") or {}          # “暂时离开”停在哪题
@@ -203,17 +262,47 @@ def summary(g):
             qs = vault.parse_board_file(f)
             if qs:
                 b = f.stem[3:]
-                review.append({"board": b, "total": len(qs), "ok": sum(q["icon"] == "✅" for q in qs),
-                               "wrong": sum(q["icon"] == "❌" for q in qs), "blank": sum(q["icon"] == "⚪" for q in qs),
-                               "reviewed": len(set(rv.get(b, [])) & {q["num"] for q in qs}), "resume": pos.get(b)})
+                rsec = file_board_sec.get(b, 0.0)
+                rd = {"board": b, "total": len(qs), "ok": sum(q["icon"] == "✅" for q in qs),
+                      "wrong": sum(q["icon"] == "❌" for q in qs), "blank": sum(q["icon"] == "⚪" for q in qs),
+                      "reviewed": len(set(rv.get(b, [])) & {q["num"] for q in qs}), "resume": pos.get(b)}
+                if rsec > 0:
+                    rd["seconds"] = round(rsec)
+                    rd["minutes"] = round(rsec / 60.0, 1)
+                review.append(rd)
         seasons.append({"season": n, "name": season_name(g, n), "date": rec.get("date", ""), "score": score, "score_from_boss": rec.get("score") is None and score is not None,
                         "estimate":estimate,"reported_score":(rec.get("html_import") or {}).get("reported_score"),
                         "score_source":rec.get("score_source","manual"),
                         **{k: rec.get(k) for k in FIELDS[1:]},
                         "ok": ok_all, "total": total_q, "acc": ok_all / total_q,
-                        "minutes": sum(mins) if mins else None, "modules": mods,
+                        "minutes": round(sum(mins), 1) if mins else None, "modules": mods,
                         "imported": str(n) in g.state.get("mock_practice", []), "review": review,
                         "exam": __import__("rpg.exam_room", fromlist=["x"]).season_exam_info(rec) if g.subject == "行测" else None})
+    seen_seasons = {s["season"] for s in seasons}
+    for k, rec in data.items():
+        if not isinstance(rec, dict) or not rec.get("paper_exam") or str(k) in hidden or not str(k).isdigit():
+            continue
+        n = int(k)
+        if n in seen_seasons:
+            continue
+        mods = list(rec.get("paper_modules") or [])
+        total_q = sum(int(x.get("total") or 0) for x in mods)
+        if not total_q:
+            continue
+        ok_all = sum(int(x.get("ok") or 0) for x in mods)
+        score = rec.get("score")
+        mins = [x["minutes"] for x in mods if x.get("minutes") is not None]
+        total_min = rec.get("total_minutes")
+        if total_min is None and mins:
+            total_min = round(sum(mins), 1)
+        seasons.append({"season": n, "name": season_name(g, n), "date": rec.get("date", ""), "score": score, "score_from_boss": False,
+                        "estimate": None, "reported_score": None, "score_source": "paper", "paper_exam": True,
+                        "preset_id": rec.get("preset_id", ""), "preset_name": rec.get("preset_name", ""),
+                        "sections": rec.get("paper_sections") or [],
+                        **{fk: rec.get(fk) for fk in FIELDS[1:]},
+                        "ok": ok_all, "total": total_q, "acc": ok_all / total_q,
+                        "minutes": total_min, "modules": mods,
+                        "imported": True, "review": [], "exam": None})
     seasons.sort(key=chronological_key)
     scored = [s for s in seasons if s["score"] is not None]
     mean = lambda xs: round(sum(xs) / len(xs), 1) if xs else None

@@ -1,3 +1,13 @@
+## 4.2.0：申论原生分段 Markdown 真题库、右栏单排、行测题头排版、大比复盘精简与纸质「自考」（2026-11-18）
+
+- **申论真题库（`rpg/shenlun_bank.py`，完成 B3）**：公开源切换为 `ProfessorZhi/gwy-zhenti`（固定 commit `9ebfb7ca9ec8473391445bde3758945d8b3337a8`，`catalog/manifest.jsonl` 筛选 `subject=="申论"` 共 934 套，含四川 42 套、贵州 20 套；`area=="全国"` 归一为 `国考`）。下载并经 SHA-256 校验后直接存为 `训练/题库/申论真题/<年份>-<地区>-<卷名>.md`（并发 8 线程拉取），首次打开题库目录时懒加载生成 `_模板.md`；接口 `POST /api/shenlun/bank_reload` 与前端 `#slBankRefresh` 支持本地增改 `.md` 后一键重载。`_migrate_errrc(p)` 按 `(year, area)` 与小题序号把旧 `ERRRC` 卷上已有的草稿、材料选择、综合批改、立意提纲、领取目录与主题分类自动迁移到对应 `.md` 卷，未作答旧 `.json` 与废弃 `训练/题库原始库` 自动清理；用户自建非 `ERRRC` JSON 仍兼容读取。
+- **申论作答右栏单排与静默保存**：`web/shenlun_card.js`、`web/shenlun.js`、`web/shenlun_ui.css` 移除 `#slDraftSave` 与 `#slSaveStatus` 节点，保留后台防抖自动保存（仅失败时 `toast` 报错）；精简 `.sl-write-top` 与 `.sl-submit-row` 间距和字号，强制 `flex-wrap: nowrap`，在 `40:60`、`50:50`、`30:70`、`60:40` 四档分栏下均保持单排，底栏维持 `padding-right: 116px !important` 避让右下角音量/设置圆钮。
+- **行测题头与间距**：`rpg/trainer.py` 的 `_bank_show`、`_exam_show`、`_review_show` 去掉题头末尾 `· 编号 <id>`；`web/app.js` 与 `web/style.css` 新增 `.q-pin-head` 分隔线及基于 `em` 的题头—题干—选项间距，随 `--chat-fs` 答题字号等比缩放。
+- **宗门大比逐题复盘精简**：`rpg/trainer.py` 的 `_attach_skill_teachers` 排除 `mock_review` 及 `finished` 会话；`web/app.js` 收紧 `.teacher-inline-pick` 防止挤出 `.composer-row`；`mock_review` 板块结束按钮改为 `#backMockReview`（「返回复盘界面」，调用 `CONTEST.openReview()` 直接展开复盘面板）与 `#backSectHome`（「返回宗门主界面」）。
+- **宗门大比「自考」与板块用时求和**：
+  - `rpg/paper_exam.py` + `web/paper_exam.js` + `web/paper_exam.css`：在行测 `CONTEST_SCENE` 新增第 5 入口 `self_exam`（「自考」，`contest_scene.js` 通过可选参数 `extraModes` 向后兼容法考 4 入口）。左侧 SVG 无数字刻度钟表默认从 `9:00`（时针 270°）起走，默认隐藏数字时间（可切换），支持按钮或 `Space` 空格键按预设顺序记录当前板块用时并切入下一块，开考前可上下调整顺序；内置 `guokao_130`、`sc_gz_100`（川黔省考常见 100 题）、`liankao_100` 三套预设并支持覆盖保存与另存自定义方案（含 >100 分卷自动折合百分制）。录分按 `Decimal` 精确计算各板块与模块得分，保存至 `state.mocks[n]`（`paper_exam: True`），同步记一次 `add_boss` 与当日学习分钟（7 日上限保护），计入「考情」与「战绩」且不混入「复盘」下拉框。
+  - `rpg/mock.py` 新增 `_season_seconds`，按 `exam.qtimes` > `q.seconds` > `html_import.question_seconds` 对各复盘文件板块、模块子板块及六大模块用时自动求和（手动填过模块分钟时优先保留手动值），在复盘板块卡片、六大模块卡与历次大比表格展示。
+
 ## 开发中（未发布）：2026-11-11 七条需求
 
 - **思过崖题目字号**：`web/reading_tools.js` 新增 `READING_TOOLS.hud(show)`，按钮挂在学习顶栏 `#studyHud .subpage-tools`，与答题页共用 `localStorage.chatLayout.fs`（80–160%，CSS 变量 `--chat-fs`，默认 1.1 = 原大小）。只放大 `.sg-qtitle / .sg-md.sg-stem / .sg-opt`；题干恢复 18px（原来被 `.sg-md` 14px 覆盖）。`study_hud.js` 重画顶栏后补回按钮。

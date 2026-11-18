@@ -407,9 +407,13 @@ function msgHtml(m) {
   if (m.fold) return `<details class="fold review-fold"><summary>${esc(m.fold)}</summary><div>${m.who==="npc"?tutorMd(m.text):md(m.text)}${blocks}</div></details>`;
   if (m.who === "npc") { const mentor=m.mentor||T.mentor;return `<div class="npc">${tutorFace(mentor)}<div class="say"><div class="who">${esc(mentor?.name || DASH?.persona?.tutor || "导师")}</div>${tutorMd(m.text)}</div></div>`; }
   if (m.who === "me") return `<div class="msg me">${esc(m.text)}</div>`;
-  if (m.pin) return `<div class="q-pin ${PIN_MINI ? "mini" : ""}"><div class="msg sys pin-body"><span class="pin-tools">${m.material?.length
-      ? `<button class="pin-btn mat-btn ${MAT_OPEN ? "on" : ""}" title="材料放在左边，对照着看">📄 ${MAT_OPEN ? "收起材料" : "弹出材料"}</button>` : ""}<button class="pin-btn pin-fold" title="${PIN_MINI ? "展开题目" : "把题目收成一行"}">📌 ${PIN_MINI ? "展开" : "收起"}</button></span>${md(m.text)}${blocks}</div>
+  if (m.pin) {
+    const [pinHead, ...pinRest] = String(m.text || "").split("\n\n");
+    const pinNote = pinRest.length ? `<div class="q-pin-note">${md(pinRest.join("\n\n"))}</div>` : "";
+    return `<div class="q-pin ${PIN_MINI ? "mini" : ""}"><div class="msg sys pin-body"><span class="pin-tools">${m.material?.length
+      ? `<button class="pin-btn mat-btn ${MAT_OPEN ? "on" : ""}" title="材料放在左边，对照着看">📄 ${MAT_OPEN ? "收起材料" : "弹出材料"}</button>` : ""}<button class="pin-btn pin-fold" title="${PIN_MINI ? "展开题目" : "把题目收成一行"}">📌 ${PIN_MINI ? "展开" : "收起"}</button></span><div class="q-pin-head">${md(pinHead)}</div>${pinNote}${blocks}</div>
       <div class="pin-drag" title="按住上下拖：调题目框和下面解析各占多少"></div></div>`;
+  }
   return `<div class="msg sys">${md(m.text)}${blocks}</div>`;
 }
 // 题目钉在对话框顶上（往下翻解析时不动）；📌 收成一行 / 展开，每台设备记住
@@ -608,11 +612,9 @@ const views = {
     let composer = "";
     // 心法老师选择：并进底部按钮行（不再单独占一行，把高度让给题目）；只显示老师名字
     const teacherPick = T.skillTeachers?.options?.length ? `<label class="review-skill-teacher" title="心法老师">${T.mentor?.avatar ? `<img class="review-teacher-avatar" src="${esc(T.mentor.avatar)}" alt="${esc(T.mentor.name)}的心法头像">` : ""}<select id="reviewSkillTeacher" aria-label="心法老师" ${T.busy ? "disabled" : ""}>${T.skillTeachers.options.map((t) => `<option value="${esc(t.name)}" ${t.name === T.skillTeachers.selected ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>` : "";
-    let teacherInRow = false;
     if (T.busy) composer = `<div class="thinking">${esc(T.mentor?.name || DASH?.persona?.tutor || "导师")}正在判定</div>`;
     else if (inp.mode === "text" && inp.buttons) {
-      // 复盘类（试炼复盘 / 大比复盘 / 题后讨论）：打字框默认收起，点左下角「师傅求助」才打开，题目区域更大
-      teacherInRow = true;
+      // 复盘类（试炼复盘 / 题后讨论）：打字框默认收起，点左下角「师傅求助」才打开，题目区域更大
       composer = `${ASK_OPEN ? `<textarea id="answer" placeholder="${esc(inp.placeholder || "")}"></textarea>` : ""}
         <div class="row composer-row" style="margin-top:${ASK_OPEN ? 8 : 0}px"><button class="${ASK_OPEN ? "" : "ghost"} ask-btn" id="askToggle">🙋 ${ASK_OPEN ? "收起" : esc(T.mentor ? T.mentor.name + "求助" : "师傅求助")}</button>${teacherPick}${ASK_OPEN ? `<button class="primary" id="send">${esc(T.mentor ? "问" + T.mentor.name : "问师傅")}</button>` : ""}<span class="spacer"></span>
         ${inp.buttons.map((b) => `<button class="ghost" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
@@ -621,11 +623,11 @@ const views = {
         <div class="row" style="margin-top:8px"><span class="spacer"></span>
         <button class="ghost" data-act="${["bank", "bank_review"].includes(T_TYPE) ? "bank_pause" : "skip"}">${["bank", "bank_review"].includes(T_TYPE) ? "保存并暂停" : "跳过"}</button><button class="primary" id="send">提交</button></div>`;
     else if (inp.mode === "buttons") composer = `<div class="row">${inp.buttons.map((b) => `<button class="${b.id === "skip" ? "ghost" : "primary"}" data-act="${esc(b.id)}">${esc(b.label)}</button>`).join("")}</div>`;
-    else if (T.finished && T_TYPE === "mock_review") composer = `<div class="row"><button class="primary" id="backContest">回${esc(NAV("contest"))}</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
+    else if (T.finished && T_TYPE === "mock_review") composer = `<div class="row"><button class="primary" id="backMockReview">返回复盘界面</button><button class="ghost" id="backSectHome">返回宗门主界面</button></div>`;
     else if (T.finished) composer = `<div class="row"><button class="primary" id="nextTask">下一项功课</button><button class="ghost" id="backHome">回当前训练板块</button></div>`;
     return `<div class="train">
       <div class="card chat ${MAT_OPEN && currentMaterial() ? "with-mat" : ""}">${sessionHead()}${materialPane()}<div class="msgs" id="msgs">${T.msgs.map(msgHtml).join("")}</div>
-        <div class="composer">${teacherInRow ? "" : teacherPick}${composer}</div></div></div>`;
+        <div class="composer">${composer}</div></div></div>`;
   },
 
   async skeleton() {
@@ -1059,6 +1061,7 @@ function mountGuide() {
 async function startTask(body) {
   window.XC_GUIDE?.close();
   SESSION_SNAP = window.SETTLE ? SETTLE.snap() : null;
+  if (body.task?.type) T_TYPE = body.task.type;
   Object.assign(T, { session: null, title: "准备中…", mentor: null, skillTeachers:null, msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
   TRAIN_ROUTE = ["bank", "bank_review"].includes(body.task?.type) ? "bank" : "train";
   await go(TRAIN_ROUTE);
@@ -1159,7 +1162,8 @@ function bindTrain() {
     t ? startTask({ task_id: t.id }) : (toast(`${W("tasks")}全部完成 ✦`), go("home"));
   };
   const bh = $("#backHome"); if (bh) bh.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); renderTrain(); };
-  const bc = $("#backContest"); if (bc) bc.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); go("contest"); };
+  const bmr = $("#backMockReview"); if (bmr) bmr.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); window.CONTEST?.openReview?.(); go("contest"); };
+  const bsh = $("#backSectHome"); if (bsh) bsh.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); go("home"); };
 }
 async function submitText() {
   const text = $("#answer").value.trim();

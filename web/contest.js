@@ -5,7 +5,7 @@
    - 大比复盘：选一季，按板块逐题复盘（和试炼交卷后的复盘一样；时间记进“修炼 · 复习”，见 rpg/trainer.py mock_review）
    - 历次模考一览 + 录入成绩单（粉笔成绩单上的数字照抄） */
 (function () {
-  let MOCK = null, CALENDAR = null;
+  let MOCK = null, CALENDAR = null, PE_DATA = null, NEXT_VIEW = null;
   let PICK = "avg";          // 模块统计看哪一季："avg" = 历次平均
   let EDIT = null;           // 正在录入的季
   const NAMES = {};          // 季号 → 试卷名（后端 season.name；整卷考试用试卷自己的名字，旧的是“第N季”）
@@ -81,20 +81,21 @@
     const mods = s ? s.modules : d.modules.map((m) => ({ ...m, ok: null }));
     const opts = [`<option value="avg" ${PICK === "avg" ? "selected" : ""}>历次平均</option>`]
       .concat(d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${String(PICK) === String(x.season) ? "selected" : ""}>${esc(nm(x.season))}</option>`)).join("");
-    const cards = mods.map((m, i) => `<div class="mod" style="--mc:var(--s${(d.module_names.indexOf(m.name) % 6) + 1})">
+    const cards = mods.map((m) => `<div class="mod" style="--mc:var(--s${(d.module_names.indexOf(m.name) % 6) + 1})">
         <div class="mod-h"><b>${esc(m.name)}</b>${s && m.total ? `<span class="faint small">${m.ok}/${m.total} 题</span>` : `<span class="faint small">${m.seasons || ""}${m.seasons ? " 季" : ""}</span>`}</div>
         <div class="mod-row"><span>得分</span><b>${f1(m.score)}</b>${s && m.estimated ? '<span class="faint small">估</span>' : ""}</div>
         <div class="mod-row"><span>正确率</span><b>${pc(m.acc)}</b></div>
         <div class="mbar"><span style="width:${Math.round((m.acc || 0) * 100)}%"></span></div>
         <div class="mod-row"><span>用时</span><b>${m.minutes == null ? "—" : f1(m.minutes) + " 分"}</b>${m.minutes != null && s && m.total ? `<span class="faint small">${Math.round((m.minutes * 60) / m.total)} 秒/题</span>` : ""}</div>
-        ${s && m.boards && m.boards.length > 1 ? `<div class="mod-sub">${m.boards.map((b) => `<span>${esc(b.board)} ${b.ok}/${b.total}</span>`).join("")}</div>` : ""}
+        ${s && m.boards && (m.boards.length > 1 || (m.boards.length === 1 && m.boards[0].board !== m.name)) ? `<div class="mod-sub">${m.boards.map((b) => `<span>${esc(b.board)} ${b.ok}/${b.total}${b.minutes != null ? ` · ${f1(b.minutes)}分` : ""}</span>`).join("")}</div>` : ""}
       </div>`).join("");
-    return `<div class="card contest-card"><div class="row"><h3 style="margin:0">☯ 六大模块 <small>得分（没录成绩单的按答对题数折算，标“估”）· 正确率 · 用时</small></h3><span class="spacer"></span>
+    return `<div class="card contest-card"><div class="row"><h3 style="margin:0">☯ 六大模块 <small>得分（没录成绩单的按答对题数折算，标“估”）· 正确率 · 用时（含逐题用时自动求和）</small></h3><span class="spacer"></span>
       <select id="mkPick">${opts}</select></div><div class="mods">${cards || '<p class="muted">还没有模考复盘。</p>'}</div></div>`;
   }
 
   function form(d) {
-    const s = d.seasons.find((x) => String(x.season) === String(EDIT)) || d.seasons[d.seasons.length - 1];
+    const editable = d.seasons.filter((x) => !x.paper_exam);
+    const s = editable.find((x) => String(x.season) === String(EDIT)) || editable[editable.length - 1];
     if (!s) return "";
     const suggested=s.score??s.reported_score??(s.estimate?.ready?s.estimate.score:null);
     const scoreSource=s.score!=null?(s.score_source||'manual'):s.reported_score!=null?'html':s.estimate?.ready?'estimate':'manual';
@@ -104,11 +105,12 @@
       <p class="small muted">${estimate.ready?'按当前参考题量、分值和逐题对错计算；参考分值可能与粉笔赋分不同。':esc(estimate.reason)} 已录成绩保持；下方建议值可修改，点击保存后才按原规则记录成绩。</p>
       <div class="row">${s.reported_score!=null?'<button type="button" id="mkUseReported">填入HTML报告分数</button>':''}${estimate.ready?'<button type="button" id="mkUseEstimate">填入参考估分</button>':''}</div>
       <details class="fold"><summary>参考分值与计算明细</summary><p class="small muted">分值与题量可在训练/规则.md的“模考参考”项修改；此表不用于申论或法考。</p><div class="tbl-wrap"><table class="mk-table"><thead><tr><th>题型</th><th>题数</th><th>答对</th><th>每题参考分</th></tr></thead><tbody>${(estimate.rows||[]).map(r=>`<tr><td>${esc(r.name)}</td><td>${r.total}</td><td>${r.ok}</td><td>${f1(r.points)}</td></tr>`).join('')}</tbody></table></div></details></div>`:'';
-    const opts = d.seasons.slice().reverse().map((x) => `<option value="${x.season}" ${x.season === s.season ? "selected" : ""}>${esc(nm(x.season))}${x.score == null ? "（未录）" : ""}</option>`).join("");
+    const opts = editable.slice().reverse().map((x) => `<option value="${x.season}" ${x.season === s.season ? "selected" : ""}>${esc(nm(x.season))}${x.score == null ? "（未录）" : ""}</option>`).join("");
     const modIn = (key, ph) => d.module_names.map((m) => {
       const mm = s.modules.find((x) => x.name === m);
-      const val = key === "minutes" ? mm?.minutes : mm && !mm.estimated ? mm.score : null;
-      return `<label>${esc(m)} <input type="number" step="0.01" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${ph}"></label>`;
+      const val = key === "minutes" ? (mm && !mm.minutes_auto ? mm.minutes : null) : mm && !mm.estimated ? mm.score : null;
+      const holder = key === "minutes" && mm?.minutes_auto ? `汇总 ${f1(mm.minutes)}` : ph;
+      return `<label>${esc(m)} <input type="number" step="0.01" min="0" data-mk-${key}="${esc(m)}" value="${val == null ? "" : val}" placeholder="${esc(holder)}"></label>`;
     }).join("");
     return `<div class="card contest-card" id="mkForm"><h3>📝 录入成绩单 <small>照抄粉笔模考报告上的数字；空着的不算。第一次录分数时也记进${esc(W("boss"))}（固定录分奖励、手动领取悟道与突破信物）</small></h3>
       ${scoreInfo}
@@ -149,12 +151,12 @@
     const tiles = cur.review.map((b) => {
       const bad = b.wrong + b.blank, full = b.reviewed >= b.total;
       return `<button class="rv-board ${full ? "done" : ""}" data-rv="${esc(b.board)}" ${RV_WRONG && !bad ? "disabled" : ""}>
-        <b>${esc(b.board)}</b><span class="rv-cnt"><i class="ok">✓ ${b.ok}</i><i class="bad">✗ ${b.wrong}</i>${b.blank ? `<i class="blank">○ ${b.blank}</i>` : ""}</span>
+        <b>${esc(b.board)}</b><span class="rv-cnt"><i class="ok">✓ ${b.ok}</i><i class="bad">✗ ${b.wrong}</i>${b.blank ? `<i class="blank">○ ${b.blank}</i>` : ""}${b.minutes != null ? `<i class="faint">⏱ ${f1(b.minutes)}分</i>` : ""}</span>
         <span class="rv-bar"><i style="width:${Math.round(100 * b.reviewed / b.total)}%"></i></span>
         <small>${b.resume ? `⏸ 上次看到第 ${b.resume} 题` : full ? "已复盘完" : b.reviewed ? `已复盘 ${b.reviewed}/${b.total}` : `${b.total} 题 · 未复盘`}</small></button>`;
     }).join("");
     return `<div class="card contest-card rv-card"><div class="row" style="flex-wrap:wrap;gap:10px"><h3 style="margin:0">📜 大比复盘
-        <small>像刷完一组题那样，把这一季模考逐题过一遍：看题 → 对答案 → 读解析 → 不懂就问师傅。复盘时间记进「修炼 · 复习」</small></h3>
+        <small>把这一季模考逐题过一遍：看题 → 对答案 → 读解析。各板块已按小题自动求和用时，复盘时间记进「修炼 · 复习」</small></h3>
         <span class="spacer"></span><select id="rvPick" style="width:auto">${opts}</select></div>
       ${examLine(cur)}
       <div class="row" style="gap:12px;margin:8px 0 4px;align-items:center"><span class="small muted">这份试卷已复盘 <b>${seen}</b>/${all} 题</span>
@@ -181,16 +183,16 @@
   function html(d) {
     for (const x of d.seasons || []) NAMES[x.season] = x.name || `第${x.season}季`;
     const o = d.overall, ss = d.seasons;
+    const peHtml = window.SUBJECT0 === "行测" && PE_DATA ? (window.PAPER_EXAM?.html(PE_DATA) || "") : "";
     if (!ss.length) {
-      return (window.MOCK_IMPORT?.html()||'')+`<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">${window.SUBJECT0==='行测'?'还没有模考。打开场景“录入”，先导入试卷，再核对对错和成绩。':'还没有模考记录。先使用本科原有入口导入资料或记录成绩。'}</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"");
+      return (window.MOCK_IMPORT?.html()||'')+`<div class="card contest-hero"><h2>⚔ ${esc(W("boss"))}</h2><p class="muted">${window.SUBJECT0==='行测'?'还没有模考。可打开“录入”导入试卷，或打开“自考”做纸质卷计时录分。':'还没有模考记录。先使用本科原有入口导入资料或记录成绩。'}</p></div>` + (window.MOCK_REWARDS?.html(DASH)||"") + peHtml;
     }
-    const lr = o.latest_rank;
     const head = `<div class="card contest-hero"><div class="row"><h2>⚔ ${esc(W("boss"))}</h2><span class="small muted">共 ${o.count} 份试卷 · 已出分 ${o.scored} 份</span></div>
       <div class="kpis">
         ${kpi("模考总平均分", f1(o.mean), o.scored ? `${o.scored} 份试卷` : "录成绩单后显示", "hero")}
         ${kpi("最近一次", f1(o.latest))}
         ${kpi("最高", f1(o.best))}
-        ${kpi("平均正确率", o.mean_acc == null ? "—" : Math.round(o.mean_acc) + "%", "按复盘对错")}
+        ${kpi("平均正确率", o.mean_acc == null ? "—" : Math.round(o.mean_acc) + "%", "按复盘/录分对错")}
       </div></div>`;
     const xs = ss.map((s) => (s.name || nm(s.season)) + (s.date ? "（" + s.date.replace(/-/g,".") + "）" : "（日期待补）"));
     const vals = ss.map((s) => s.score).filter((v) => v != null);
@@ -206,9 +208,9 @@
       series: d.module_names.map((m, i) => ({ name: m, color: `var(--s${i + 1})`,
         values: ss.map((s) => { const x = s.modules.find((y) => y.name === m); return x ? Math.round(x.acc * 1000) / 10 : null; }) })),
     });
-    const rows = ss.slice().reverse().map((s) => `<tr><td><b>${esc(s.name || nm(s.season))}</b></td><td>${esc(s.date || "")}</td>
+    const rows = ss.slice().reverse().map((s) => `<tr><td><b>${esc(s.name || nm(s.season))}</b>${s.paper_exam ? ' <span class="faint small">自考</span>' : ""}</td><td>${esc(s.date || "")}</td>
         <td class="num"><b>${f1(s.score)}</b>${s.score_from_boss ? '<span class="faint small"> 修仙录</span>' : ""}</td>
-        <td class="num">${s.ok}/${s.total}（${pc(s.acc)}）</td><td class="num">${s.minutes == null ? "—" : s.minutes + " 分"}</td>
+        <td class="num">${s.ok}/${s.total}（${pc(s.acc)}）</td><td class="num">${s.minutes == null ? "—" : f1(s.minutes) + " 分"}</td>
         <td><button class="ghost small" data-mk-edit="${s.season}">${s.score == null ? "录入" : "改"}</button></td></tr>`).join("");
     return head + reviewCard(d) + (window.MOCK_REWARDS?.html(DASH)||"") + `
       <div class="grid g2 contest-grid" style="margin-top:14px">
@@ -216,20 +218,35 @@
         <div class="card contest-card"><h3>🎯 各模块正确率走势 <small>点图例看各条线；悬停看每份试卷</small></h3>${accChart}</div>
       </div>
       ${moduleGrid(d)}
-      <div class="card contest-card"><h3>🏯 历次大比 <small>按提交日期排列；对错题数来自复盘；粉笔报告上的平均分、排名等只作可选备注</small></h3>
+      <div class="card contest-card"><h3>🏯 历次大比 <small>按提交日期排列；含导入套卷与纸质自考；用时按各小题或板块汇总</small></h3>
         <div class="tbl-wrap"><table class="mk-table"><thead><tr><th>试卷</th><th>日期</th><th>我的分数</th><th>答对</th><th>用时</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
+      ${peHtml}
       ${window.MOCK_IMPORT?.html()||''}
       ${form(d)}
-      <p class="small muted">${window.SUBJECT0==='行测'?'录入流程：① 展开试卷导入（PDF / HTML）→ ② 填写并保存成绩单 → ③ 返回场景进入复盘。':'填写并保存成绩单，再返回场景进入本科复盘。'}</p>`;
+      <p class="small muted">${window.SUBJECT0==='行测'?'录入流程：① 展开试卷导入（PDF / HTML）→ ② 填写并保存成绩单 → ③ 返回场景进入复盘（纸质卷请前往「自考」）。':'填写并保存成绩单，再返回场景进入本科复盘。'}</p>`;
   }
 
   function bind() {
     window.MOCK_IMPORT?.bind();
+    window.PAPER_EXAM?.bind(async (r, playCeremony) => {
+      MOCK = r.summary;
+      PE_DATA = r.paper_exam;
+      await refresh();
+      rerender("self_exam");
+      if (playCeremony && window.CEREMONY && r.season) {
+        const ss = MOCK.seasons, k = ss.findIndex((x) => x.season === r.season);
+        if (k >= 0 && ss[k].score != null) {
+          const prev = ss.slice(0, k).reverse().find((x) => x.score != null);
+          await CEREMONY.contest(ss[k], prev);
+        }
+      }
+      if (r.events) handleEvents(r.events);
+    });
     bindCharts();
     bindReview();
     // 点图例：隐藏 / 显示那条线（颜色跟着线走，不重排）
-    document.querySelectorAll(".chart .lg").forEach((lg, k) => (lg.onclick = () => {
+    document.querySelectorAll(".chart .lg").forEach((lg) => (lg.onclick = () => {
       const chart = lg.closest(".chart");
       const idx = [...chart.querySelectorAll(".lg")].indexOf(lg);
       lg.classList.toggle("off");
@@ -243,7 +260,13 @@
     const pick = document.getElementById("mkPick");
     if (pick) pick.onchange = () => { PICK = pick.value; rerender(); };
     document.querySelectorAll("[data-mk-edit]").forEach((b) => (b.onclick = () => {
-      EDIT = b.dataset.mkEdit; rerender("entry");
+      const sn = b.dataset.mkEdit;
+      const target = MOCK.seasons.find((x) => String(x.season) === String(sn));
+      if (target?.paper_exam && window.PAPER_EXAM?.editSeason(sn)) {
+        rerender("self_exam");
+        return;
+      }
+      EDIT = sn; rerender("entry");
       document.getElementById("mkForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }));
     const scoreInput=document.getElementById('mkScore');
@@ -274,7 +297,8 @@
     };
   }
   function mountScene(v,state=null){
-    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),calendar:CALENDAR,state});
+    const extraModes = window.SUBJECT0 === "行测" ? [["self_exam", "自考", "纸质自考"]] : [];
+    window.CONTEST_SCENE?.mount(v,{title:window.SCENE_PORTAL?.title('contest')||NAV('contest'),seasonCount:MOCK.seasons.length,mage:document.body.classList.contains('xuanhuan'),calendar:CALENDAR,state,extraModes});
   }
   function rerender(view=null) {
     const v = document.getElementById("view");
@@ -284,10 +308,21 @@
     v.innerHTML = html(MOCK);mountScene(v,state);
     bind();
   }
+  function openReview() {
+    NEXT_VIEW = "review";
+  }
   async function render(v, beforeCommit=()=>true) {
-    [MOCK,CALENDAR] = await Promise.all([api("/api/mock"),api("/api/contest/calendar",{})]);
+    const isXingce = window.SUBJECT0 === "行测";
+    [MOCK, CALENDAR, PE_DATA] = await Promise.all([
+      api("/api/mock"),
+      api("/api/contest/calendar", {}),
+      isXingce ? api("/api/paper-exam").catch(() => null) : Promise.resolve(null),
+    ]);
     if(typeof VIEW!=='undefined'&&VIEW!=='contest'||!beforeCommit())return;
-    v.innerHTML = html(MOCK);mountScene(v);
+    const initView = NEXT_VIEW;
+    NEXT_VIEW = null;
+    v.innerHTML = html(MOCK);
+    mountScene(v, initView ? { view: initView, open: true } : null);
     bind();
   }
   async function importDone(season){
@@ -297,5 +332,5 @@
     if(!keep){EDIT=season;}await refresh();if(typeof VIEW!=='undefined'&&VIEW!=='contest')return;rerender();
     if(keep)for(const item of draft){const el=item.id?document.getElementById(item.id):document.querySelector('[data-mk-'+item.key+'="'+CSS.escape(item.board)+'"]');if(el){el.value=item.value;if(item.source)el.dataset.scoreSource=item.source;}}
   }
-  window.CONTEST = { render, importDone };
+  window.CONTEST = { render, importDone, openReview };
 })();

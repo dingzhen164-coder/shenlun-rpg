@@ -703,3 +703,10 @@ diverged tests/ui_scene_top.cjs
 shared tests/test_scene_layout_version.py
 
 # 2026-11-04：公考4.0词录/模考精简先行，法考保留现有功能；上述对应业务文件及交互断言归入 diverged。
+
+# 4.2.0：公考宗门大比「自考（纸质卷无数字钟表计时+预设录分）」先行。
+diverged rpg/paper_exam.py
+diverged web/paper_exam.js
+diverged web/paper_exam.css
+diverged tests/test_paper_exam.py
+diverged tests/ui_paper_exam.cjs

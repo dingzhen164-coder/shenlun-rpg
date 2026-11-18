@@ -29,7 +29,7 @@ const pixels=(page,sel)=>page.locator(sel).first().evaluate(el=>{const d=el.getC
   if(first){ // 默认字号下先画一笔
    await page.locator('[data-mark="pen"]').click();const mb=await page.locator('.sl-material-ink').first().boundingBox();
    await page.mouse.move(mb.x+mb.width*.2,mb.y+30);await page.mouse.down();await page.mouse.move(mb.x+mb.width*.5,mb.y+40,{steps:8});await page.mouse.up();await page.locator('[data-mark="read"]').click();
-   await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
+   await page.evaluate(()=>SHENLUN.saveDraft());
   }
   const base100=await pixels(page,'.sl-material-ink');assert(base100>0,'默认字号下的勾画');
   await page.locator('[data-sl-mfs="10"]').click();await page.locator('[data-sl-mfs="10"]').click();
@@ -50,7 +50,7 @@ const pixels=(page,sel)=>page.locator(sel).first().evaluate(el=>{const d=el.getC
   await page.waitForFunction(()=>document.querySelector('.sl-material-ink')?.height>0);
   assert.equal(await pixels(page,'.sl-material-ink'),base100,'回到默认字号：原来的勾画一像素不差');
   assert.match(await page.locator('.sl-mfs-note').textContent(),/120% 字号下另有勾画/);
-  await page.locator('#slDraftSave').click();await page.locator('#slSaveStatus').filter({hasText:'已保存'}).waitFor();
+  await page.evaluate(()=>SHENLUN.saveDraft());
   const saved=await page.evaluate(()=>fetch('/api/shenlun/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({qid:document.querySelector('[data-slq]')?.dataset.slq||''})}).then(r=>r.json()).catch(()=>null));
   // ② 交卷弹窗：返回修改不交卷
   if(first){const b=await page.locator('.sl-card-ink').boundingBox(),v=await page.locator('.sl-card-viewport').boundingBox();const y=Math.max(b.y,v.y)+40;await page.mouse.move(b.x+b.width*.2,y);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,y+20,{steps:8});await page.mouse.up();}

@@ -116,6 +116,12 @@ class TeachersTests(unittest.TestCase):
                 trainer._explain(g,{'board':'逻辑填空','stem':'自编题干','options':{'A':'自编A','B':'自编B'},'answer':'绝密答案','analysis':'绝密解析'}, {}, '句号')
                 sent=str(chat.call_args[0][0]);self.assertIn('句号专属标记',sent);self.assertNotIn('猫专属标记',sent)
                 self.assertNotIn('绝密答案',sent);self.assertNotIn('绝密解析',sent)
+            ms=trainer.new_session('mock_review','大比复盘',{},board='逻辑填空',source='逻辑填空')
+            self.addCleanup(lambda:trainer.SESSIONS.pop(ms['id'],None))
+            self.assertNotIn('skill_teachers',trainer._teacher_response(g,{'session':ms['id'],'battle':{'phase':'review'}}))
+            self.assertNotIn('skill_teachers',trainer._teacher_response(g,{'session':s['id'],'finished':True}))
+            with self.assertRaises(trainer.TrainError):
+                trainer.action(g,ms['id'],'skill_teacher:句号')
 
     def test_input_limits_and_archive_errors(self):
         with self.assertRaises(skillbook.SkillError):

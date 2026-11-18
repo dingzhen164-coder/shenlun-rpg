@@ -82,9 +82,9 @@
     const d = await api('/api/shenlun/papers'); B.papers = d.papers;
     const controls = `<div class="card sl-bank-head"><div class="row"><h3>真题档案库 <small>录入 → 作答 → 证据批改 → 修改复练</small></h3><span class="spacer"></span>${importing ? '' : '<button class="ghost small" id="slBankImport">录入真题</button>'}</div>
       <p class="small muted">按题干和给定资料独立作答，交卷前隐藏参考答案。批改建议分供训练使用，评分标准同题固定。</p>
-      ${materialStats()}<button class="primary" id="slSourceStart">⬇ 下载并录入公开申论题库</button> <button class="ghost small" id="slBankRefresh">刷新题库</button>
-      <div class="small muted" id="slSourceStatus">首次下载约330MB，保存到电脑的申论库；重复录入保留已有题目。</div>
-      ${importing ? `<details class="sl-bank-input"><summary>导入自己的题目包（JSON）</summary><p class="small muted">可导入整套或多套；包含title、materials和questions。材料原文、参考答案只存本地。</p><input type="file" id="slPackage" accept=".json"><button class="ghost small" id="slTemplate">下载格式模板</button><div id="slImportMessage" class="small muted"></div></details>
+      ${materialStats()}<button class="primary" id="slSourceStart">⬇ 下载并录入公开申论题库</button> <button class="ghost small" id="slBankRefresh">刷新本地题库</button>
+      <div class="small muted" id="slSourceStatus">首次下载约33MB（含国考及四川、贵州等省考申论真题），以可读可改 Markdown 保存到 训练/题库/申论真题/；重复下载保留已有作答。</div>
+      ${importing ? `<details class="sl-bank-input"><summary>导入自己的题目包（JSON）</summary><p class="small muted">可导入整套或多套；包含title、materials和questions。也可直接在 训练/题库/申论真题/ 下参考 _模板.md 新建或修改 .md 试卷后点“刷新本地题库”。</p><input type="file" id="slPackage" accept=".json"><button class="ghost small" id="slTemplate">下载格式模板</button><div id="slImportMessage" class="small muted"></div></details>
       <details class="sl-bank-input"><summary>手动录入一道题</summary><div class="sl-manual-grid">
       <label>试卷标题<input id="slManualTitle" placeholder="如2026国考行政执法"></label><label>地区<input id="slManualRegion" placeholder="国考 / 贵州"></label>
       <label>题型<select id="slManualType">${['归纳概括','综合分析','提出对策','贯彻执行','大作文'].map(x=>`<option>${x}</option>`).join('')}</select></label>
@@ -118,7 +118,7 @@
     SL_TRAINING.bindTopics(root,B.papers);
     root.querySelectorAll('[data-slmat-auto]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const d=await post('/api/shenlun/materials',{auto:b.dataset.slmatAuto});toast(`已为${d.done}道题对应材料`);rerender();}catch(e){showError(e);b.disabled=false;}});
     const imp=$('#slBankImport');if(imp)imp.onclick=()=>{LIB.tab='bank';go('skeleton');};
-    const refreshBtn=$('#slBankRefresh');if(refreshBtn)refreshBtn.onclick=rerender;
+    const refreshBtn=$('#slBankRefresh');if(refreshBtn)refreshBtn.onclick=async()=>{refreshBtn.disabled=true;try{const r=await post('/api/shenlun/bank_reload');toast(r.errors?.length?`已重读 ${r.papers} 套，${r.errors.length} 份文件格式待核对：${r.errors[0]}`:`已刷新本地题库：${r.papers} 套 · ${r.questions} 题`);}catch(e){showError(e);}await rerender();};
     const status=$('#slSourceStatus'),start=$('#slSourceStart');
     async function progress() {
       if(!status?.isConnected)return;
@@ -155,9 +155,9 @@
     return `<div class="card sl-exam-heading"><div class="row"><button class="ghost small" id="slBack">← ${S.origin==='train'?'回训练选择':'回档案题库'}</button>${SL_TRAINING.navigation(S.qid)}<span class="tag cur">${esc(q.type)}</span><b>${esc(q.paper_title)} · 第${q.no}题</b><span class="spacer"></span><span>${q.total||'待补分值'}分${q.words?' · '+q.words+'字':''}</span>${q.type==='大作文'?'<button class="ghost small" id="slEssay" title="审题立意、提纲点评">大作文助手</button>':''}<button class="ghost small" id="slSplit" title="调整左右分栏宽度">⇔ 分栏</button><button class="ghost small" id="slStemToggle" aria-expanded="false">展开题干</button></div><div class="sl-task-scroll sl-stem-collapsed"><p class="sl-stem">${esc(q.stem).replace(/\[materialid\](\d+)\[\/materialid\]/g,'').replace(/\n/g,'<br>')}</p>${q.requirement?`<p>${esc(q.requirement)}</p>`:''}<div class="small muted">${esc(q.edition)} · ${esc(q.source)}</div></div></div>
       ${q.complete?'':'<div class="warn">本题缺少材料或分值，可以先保存作答；请在本地训练/题库/申论真题中核对并补全材料、分值后，再刷新题库进行批改。</div>'}
       <div class="sl-full-grid"><section class="card sl-materials${tabs||notice?' sl-has-label':''}"><div class="sl-material-toolbar">${SL_MATERIALS.toolbar()}<div class="sl-material-labels">${tabs}${notice}</div></div><div class="sl-material-scroll">${q.materials.map((m,i)=>`<article data-mat-article="${i}"${i?' class="sl-mat-off"':''}><h4>${esc(m.label)}</h4><div class="sl-sheet-window"><div class="sl-material-sheet" data-material="${i}">${materialHtml(m.text)}<canvas class="sl-material-ink" aria-label="材料${i+1}勾画层"></canvas></div></div></article>`).join('')||'<p class="muted">尚未录入材料</p>'}</div></section>
-      <section class="card sl-writing"><div class="row sl-write-top"><h3 class="sl-sr-only">我的作答</h3><b id="slElapsed" class="small" title="本题作答用时">用时 00:00</b><button class="ghost small" id="slClockPause">暂停计时</button><span class="spacer"></span>${SL_CARD.tools()}</div>
+      <section class="card sl-writing"><div class="row sl-write-top"><h3 class="sl-sr-only">我的作答</h3><b id="slElapsed" class="small" title="本题作答用时">用时 00:00</b><button class="ghost small" id="slClockPause" title="暂停或继续本题作答计时">暂停</button><span class="spacer"></span>${SL_CARD.tools()}</div>
       ${B.recovery?'<button class="ghost small" id="slRecover">恢复本机未保存的作答</button>':''}${SL_CARD.html(q)}
-      <div class="row sl-submit-row">${SL_CARD.pager()}<span class="spacer"></span>${B.history.length?`<details class="sl-history-pop"><summary class="ghost small">历史 ${B.history.length} 稿</summary><div class="sl-history-list">${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</div></details>`:''}<span class="small muted" id="slCnt"></span><button class="ghost small sl-save-chip" id="slDraftSave" title="点击立即保存 · 自动保存已开启 · 有效编辑${Math.floor(B.seconds/60)}分钟"><span id="slSaveStatus">已保存</span></button><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div></section></div>
+      <div class="row sl-submit-row">${SL_CARD.pager()}<span class="spacer"></span>${B.history.length?`<details class="sl-history-pop"><summary class="ghost small">历史 ${B.history.length} 稿</summary><div class="sl-history-list">${B.history.map((x,i)=>`<button class="ghost small" data-slhistory="${i}">第${i+1}稿 · ${x.result.total}/${x.result.full}</button>`).join('')}</div></details>`:''}<span class="small muted" id="slCnt"></span><button class="primary" id="slSubmit" ${q.complete?'':'disabled'}>交卷 · 综合批改</button></div></section></div>
       <section id="slRes">${S.result?comprehensiveHtml(S.result):''}</section>`;
   }
   // 材料页签、题干折叠、左右分栏：只改显示，不动材料内容和笔迹。
@@ -243,18 +243,15 @@
       <div class="sl-review-grid"><div class="card"><h3>结构与表达</h3>${r.dimensions.map(x=>`<div class="sl-pt"><b>${esc(x.name)} · ${x.level}/4档</b><p>${esc(x.reason)}</p><details><summary class="small">查看原句</summary><blockquote class="sl-ev">${esc(x.quote||'尚未体现')}</blockquote></details><p class="small">下一步：${esc(x.improvement||'保持')}</p></div>`).join('')}</div><div class="card"><h3>题型专项检查</h3>${r.checks.map(x=>`<p><b>${esc(x.name)} · ${esc(x.status)}</b><br>${esc(x.reason)}</p>`).join('')||'<p class="muted">本题未返回额外专项检查</p>'}<h3>原句修改建议</h3>${r.revisions.length?`<p class="small ${r.revision_verified?'muted':'warn'}">${r.revision_verified?`将以下修改同时替换原句后共${r.revision_words}字${r.word_limit?' / 上限'+r.word_limit+'字':''}，已由程序核验。`:'历史建议未核验整篇字数，请重新批改后采用。'}</p>`:''}${r.revisions.map(x=>`<div class="sl-pt"><blockquote class="sl-ev">${esc(x.quote)}</blockquote><p><b>建议：</b>${esc(x.rewrite)}</p><p class="small muted">${esc(x.reason)}</p></div>`).join('')||'<p class="muted">优先按采分点缺口修改</p>'}</div></div>
       <details class="card"><summary>交卷后参考资料</summary>${r.references.map(x=>`<h4>${esc(x.source)}</h4><p>${esc(x.answer).replace(/\n/g,'<br>')}</p>`).join('')}${r.analysis?`<h4>来源库解析（非官方细则）</h4><p>${esc(r.analysis).replace(/\n/g,'<br>')}</p>`:''}${!r.references.length&&!r.analysis?'<p>该题未提供参考答案或解析。</p>':''}</details><details class="card sl-calibrate" data-hash="${esc(r.standard_hash)}" data-refs="${r.references.length}"><summary>评分标准校准 <small class="muted">用参考答案试批，看这套标准偏严还是偏松</small></summary><div class="sl-calibrate-body small muted">展开后查看。</div></details><p class="small muted">复盘已保存：${esc(r.review_file)}</p>`;
   }
-  function saveLabel(value) {const el=document.getElementById('slSaveStatus');if(el)el.textContent=value;}
   async function flushDraft() {
     clearTimeout(B.timer);
     if(B.saving)return B.saving;
     B.saving=(async()=>{
       while(B.dirty&&S.q?.complete_bank){
         const qid=S.qid,text=S.draftText,seq=B.seq,revision=B.revision;
-        saveLabel('正在保存……');
         try{const d=await post('/api/shenlun/answer',{save:true,qid,text,revision,card:B.card,material_marks:B.marks,confirm_handwriting:B.confirm});B.revision=d.revision;B.seconds=d.seconds;
           if(B.seq===seq){B.dirty=false;try{localStorage.removeItem('sl.draft.'+qid);}catch(_){}}else keepDraft();
-          saveLabel('已保存');
-        }catch(e){saveLabel('保存失败，点击“保存”重试');toast(e.message);return false;}
+        }catch(e){toast('自动保存未完成：'+e.message);return false;}
       }return true;
     })();
     try{return await B.saving;}finally{B.saving=null;}
@@ -283,19 +280,18 @@
   const inkOf=card=>(card?.pages||[]).some(p=>p.strokes.some(s=>!s.erase&&s.points.length));
   function bindFullAnswer(root) {
     const count=()=>{const el=root.querySelector('#slCnt');if(!el)return;const n=[...String(S.draftText||'').replace(/\s/g,'')].length,done=n&&(B.confirm||!inkOf(B.card));el.textContent=done?n+'字'+(S.q.words?' / '+S.q.words:''):(S.q.words?'限 '+S.q.words+' 字':'');};
-    const changed=()=>{S.lastKey=Date.now();B.confirm=false;B.dirty=true;B.seq++;keepDraft();count();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
-    const marked=()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();saveLabel('未保存');clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);};
+    const changed=()=>{S.lastKey=Date.now();B.confirm=false;B.dirty=true;B.seq++;keepDraft();count();clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);post('/api/shenlun/active').catch(()=>{});};
+    const marked=()=>{S.lastKey=Date.now();B.dirty=true;B.seq++;keepDraft();clearTimeout(B.timer);B.timer=setTimeout(flushDraft,800);};
     const mountMarks=()=>{B.marksView?.destroy();B.marksView=SL_MATERIALS.mount(root,S.q,B.marks,marked,()=>mountMarks());};   // 材料字号变了：按新字号重排并换成那个字号的勾画
     bindLayout(root);
     bindEssay(root);
     bindCalibration(root.querySelector('#slRes'));
     B.cardView=SL_CARD.mount(root,S.q,B.card,changed);
     mountMarks();
-    root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停计时':'继续计时';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};
+    root.querySelector('#slClockPause').onclick=async()=>{B.clockOn=!B.clockOn;root.querySelector('#slClockPause').textContent=B.clockOn?'暂停':'继续';S.lastKey=Date.now();await clockTick(B.clockOn&&!S.busy);};
     clearInterval(B.clockTimer);S.lastKey=Date.now();clockTick(true);let ticks=0;B.clockTimer=setInterval(()=>{if(!root.isConnected){clearInterval(B.clockTimer);return;}const active=B.clockOn&&!S.busy&&!B.ocrBusy&&!document.hidden&&Date.now()-S.lastKey<120000;if(++ticks%10===0)clockTick(active);const seconds=B.seconds+(active&&B.clockStamp?Math.min(10,Math.floor((Date.now()-B.clockStamp)/1000)):0);root.querySelector('#slElapsed').textContent='用时 '+String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');},1000);
     root.querySelector('.sl-materials').onpointerdown=()=>{S.lastKey=Date.now();};
     count();
-    root.querySelector('#slDraftSave').onclick=flushDraft;
     const recover=root.querySelector('#slRecover');if(recover)recover.onclick=()=>{S.draftText=B.recovery.text;B.card=B.recovery.card||B.card;B.marks=B.recovery.material_marks||B.marks;mountMarks();B.cardView?.destroy();B.cardView=SL_CARD.mount(root,S.q,B.card,changed);changed();recover.remove();};
     root.querySelectorAll('[data-slhistory]').forEach(b=>b.onclick=()=>{S.result=B.history[Number(b.dataset.slhistory)].result;root.querySelector('#slRes').innerHTML=comprehensiveHtml(S.result);b.closest('details').open=false;root.querySelector('#slRes').scrollIntoView?.({block:'start'});});
     const btn=root.querySelector('#slSubmit'),label='交卷 · 综合批改';
@@ -327,5 +323,5 @@
   }
   document.addEventListener('visibilitychange',()=>{if(document.getElementById('slElapsed'))clockTick(!document.hidden&&B.clockOn&&!S.busy&&!B.ocrBusy);});
   addEventListener('beforeunload',e=>{if(B.dirty){keepDraft();e.preventDefault();e.returnValue='';}});
-  window.SHENLUN = { focused:()=>S.page==='answer'&&!!S.q?.complete_bank, hallStat, hallHtml, bindHall, libHtml, bindLib, active, board, flush: leaveAnswer };
+  window.SHENLUN = { focused:()=>S.page==='answer'&&!!S.q?.complete_bank, hallStat, hallHtml, bindHall, libHtml, bindLib, active, board, flush: leaveAnswer, saveDraft: flushDraft };
 })();

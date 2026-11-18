@@ -888,6 +888,10 @@ def shenlun_bank_source(body):
     return _sl_bank(shenlun_bank.source_start if body.get("start") else shenlun_bank.source_status)
 
 
+def shenlun_bank_reload(body):
+    return _sl_bank(shenlun_bank.reload)
+
+
 def shenlun_answer(body):
     if body.get("save"):
         result = _sl_bank(shenlun_bank.answer_save, body)
@@ -1288,6 +1292,35 @@ def settings_test(body):
     return {"ok": True, "reply": r}
 
 
+def _paper_exam(fn, *args, save=True):
+    from . import paper_exam
+    with open_game(save=save) as g:
+        try:
+            return fn(g, *args)
+        except paper_exam.PaperExamError as e:
+            raise ApiError(str(e))
+
+
+def paper_exam_view(body):
+    from . import paper_exam
+    return _paper_exam(paper_exam.view, save=False)
+
+
+def paper_exam_prefs(body):
+    from . import paper_exam
+    return _paper_exam(paper_exam.save_prefs, body)
+
+
+def paper_exam_save(body):
+    from . import paper_exam
+    return _paper_exam(paper_exam.save_exam, body)
+
+
+def paper_exam_delete(body):
+    from . import paper_exam
+    return _paper_exam(paper_exam.delete_exam, body)
+
+
 ROUTES = {
     ("POST", "/api/characters/encounter"): characters_encounter,
     ("POST", "/api/characters/view"): characters_view,
@@ -1309,6 +1342,7 @@ ROUTES = {
     ("POST", "/api/shenlun/topics"): shenlun_topics,
     ("POST", "/api/shenlun/claims"): shenlun_claims,
     ("POST", "/api/shenlun/bank_source"): shenlun_bank_source,
+    ("POST", "/api/shenlun/bank_reload"): shenlun_bank_reload,
     ("POST", "/api/shenlun/answer"): shenlun_answer,
     ("POST", "/api/shenlun/card/clock"): shenlun_card_clock,
     ("POST", "/api/shenlun/card/recognize"): shenlun_card_recognize,
@@ -1379,6 +1413,11 @@ ROUTES = {
     ("POST", "/api/siguo/board"): siguo_board,
     ("POST", "/api/siguo/answer"): siguo_answer,
     ("POST", "/api/mock/save"): mock_save,
+    ("GET", "/api/paper-exam"): paper_exam_view,
+    ("POST", "/api/paper-exam"): paper_exam_view,
+    ("POST", "/api/paper-exam/prefs"): paper_exam_prefs,
+    ("POST", "/api/paper-exam/save"): paper_exam_save,
+    ("POST", "/api/paper-exam/delete"): paper_exam_delete,
     ("POST", "/api/exam/list"): exam_list,
     ("POST", "/api/exam/import"): exam_import,
     ("POST", "/api/exam/answers"): exam_answers,
