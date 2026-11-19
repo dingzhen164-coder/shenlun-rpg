@@ -696,7 +696,10 @@ const views = {
       ${(DASH.subjects || []).map((x) => `<label class="small muted">${esc(x.name)}库路径（含 copilot/skills 的文件夹；程序放在库里时会自动找到）
         ${(s.saves || {})[x.name]?.has ? `<span class="tag ok">存档：有（最后保存 ${esc(s.saves[x.name].date)}）</span>` : `<span class="tag lock">存档：没有（这个库里还没有进度）</span>`}</label>
       <input class="sVault" data-vsub="${esc(x.name)}" data-orig="${esc((s.vaults || {})[x.name] || "")}" value="${esc((s.vaults || {})[x.name] || "")}" placeholder="例如 C:\\Users\\你\\Desktop\\${esc(x.name)}obsidian\\${esc(x.name)}">`).join("")}
-      <div class="small faint">当前科目使用：${esc(s.vault || "未找到")}</div><br>
+      <div class="small faint">当前科目使用：${esc(s.vault || "未找到")}</div>
+      <label class="small muted" style="display:block;margin-top:8px">gk-skill 同步目录（可选，思过崖错题与词录一键同步用；若已放进「行测库/gk-skill」会自动识别，留空即可）</label>
+      <input id="sGkSkill" value="${esc(s.gk_skill_dir || "")}" placeholder="留空自动识别行测库/gk-skill，或填外部路径如 C:\\Users\\你\\Desktop\\gk-skill">
+      <div class="small faint">${s.gk_skill_detected ? `当前同步源：${esc(s.gk_skill_detected)}（${s.gk_skill_mode === "vault" ? "库内自动识别" : "自定义路径"}）` : "当前未检测到 gk-skill 目录"}</div><br>
       <div class="ai-switch"><b>🤖 当前 AI</b>
         <select id="sProf">${(s.ai_profiles || []).map(p => `<option value="${esc(p.name)}" ${p.name === s.ai_active ? "selected" : ""}>${esc(p.name)} · ${esc(p.model)}</option>`).join("")}
           ${s.ai_active && (s.ai_profiles || []).some(p => p.name === s.ai_active) ? "" : `<option value="" selected>（当前设置：${esc(s.model)}，还没存成方案）</option>`}</select>
@@ -1448,6 +1451,7 @@ function bindSettings() {
   };
   function formBody() {
     const body = { base_url: $("#sBase").value, model: $("#sModel").value, thinking: $("#sThink").checked };
+    if ($("#sGkSkill")) body.gk_skill_dir = $("#sGkSkill").value.trim();
     if ($("#sKey").value.trim()) body.api_key = $("#sKey").value.trim();
     body.vision_model = $("#sVModel").value.trim(); body.vision_base_url = $("#sVBase").value.trim();
     if ($("#sVKey").value.trim()) body.vision_api_key = $("#sVKey").value.trim();

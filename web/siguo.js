@@ -8,11 +8,21 @@
   const STELES = [[402, 360, 497, 558], [528, 368, 623, 550], [655, 345, 750, 545], [781, 338, 880, 545],
     [913, 352, 1008, 550], [1043, 362, 1138, 552], [1169, 362, 1255, 560]];
   const POS_KEY = "sg-pos-v1";
-  let DATA = null, BOARD = null, CUR = "", RESULT = null, lastAct = 0, root = null, ro = null;
+  let DATA = null, BOARD = null, CUR = "", RESULT = null, lastAct = 0, root = null, ro = null, syncing = false;
   let generation = 0, boardRequest = 0, answerRequest = 0;
   const current = () => typeof VIEW === 'undefined' || VIEW === 'tianji';
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const md = (t) => (window.MDLITE ? MDLITE.render(t || "") : `<p>${esc(t)}</p>`);
+  const IMG_RE = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+  function siguoImgUrl(raw) {
+    let s = String(raw || "").trim().replace(/\\/g, "/");
+    if (!s || /^https?:\/\//i.test(s) || s.startsWith("/") || s.includes("..")) return "";
+    s = s.replace(/^\.\//, "");
+    if (!IMG_RE.test(s)) return "";
+    if (!s.includes("/")) s = "assets/" + s;
+    const base = String(DATA?.folder || "训练/思过崖/").replace(/\/?$/, "/");
+    return "/vault-file?p=" + encodeURIComponent(base + s);
+  }
+  const md = (t) => (window.MDLITE ? MDLITE.render(t || "", { imgUrl: siguoImgUrl }) : `<p>${esc(t)}</p>`);
   const pos = () => { try { return JSON.parse(localStorage.getItem(POS_KEY) || "{}"); } catch (_) { return {}; } };
   const savePos = (p) => { try { localStorage.setItem(POS_KEY, JSON.stringify(Object.assign(pos(), p))); } catch (_) {} };
   const touch = () => { lastAct = Date.now(); };
@@ -20,6 +30,14 @@
 
   function hero() {
     return window.BeautyArt?.heroFor?.("tianji") || "assets/beauty/scenes/xingce/hd/siguo/siguo-day.webp";
+  }
+
+  function syncBtnHtml() {
+    const hasSrc = !!(DATA?.sync?.source);
+    const tip = hasSrc
+      ? `从 ${DATA.sync.source} 同步错题集（含配图）与词录汇总`
+      : "把 gk-skill 放进行测库根目录，或在设置里填写路径后点击同步";
+    return `<button type="button" class="ghost small sg-sync" data-sgsync title="${esc(tip)}" ${syncing ? "disabled" : ""}>${syncing ? "同步中…" : "↻ 同步错题与词录"}</button>`;
   }
 
   function sceneHtml() {
@@ -33,7 +51,7 @@
     }).join("");
     return `<div class="sg-stage"><div class="sg-back" style="--sg-img:url('${esc(img)}')" aria-hidden="true"></div>
       <div class="sg-frame"><img src="${esc(img)}" alt="" class="sg-art" draggable="false">${steles}</div>
-      <p class="sg-hint">面壁思过：点一块石碑，重做那个板块记下的错题。内容来自 ${esc(DATA.folder)}（照 ${esc(DATA.template)} 的格式增改）。</p></div>`;
+      <div class="sg-hint"><span>面壁思过：点一块石碑，重做那个板块记下的错题。内容来自 ${esc(DATA.folder)}。</span>${syncBtnHtml()}</div></div>`;
   }
 
   function fit() {
@@ -72,7 +90,7 @@
   function roomHtml() {
     const b = BOARD;
     const head = `<header class="sg-head"><button type="button" class="ghost small" data-sgback>← 回思过崖</button><strong class="sg-title">${esc(b.name)}</strong>
-      <span class="small sg-file">${esc(b.file)}</span></header>`;
+      <span class="small sg-file">${esc(b.file)}</span>${syncBtnHtml()}</header>`;
     if (!b.exists || !b.questions.length) {
       return `<div class="sg-room sg-paper">${head}<div class="sg-empty"><p>${b.exists ? "这个文档里还没读到题。" : "还没有这个板块的文档。"}</p>
         <p>在本地新建或补充 <b>${esc(b.file)}</b>，照 <b>${esc(b.template || "训练/思过崖/_模板.md")}</b> 的格式：每道题 <code>## 编号 · 标题</code>，下面 <code>### 原题</code>（题干 + “- A. ……”）、<code>### 答案</code>（正确答案：C；我的选择：B），其余小节随便加。</p>
@@ -124,8 +142,26 @@
     RESULT = null; touch(); savePos({ board: name, [name]: CUR }); paint({ fresh: true, reveal: "center" });
   }
 
+  async function runSync() {
+    if (syncing) return;
+    syncing = true; paint({ keepMain: true });
+    try {
+      const r = await api("/api/siguo/sync", {});
+      DATA = r;
+      if (typeof toast === "function") toast(r.sync_result?.summary || "已同步");
+      if (BOARD) await openBoard(BOARD.name, CUR);
+      else paint();
+    } catch (e) {
+      if (typeof showError === "function") showError(e);
+    } finally {
+      syncing = false;
+      if (root && DATA && current()) paint({ keepMain: true });
+    }
+  }
+
   function bind() {
     root.querySelectorAll("[data-sgboard]").forEach((b) => (b.onclick = () => openBoard(b.dataset.sgboard).catch(showError)));
+    root.querySelectorAll("[data-sgsync]").forEach((b) => (b.onclick = () => runSync()));
     root.querySelector("[data-sgback]")?.addEventListener("click", () => close());
     root.querySelectorAll("[data-sgq]").forEach((b) => (b.onclick = () => {
       ++answerRequest; CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint({ reveal: true });

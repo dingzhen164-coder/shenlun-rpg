@@ -43,13 +43,24 @@
     return t.replace(/\bCh\.? ?(\d+)/g, "第$1章").replace(/[（(]\s*(or|and|not)\s*[）)]/g, (_, w) => "（" + { or: "或", and: "且", not: "非" }[w] + "）");
   }
 
-  // 行内：先保护代码，再换公式，再处理加粗/斜体
-  function inline(raw) {
+  // 行内：先保护代码，再换公式、图片，再处理加粗/斜体
+  function inline(raw, opts) {
     const keep = [];
     const stash = (html) => "\u0000" + (keep.push(html) - 1) + "\u0000";
     let s = boiler(String(raw));
     s = s.replace(/`([^`\n]+)`/g, (_, c) => stash("<code>" + esc(c) + "</code>"));
     s = s.replace(/\$\$([^$]+)\$\$|\$([^$\n]+)\$/g, (_, a, b) => stash('<span class="md-math">' + esc(tex(a ?? b)) + "</span>"));
+    const imgUrl = opts && typeof opts.imgUrl === "function" ? opts.imgUrl : null;
+    if (imgUrl) {
+      s = s.replace(/!\[([^\]\n]*)\]\(([^)\n]+)\)/g, (m, alt, src) => {
+        const u = imgUrl(src.trim());
+        return u ? stash(`<img class="md-img" src="${esc(u)}" alt="${esc(alt)}" loading="lazy">`) : m;
+      });
+      s = s.replace(/!\[\[([^\]|\n]+)(?:\|([^\]\n]*))?\]\]/g, (m, src, alt) => {
+        const u = imgUrl(src.trim());
+        return u ? stash(`<img class="md-img" src="${esc(u)}" alt="${esc((alt || "").trim())}" loading="lazy">`) : m;
+      });
+    }
     s = s.replace(/\[([^\]\n]+)\]\(([^)\n]*)\)/g, (_, t) => t);
     s = esc(s);
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, "<b>$1</b>").replace(/__([^_\n]+?)__/g, "<b>$1</b>")
@@ -66,13 +77,13 @@
     return plain !== t.replace(/\*\*|`/g, "").replace(/\$/g, "").trim() ? plain : null;
   }
 
-  function render(text) {
+  function render(text, opts) {
     let src = String(text ?? "").replace(/\r\n?/g, "\n");
     src = src.replace(/^---\n[\s\S]*?\n---\n?/, "").replace(/<!--[\s\S]*?-->/g, "");
     const lines = src.split("\n"), out = [];
     let i = 0, list = null;
     const closeList = () => { if (list) { out.push(list.map((l) => l.close).reverse().join("")); list = null; } };
-    const para = (t) => out.push(`<p>${inline(t)}</p>`);
+    const para = (t) => out.push(`<p>${inline(t, opts)}</p>`);
     while (i < lines.length) {
       const l = lines[i];
       let m;
@@ -84,7 +95,7 @@
       if ((m = l.match(/^(#{1,6})[ \t]+(.*?)[ \t#]*$/))) {
         closeList();
         const lv = Math.min(m[1].length + 1, 5), tr = headText(m[2]);
-        out.push(`<h${lv} class="md-h">${tr ? esc(tr) : inline(m[2])}</h${lv}>`); i++; continue;
+        out.push(`<h${lv} class="md-h">${tr ? esc(tr) : inline(m[2], opts)}</h${lv}>`); i++; continue;
       }
       if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) { closeList(); out.push("<hr>"); i++; continue; }
       if (/^\s*\|.*\|\s*$/.test(l) && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1] || "") && /-/.test(lines[i + 1] || "")) {   // 表格
@@ -92,13 +103,13 @@
         const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
         const head = cells(l); i += 2; const rows = [];
         while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]));
-        out.push(`<div class="md-tablewrap"><table class="md-table"><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+        out.push(`<div class="md-tablewrap"><table class="md-table"><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c, opts)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
         continue;
       }
       if ((m = l.match(/^(\s*)>\s?(.*)$/))) {                 // 引用（连续几行合成一块）
         closeList(); const buf = [m[2]]; i++;
         while (i < lines.length && (m = lines[i].match(/^\s*>\s?(.*)$/))) { buf.push(m[1]); i++; }
-        out.push(`<blockquote class="md-quote">${buf.map((b) => (b.trim() ? `<p>${inline(b)}</p>` : "")).join("")}</blockquote>`); continue;
+        out.push(`<blockquote class="md-quote">${buf.map((b) => (b.trim() ? `<p>${inline(b, opts)}</p>` : "")).join("")}</blockquote>`); continue;
       }
       if ((m = l.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) {
         const depth = Math.min(Math.floor(m[1].replace(/\t/g, "  ").length / 2), 3), ordered = /\d/.test(m[2]);
@@ -109,7 +120,7 @@
           if (list.length === depth + 1) out.push(list.pop().close);
           while (list.length < depth + 1) { out.push(`<${tag} class="md-list">`); list.push({ tag, close: `</${tag}>` }); }
         }
-        out.push(`<li>${inline(m[3])}</li>`); i++; continue;
+        out.push(`<li>${inline(m[3], opts)}</li>`); i++; continue;
       }
       if (!l.trim()) { closeList(); i++; continue; }
       closeList();

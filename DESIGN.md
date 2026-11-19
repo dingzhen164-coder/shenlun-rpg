@@ -1,3 +1,11 @@
+## 开发中（未发布，沿用 4.2.0）：思过崖 + 词录手动同步与配图显示（2026-11-19）
+
+- **思过崖手动同步（`rpg/siguo.py`、`rpg/api.py`、`web/siguo.js`、`web/siguo.css`、`web/app.js`）**：
+  - 同步源解析 `siguo.resolve_sync_source(paths)`：优先读本机设置 `gk_skill_dir`（可在设置页「本机设置」选填），留空时自动发现 `<行测库>/gk-skill/`（同时把 `gk-skill` 加入 `rpg/vault.py` 的 `_SKIP_DIRS` 避免心法查找串台）。
+  - `POST /api/siguo/sync` 手动触发 `siguo.sync_from_source(g)`：按字节比对原子同步 `错题集/<7板块>.md` 与 `错题集/assets/` 配图到 `训练/思过崖/`，并顺带同步 `笔记与题集/成语实词录/`（兼容旧路径 `言语/成语实词录/`）里的 `成语区别汇总.md` 与 `实词区别汇总.md` 到 `训练/成语实词录/`；绝不同步 `skill/` 心法，且保留原有思过崖重做进度。
+  - 前端在思过崖场景底栏与板块内页顶栏提供「↻ 同步错题与词录」按钮，同步完成后 `toast` 汇报变化摘要并刷新石碑/当前板块。
+- **思过崖配图渲染（`web/mdlite.js`、`web/siguo.js`、`web/siguo.css`）**：`MDLITE.render(text, { imgUrl })` 可选支持 Markdown `![alt](src)` 与 Obsidian `![[src]]` 图片渲染（不传 `opts` 时行为不变）；思过崖通过 `/vault-file?p=训练/思过崖/...` 加载配图，样式类 `.sg-md .md-img`。
+
 ## 4.2.0：申论原生分段 Markdown 真题库、右栏单排、行测题头排版、大比复盘精简与纸质「自考」（2026-11-18）
 
 - **申论真题库（`rpg/shenlun_bank.py`，完成 B3）**：公开源切换为 `ProfessorZhi/gwy-zhenti`（固定 commit `9ebfb7ca9ec8473391445bde3758945d8b3337a8`，`catalog/manifest.jsonl` 筛选 `subject=="申论"` 共 934 套，含四川 42 套、贵州 20 套；`area=="全国"` 归一为 `国考`）。下载并经 SHA-256 校验后直接存为 `训练/题库/申论真题/<年份>-<地区>-<卷名>.md`（并发 8 线程拉取），首次打开题库目录时懒加载生成 `_模板.md`；接口 `POST /api/shenlun/bank_reload` 与前端 `#slBankRefresh` 支持本地增改 `.md` 后一键重载。`_migrate_errrc(p)` 按 `(year, area)` 与小题序号把旧 `ERRRC` 卷上已有的草稿、材料选择、综合批改、立意提纲、领取目录与主题分类自动迁移到对应 `.md` 卷，未作答旧 `.json` 与废弃 `训练/题库原始库` 自动清理；用户自建非 `ERRRC` JSON 仍兼容读取。

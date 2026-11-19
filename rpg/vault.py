@@ -60,7 +60,7 @@ def skill_digest(paths, name, limit=None):
 
 # skill 里常见的“操作规程”引用（脚本、调度器、本程序文件），不是知识资料
 _NOT_MATERIAL = re.compile(r"\.py\b|[<>*$]|/scripts/|python|jiexi|board-map|^=== |^【|^\.|^-|projects/|\s")
-_SKIP_DIRS = {".obsidian", ".opencode", ".trash", "训练", "FB模考试卷复盘", "node_modules", ".git"}
+_SKIP_DIRS = {".obsidian", ".opencode", ".trash", "训练", "FB模考试卷复盘", "node_modules", ".git", "gk-skill"}
 MATERIAL_LIMIT = 120000   # 引用资料总字数上限；超出的部分明确写“未读”，不悄悄截断
 
 

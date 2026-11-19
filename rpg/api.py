@@ -29,6 +29,7 @@ HTTP 接口：把 engine / trainer / store 暴露给网页（web/app.js）。只
     POST /api/siguo                行测·思过崖：七块石碑（每板块题数、做过、对、错）
     POST /api/siguo/board          {"name"}  一个板块文档里的题（只给题干和选项）
     POST /api/siguo/answer         {"name","key","choice"}  重做一题：判对错，返回解析小节；答对每题每天给一次修为
+    POST /api/siguo/sync           {"source"?}  手动同步 gk-skill 的错题集（7板块+assets配图）和词录汇总进 训练/（不同步心法）
     GET  /api/mock                 宗门大比：各季模考成绩、六大模块正确率 / 得分 / 用时、走势
     POST /api/mock/save            {"season", "score", "avg", "top", "beat", "rank", "people", "date", "minutes": {模块}, "scores": {模块}}
     POST /api/practice             {"board", "total", "correct", "minutes", "source", "note"}  演武（自练做题）+ 日志；"date" 可补记最近 7 天
@@ -514,6 +515,12 @@ def siguo_answer(body):
         r["events"] = tutor.enrich(g, r["events"])
         return r
     return _siguo(run, str(body.get("name") or ""), str(body.get("key") or ""), str(body.get("choice") or ""))
+
+
+def siguo_sync(body):
+    from . import siguo
+    body = body or {}
+    return _siguo(siguo.sync_from_source, str(body.get("source") or ""), save=False)
 
 
 def _season(body):
@@ -1210,13 +1217,19 @@ def shenlun_card_recognize(body):
 
 
 def settings_get(body):
+    from . import siguo
     s = load_settings()
     a = ai.settings()
     key = a["api_key"]
+    xc_vault = find_vault("行测")
+    gk_info = siguo.resolve_sync_source(Paths(xc_vault, "行测") if xc_vault else None)
     return {"vault": str(find_vault() or ""), "vault_setting": s.get("vaults", {}).get(subjects.active(), ""),
             "subject": subjects.active(),
             "vaults": {n: str(find_vault(n) or "") for n in subjects.NAMES},
             "saves": {n: _save_info(n) for n in subjects.NAMES},
+            "gk_skill_dir": str(s.get("gk_skill_dir") or ""),
+            "gk_skill_detected": str(gk_info["source"]) if gk_info["source"] else "",
+            "gk_skill_mode": gk_info["mode"],
             "base_url": a["base_url"], "model": a["model"], "thinking": a["thinking"],
             "has_key": bool(key), "key_tail": key[-4:] if key else "",
             "vision_model": s.get("vision_model", ""), "vision_base_url": s.get("vision_base_url", ""),
@@ -1238,6 +1251,13 @@ def settings_set(body):
         vs = dict(s.get("vaults") or {})
         vs[sub] = v
         s["vaults"] = vs
+    if "gk_skill_dir" in body:
+        gdir = str(body["gk_skill_dir"] or "").strip()
+        if gdir:
+            from pathlib import Path
+            if not Path(gdir).expanduser().is_dir():
+                raise ApiError("找不到 gk-skill 文件夹：%s" % gdir)
+        s["gk_skill_dir"] = gdir
     changed = False
     for k in ("api_key", "base_url", "model"):
         if k in body and str(body[k]).strip():
@@ -1412,6 +1432,7 @@ ROUTES = {
     ("POST", "/api/siguo"): siguo_boards,
     ("POST", "/api/siguo/board"): siguo_board,
     ("POST", "/api/siguo/answer"): siguo_answer,
+    ("POST", "/api/siguo/sync"): siguo_sync,
     ("POST", "/api/mock/save"): mock_save,
     ("GET", "/api/paper-exam"): paper_exam_view,
     ("POST", "/api/paper-exam"): paper_exam_view,

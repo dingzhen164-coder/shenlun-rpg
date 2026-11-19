@@ -21,12 +21,20 @@ import hashlib
 import os
 import re
 import time
+from pathlib import Path
+
+from . import paths as paths_mod
+from . import wordbook
 
 FOLDER = '思过崖'
+ASSETS_DIR = 'assets'
 TEMPLATE = '_模板.md'
+IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'}
 # (文档名, 程序里的板块名)：中心理解在题库里叫片段阅读
 BOARDS = [('中心理解', '片段阅读'), ('逻辑填空', '逻辑填空'), ('数量关系', '数量关系'), ('定义判断', '定义判断'),
           ('论证逻辑', '论证逻辑'), ('类比推理', '类比推理'), ('一拖五', '一拖五')]
+# 词录汇总在 gk-skill 里的常见相对位置（先新目录结构，后兼容旧路径）
+WORDBOOK_DIRS = (Path('笔记与题集') / '成语实词录', Path('言语') / '成语实词录', Path('成语实词录'))
 SKIP_Q = re.compile(r'题目索引|^说明|错因分类|^目录|^索引|迷惑性质标签')
 STEM = re.compile(r'^(原题干?|题目|题干)\s*(?:[（(：:].*)?$')   # “题目索引”不算
 ANSWER = re.compile(r'^答案')
@@ -220,6 +228,176 @@ def _rec(g):
     return g.state.setdefault('siguo', {})
 
 
+def _atomic_copy(src: Path, dst: Path):
+    """按字节比对，内容有变化才原子写入；返回 True 表示已更新，False 表示无变化。"""
+    data = src.read_bytes()
+    if dst.is_file():
+        try:
+            if dst.read_bytes() == data:
+                return False
+        except OSError:
+            pass
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.name + '.tmp')
+    tmp.write_bytes(data)
+    os.replace(tmp, dst)
+    return True
+
+
+def _looks_like_sync_dir(p: Path):
+    """是否像 gk-skill 根目录或错题集目录"""
+    if not p or not p.is_dir():
+        return False
+    if (p / '错题集').is_dir():
+        return True
+    if any((p / (name + '.md')).is_file() for name, _ in BOARDS):
+        return True
+    return any((p / rel / fn).is_file() for rel in WORDBOOK_DIRS for fn in wordbook.KINDS.values())
+
+
+def resolve_sync_source(paths):
+    """查找 gk-skill 同步源：优先本机设置 gk_skill_dir，其次自动识别 <行测库>/gk-skill/。"""
+    configured = str(paths_mod.load_settings().get('gk_skill_dir') or '').strip()
+    if configured:
+        p = Path(configured).expanduser()
+        if p.is_dir():
+            return {'source': p.resolve(), 'mode': 'custom', 'configured': configured}
+        return {'source': None, 'mode': 'custom_missing', 'configured': configured}
+    if paths and paths.vault:
+        cand = paths.vault / 'gk-skill'
+        if _looks_like_sync_dir(cand):
+            return {'source': cand.resolve(), 'mode': 'vault', 'configured': ''}
+    return {'source': None, 'mode': '', 'configured': ''}
+
+
+def _sync_meta(paths):
+    info = resolve_sync_source(paths)
+    return {'source': str(info['source']) if info['source'] else '', 'mode': info['mode'], 'configured': info['configured']}
+
+
+def _find_wordbook_file(root: Path, filename: str):
+    """在 gk-skill 根目录（以及当用户直接选了 错题集/ 时的上一级目录）里找词录汇总文档。"""
+    bases = [root]
+    if root.name == '错题集' and root.parent.is_dir():
+        bases.append(root.parent)
+    for base in bases:
+        for rel in WORDBOOK_DIRS:
+            f = base / rel / filename
+            if f.is_file():
+                return f
+        direct = base / filename
+        if direct.is_file():
+            return direct
+    return None
+
+
+def sync_from_source(g, source_dir=None):
+    """手动把本地 gk-skill 的错题集（7 板块 + assets 配图）与词录汇总同步进 训练/（不同步心法）。"""
+    if not g.paths.train:
+        raise ValueError('请先指定行测库')
+    if source_dir and str(source_dir).strip():
+        src_root = Path(str(source_dir).strip()).expanduser()
+        if not src_root.is_dir():
+            raise ValueError('找不到同步目录：%s' % src_root)
+        src_root = src_root.resolve()
+        mode = 'custom'
+    else:
+        info = resolve_sync_source(g.paths)
+        if not info['source']:
+            if info['mode'] == 'custom_missing':
+                raise ValueError('设置的 gk-skill 目录不存在：%s（请到设置里检查路径）' % info['configured'])
+            raise ValueError('未找到 gk-skill 目录：把 gk-skill 放进行测库根目录，或在「设置」里填写它的路径')
+        src_root = info['source']
+        mode = info['mode']
+
+    cuoti_dir = (src_root / '错题集') if (src_root / '错题集').is_dir() else src_root
+    dst_siguo = folder(g.paths)
+    dst_siguo.mkdir(parents=True, exist_ok=True)
+    ensure_template(g.paths)
+
+    same_siguo = False
+    try:
+        same_siguo = cuoti_dir.resolve() == dst_siguo.resolve()
+    except OSError:
+        same_siguo = False
+
+    boards_updated, boards_unchanged, boards_missing = [], [], []
+    if not same_siguo:
+        for name, _ in BOARDS:
+            src_f = cuoti_dir / (name + '.md')
+            if not src_f.is_file():
+                boards_missing.append(name)
+                continue
+            dst_f = dst_siguo / (name + '.md')
+            before = len(parse(dst_f.read_text(encoding='utf-8-sig'))['questions']) if dst_f.is_file() else 0
+            changed = _atomic_copy(src_f, dst_f)
+            after = len(parse(dst_f.read_text(encoding='utf-8-sig'))['questions'])
+            if changed:
+                boards_updated.append({'name': name, 'before': before, 'after': after})
+            else:
+                boards_unchanged.append(name)
+
+    assets_updated, assets_unchanged = 0, 0
+    src_assets = cuoti_dir / ASSETS_DIR
+    if src_assets.is_dir() and not same_siguo:
+        dst_assets = dst_siguo / ASSETS_DIR
+        for p in sorted(src_assets.rglob('*')):
+            if not p.is_file() or p.suffix.lower() not in IMAGE_EXT:
+                continue
+            rel = p.relative_to(src_assets)
+            if any(part.startswith('.') for part in rel.parts):
+                continue
+            if _atomic_copy(p, dst_assets / rel):
+                assets_updated += 1
+            else:
+                assets_unchanged += 1
+
+    wb_updated, wb_unchanged = [], []
+    dst_wb = wordbook.folder(g.paths)
+    for kind, fn in wordbook.KINDS.items():
+        src_wb = _find_wordbook_file(src_root, fn)
+        if not src_wb:
+            continue
+        dst_f = dst_wb / fn
+        try:
+            if src_wb.resolve() == dst_f.resolve():
+                wb_unchanged.append(kind)
+                continue
+        except OSError:
+            pass
+        if _atomic_copy(src_wb, dst_f):
+            wb_updated.append(kind)
+        else:
+            wb_unchanged.append(kind)
+
+    if not boards_updated and not boards_unchanged and not assets_updated and not assets_unchanged and not wb_updated and not wb_unchanged:
+        raise ValueError('这个目录里没有找到思过崖 7 板块错题文档或词录汇总：%s' % src_root)
+
+    parts = []
+    if boards_updated:
+        parts.append('错题集更新 %s' % '、'.join('%s(%d题)' % (x['name'], x['after']) for x in boards_updated))
+    if assets_updated:
+        parts.append('配图 %d 张' % assets_updated)
+    if wb_updated:
+        parts.append('词录(%s)' % '、'.join(wb_updated))
+    summary = '已同步：' + '；'.join(parts) if parts else '已是最新，没有需要更新的文件'
+
+    out = boards(g)
+    out['sync_result'] = {
+        'source': str(src_root),
+        'mode': mode,
+        'boards_updated': boards_updated,
+        'boards_unchanged': boards_unchanged,
+        'boards_missing': boards_missing,
+        'assets_updated': assets_updated,
+        'assets_unchanged': assets_unchanged,
+        'wordbook_updated': wb_updated,
+        'wordbook_unchanged': wb_unchanged,
+        'summary': summary,
+    }
+    return out
+
+
 def boards(g):
     """七块石碑：每块 {name, board, exists, total, done, ok, bad}"""
     ensure_template(g.paths)
@@ -232,7 +410,8 @@ def boards(g):
         out.append({'name': name, 'board': board, 'exists': text is not None, 'total': len(qs),
                     'done': sum(1 for r in rs if r), 'ok': sum(1 for r in rs if r and r['last'] == 'ok'),
                     'bad': sum(1 for r in rs if r and r['last'] == 'bad')})
-    return {'boards': out, 'folder': '训练/%s/' % FOLDER, 'template': '训练/%s/%s' % (FOLDER, TEMPLATE)}
+    return {'boards': out, 'folder': '训练/%s/' % FOLDER, 'template': '训练/%s/%s' % (FOLDER, TEMPLATE),
+            'sync': _sync_meta(g.paths)}
 
 
 def _board(name):
