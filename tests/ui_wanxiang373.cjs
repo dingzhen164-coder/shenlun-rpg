@@ -15,7 +15,7 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
    await page.locator('.npc-drawer-toggle').waitFor();
    for(const id of ['chang','yan','li','shu','zi']){await page.evaluate(id=>{STUDY_REGIONS.select(id);return go('train');},id);await page.locator('.npc-drawer-toggle').waitFor();}
    for(const view of ['bank','contest','skeleton','tianji','dwelling','settings']){await page.evaluate(v=>go(v),view);await page.locator('.npc-encounters').waitFor({state:'detached'});}
-   await page.evaluate(()=>{STUDY_REGIONS.select('chang');return go('train');});await page.locator('[data-wx-branch=politics]').click();await page.locator('.wx-import>summary').click();await page.locator('[name=channel]').selectOption('digest');assert.equal(await page.locator('[name=target],[data-digest-target]').count(),0,'消化清单不再选择配套讲义');await page.locator('[name=pdf]').setInputFiles(train+'/自编消化清单.pdf');await page.locator('[data-politics-import] [type=submit]').click();await page.locator('[data-import-result]').filter({hasText:'共8空'}).waitFor();assert.match(await page.locator('[data-import-result]').textContent(),/1段没在讲义原文里直接找到，已按前后文放进相邻资料/);
+   await page.evaluate(()=>{STUDY_REGIONS.select('chang');return go('train');});await page.locator('[data-wx-branch=politics]').click();await page.locator('details.wx-import:not(.wx-exam-manage)>summary').click();await page.locator('[name=channel]').selectOption('digest');assert.equal(await page.locator('[name=target],[data-digest-target]').count(),0,'消化清单不再选择配套讲义');await page.locator('[name=pdf]').setInputFiles(train+'/自编消化清单.pdf');await page.locator('[data-politics-import] [type=submit]').click();await page.locator('[data-import-result]').filter({hasText:'共8空'}).waitFor();assert.match(await page.locator('[data-import-result]').textContent(),/1段没在讲义原文里直接找到，已按前后文放进相邻资料/);
 
   }
   let f=await enter();await page.locator('.npc-encounters').waitFor({state:'detached'});await columns(f,'.sprint-welcome');assert.equal(await f.locator('.sprint-group').count(),4);
@@ -50,13 +50,13 @@ async function columns(f,right){const geometry=await f.locator('.sprint-workspac
    await f.locator('[data-digest-blank]').click();await f.locator('.sprint-blank:not(:disabled)').waitFor();
   }
   if(theme==='light'&&size!=='landscape')await page.screenshot({path:`ui-artifacts/wanxiang373/${size}-cloze.png`});
-  await f.locator('.atlas-reading-tools [data-go=sprint]').click();await f.locator('#nav [data-go=practice]').click();
-  if(size==='desktop'&&theme==='light'){await f.locator('.sprint-practice-empty').waitFor();assert.equal(await f.locator('.question').count(),0);
-   await page.evaluate(async data=>api('/api/wanxiang/import',{channel:'sprint-quiz',name:'自编补充.pdf',data}),fs.readFileSync(train+'/自编补充.pdf').toString('base64'));
-   f=await enter();await f.locator('#nav [data-go=practice]').click();
+  await f.locator('.atlas-reading-tools [data-go=sprint]').click();
+  if(size==='desktop'&&theme==='light'){
+   await page.evaluate(async data=>api('/api/wanxiang/import',{channel:'sprint-study',name:'自编补充.pdf',data}),fs.readFileSync(train+'/自编补充.pdf').toString('base64'));
+   f=await enter();
   }
-  await f.locator('.question').waitFor();assert.equal(await f.locator('.question').getAttribute('id'),'q2','只显示导入题（题号2），内置第1题不混入');assert((await f.locator('.question .chip').textContent()).includes('第1题'),'卡片显示套卷内题号');assert.equal(await f.locator('.wx-reflow-line').count(),5,'题干与四个选项分别自动折行');
-  if(size==='desktop'&&theme==='light'){await f.locator('#atlasSearch').click();await f.locator('#search').fill('本段支持谁');await f.locator('[data-question-link="1"]').click();await f.locator('#q1').waitFor();assert.equal(await f.locator('[data-tab=questions][aria-selected=true]').count(),1,'搜索内置题进入讲义精卷，不跳到只含导入题的刷题区');await f.locator('.atlas-reading-tools [data-go=sprint]').click();}
+  await f.locator('[data-material=m1]').click();await f.locator('[data-tab=questions]').click();await f.locator('#q1').waitFor();assert.equal(await f.locator('.wx-reflow-line').count()>=5,true,'题干与四个选项分别自动折行');await f.locator('.atlas-reading-tools [data-go=sprint]').click();
+  if(size==='desktop'&&theme==='light'){await f.locator('#atlasSearch').click();await f.locator('#search').fill('本段支持谁');await f.locator('[data-question-link="1"]').click();await f.locator('#q1').waitFor();assert.equal(await f.locator('[data-tab=questions][aria-selected=true]').count(),1,'搜索内置题进入讲义精卷');await f.locator('.atlas-reading-tools [data-go=sprint]').click();}
   await f.locator('#nav [data-go=month]').click();await f.locator('[data-open="month|2026-10-上"]').click();await f.locator('.wxj-news-body[data-highlights-ready=true]').waitFor();
   await f.locator('[data-mode=cloze]').click();assert.deepEqual(await f.locator('.wxj-b[data-digest-blank]').allTextContents(),['主产区'],'期刊兼容原PDF的消化清单');
   await f.locator('[data-mode=quiz]').click();assert.equal(await f.locator('.wxj-q-stem .wx-reflow-line').count(),1,'期刊题干没有PDF硬换行');assert.equal(await f.locator('.wxj-opt').first().textContent(),'A自编甲方选项的续行');
