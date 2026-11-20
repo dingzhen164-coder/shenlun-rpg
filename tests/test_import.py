@@ -131,7 +131,8 @@ class ImportTest(unittest.TestCase):
         f = importer.save_pdf(self.p, {"name": "../模考.pdf", "data": data, "season": 37})["file"]
         self.assertEqual(f, "第37季-模考.pdf")                                         # 不能写到别的目录
         self.assertEqual(importer.status(self.p)["pdfs"][0], {"file": f, "season": 37, "split": False})
-        r = importer.split_pdf(self.p, {"file": f})
+        with patch.object(importer, "has_pymupdf", return_value=True):
+            r = importer.split_pdf(self.p, {"file": f})
         self.assertEqual(r["ready"], 1)
         self.assertEqual(bank.read(self.p, "常识判断")[0][0]["id"], "粉笔37季-021")
         self.assertTrue(importer.status(self.p)["pdfs"][0]["split"])

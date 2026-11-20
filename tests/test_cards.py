@@ -268,7 +268,7 @@ class CardGenTest(CardsApiTest):
     def test_pdf_is_refused(self):
         """2026-11：师傅制卡不再直接读 PDF，要先整理成 Markdown"""
         with self.assertRaises(Exception) as ctx:
-            api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": self._pdf()})
+            api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": "data:application/pdf;base64,JVBERi0xLjQ="})
         self.assertIn("Markdown", str(ctx.exception))
 
     def test_markdown_sections(self):

@@ -117,13 +117,16 @@ class NotesTest(unittest.TestCase):
 
     def test_export_pdf(self):
         import base64
-        import pymupdf
+        try:
+            import pymupdf
+        except ImportError:
+            self.skipTest("没有 pymupdf")
         nid = notes.save(self.paths, {"title": "类比推理", "pages": [{"strokes": [STROKE]}]})["id"]
         pix = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 100, 141), False)
         pix.clear_with(255)
         jpg = "data:image/jpeg;base64," + base64.b64encode(pix.tobytes("jpeg")).decode()
         r = notes.export_pdf(self.paths, nid, [jpg, jpg])
-        self.assertEqual((r["path"], r["pages"]), ("训练/手札/导出/类比推理.pdf", 2))
+        self.assertEqual((r["path"], r["pages"]), ("训练/试炼与大比/手札/导出/类比推理.pdf", 2))
         doc = pymupdf.open(str(self.paths.vault / r["path"]))
         self.assertEqual((doc.page_count, round(doc[0].rect.width)), (2, 595))      # A4
         self.assertEqual(notes.export_file(self.paths, r["path"]), (self.paths.vault / r["path"]).resolve())
