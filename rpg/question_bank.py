@@ -14,6 +14,7 @@ import copy
 import random
 import re
 import uuid
+from pathlib import Path
 
 from . import config, vault
 
@@ -40,39 +41,143 @@ def pending(paths, board):
     return sum(q['pending'] for q in read_all(paths, board)[0])
 
 
+WORKBOOK_PREFIX = '题本:'
+# 例：【四海】26下-海海刷1期-言语理解题本·选词刷题1
+def _workbook_parts(paper):
+    head, sep, name = paper.rpartition('·')
+    if not sep or not name.strip():
+        return None
+    # 【教师】26下-系列1期-科目题本，或 教师-系列第1期（系列可含“题本”）。
+    match = re.fullmatch(r'(【[^】]+】)(?:(.+)-)?([^-]+?)(第?[0-9零〇一二三四五六七八九十百两]+期)-(.+)', head)
+    if match:
+        teacher, season, series, number, book = match.groups()
+        return teacher + series + ' · ' + book, (season + '-' if season else '') + series + number, name.strip()
+    match = re.fullmatch(r'(.+?)-(.+?)(第?[0-9零〇一二三四五六七八九十百两]+期)', head)
+    if match:
+        teacher, series, number = match.groups()
+        return teacher + ' · ' + series, number, name.strip()
+    if '题本' in head:
+        return head.strip(), '未分期', name.strip()
+    return None
+
+
+def _workbook_board(q, fallback, path):
+    from .importer import ALIAS, BOARDS, TOPICS
+    topic = re.split(r'[-－—（(/·：:]', q['topic'], 1)[0].strip()
+    for hint in (topic, q.get('module', '')):
+        if hint in BOARDS or hint in ALIAS:
+            return ALIAS.get(hint, hint)
+    matches = [b for b, names in TOPICS.items() if topic in names.split('、')]
+    if len(matches) == 1:
+        return matches[0]
+    if fallback:
+        return fallback
+    for name in BOARDS:
+        if name in path.stem or any(name in paper for paper in q['papers']):
+            return name
+    return ''
+
+
+_CACHE = {}   # 文档路径 → (修改时间, 大小, 解析结果)
+_INDEX = {}   # 最近一次目录签名及按板块、按原套分组的索引
+
+
+def _index(paths):
+    folder = paths.train / '题库' if paths.train else None
+    docs = []
+    if folder and folder.is_dir():
+        for path in folder.glob('*.md'):
+            if path.stem.startswith(('_', '.')) or path.name == TUTOR_FILE or not path.is_file():
+                continue
+            try:
+                stat = path.stat()
+            except FileNotFoundError:  # 外部编辑器正在替换或移动文件，下次读取会重新建索引。
+                continue
+            declared = re.fullmatch(r'(.+?)真题(?:-.+)?', path.stem)
+            docs.append((path, stat.st_mtime_ns, stat.st_size, declared[1] if declared else ''))
+    # 整本原文确定套序、题序；同一本书的旧分板块副本只提供原有身份。
+    docs.sort(key=lambda d: (bool(d[3]), d[0].stem != d[3] + '真题', d[0].name))
+    if docs == _INDEX.get('docs'):
+        return _INDEX['data']
+    by_board, by_paper, seen, paper_errors, by_key = {}, {}, {}, {}, {}
+
+    def board_row(board):
+        return by_board.setdefault(board, {'questions': [], 'errors': [], 'files': []})
+
+    for path, changed, size, declared in docs:
+        signature = changed, size
+        hit = _CACHE.get(path)
+        if not hit or hit[:2] != signature:
+            try:
+                parsed = _parse(path, declared)
+            except (OSError, UnicodeError) as error:
+                parsed = [], ['无法读取 %s：%s' % (path.name, error)]
+            hit = changed, size, parsed
+            _CACHE[path] = hit
+        qs, errors = hit[2]
+        touched = {declared} if declared else set()
+        paper_set = set()
+        errors_by_id, header_errors = {}, []
+        for error in errors:
+            ident, sep, _ = error.partition('：')
+            if sep and ident.startswith('题目 '):
+                errors_by_id.setdefault(ident[3:], []).append(error)
+            else:
+                header_errors.append(error)
+        for q in qs:
+            names = [p for p in q['papers'] if _workbook_parts(p)]
+            if not names and not declared:
+                continue
+            board = q['board']
+            touched.add(board)
+            paper_set.update(names)
+            for name in names:
+                if q['id'] in errors_by_id:
+                    paper_errors.setdefault(name, []).extend(errors_by_id[q['id']])
+            identity = board, q['id']
+            prior = seen.get(identity) or by_key.get(q['key'])
+            if prior:
+                # 同一本题本既有原文件又有分板块副本时按固定编号去重；冲突仍按题库规则报错。
+                if names and prior['source'] != q['source'] and all(
+                        prior[k] == value for k, value in q.items() if k not in ('source', 'key')):
+                    if declared and prior['key'] == board + '::' + q['id']:
+                        # 保持原文件的编排，沿用旧版按文件板块生成的作答身份。
+                        prior['key'] = q['key']
+                        by_key[q['key']] = prior
+                    continue
+                message = '题目 %s：编号重复，请使用固定且唯一的编号' % q['id']
+                board_row(board)['errors'].append(message)
+                for paper in set(names) | {p for p in prior['papers'] if _workbook_parts(p)}:
+                    paper_errors.setdefault(paper, []).append(message)
+                continue
+            q = dict(q)
+            seen[identity] = by_key[q['key']] = q
+            board_row(board)['questions'].append(q)
+            for name in names:
+                by_paper.setdefault(name, []).append(q)
+        for b in touched:
+            row = board_row(b)
+            row['files'].append(path)
+            row['errors'].extend(errors)
+        for paper in paper_set:
+            if header_errors:
+                paper_errors.setdefault(paper, []).extend(header_errors)
+    result = {'boards': by_board, 'papers': by_paper, 'errors': paper_errors, 'by_key': by_key, 'identity': seen}
+    _INDEX.update(docs=docs, data=result)
+    return result
+
+
 def files(paths, board):
-    """一个板块可以有多份题库：<板块>真题.md（导入、手写）+ <板块>真题-*.md（整批放进来的，如历年真题）"""
-    if not paths.train or not board or '/' in board or '\\' in board or board in ('.', '..'):
-        return []
-    folder = paths.train / '题库'
-    main = folder / (board + '真题.md')
-    extra = sorted(folder.glob(glob_escape(board) + '真题-*.md')) if folder.is_dir() else []
-    return [f for f in [main] + extra if f.is_file()]
+    return list(_index(paths)['boards'].get(board, {}).get('files', []))
 
 
-def glob_escape(s):
-    return re.sub(r'([\[\]*?])', r'[\1]', s)
-
-
-_CACHE = {}   # 路径 → (修改时间, 大小, 解析结果)：几千道题的大题库不用每次重读
+def by_key(paths, key):
+    return _index(paths)['by_key'].get(key)
 
 
 def read_all(paths, board):
-    questions, errors, seen = [], [], set()
-    for path in files(paths, board):
-        st = path.stat()
-        hit = _CACHE.get(str(path))
-        if not hit or hit[:2] != (st.st_mtime_ns, st.st_size):
-            hit = (st.st_mtime_ns, st.st_size, _parse(path, board))
-            _CACHE[str(path)] = hit
-        qs, errs = hit[2]
-        errors += errs
-        for q in qs:
-            if q['id'] in seen:
-                errors.append('题目 %s：编号重复，请使用固定且唯一的编号' % q['id'])
-            seen.add(q['id'])
-            questions.append(dict(q))
-    return questions, errors
+    row = _index(paths)['boards'].get(board, {})
+    return [dict(q) for q in row.get('questions', [])], list(row.get('errors', []))
 
 
 def _parse(path, board):
@@ -117,6 +222,13 @@ def _parse(path, board):
                           'nums': [int(x) for x in fields.get('题号', '').split() if x.isdigit()]})
         questions[-1]['paper'] = (questions[-1]['papers'] or [''])[0]
         questions[-1]['source_accuracy'] = vault.parse_accuracy(fields.get('原题正确率'))
+        q = questions[-1]
+        if any(_workbook_parts(p) for p in q['papers']):
+            actual = _workbook_board(q, board, path)
+            if not actual:
+                errors.append('题目 %s：无法识别板块，请在知识点前注明板块，如“片段阅读-中心理解”' % ident)
+            q['board'] = actual or '未识别板块'
+            q['key'] = (board or q['board']) + '::' + ident
     for line in text.splitlines():
         if re.match(r'^##\s+题目(?:\s|$)', line) and not re.match(r'^##\s+题目\s+\S', line):
             errors.append('题目标题需要编号，例如：## 题目 001')
@@ -159,6 +271,8 @@ TUTOR_HEAD = '【师傅解惑】'
 def save_tutor_to_bank(paths, q, text, date):
     """把师傅解惑写进这道题在题库文件里的“### 解析”末尾（原解析不动）；同一题再问就换掉上一次的。
     返回写进的文件名；找不到这道题返回空"""
+    if any(_workbook_parts(p) for p in q.get('papers', [])):
+        return ''  # 老师题本只读，师傅讲解仍记在单独的师傅解惑.md。
     for f in files(paths, q['board']):
         t = f.read_text(encoding='utf-8-sig')
         h = re.search(r'^## 题目 %s\s*$' % re.escape(q['id']), t, re.M)
@@ -184,8 +298,40 @@ def save_tutor_to_bank(paths, q, text, date):
     return ''
 
 
+def snapshot_board(q):
+    """题本旧快照也按知识点找到实际板块。"""
+    if any(_workbook_parts(p) for p in q.get('papers', [])):
+        return _workbook_board(q, q['board'], Path(q.get('source', '')))
+    return q['board']
+
+
+def _snapshot_identity(index, q):
+    """旧记录和在途快照共用同一身份匹配，保留当时的题干、选项和答案。"""
+    board = _workbook_board(q, q['board'], Path(q.get('source', '')))
+    current = index['identity'].get((board, q['id']))
+    if current and set(current['papers']).intersection(q['papers']):
+        return board, current['key']
+    return board, q['key']
+
+
 def state(g):
-    return g.state.setdefault('bank', {'records': {}, 'runs': {}, 'groups': []})
+    data = g.state.setdefault('bank', {'records': {}, 'runs': {}, 'groups': []})
+    if getattr(g, '_workbook_state', None) is not data:
+        # 旧规则按文件名给整本书记板块。保留既有编号和全部作答，仅纠正可识别题目的板块；
+        # 原文后来改成普通文件名时，把那条记录接到当前身份，避免同一道题两次领首次奖励。
+        g._workbook_state = data
+        index = None
+        for old_key, rec in list(data['records'].items()):
+            q = rec.get('question') or {}
+            if not any(_workbook_parts(p) for p in q.get('papers', [])):
+                continue
+            if index is None:
+                index = _index(g.paths)
+            q['board'], key = _snapshot_identity(index, q)
+            if key != old_key and key not in data['records']:
+                q['key'] = key
+                data['records'][key] = data['records'].pop(old_key)
+    return data
 
 
 SET_PREFIX = '套:'
@@ -254,13 +400,15 @@ def topic_head(t, board=''):
 
 def is_set(slot):
     """不是单个板块的组：整套（套:…）或知识点（点:板块:大类）"""
-    return str(slot or '').startswith((SET_PREFIX, POINT_PREFIX, BLOCK_PAPER_PREFIX))
+    return str(slot or '').startswith((SET_PREFIX, POINT_PREFIX, BLOCK_PAPER_PREFIX, WORKBOOK_PREFIX))
 
 
 def label(slot):
     """组名给人看：套:花生600题言语-03 → 花生600题言语 第03套；试卷名原样"""
     if not is_set(slot):
         return slot
+    if slot.startswith(WORKBOOK_PREFIX):
+        return slot[len(WORKBOOK_PREFIX):]
     if slot.startswith(BLOCK_PAPER_PREFIX):
         board, _, paper = slot[len(BLOCK_PAPER_PREFIX):].partition(':')
         return '%s · 来源：%s' % (board, paper)
@@ -297,11 +445,14 @@ def _set_questions(g, name):
     return sorted(qs, key=lambda q: _order(q, name)), errors
 
 
-def sets(g):
+def sets(g, index=None):
     """整套试炼的目录：练习册按书（前缀）分；历年真题一张卷子一套，按年份从新到旧"""
     data, books = state(g), {}
+    index = index or _index(g.paths)
     for board in boards(g):
-        for q in read(g.paths, board)[0]:
+        for q in index['boards'].get(board, {}).get('questions', []):
+            if q['pending']:
+                continue
             book = PAPER_BOOK + ('·' + q['module'] if q.get('module') else '') if q.get('papers') else None
             for name in sets_of(q):
                 num = name if book else name.rsplit('-', 1)[1]
@@ -326,6 +477,32 @@ def sets(g):
                     'finished': sum(x['done'] == x['total'] for x in items)})
     modules = ['政治理论', '常识判断', '言语理解与表达', '数量关系', '判断推理', '资料分析']
     return sorted(out, key=lambda b: (not b['paper'], next((i for i, m in enumerate(modules) if m in b['book']), 9)))
+
+
+def _workbooks(g, index):
+    data, books = state(g), {}
+    finished, attempts = {}, {}
+    for group in data['groups']:
+        slot = group['board']
+        if slot.startswith(WORKBOOK_PREFIX):
+            finished[slot] = group['total']
+            attempts[slot] = attempts.get(slot, 0) + 1
+    papers = index['papers']
+    # 用户移动或暂时拿走原文件时，仍能从原入口继续存档里的这套题。
+    active = {slot[len(WORKBOOK_PREFIX):]: run for slot, run in data['runs'].items()
+              if slot.startswith(WORKBOOK_PREFIX)}
+    for paper in dict.fromkeys(list(papers) + list(active)):
+        book, period, name = _workbook_parts(paper)
+        run = active.get(paper)
+        total = len(run['questions']) if run else sum(not q['pending'] for q in papers[paper])
+        slot = WORKBOOK_PREFIX + paper
+        done = len(run.get('picks') or run['results']) if run else min(finished.get(slot, 0), total)
+        entry = {'name': name, 'slot': slot, 'active': bool(run), 'completed': slot in finished,
+                 'done': done, 'total': total, 'completed_count': attempts.get(slot, 0),
+                 'pending': sum(q['pending'] for q in papers.get(paper, [])), 'errors': index['errors'].get(paper, [])}
+        books.setdefault(book, {}).setdefault(period, []).append(entry)
+    return [{'name': book, 'periods': [{'name': period, 'sets': items} for period, items in periods.items()]}
+            for book, periods in books.items()]
 
 
 def count(g):
@@ -387,8 +564,12 @@ def _pick_material_groups(qs, eligible, limit=None, shuffle=False):
 def summary(g):
     data = state(g)
     result = []
+    index = _index(g.paths)
     for board in boards(g):
-        qs, errors = read(g.paths, board)
+        row = index['boards'].get(board, {})
+        all_qs = row.get('questions', [])
+        qs = [q for q in all_qs if not q['pending']]
+        errors = row.get('errors', [])
         records = [r for r in data['records'].values() if r['question']['board'] == board]
         first = [r['history'][0] for r in records if r['history']]
         repeats = [a for r in records for a in r['history'][1:]]
@@ -402,7 +583,7 @@ def summary(g):
                 entry['total'] += 1
                 entry['done'] += q['key'] in data['records']
         paper_list = [dict(p, active=p['slot'] in data['runs']) for p in papers.values()]
-        result.append({'board': board, 'papers': paper_list, 'total': len(qs), 'pending': pending(g.paths, board), 'remaining': sum(q['key'] not in data['records'] for q in qs),
+        result.append({'board': board, 'papers': paper_list, 'total': len(qs), 'pending': len(all_qs) - len(qs), 'remaining': sum(q['key'] not in data['records'] for q in qs),
                        'first_total': len(first), 'first_correct': sum(a['ok'] for a in first),
                        'review_total': len(repeats), 'review_correct': sum(a['ok'] for a in repeats),
                        'method_total': sum(a.get('method_ok') is not None for a in first),
@@ -419,11 +600,26 @@ def summary(g):
                             rank=rank(g, x['correct'], x['total']), label=label(x['board']))
                        for i, x in list(enumerate(data['groups']))[-20:][::-1]],
             'streak_need': max(1, int(g.rules.num('回炉连续判对'))),
-            'bonus': g.rules.xp('实战通关'), 'tower': tower(g), 'sets': sets(g)}
+            'bonus': g.rules.xp('实战通关'), 'tower': tower(g), 'sets': sets(g, index), 'workbooks': _workbooks(g, index)}
 
 
 def begin(g, board, mode):
     data = state(g)
+    if str(board).startswith(WORKBOOK_PREFIX) and mode == 'new':
+        if board in data['runs']:
+            return data['runs'][board]
+        paper = board[len(WORKBOOK_PREFIX):]
+        index = _index(g.paths)
+        if index['errors'].get(paper):
+            raise BankError('\n'.join(index['errors'][paper]))
+        qs = [dict(q) for q in index['papers'].get(paper, []) if not q['pending']]
+        if not qs:
+            raise BankError('该套题本没有可训练的题目，请检查来源和答案')
+        # 题号是来源信息；老师在文档中编排的顺序就是实际练习顺序。
+        run = {'token': uuid.uuid4().hex, 'board': board, 'mode': 'new', 'questions': qs,
+               'pos': 0, 'results': [], 'phase': 'answer', 'source_paper': paper}
+        data['runs'][board] = run
+        return run
     if str(board).startswith(BLOCK_PAPER_PREFIX) and mode == 'new':
         if board in data['runs']:
             return data['runs'][board]
@@ -542,6 +738,9 @@ def record(g, run, answer, reasoning="", method_ok=None, feedback=""):
     if answer not in q['options']:
         raise BankError('请选择 A、B、C 或 D')
     data = state(g)
+    if any(_workbook_parts(p) for p in q.get('papers', [])):
+        board, key = _snapshot_identity(_index(g.paths), q)
+        q = run['questions'][run['pos']] = dict(q, board=board, key=key)
     rec = data['records'].setdefault(q['key'], {'question': q, 'history': [], 'wrong': False, 'streak': 0})
     before_floor = tower(g)['cleared']
     first = not rec['history']
@@ -733,7 +932,7 @@ def tower(g):
 
 # ---------------------------------------------------------------- 题库文档模板 + 重新载入（2026-11：取代“导入真题”）
 TEMPLATE = '_模板.md'
-TEMPLATE_TEXT = """# 题库格式说明（模板）
+OLD_TEMPLATE_TEXT = """# 题库格式说明（模板）
 
 > 题库只读本地文档：每个板块 `训练/题库/<板块>真题.md`，也可以拆成几份 `<板块>真题-任意名.md`（如 `论证逻辑真题-花生600.md`）。
 > 照下面的格式加题，保存后在 藏经阁 › 经卷 · 题库 › 📥 题库文档 里点「重新载入」，软件会指出哪个文件哪一题写得不对。本文件是说明，不会被当成题。
@@ -762,19 +961,27 @@ B
 """
 
 
+WORKBOOK_HELP = """> 老师题本可整本放进本目录，使用普通文件名（如 `言语理解.md`）或现有的板块文件名。
+> 每题照写知识点、题干、选项、答案、解析、试卷、题号七个小节。在试卷写完整来源，例如 `林老师-周练第1期·基础练习1`、`林老师-周练题本第1期·基础练习1`，或 `【老师】26下-专项1期-言语理解题本·片段刷题1`。中点之后为套名。
+> 在试炼塔的板块训练选老师题本、期、套次。套次按首次出现的位置排列，套内按文档原序练习。每题按知识点归入实际板块；细考点可写成“片段阅读-中心理解”。
+"""
+TEMPLATE_TEXT = OLD_TEMPLATE_TEXT.replace('> 照下面的格式加题', WORKBOOK_HELP + '> 照下面的格式加题')
+
+
 def ensure_template(paths):
     if not paths.train:
         return
     f = paths.train / '题库' / TEMPLATE
     try:
         f.parent.mkdir(parents=True, exist_ok=True)
-        if not f.exists():
+        # 只升级程序自己生成且用户未改过的旧说明，手写模板仍原样保留。
+        if not f.exists() or f.read_text(encoding='utf-8-sig') == OLD_TEMPLATE_TEXT:
             tmp = f.with_suffix('.tmp')
             with tmp.open('w', encoding='utf-8', newline='\n') as stream:
                 stream.write(TEMPLATE_TEXT)
             import os
             os.replace(tmp, f)
-    except OSError:
+    except (OSError, UnicodeError):
         pass
 
 
@@ -782,10 +989,16 @@ def reload(g):
     """重新读一遍所有板块的题库文档：每板块题数、答案待补数、格式问题（哪个文件哪一题）"""
     ensure_template(g.paths)
     _CACHE.clear()
+    _INDEX.clear()
     out = []
-    for b in boards(g):
-        qs, errs = read_all(g.paths, b)
-        names = [f.name for f in files(g.paths, b)]
+    known = boards(g)
+    index = _index(g.paths)
+    if '未识别板块' in index['boards']:
+        known.append('未识别板块')
+    for b in known:
+        row = index['boards'].get(b, {})
+        qs, errs = row.get('questions', []), row.get('errors', [])
+        names = [f.name for f in row.get('files', [])]
         out.append({'board': b, 'count': sum(not q['pending'] for q in qs), 'pending': sum(q['pending'] for q in qs),
                     'files': names, 'errors': ['%s · %s' % ('、'.join(names) or b, e) for e in errs]})
     return {'boards': out, 'total': sum(x['count'] for x in out), 'pending': sum(x['pending'] for x in out),

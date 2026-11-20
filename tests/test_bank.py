@@ -1,5 +1,6 @@
 """真题实战回归：顺序、答案保密、续做、重复提交、错题统计与旧存档兼容。"""
 import os
+import copy
 import datetime as dt
 import tempfile
 import unittest
@@ -624,6 +625,57 @@ class TwoDeviceReviewTest(unittest.TestCase):
         r = trainer.action(self.g, pc, 'exam_rnext')                  # 接上后照常操作
         self.assertEqual(bank.state(self.g)['runs']['历史:0']['rpos'], 2)
         self.assertFalse(r.get('rejoined'))
+
+    def test_stale_navigation_preserves_current_question_clock(self):
+        with patch.object(trainer.time, 'time', return_value=100):
+            first = trainer.start(self.g, self.task)['session']
+            second = trainer.start(self.g, self.task)['session']
+            origin = trainer.navigation(self.g, first)['origin']
+        with patch.object(trainer.time, 'time', return_value=200):
+            trainer.action(self.g, second, 'exam_next')
+        with patch.object(trainer.time, 'time', return_value=260):
+            r = trainer.action(self.g, first, 'bank_pause', origin=origin)
+        self.assertTrue(r['rejoined'])
+        self.assertEqual(r['battle']['timer']['question'], 60)
+        self.assertEqual(r['battle']['timer']['total'], 160)
+
+    def test_stale_review_reply_keeps_question_history_clean(self):
+        first = self._finish()
+        second = trainer.start(self.g, self.task)['session']
+        origin = trainer.navigation(self.g, first)['origin']
+        trainer.action(self.g, second, 'exam_rnext')
+        with patch.object(trainer, '_review_chat', side_effect=AssertionError('旧题追问不得发出')):
+            r = trainer.reply(self.g, first, '第一题的追问', origin=origin)
+        self.assertTrue(r['rejoined'])
+        self.assertEqual(r['battle']['position'], 2)
+        self.assertFalse(bank.state(self.g)['runs']['论证逻辑'].get('chat'))
+
+    def test_question_pages_are_read_only_and_match_forward_navigation(self):
+        r = trainer.start(self.g, self.task)
+        sid = r['session']
+        def pages():
+            before = copy.deepcopy((self.g.state, trainer.get(sid)))
+            deck = trainer.navigation(self.g, sid, pages=True)
+            self.assertEqual(before, (self.g.state, trainer.get(sid)))
+            return deck
+        answer = pages()
+        self.assertEqual(len(answer['pages']), 3)
+        self.assertNotIn('秘密解析', str(answer))
+        self.assertNotIn('正确答案', str(answer))
+        trainer.action(self.g, sid, 'exam_pick:0:A')
+        r = trainer.action(self.g, sid, 'exam_prev', origin=answer['origin'])
+        self.assertTrue(r['rejoined'])
+        self.assertEqual(r['battle']['position'], 2)
+        self.assertEqual(pages()['picks'], {'0': 'A'})
+        trainer.action(self.g, sid, 'exam_pick:1:A')
+        trainer.action(self.g, sid, 'exam_pick:2:B')
+        trainer.action(self.g, sid, 'exam_submit')
+        review = pages()
+        self.assertIn('秘密解析', str(review['pages'][2]))
+        self.assertEqual(review['wrong'], [2])
+        r = trainer.action(self.g, sid, 'exam_rwrong', origin=review['origin'])
+        self.assertEqual(r['battle']['position'], 3)
+        self.assertEqual(r['messages'][0], review['pages'][2]['messages'][0])
 
     def test_answer_phase_two_devices_share_progress(self):
         pc = trainer.start(self.g, self.task)['session']

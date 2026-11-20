@@ -609,6 +609,11 @@ class FlowTest(unittest.TestCase):
         self.assertIn("mr_wrong", ids)
         self.assertNotIn("mr_board:逻辑填空", ids)                                     # 论证逻辑是最后一个板块
         sid = r["session"]
+        with api.open_game(save=False) as g:
+            deck = trainer.navigation(g, sid, pages=True)
+            self.assertEqual(deck['seen'], [0])
+            self.assertEqual(deck['wrong'], [1])
+            self.assertEqual(trainer.mock_reviewed(g, 36)["论证逻辑"], [1])
         r = api.session_action({"session": sid, "action": "mr_wrong"})
         self.assertEqual(r["battle"]["position"], 2)
         self.assertFalse(any(b.get("t") == "img" for m in r["messages"] for b in m.get("blocks", [])))  # 3.1.1论证逻辑只显示已提取文字

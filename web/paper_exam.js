@@ -1,5 +1,5 @@
-/* 纸质自考（无数字钟表计时 + 预设分值录分）：宗门大比第 5 入口「自考」
-   - 钟表默认从 9:00 起走，表盘无数字；按按钮或空格键按预设顺序记录当前板块用时并切入下一板块；
+/* 纸质自考（指针挂钟计时 + 预设分值录分）：宗门大比第 5 入口「自考」
+   - 钟表默认从 9:00 起走，表盘标有十二个整点；按按钮或空格键按预设顺序记录当前板块用时并切入下一板块；
    - 录分按各板块对题数、错题数与每题分值计算得分并汇总，保存后计入宗门大比考情与战绩（无需逐题复盘）。 */
 (() => {
   "use strict";
@@ -18,7 +18,7 @@
   let DATA = null;
   let STEP = "timer";        // "timer" | "score"
   let EDIT_SEASON = null;
-  let START_HOUR = 9;        // 默认九点开考
+  const START_HOUR = 9;        // 默认九点开考
   let ON_SAVED = null;       // 回调通知 contest.js 刷新 MOCK 汇总
   let TICK_ID = null;
 
@@ -110,23 +110,27 @@
 
   function clockSvg(elapsedSec) {
     const ticks = [];
+    const numerals = [];
     for (let k = 0; k < 60; k++) {
-      const rad = ((k * 6 - 90) * Math.PI) / 180;
-      const rOut = 106;
-      const rIn = k % 15 === 0 ? 90 : k % 5 === 0 ? 96 : 101;
-      const cls = k % 15 === 0 ? "pe-tick-cardinal" : k % 5 === 0 ? "pe-tick-hr" : "pe-tick-min";
-      const x1 = (120 + rIn * Math.cos(rad)).toFixed(2), y1 = (120 + rIn * Math.sin(rad)).toFixed(2);
-      const x2 = (120 + rOut * Math.cos(rad)).toFixed(2), y2 = (120 + rOut * Math.sin(rad)).toFixed(2);
-      ticks.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${cls}"/>`);
+      const hourMark = k % 5 === 0;
+      ticks.push(`<line x1="120" y1="14" x2="120" y2="${hourMark ? 23 : 18}"
+        transform="rotate(${k * 6} 120 120)" class="${hourMark ? "pe-tick-hr" : "pe-tick-min"}"/>`);
+      if (hourMark) {
+        const rad = k * Math.PI / 30;
+        const x = 120 + 81 * Math.sin(rad);
+        const y = 120 - 81 * Math.cos(rad);
+        numerals.push(`<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" dy=".34em">${k === 0 ? 12 : k / 5}</text>`);
+      }
     }
     const ang = clockAngles(elapsedSec);
-    return `<svg class="pe-clock" viewBox="0 0 240 240" role="img" aria-label="纸质模考无数字钟表">
-      <circle cx="120" cy="120" r="112" class="pe-clock-face"/>
-      <circle cx="120" cy="120" r="84" class="pe-clock-inner"/>
+    return `<svg class="pe-clock" viewBox="0 0 240 240" role="img" aria-label="纸质模考挂钟">
+      <circle cx="120" cy="120" r="114" class="pe-clock-face"/>
+      <circle cx="120" cy="120" r="109" class="pe-clock-inner"/>
       <g class="pe-clock-ticks">${ticks.join("")}</g>
+      <g class="pe-clock-numbers" text-anchor="middle">${numerals.join("")}</g>
       <g id="peHandHour" data-angle="${ang.hour.toFixed(2)}" transform="rotate(${ang.hour.toFixed(2)} 120 120)"><line x1="120" y1="130" x2="120" y2="62" class="pe-hand-hour"/></g>
-      <g id="peHandMin" data-angle="${ang.min.toFixed(2)}" transform="rotate(${ang.min.toFixed(2)} 120 120)"><line x1="120" y1="134" x2="120" y2="38" class="pe-hand-min"/></g>
-      <g id="peHandSec" data-angle="${ang.sec.toFixed(2)}" transform="rotate(${ang.sec.toFixed(2)} 120 120)"><line x1="120" y1="138" x2="120" y2="32" class="pe-hand-sec"/></g>
+      <g id="peHandMin" data-angle="${ang.min.toFixed(2)}" transform="rotate(${ang.min.toFixed(2)} 120 120)"><line x1="120" y1="134" x2="120" y2="25" class="pe-hand-min"/></g>
+      <g id="peHandSec" data-angle="${ang.sec.toFixed(2)}" transform="rotate(${ang.sec.toFixed(2)} 120 120)"><line x1="120" y1="138" x2="120" y2="18" class="pe-hand-sec"/></g>
       <circle cx="120" cy="120" r="5" class="pe-clock-pin"/>
     </svg>`;
   }
@@ -248,17 +252,19 @@
     return `<div class="pe-timer-grid">
       <div class="pe-clock-box">
         ${clockSvg(totalSec)}
-        <div class="pe-clock-meta">
-          <span id="peDigitalWrap" class="pe-digital" ${d.show_digital ? "" : "hidden"}>已用时 <span id="peDigitalTotal">${fmtHMS(totalSec)}</span></span>
-          <button type="button" class="ghost small" id="peToggleDigital">${d.show_digital ? "隐藏数字时间" : "显示数字时间"}</button>
-        </div>
-        <div class="pe-cur-banner" id="peCurBanner">${esc(statusText)}</div>
-        <div class="pe-clock-actions">
-          <button type="button" class="primary" id="peLapBtn">${esc(lapLabel)}</button>
-          <div class="pe-clock-subbtns">
-            <button type="button" id="pePauseBtn" ${TIMER.phase === "idle" || TIMER.phase === "done" ? "disabled" : ""}>${TIMER.phase === "paused" ? "继续" : "暂停"}</button>
-            <button type="button" class="ghost" id="peResetBtn" ${TIMER.phase === "idle" && totalSec === 0 ? "disabled" : ""}>重置钟表</button>
-            <button type="button" id="peToScore">完成计时 · 去录分 →</button>
+        <div class="pe-clock-controls">
+          <div class="pe-clock-meta">
+            <span id="peDigitalWrap" class="pe-digital" ${d.show_digital ? "" : "hidden"}>已用时 <span id="peDigitalTotal">${fmtHMS(totalSec)}</span></span>
+            <button type="button" class="ghost small" id="peToggleDigital">${d.show_digital ? "隐藏数字时间" : "显示数字时间"}</button>
+          </div>
+          <div class="pe-cur-banner" id="peCurBanner">${esc(statusText)}</div>
+          <div class="pe-clock-actions">
+            <button type="button" class="primary" id="peLapBtn">${esc(lapLabel)}</button>
+            <div class="pe-clock-subbtns">
+              <button type="button" id="pePauseBtn" ${TIMER.phase === "idle" || TIMER.phase === "done" ? "disabled" : ""}>${TIMER.phase === "paused" ? "继续" : "暂停"}</button>
+              <button type="button" class="ghost" id="peResetBtn" ${TIMER.phase === "idle" && totalSec === 0 ? "disabled" : ""}>重置钟表</button>
+              <button type="button" id="peToScore">完成计时 · 去录分 →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -342,7 +348,7 @@
     return `<div class="card contest-card pe-card" id="peCard">
       <div class="pe-head-bar">
         <div class="pe-steps" role="group" aria-label="自考辅助模式">
-          <button type="button" class="pe-step-btn${STEP === "timer" ? " active" : ""}" data-pe-step="timer">⏱ 钟表计时</button>
+          <button type="button" class="pe-step-btn${STEP === "timer" ? " active" : ""}" data-pe-step="timer" ${EDIT_SEASON ? "disabled" : ""}>⏱ 钟表计时</button>
           <button type="button" class="pe-step-btn${STEP === "score" ? " active" : ""}" data-pe-step="score">🧮 录分算分</button>
         </div>
         <div class="pe-preset-bar">
@@ -393,10 +399,24 @@
   function rerenderSelf() {
     const pane = document.querySelector('[data-cs-pane="self_exam"]');
     if (!pane || !DATA) return;
+    const oldQueue = pane.querySelector(".pe-queue-list");
+    const scrollTop = oldQueue?.scrollTop || 0;
     const tmp = document.createElement("div");
     tmp.innerHTML = html(DATA);
     pane.innerHTML = "";
     pane.append(tmp.firstElementChild);
+    const queue = pane.querySelector(".pe-queue-list");
+    if (queue && queue.scrollHeight > queue.clientHeight) {
+      // 重置钟表时回到首块，编辑队列顺序时保留当前滚动位置。
+      queue.scrollTop = TIMER.phase === "idle" && oldQueue?.querySelector(".is-active,.is-done") ? 0 : scrollTop;
+      const active = queue.querySelector(".is-active");
+      if (active) {
+        const row = active.getBoundingClientRect();
+        const box = queue.getBoundingClientRect();
+        if (row.top < box.top) queue.scrollTop += row.top - box.top;
+        else if (row.bottom > box.bottom) queue.scrollTop += row.bottom - box.bottom;
+      }
+    }
     bind(ON_SAVED);
   }
 
@@ -509,6 +529,7 @@
 
     card.querySelectorAll("[data-pe-step]").forEach((btn) => (btn.onclick = () => {
       const next = btn.dataset.peStep;
+      if (next === STEP) return;
       if (next === "score") {
         if (TIMER.phase === "running") {
           flushRunning();
