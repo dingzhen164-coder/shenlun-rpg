@@ -40,7 +40,7 @@ const ready = new Promise((ok, no) => {
         await page.click('[data-sgsync]');
         await page.waitForFunction(() => {
           const el = document.querySelector('[data-sgboard="数量关系"] .sg-count');
-          return el && el.textContent.includes('1 题');
+          return el && el.textContent.includes('2 题');
         });
         await page.click('[data-sgboard="数量关系"]');
         await page.waitForSelector('.sg-stem img.md-img');
@@ -51,21 +51,39 @@ const ready = new Promise((ok, no) => {
         });
         assert.match(stemImg.src || '', /^\/vault-file\?p=/);
         assert(stemImg.w > 0 && stemImg.h > 0, '题干配图应真实加载');
+        // 题头公式与分数选项渲染 + 短分数选项保持 4 列横排
+        const mathCheck = await page.evaluate(() => ({
+          titleHasDollar: document.querySelector('.sg-qtitle').textContent.includes('$'),
+          listHasDollar: document.querySelector('.sg-q.on').textContent.includes('$'),
+          fracCount: document.querySelectorAll('.sg-opts .md-frac').length,
+          stacked: document.querySelector('.sg-opts').classList.contains('is-stack'),
+        }));
+        assert.equal(mathCheck.titleHasDollar, false, '题头不应残留 $ 符号');
+        assert.equal(mathCheck.listHasDollar, false, '左侧目录标题不应残留 $ 符号');
+        assert.equal(mathCheck.fracCount, 4, '四个选项的分数均应渲染为 .md-frac');
+        assert.equal(mathCheck.stacked, false, '短分数选项应保持 4 列横排');
         await page.click('[data-sgpick="B"]');
         await page.waitForSelector('.sg-sec img.md-img');
         const secImg = await page.evaluate(async () => {
           const img = document.querySelector('.sg-sec img.md-img');
           if (!img.complete) await new Promise((r) => { img.onload = r; img.onerror = r; });
-          return { w: img.naturalWidth, h: img.naturalHeight };
+          return { w: img.naturalWidth, h: img.naturalHeight, sqrtCount: document.querySelectorAll('.sg-sec .md-sqrt').length };
         });
         assert(secImg.w > 0 && secImg.h > 0, '解析配图（Obsidian 格式）应真实加载');
+        assert.equal(secImg.sqrtCount, 1, '解析中的根号应渲染为 .md-sqrt');
+        // 切到第 2 题（长选项）：应自动切为每项单独一行（.is-stack 且 4 项纵向递增）
+        await page.click('.sg-q:nth-child(2)');
+        await page.waitForSelector('.sg-opts.is-stack');
+        const tops = await page.evaluate(() => [...document.querySelectorAll('.sg-opt')].map((el) => Math.round(el.getBoundingClientRect().top)));
+        assert.equal(tops.length, 4);
+        assert(tops[0] < tops[1] && tops[1] < tops[2] && tops[2] < tops[3], `长选项应每项单独一行，实际 top=${tops}`);
         const wb = await page.evaluate(() => api('/api/wordbook', { kind: '成语' }));
         assert(wb.groups && wb.groups.length === 1 && wb.groups[0].words.includes('自编甲'), '词录应同步到成语组');
         const sw = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
         assert(sw, `${size}/${theme} 不应有横向溢出`);
         assert.deepEqual(errors, []);
         await page.close();
-        console.log(`思过崖同步与配图 ${size}/${theme}：通过`);
+        console.log(`思过崖同步、配图、公式与选项单行 ${size}/${theme}：通过`);
       }
     }
   } finally {

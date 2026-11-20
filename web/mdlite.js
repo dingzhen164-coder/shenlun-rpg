@@ -8,7 +8,9 @@
     leftrightarrow: "↔", longleftrightarrow: "↔", Leftrightarrow: "⇔", iff: "⇔", equiv: "≡", vdash: "⊢", models: "⊨", cdot: "·", times: "×", div: "÷",
     neq: "≠", ne: "≠", leq: "≤", le: "≤", geq: "≥", ge: "≥", approx: "≈", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", supset: "⊃", cap: "∩", cup: "∪",
     forall: "∀", exists: "∃", emptyset: "∅", varnothing: "∅", top: "⊤", bot: "⊥", ldots: "…", dots: "…", cdots: "⋯", pm: "±", infty: "∞",
-    alpha: "α", beta: "β", gamma: "γ", delta: "δ", pi: "π", sum: "Σ", therefore: "∴", because: "∵", quad: " ", qquad: "  ", ",": " ", ";": " ", " ": " ",
+    alpha: "α", beta: "β", gamma: "γ", delta: "δ", pi: "π", sum: "Σ", therefore: "∴", because: "∵",
+    triangle: "△", Delta: "Δ", angle: "∠", circ: "°", degree: "°", perp: "⊥", parallel: "∥", sim: "∽", cong: "≅",
+    quad: " ", qquad: "  ", ",": " ", ";": " ", " ": " ",
   };
   const HEAD = {
     "core idea": "核心思想", "frameworks introduced": "引入的框架", "key concepts": "关键概念", "mental models": "思维模型", "anti-patterns": "易错点与反面模式",
@@ -27,6 +29,56 @@
       .replace(/(^|[\s(（,，])not(?=[\s)）,，]|$)/g, "$1¬")
       .replace(/[{}]/g, "").replace(/\\\\/g, " ").replace(/\s{2,}/g, " ").trim();
     return t.replace(/¬ (?=[A-Za-z(（¬])/g, "¬");
+  }
+
+  // 读取一对平衡花括号 { ... }，返回 [内容, 结束后的下标] 或 null
+  function readBrace(str, idx) {
+    while (idx < str.length && str[idx] === " ") idx++;
+    if (str[idx] !== "{") return null;
+    let depth = 0, start = idx + 1;
+    for (let i = idx; i < str.length; i++) {
+      if (str[i] === "{") depth++;
+      else if (str[i] === "}") { depth--; if (depth === 0) return [str.slice(start, i), i + 1]; }
+    }
+    return null;
+  }
+
+  // 公式转安全 HTML：支持 \frac/\dfrac/\tfrac 上下分数、\sqrt 根号、^{}/_{} 上下标，其余符号走 tex()
+  function mathHtml(raw) {
+    const s = String(raw || "");
+    let out = "", buf = "", i = 0;
+    const flush = () => { if (buf) { out += esc(tex(buf)); buf = ""; } };
+    while (i < s.length) {
+      const rest = s.slice(i);
+      const fm = rest.match(/^\\(?:d|t)?frac\b/);
+      if (fm) {
+        const a = readBrace(s, i + fm[0].length);
+        const b = a ? readBrace(s, a[1]) : null;
+        if (a && b) {
+          flush();
+          out += `<span class="md-frac"><span class="md-num">${mathHtml(a[0])}</span><span class="md-den">${mathHtml(b[0])}</span></span>`;
+          i = b[1]; continue;
+        }
+      }
+      const sm = rest.match(/^\\sqrt\b/);
+      if (sm) {
+        const a = readBrace(s, i + sm[0].length);
+        if (a) {
+          flush();
+          out += `<span class="md-sqrt">√<span class="md-rad">${mathHtml(a[0])}</span></span>`;
+          i = a[1]; continue;
+        }
+      }
+      if ((s[i] === "^" || s[i] === "_") && i + 1 < s.length) {
+        const tag = s[i] === "^" ? "sup" : "sub";
+        const grp = readBrace(s, i + 1);
+        if (grp) { flush(); out += `<${tag}>${mathHtml(grp[0])}</${tag}>`; i = grp[1]; continue; }
+        if (/[0-9A-Za-z+\-]/.test(s[i + 1])) { flush(); out += `<${tag}>${esc(s[i + 1])}</${tag}>`; i += 2; continue; }
+      }
+      buf += s[i++];
+    }
+    flush();
+    return out;
   }
 
   // book-to-skill 每份 skill 里固定的英文说明句，换成中文（只在行内文字里换，代码和公式不动）
@@ -49,7 +101,7 @@
     const stash = (html) => "\u0000" + (keep.push(html) - 1) + "\u0000";
     let s = boiler(String(raw));
     s = s.replace(/`([^`\n]+)`/g, (_, c) => stash("<code>" + esc(c) + "</code>"));
-    s = s.replace(/\$\$([^$]+)\$\$|\$([^$\n]+)\$/g, (_, a, b) => stash('<span class="md-math">' + esc(tex(a ?? b)) + "</span>"));
+    s = s.replace(/\$\$([^$]+)\$\$|\$([^$\n]+)\$/g, (_, a, b) => stash('<span class="md-math">' + mathHtml(a ?? b) + "</span>"));
     const imgUrl = opts && typeof opts.imgUrl === "function" ? opts.imgUrl : null;
     if (imgUrl) {
       s = s.replace(/!\[([^\]\n]*)\]\(([^)\n]+)\)/g, (m, alt, src) => {
@@ -148,5 +200,5 @@
     return /[一-鿿]/.test(base) ? base.replace(/\.md$/i, "") : (t || rel);
   }
 
-  window.MDLITE = { render, friendly, tex };
+  window.MDLITE = { render, inline, friendly, tex, mathHtml };
 })();

@@ -36,7 +36,7 @@ class DigestTests(unittest.TestCase):
     def test_import_real_pdf_match_and_pending_without_ai_or_source_edits(self):
         file=self.pdf(['消化清单','1.在________布局产能。','2.自编未知政策提出________要求。'])
         with api.open_game(save=False) as g:
-            source=g.paths.train/'时政知识地图/内容.json';before=source.read_bytes();xp=g.state['xp']
+            source=g.paths.train/'万象峰/知识地图/内容.json';before=source.read_bytes();xp=g.state['xp']
         with patch('rpg.politics.ai.chat',side_effect=AssertionError('不得猜答案')):
             result=self.send(file);data=self.get()
         # 第2段（自编未知政策）在任何讲义里都找不到出处：不猜答案，但整份清单保留——按前后文归到相邻资料，标“待补全”，结果里如实告知。
@@ -63,7 +63,7 @@ class DigestTests(unittest.TestCase):
     def test_not_found_source_is_reported_and_nothing_is_written(self):
         with self.assertRaises(api.ApiError):self.send(self.pdf(['1.自编完全无关的文字________补充说明内容。']))
         self.assertFalse(self.get()['documents'])
-        with api.open_game(save=False) as g:self.assertFalse((g.paths.train/'时政消化/原文').exists() and list((g.paths.train/'时政消化/原文').glob('*.pdf')))
+        with api.open_game(save=False) as g:self.assertFalse((g.paths.train/'万象峰/消化/原文').exists() and list((g.paths.train/'万象峰/消化/原文').glob('*.pdf')))
 
     @staticmethod
     def _page(rows,style):
@@ -115,7 +115,7 @@ class DigestTests(unittest.TestCase):
         file=self.pdf(['1.在________布局产能。'])
         self.send(file);first=self.get()
         with api.open_game(save=False) as g:
-            store=next((g.paths.train/'时政消化').glob('*.json'))
+            store=next((g.paths.train/'万象峰/消化').glob('*.json'))
             saved=politics.read_json(store,{});doc=saved['documents'][0];real=doc['paragraphs'][0]
             doc.pop('rv',None);doc['paragraphs']=[{'text':'自编旧段落____。','provided':[],'src':98},dict(real,src=0)]   # 旧规则留下的结果：多一段、序号不同
             politics.atomic_json(store,saved)
@@ -251,7 +251,7 @@ class DigestTests(unittest.TestCase):
         file=self.pdf(['1.在____布局产能。']);self.send(file)
         old=self.get()['items'][0];self.mark(old)
         with api.open_game(save=False) as g:
-            path=g.paths.train/'时政知识地图/内容.json';data=politics.read_json(path,{})
+            path=g.paths.train/'万象峰/知识地图/内容.json';data=politics.read_json(path,{})
             data['materials'][0]['original']='在自编新区布局产能。';politics.atomic_json(path,data)
         new=self.get();self.assertEqual(new['items'][0]['a'],'自编新区')
         self.assertNotEqual(new['items'][0]['id'],old['id']);self.assertIsNone(new['progress'][new['items'][0]['id']])

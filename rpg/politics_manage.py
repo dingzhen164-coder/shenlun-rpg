@@ -63,7 +63,8 @@ def _sprint(g):
 
 
 def _digest(g):
-    folder = g.paths.train / '时政消化'
+    from . import paths as paths_mod
+    folder = paths_mod.wanxiang_dir(g.paths, '消化')
     docs = {}
     for f in sorted(folder.glob('*.json')) if folder.is_dir() else []:
         saved = politics.read_json(f, None)
@@ -98,8 +99,9 @@ def listing(g):
 
 
 def _backup(g, stamp, *files):
-    """把文件整份复制到 训练/时政回收/<时间>/ 下（保持相对路径）。"""
-    base = g.paths.train / '时政回收' / stamp
+    """把文件整份复制到 训练/万象峰/回收站/<时间>/ 下（保持相对路径）。"""
+    from . import paths as paths_mod
+    base = paths_mod.wanxiang_dir(g.paths, '回收站') / stamp
     for f in files:
         f = Path(f)
         if f.is_file():
@@ -134,12 +136,14 @@ def delete(g, ids):
             raise politics.PoliticsError('所选文件已不存在，请刷新列表后重试')
         if ident not in [p['id'] for p in picked]:
             picked.append(items[ident])
+    from . import paths as paths_mod
+    recycle_root = paths_mod.wanxiang_dir(g.paths, '回收站')
     stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-    base = g.paths.train / '时政回收' / stamp
+    base = recycle_root / stamp
     n = 1
     while base.exists():
         n += 1
-        base = g.paths.train / '时政回收' / ('%s-%s' % (stamp, n))
+        base = recycle_root / ('%s-%s' % (stamp, n))
     stamp = base.name
     with politics._LOCK:
         for item in picked:
@@ -153,7 +157,7 @@ def delete(g, ids):
                 _delete_sprint(g, stamp, item)
             else:
                 _delete_digest(g, stamp, item)
-    return {'deleted': len(picked), 'recycle': (g.paths.train / '时政回收' / stamp).relative_to(g.paths.vault).as_posix()}
+    return {'deleted': len(picked), 'recycle': (recycle_root / stamp).relative_to(g.paths.vault).as_posix()}
 
 
 def _delete_sprint(g, stamp, item):
@@ -178,7 +182,8 @@ def _delete_sprint(g, stamp, item):
 
 
 def _delete_digest(g, stamp, item):
-    original = g.paths.train / '时政消化/原文' / (item['hash'] + '.pdf')
+    from . import paths as paths_mod
+    original = paths_mod.wanxiang_dir(g.paths, '消化') / '原文' / (item['hash'] + '.pdf')
     _backup(g, stamp, original, *item['files'])
     for f in item['files']:
         saved = politics.read_json(f, {})

@@ -22,10 +22,10 @@ const ready=new Promise((ok,no)=>{let text='';const timer=setTimeout(()=>no(Erro
    await page.locator('[data-manage-none]').click();assert.equal(await page.locator('[data-manage-delete]').isDisabled(),true);
    await page.locator('.wx-manage-item input').first().check();
    page.once('dialog',d=>d.accept());await page.locator('[data-manage-delete]').click();
-   await page.locator('[data-manage-result]').filter({hasText:/已删除 1 项，备份在「.*时政回收/}).waitFor();
+   await page.locator('[data-manage-result]').filter({hasText:/已删除 1 项，备份在「.*万象峰\/回收站/}).waitFor();
    assert.equal(await page.locator('.wx-manage-item').count(),labels.length-1,'删除后列表更新');
-   const recycle=await page.locator('[data-manage-result]').textContent();assert.match(recycle,/时政回收/);
-   const folder=fs.readdirSync(train+'/时政回收');assert.ok(folder.length>=1,'备份文件夹已生成');
+   const recycle=await page.locator('[data-manage-result]').textContent();assert.match(recycle,/万象峰\/回收站/);
+   const folder=fs.readdirSync(train+'/万象峰/回收站');assert.ok(folder.length>=1,'备份文件夹已生成');
    await page.screenshot({path:'ui-artifacts/manage374-desktop.png'}).catch(()=>{});
   }else await page.screenshot({path:`ui-artifacts/manage374-${size}.png`}).catch(()=>{});
   assert.deepEqual(errors,[]);await page.close();console.log(size+'：导入/勾选/批量删除/备份/列表刷新通过');

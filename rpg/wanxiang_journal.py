@@ -25,9 +25,10 @@ import re
 import shutil
 import time
 from pathlib import Path
+from . import paths as paths_mod
 from . import political_outline
 
-DIR = "万象时政"
+DIR = "万象峰/期刊"
 KINDS = {"month": "月半时政", "topic": "专题时政"}
 CATEGORIES = ["两会·政府报告", "经济", "农业", "科技", "外交", "党建", "文化", "生态", "民生", "国防", "其他"]
 CAT_WORDS = [("两会·政府报告", ("两会", "政府工作报告")), ("农业", ("农业", "农村", "乡村", "一号文件", "粮食")),
@@ -46,7 +47,7 @@ class JournalError(Exception):
 
 
 def folder(paths):
-    return paths.train / DIR
+    return paths_mod.wanxiang_dir(paths, "期刊")
 
 
 def touch():
@@ -467,6 +468,10 @@ def load(paths, kind, iid):
         raise JournalError("这一期不见了（可能在另一台电脑上删了）")
     try:
         data = json.loads(f.read_text(encoding="utf-8"))
+        if isinstance(data.get("pdf"), str) and data["pdf"].startswith("训练/万象时政/"):
+            mapped = "训练/万象峰/期刊/" + data["pdf"][len("训练/万象时政/"):]
+            if paths and paths.vault and (paths.vault / mapped).is_file():
+                data["pdf"] = mapped
         if kind == 'topic':
             data['outline'] = political_outline.outline(data)
         return data
@@ -695,7 +700,7 @@ def ensure_legacy(g):
     from . import politics
     root = folder(g.paths)
     marker = root / '迁移.json'
-    legacy = g.paths.train / '天机简报'
+    legacy = paths_mod.wanxiang_dir(g.paths, '简报')
     # 2026-11 行测撤掉天机台（改为思过崖）：首次复制之后又导进天机简报的期刊，再补复制一次（只补比首次复制标记新的文件，
     # 删除过的旧副本不复活）；标记写成 version 2。
     since = None
@@ -730,8 +735,9 @@ def ensure_legacy(g):
                         text = '\n'.join(news['paras'])
                         old_id = politics.digest([['tianji', data['id'], kind, i], text])
                         new_id = politics.digest([['wanxiang_journal', data['id'], kind, i], text])
-                        old_notes = g.paths.train/'词义批注'/(old_id+'.json')
-                        new_notes = g.paths.train/'词义批注'/(new_id+'.json')
+                        notes_dir = paths_mod.wanxiang_dir(g.paths, '词义批注')
+                        old_notes = notes_dir/(old_id+'.json')
+                        new_notes = notes_dir/(new_id+'.json')
                         if old_notes.exists() and not new_notes.exists():
                             politics.atomic_json(new_notes, politics.read_json(old_notes, {}))
                     _write(target, data)

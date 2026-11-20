@@ -100,15 +100,19 @@ Get-ChildItem -Path $Dir -Filter *.png | Sort-Object Name | ForEach-Object {
   $decoder = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
   $bitmap = Await ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
   $result = Await ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-  $W = [double]$bitmap.PixelWidth; $H = [double]$bitmap.PixelHeight
+  $imgW = [double]$bitmap.PixelWidth; $imgH = [double]$bitmap.PixelHeight
   $items = @()
-  foreach ($line in $result.Lines) {
-    $x0 = 1e9; $y0 = 1e9; $x1 = 0; $y1 = 0
-    foreach ($w in $line.Words) { $r = $w.BoundingRect
-      if ($r.X -lt $x0) { $x0 = $r.X }; if ($r.Y -lt $y0) { $y0 = $r.Y }
-      if (($r.X + $r.Width) -gt $x1) { $x1 = $r.X + $r.Width }; if (($r.Y + $r.Height) -gt $y1) { $y1 = $r.Y + $r.Height } }
-    $items += @{ t = $line.Text; x0 = $x0 / $W; y0 = $y0 / $H; x1 = $x1 / $W; y1 = $y1 / $H }
+  if ($imgW -gt 0 -and $imgH -gt 0) {
+    foreach ($line in $result.Lines) {
+      if ($line.Words.Count -eq 0) { continue }
+      $x0 = 1e9; $y0 = 1e9; $x1 = 0.0; $y1 = 0.0
+      foreach ($word in $line.Words) { $r = $word.BoundingRect
+        if ($r.X -lt $x0) { $x0 = [double]$r.X }; if ($r.Y -lt $y0) { $y0 = [double]$r.Y }
+        if (($r.X + $r.Width) -gt $x1) { $x1 = [double]($r.X + $r.Width) }; if (($r.Y + $r.Height) -gt $y1) { $y1 = [double]($r.Y + $r.Height) } }
+      $items += @{ t = $line.Text; x0 = $x0 / $imgW; y0 = $y0 / $imgH; x1 = $x1 / $imgW; y1 = $y1 / $imgH }
+    }
   }
+  $bitmap.Dispose(); $stream.Dispose()
   $obj = @{ page = $_.BaseName; lines = $items }
   [Console]::WriteLine(($obj | ConvertTo-Json -Compress -Depth 5))
 }

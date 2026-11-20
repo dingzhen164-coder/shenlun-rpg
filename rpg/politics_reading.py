@@ -101,19 +101,20 @@ def reading(pp, src):
             spans.append(anchor_range(text, note, whole))
         except (politics.PoliticsError, TypeError, AttributeError):
             continue
-    custom = politics.read_json(pp.train/'时政重点'/(politics.identity(src)+'.json'), {'added': [], 'removed': []}) if pp is not None else {}
+    from . import paths as paths_mod
+    custom = politics.read_json(paths_mod.wanxiang_dir(pp, '重点标红')/(politics.identity(src)+'.json'), {'added': [], 'removed': []}) if pp is not None else {}
     valid = lambda rows: [r for r in rows if isinstance(r, list) and len(r) == 2 and all(type(x) is int for x in r) and 0 <= r[0] < r[1] <= len(whole)]
     spans = subtract(valid(spans)+valid(custom.get('added', [])), valid(custom.get('removed', [])))
     return {'ranges': spans, 'edited': bool(valid(custom.get('added', [])) or valid(custom.get('removed', [])))}
 
 
 def mark(pp, src, body):
-    from . import politics
+    from . import paths as paths_mod, politics
     if type(body.get('enabled')) is not bool:
         raise politics.PoliticsError('请选择标红或取消标红')
     span = anchor_range(src['text'], politics.validate_anchor(src, body))
     with politics._LOCK:
-        file = pp.train/'时政重点'/(politics.identity(src)+'.json')
+        file = paths_mod.wanxiang_dir(pp, '重点标红')/(politics.identity(src)+'.json')
         data = politics.read_json(file, {'added': [], 'removed': []})
         own, other = ('added', 'removed') if body['enabled'] else ('removed', 'added')
         data[own] = merge(data.get(own, [])+[span])
@@ -123,11 +124,11 @@ def mark(pp, src, body):
 
 
 def clear(pp, src):
-    """这一篇一键取消全部红标记：把当前的红色区间记进“训练/时政重点”的removed，之后自己重新标。
+    """这一篇一键取消全部红标记：把当前的红色区间记进“训练/万象峰/重点标红”的removed，之后自己重新标。
     只改这个文件，不动原文、批注、消化清单的空和进度，不发奖励、不调AI。"""
-    from . import politics
+    from . import paths as paths_mod, politics
     with politics._LOCK:
-        file = pp.train/'时政重点'/(politics.identity(src)+'.json')
+        file = paths_mod.wanxiang_dir(pp, '重点标红')/(politics.identity(src)+'.json')
         data = politics.read_json(file, {'added': [], 'removed': []})
         data = {'added': [], 'removed': merge(list(data.get('removed', [])) + reading(pp, src)['ranges'])}
         politics.atomic_json(file, data)

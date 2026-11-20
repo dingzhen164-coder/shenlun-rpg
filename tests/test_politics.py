@@ -19,7 +19,7 @@ class PoliticsTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.pp = paths.Paths(Path(self.tmp.name), '行测')
         self.data = atlas_data()
-        politics.atomic_json(self.pp.train / '时政知识地图/内容.json', self.data)
+        politics.atomic_json(self.pp.train / '万象峰/知识地图/内容.json', self.data)
         self.src = politics.source(self.pp, {'source': 'atlas', 'material': 'm1'})
         paragraph = self.src['text']
         self.body = {'paragraph': paragraph, 'word': '主产区', 'start': paragraph.index('主产区'),
@@ -76,7 +76,7 @@ class PoliticsTests(unittest.TestCase):
             politics.set_progress(self.pp, {'field': 'status', 'id': 'missing', 'value': 'done'})
 
     def test_corrupt_notes_not_overwritten(self):
-        file = self.pp.train / '词义批注' / (politics.identity(self.src) + '.json')
+        file = self.pp.train / '万象峰/词义批注' / (politics.identity(self.src) + '.json')
         file.parent.mkdir(parents=True)
         file.write_text('{bad', encoding='utf-8')
         with self.assertRaises(politics.PoliticsError):

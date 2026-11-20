@@ -24,7 +24,7 @@ class JournalTests(unittest.TestCase):
         fixtures.TianjiTest.setUp(self)
         from tests.politics_fixture import atlas_data
         from rpg import paths
-        politics.atomic_json(paths.Paths(self.vault,'行测').train/'时政知识地图/内容.json',atlas_data())
+        politics.atomic_json(paths.Paths(self.vault,'行测').train/'万象峰/知识地图/内容.json',atlas_data())
     tearDown = fixtures.TianjiTest.tearDown
 
     def call(self, name='', body=None):
@@ -45,12 +45,12 @@ class JournalTests(unittest.TestCase):
             old_file=tianji._file(g.paths,'month',key['id']);raw=old_file.read_bytes()
             src=politics.source(g.paths,dict(key,source='tianji',news=0))
             saved_notes={'fixture':{'word':'自编词义','explanation':{'meaning':'测试已有批注'}}}
-            politics.atomic_json(g.paths.train/'词义批注'/(politics.identity(src)+'.json'),saved_notes)
+            politics.atomic_json(g.paths.train/'万象峰/词义批注'/(politics.identity(src)+'.json'),saved_notes)
         self.assertEqual(len(self.call()['month']),1)
         with patch.object(tianji,'load',side_effect=AssertionError('不许依赖旧模块')):
             copied=self.call('get',key)
         self.assertEqual(copied['data']['news'],before['data']['news'])
-        self.assertIn('万象时政/原文',copied['data']['pdf'])
+        self.assertIn('万象峰/期刊/原文',copied['data']['pdf'])
         self.assertEqual(copied['progress']['read'],[0])
         with api.open_game(save=False) as g:
             src=politics.source(g.paths,dict(key,source='wanxiang_journal',news=0))

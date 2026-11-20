@@ -23,6 +23,7 @@
     return "/vault-file?p=" + encodeURIComponent(base + s);
   }
   const md = (t) => (window.MDLITE ? MDLITE.render(t || "", { imgUrl: siguoImgUrl }) : `<p>${esc(t)}</p>`);
+  const mdInline = (t) => (window.MDLITE?.inline ? MDLITE.inline(t || "", { imgUrl: siguoImgUrl }) : esc(t));
   const pos = () => { try { return JSON.parse(localStorage.getItem(POS_KEY) || "{}"); } catch (_) { return {}; } };
   const savePos = (p) => { try { localStorage.setItem(POS_KEY, JSON.stringify(Object.assign(pos(), p))); } catch (_) {} };
   const touch = () => { lastAct = Date.now(); };
@@ -54,19 +55,34 @@
       <div class="sg-hint"><span>面壁思过：点一块石碑，重做那个板块记下的错题。内容来自 ${esc(DATA.folder)}。</span>${syncBtnHtml()}</div></div>`;
   }
 
+  // 选项自适应排版：4 列能单行放下时横排；只要任意选项会换行（或含显式换行），自动切为每项单独一行
+  function layoutOpts() {
+    const box = root?.querySelector(".sg-opts");
+    if (!box) return;
+    const spans = [...box.querySelectorAll(".sg-opt > span")];
+    if (!spans.length) return;
+    box.classList.remove("is-stack");
+    box.classList.add("is-measure");
+    const needStack = spans.some((sp) => sp.scrollWidth > sp.clientWidth + 1 || /\n/.test(sp.textContent || ""));
+    box.classList.remove("is-measure");
+    box.classList.toggle("is-stack", needStack);
+  }
+
   function fit() {
     const st = root?.querySelector(".sg-stage"), fr = root?.querySelector(".sg-frame");
-    if (!st || !fr) return;
-    const W = st.clientWidth, H = st.clientHeight, k = Math.min(W / IMG.w, H / IMG.h);
-    fr.style.width = Math.floor(IMG.w * k) + "px"; fr.style.height = Math.floor(IMG.h * k) + "px";
-    fr.style.setProperty("--sg-fs", Math.max(12, Math.round(IMG.w * k * 0.0155)) + "px");   // 碑上刻字随画面大小缩放
+    if (st && fr) {
+      const W = st.clientWidth, H = st.clientHeight, k = Math.min(W / IMG.w, H / IMG.h);
+      fr.style.width = Math.floor(IMG.w * k) + "px"; fr.style.height = Math.floor(IMG.h * k) + "px";
+      fr.style.setProperty("--sg-fs", Math.max(12, Math.round(IMG.w * k * 0.0155)) + "px");   // 碑上刻字随画面大小缩放
+    }
+    layoutOpts();
   }
 
   function listHtml() {
     return BOARD.questions.map((q) => {
       const r = q.record, st = !r ? "new" : r.last === "ok" ? "ok" : "bad";
       return `<button type="button" class="sg-q ${q.key === CUR ? "on" : ""}" data-sgq="${esc(q.key)}" aria-current="${q.key === CUR}">
-        <i class="sg-dot ${st}" aria-hidden="true"></i><span>${esc(q.title)}</span><small>${st === "new" ? "未重做" : st === "ok" ? "上次对" : "上次错"}</small></button>`;
+        <i class="sg-dot ${st}" aria-hidden="true"></i><span>${mdInline(q.title)}</span><small>${st === "new" ? "未重做" : st === "ok" ? "上次对" : "上次错"}</small></button>`;
     }).join("");
   }
 
@@ -76,13 +92,13 @@
     const R = RESULT && RESULT.key === q.key ? RESULT : null;
     const opts = Object.entries(q.options).map(([k, v]) => {
       const cls = !R ? "" : k === R.answer ? "right" : k === R.choice ? "wrong" : "dim";
-      return `<button type="button" class="sg-opt ${cls}" data-sgpick="${k}" ${R ? "disabled" : ""}><b>${k}</b><span>${esc(v)}</span></button>`;
+      return `<button type="button" class="sg-opt ${cls}" data-sgpick="${k}" ${R ? "disabled" : ""}><b>${k}</b><span>${mdInline(v)}</span></button>`;
     }).join("");
     const verdict = !R ? "" : `<div class="sg-verdict ${R.ok === null ? "" : R.ok ? "ok" : "bad"}" role="status">${
       R.ok === null ? "文档里没写正确答案" : R.ok ? "✓ 这次做对了" : `✗ 又错了：正确答案 ${esc(R.answer)}`}${R.mine ? `<span>当时选 ${esc(R.mine)}</span>` : ""}</div>`;
-    const secs = R ? R.sections.map((s) => `<section class="sg-sec"><h4>${esc(s.title)}</h4><div class="sg-md">${md(s.md)}</div></section>`).join("") : "";
+    const secs = R ? R.sections.map((s) => `<section class="sg-sec"><h4>${mdInline(s.title)}</h4><div class="sg-md">${md(s.md)}</div></section>`).join("") : "";
     const idx = BOARD.questions.findIndex((x) => x.key === q.key), next = BOARD.questions[idx + 1];
-    return `<article class="sg-card"><strong class="sg-qtitle">${esc(q.title)}</strong><div class="sg-md sg-stem">${md(q.stem)}</div>
+    return `<article class="sg-card"><strong class="sg-qtitle">${mdInline(q.title)}</strong><div class="sg-md sg-stem">${md(q.stem)}</div>
       <div class="sg-opts" role="group" aria-label="选项">${opts}</div>${verdict}${secs}
       <div class="sg-acts">${R ? `<button type="button" class="ghost small" data-sgredo>再做一次</button>` : ""}${next ? `<button type="button" class="primary small" data-sgq="${esc(next.key)}">下一题 →</button>` : ""}</div></article>`;
   }
@@ -182,6 +198,7 @@
     }));
   }
 
+  let mo = null;
   async function render(v, prepare) {
     const epoch = ++generation;
     ++boardRequest; ++answerRequest;
@@ -194,6 +211,8 @@
     bind(); fit();
     if (ro) ro.disconnect();
     if (window.ResizeObserver) { ro = new ResizeObserver(fit); ro.observe(v.querySelector(".sg-stage") || v); } else window.addEventListener("resize", fit);
+    if (mo) mo.disconnect();
+    if (window.MutationObserver) { mo = new MutationObserver(() => { if (current() && BOARD) layoutOpts(); }); mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style"] }); }
     if (BOARD) openBoard(BOARD.name, CUR).catch(() => {});
   }
 

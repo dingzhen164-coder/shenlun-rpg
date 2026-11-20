@@ -15,11 +15,12 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from . import download, mac_update, net
+from . import download, mac_update, net, paths as paths_mod
 from .paths import FROZEN
 from .version import REPO, VERSION
 
 MAC_ASSET = 'gongkao-simulator-mac.zip'
+DOWNLOAD_ATTEMPTS = 15
 
 API = "https://api.github.com/repos/%s/releases/latest" % REPO
 
@@ -108,13 +109,46 @@ def launch_swap(pid, new, exe):
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def _cache_file(base_dir, info, suffix):
+    """按版本与摘要在应用同级 .rpg-dl-cache/ 生成固定缓存文件（同盘移动零拷贝，且自动清理旧版缓存）。"""
+    cache_dir = Path(base_dir) / ".rpg-dl-cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    ver = re.sub(r"[^0-9A-Za-z._-]+", "_", str(info.get("latest") or "latest"))[:24]
+    dig = str(info.get("digest") or "")
+    tag = dig[7:19].lower() if dig.startswith("sha256:") else "nodigest"
+    name = "v%s-%s-%s" % (ver, tag, suffix)
+    for old in cache_dir.glob("*-" + suffix):
+        if old.name != name:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+    return cache_dir / name
+
+
+def _download_cached(base_dir, info, suffix, target):
+    """带跨次断点续传的更新包下载：失败保留已下字节，完整校验通过后移至 target。"""
+    try:
+        cached = _cache_file(base_dir, info, suffix)
+    except OSError:
+        cached = target
+    size = int(info.get("size") or 0)
+    attempts = DOWNLOAD_ATTEMPTS if (size >= 1_000_000 or suffix == "mac.zip") else 3
+    download.archive(
+        info['asset_url'], cached, info.get('size'), info.get('digest') or '',
+        REPO.split('/')[-1], attempts=attempts, resume=(cached != target),
+    )
+    if cached != target:
+        shutil.move(str(cached), str(target))
+
+
 def _apply_mac(info):
     stage = None
     try:
         app = mac_update.writable_bundle()
         stage = Path(tempfile.mkdtemp(prefix=".rpg-update-", dir=str(app.parent)))
         archive = stage / "download.zip"
-        download.archive(info['asset_url'], archive, info.get('size'), info.get('digest') or '', REPO.split('/')[-1])
+        _download_cached(app.parent, info, "mac.zip", archive)
         new = mac_update.prepare(stage, archive, app, info["latest"])
         mac_update.launch(os.getpid(), new, app, stage, clean_env())
     except Exception as e:
@@ -160,7 +194,7 @@ def _apply():
     exe = Path(sys.executable).resolve()
     new = exe.with_name(exe.stem + ".new.exe")
     try:
-        download.archive(info['asset_url'], new, info.get('size'), info.get('digest') or '', REPO.split('/')[-1])
+        _download_cached(exe.parent, info, "win.exe", new)
     except Exception as e:
         try:
             new.unlink()

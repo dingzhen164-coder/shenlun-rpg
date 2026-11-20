@@ -129,7 +129,8 @@ def restore_layout(pp, questions, imports):
             break
         if not isinstance(ident, str) or not re.fullmatch(r'[0-9a-f]{64}', ident):
             continue
-        file = pp.train/'时政知识地图/原文'/(ident+'.pdf')
+        from . import paths as paths_mod
+        file = paths_mod.wanxiang_dir(pp, '知识地图') / '原文' / (ident+'.pdf')
         if file.is_symlink() or not file.is_file():
             continue
         try:
@@ -221,7 +222,8 @@ def import_pdf(pp, body):
     except ImportError:
         raise politics.PoliticsError('当前环境缺少PDF组件，请使用完整电脑安装包')
     file_hash = hashlib.sha256(content).hexdigest()
-    directory = pp.train / '时政知识地图/原文'
+    from . import paths as paths_mod
+    directory = paths_mod.wanxiang_dir(pp, '知识地图') / '原文'
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / (file_hash+'.pdf')
     if not path.exists():

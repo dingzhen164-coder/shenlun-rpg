@@ -28,7 +28,7 @@ class AnnotationTests(unittest.TestCase):
         anchor = politics.validate_anchor(self.src, self.body)
         key = politics.digest(anchor)
         old = dict(anchor, key=key, version=3, explanation=dict(self.answer))
-        politics.atomic_json(self.pp.train/'词义批注'/(politics.identity(self.src)+'.json'), {key:old})
+        politics.atomic_json(self.pp.train/'万象峰/词义批注'/(politics.identity(self.src)+'.json'), {key:old})
         for field, limit in politics.LIMITS.items():
             answer = {k: '自编解释' for k in politics.FIELDS}
             answer[field] = '长' * (limit+1)

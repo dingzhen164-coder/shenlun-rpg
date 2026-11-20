@@ -33,7 +33,7 @@ class Revision361Tests(unittest.TestCase):
         self.pp = paths.Paths(self.vault, '行测')
         self.pp.ensure_train_dir()
         self.base = atlas_data()
-        politics.atomic_json(self.pp.train / '时政知识地图/内容.json', self.base)
+        politics.atomic_json(self.pp.train / '万象峰/知识地图/内容.json', self.base)
         day = dt.date(2026, 10, 21)
         self.g = engine.Game(self.pp, config.Rules(), config.Persona(), config.Lines(), store.new_state(day), day)
         cards._CACHE['key'] = None
@@ -87,7 +87,7 @@ class Revision361Tests(unittest.TestCase):
         body={'paragraph':src['text'],'word':'主产区','start':src['text'].index('主产区'),'end':src['text'].index('主产区')+3}
         anchor=politics.validate_anchor(src,body);key=politics.digest(anchor)
         old=dict(anchor,key=key,explanation={k:'旧解释' for k in politics.FIELDS[:5]})
-        file=self.pp.train/'词义批注'/(politics.identity(src)+'.json')
+        file=self.pp.train/'万象峰/词义批注'/(politics.identity(src)+'.json')
         politics.atomic_json(file,{key:old})
         answer={k:'自编通俗解释' for k in politics.FIELDS};answer['evidence']='在主产区布局产能'
         with patch('rpg.politics.ai.available',return_value=True),patch('rpg.politics.ai.chat',return_value=json.dumps(answer)) as chat:
@@ -103,7 +103,7 @@ class Revision361Tests(unittest.TestCase):
         news=[{'no':i+1,'title':'习近平强调，到2035年建成健康中国是我们作出的一项战略决策','group':'两会讲话','paras':['建设健康中国。自编第%d段。'%i], 'qs':[i]} for i in range(3)]
         news.append({'no':4,'title':'习近平强调，“十五五”时期如期实现建军目标','group':'两会讲话','paras':['国防和军队现代化取得进展。'],'qs':[3]})
         data={'id':'old-topic','kind':'topic','news':news,'questions':[{'id':i,'news':i} for i in range(4)],'cloze':[]}
-        file=self.pp.train/'天机简报/专题时政/old-topic.json';politics.atomic_json(file,data)
+        file=self.pp.train/'万象峰/简报/专题时政/old-topic.json';politics.atomic_json(file,data)
         raw=file.read_bytes()
         loaded=tianji.load(self.pp,'topic','old-topic')
         self.assertEqual(loaded['outline'],[{'title':'建设健康中国','group':'两会讲话','items':[0,1,2]},{'title':'国防和军队建设','group':'两会讲话','items':[3]}])
@@ -127,7 +127,7 @@ class Revision361Tests(unittest.TestCase):
     def test_generic_pdf_append_answers_multiple_choice_and_duplicate(self):
         p=self.vault/'自编会议.pdf'
         make_pdf(p,[[(1,'一、自编经济工作会议'),(1,'2026年11月1日召开自编会议。'),(1,'在主产区布局产能，支持产业发展。'),(1,'配套练习'),(1,'1.（多选）自编政策支持的对象有哪些？'),(1,'A.主产区'),(1,'B.主销区'),(1,'C.全部地区'),(1,'D.其他地区'),(1,'参考答案'),(1,'1.【答案】AB。解析：这里是自编解析。')]])
-        before=(self.pp.train/'时政知识地图/内容.json').read_bytes()
+        before=(self.pp.train/'万象峰/知识地图/内容.json').read_bytes()
         result=self.upload(p)
         self.assertEqual(result['added'],1)
         self.assertEqual(result['questions'],1)
@@ -145,7 +145,7 @@ class Revision361Tests(unittest.TestCase):
         self.assertEqual(len(politics.atlas(self.pp,'2026-12-shengkao')['materials']),1)
         self.assertEqual(politics.progress(self.pp,'2026-12-shengkao')['status'][m['id']],'done')
         self.assertEqual(len(politics.atlas(self.pp)['materials']),1)
-        self.assertEqual((self.pp.train/'时政知识地图/内容.json').read_bytes(),before)
+        self.assertEqual((self.pp.train/'万象峰/知识地图/内容.json').read_bytes(),before)
         self.assertEqual((self.pp.vault/m['pdf']).read_bytes(),p.read_bytes())
         self.upload(p,'2027-03-shengkao')
         self.assertEqual(politics.progress(self.pp,'2027-03-shengkao')['status'],{})
@@ -184,7 +184,7 @@ class Revision361Tests(unittest.TestCase):
                     (1,'配套练习'),(1,'2.（单选）新加的自编题应选什么？'),(1,'A.甲'),(1,'B.乙'),
                     (1,'C.丙'),(1,'D.丁'),(1,'参考答案'),(1,'2.【答案】B。解析：自编新增解析。')]])
         politics.set_progress(self.pp,{'field':'status','id':'m1','value':'done'})
-        original=(self.pp.train/'时政知识地图/内容.json').read_bytes()
+        original=(self.pp.train/'万象峰/知识地图/内容.json').read_bytes()
         result=self.upload(p,politics.DEFAULT_EXAM)
         self.assertEqual(result['added'],0)
         self.assertEqual(result['questions'],1)
@@ -193,7 +193,7 @@ class Revision361Tests(unittest.TestCase):
         self.assertEqual(data['materials'][0]['questions'],[1,2])
         self.assertEqual(data['questions'][1]['material'],'m1')
         self.assertEqual(politics.progress(self.pp)['status']['m1'],'done')
-        self.assertEqual((self.pp.train/'时政知识地图/内容.json').read_bytes(),original)
+        self.assertEqual((self.pp.train/'万象峰/知识地图/内容.json').read_bytes(),original)
 
     @unittest.skipIf(fitz is None,'需要已有PDF组件')
     def test_scan_and_invalid_pdf_do_not_change_content(self):
