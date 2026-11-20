@@ -297,3 +297,12 @@ class BlankAndGapTest(unittest.TestCase):
         self.assertEqual(options["A"], "底色 契合 循环")
         self.assertEqual(options["D"], "基调 迎合 周期")
         self.assertIn("＿＿＿＿", stem[0])
+
+    def test_windows_ocr_script_has_no_case_insensitive_var_collision(self):
+        import re
+        from rpg import exam_scan
+        ps = exam_scan._WIN_PS
+        loop_vars = {v.lower() for v in re.findall(r"foreach\s*\(\s*\$([A-Za-z_]\w*)\s+in\b", ps, re.I)}
+        div_vars = {v.lower() for v in re.findall(r"/\s*\$([A-Za-z_]\w*)", ps)}
+        self.assertEqual(loop_vars & div_vars, set(), "PowerShell 变量名不区分大小写，foreach 循环变量不能与坐标分母变量同名")
+
