@@ -1,4 +1,4 @@
-/* 4.2.0：宗门大比「自考」（无数字9点钟表计时+空格键打点+预设分值录分）与板块逐题用时自动求和回归；隔离假HOME，不连AI。 */
+/* 4.2.0：宗门大比「自考」（9点挂钟计时+空格键打点+预设分值录分）与板块逐题用时自动求和回归；隔离假HOME，不连AI。 */
 const {chromium} = require('playwright'), {spawn} = require('node:child_process'), assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
 const service = spawn('python3', ['tests/ui_layout_server.py', '行测', '--merge-fixture', '--score-fixture'], {env: process.env});
 let browser, active, logs = '';
@@ -58,6 +58,33 @@ async function fits(p) {
         await p.evaluate(t => { document.documentElement.dataset.theme = t; }, theme);
         await p.locator('[data-cs-enter="self_exam"]').click();
         await fits(p);
+        assert.deepEqual((await p.locator('.pe-clock text').allTextContents()).map(Number).sort((a, b) => a - b),
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert.equal(await p.locator('.pe-clock-ticks line').count(), 60);
+        const clock = await p.locator('.pe-clock').boundingBox();
+        const left = await p.locator('.pe-clock-box').boundingBox();
+        const right = await p.locator('.pe-queue-box').boundingBox();
+        assert(clock.width >= 320 && left.width > right.width && right.x >= left.x + left.width - 1,
+          '电脑、平板横竖屏并排，钟面放大、钟表区比右侧宽');
+        const pause = await p.locator('#pePauseBtn').boundingBox();
+        const pane = await p.locator('.cs-pane:not([hidden])').boundingBox();
+        assert(pause.y + pause.height <= pane.y + pane.height + 1, '无需滚动即可看到钟面和计时操作');
+        if (theme === 'light') {
+          await p.locator('#peLapBtn').click();
+          await p.waitForFunction(() => Number(document.getElementById('peHandSec').dataset.angle) > 0.5);
+          const queue = p.locator('.pe-queue-list');
+          if (size !== 'tablet-portrait') assert(await queue.evaluate(q => q.scrollHeight > q.clientHeight));
+          await queue.locator('[data-pe-jump]').last().click();
+          assert(await queue.evaluate(q => {
+            const row = q.querySelector('.is-active').getBoundingClientRect();
+            const box = q.getBoundingClientRect();
+            return row.top >= box.top - 1 && row.bottom <= box.bottom + 1;
+          }), '跳到队尾后，当前板块在独立队列中可见');
+          await p.locator('#pePauseBtn').click();
+          assert.equal(await p.locator('#pePauseBtn').textContent(), '继续');
+          await p.locator('#peResetBtn').click();
+          assert.equal(await p.locator('#peHandSec').getAttribute('data-angle'), '0.00');
+        }
         await p.locator('[data-pe-step="score"]').click();
         await fits(p);
         await p.locator('[data-pe-step="timer"]').click();
@@ -78,10 +105,9 @@ async function fits(p) {
         assert(rvTilesText.includes('1.4分'), '复盘板块应显示逐题求和用时（85秒≈1.4分）');
         await p.locator('[data-cs-close]').click();
 
-        // 2) 进入「自考」检查无数字 9:00 钟表、预设切换、做题顺序微调、空格键打点与录分闭环
+        // 2) 进入「自考」检查9:00 挂钟、预设切换、做题顺序微调、空格键打点与录分闭环
         await p.locator('[data-cs-enter="self_exam"]').click();
         await p.locator('.pe-clock').waitFor();
-        assert.equal(await p.locator('.pe-clock text').count(), 0, '钟表表盘不得包含任何数字刻度文字');
         assert.equal(await p.locator('#peDigitalWrap').isHidden(), true, '默认隐藏数字时间');
         assert.equal(await p.locator('#peHandHour').getAttribute('data-angle'), '270.00', '时针默认指向九点钟(270°)');
         assert.equal(await p.locator('#peHandMin').getAttribute('data-angle'), '0.00');
@@ -92,29 +118,45 @@ async function fits(p) {
         await p.locator('#pePresetSel').selectOption('sc_gz_100');
         assert.equal((await selDone).status(), 200);
 
-        // 开考前点上移按钮调整第 2 块与第 1 块顺序并持久化
-        const firstTwoBefore = await p.locator('.pe-q-main b').evaluateAll(els => els.slice(0, 2).map(e => e.textContent));
+        // 两个言语板块可以各自移动、打点和录分。
+        const names = () => p.locator('.pe-q-main b').allTextContents();
+        const before = await names();
+        const reading = before.indexOf('片段阅读');
+        assert.equal(before[reading - 1], '逻辑填空');
         const reorderDone = p.waitForResponse(r => r.url().includes('/api/paper-exam/prefs') && r.request().method() === 'POST');
-        await p.locator('[data-pe-move="1:-1"]').click();
+        await p.locator(`[data-pe-move="${reading}:-1"]`).click();
         assert.equal((await reorderDone).status(), 200);
-        const firstTwoAfter = await p.locator('.pe-q-main b').evaluateAll(els => els.slice(0, 2).map(e => e.textContent));
-        assert.deepEqual(firstTwoAfter, [firstTwoBefore[1], firstTwoBefore[0]], '开考前应支持调整做题顺序');
+        const readingIdx = reading - 1;
+        await p.waitForFunction(i => document.querySelector(`[data-pe-q="${i}"] .pe-q-main b`)?.textContent === '片段阅读', readingIdx);
+        assert.deepEqual((await names()).slice(readingIdx, readingIdx + 2), ['片段阅读', '逻辑填空']);
 
-        // 确保焦点不在次要按钮上，按空格键开始第 1 块计时，再按空格键打点切入第 2 块
         await p.locator('#peLapBtn').focus();
         await p.keyboard.press('Space');
-        await p.waitForFunction(() => document.querySelectorAll('.pe-q-item.is-active').length === 1 && document.querySelector('.pe-q-item.is-active')?.getAttribute('data-pe-q') === '0');
-        await p.waitForTimeout(220);
+        await p.locator(`[data-pe-jump="${readingIdx}"]`).click();
+        // 推进这一板块的单调时钟 30 分 30 秒，其他页面定时器仍按真实时间运行。
+        await p.evaluate(() => {
+          const now = performance.now.bind(performance);
+          performance.now = () => now() + 1830000;
+        });
+        await p.waitForFunction(() => {
+          const angle = id => Number(document.getElementById(id).dataset.angle);
+          return Math.abs(angle('peHandHour') - 285.25) < 0.05 &&
+            Math.abs(angle('peHandMin') - 183) < 0.5 && Math.abs(angle('peHandSec') - 180) < 30;
+        });
         await p.locator('#peLapBtn').focus();
         await p.keyboard.press('Space');
-        await p.waitForFunction(() => document.querySelector('.pe-q-item.is-active')?.getAttribute('data-pe-q') === '1');
-        assert.equal(await p.locator('[data-pe-q="0"].is-done').count(), 1, '第1块按空格后应标记已完成');
-
-        // 点击「完成计时 · 去录分 →」，校验第 1 块用时已自动带入
+        await p.locator(`[data-pe-q="${reading}"].is-active`).waitFor();
+        assert.equal(await p.locator(`[data-pe-q="${readingIdx}"].is-done`).count(), 1);
+        await p.locator('#peLapBtn').focus();
+        await p.keyboard.press('Space');
         await p.locator('#peToScore').click();
         await p.locator('#peScoreRows').waitFor();
-        const sec0Min = parseFloat(await p.locator('[data-pe-min="0"]').inputValue());
-        assert(sec0Min > 0, '计时打点秒数应自动带入录分表用时列');
+        assert(parseFloat(await p.locator(`[data-pe-min="${readingIdx}"]`).inputValue()) >= 30.5);
+        assert(parseFloat(await p.locator(`[data-pe-min="${reading}"]`).inputValue()) > 0);
+        await p.locator(`[data-pe-ok="${readingIdx}"]`).fill('12');
+        await p.locator(`[data-pe-ok="${reading}"]`).fill('9');
+        assert.equal(await p.locator(`[data-pe-sec-score="${readingIdx}"]`).textContent(), '12');
+        assert.equal(await p.locator(`[data-pe-sec-score="${reading}"]`).textContent(), '9');
 
         // 录入试卷名与对错题数，校验实时算分并保存计入宗门大比
         await p.evaluate(() => { if (window.CEREMONY) CEREMONY.contest = async () => {}; });
@@ -130,6 +172,14 @@ async function fits(p) {
         assert.equal((await saveResp).status(), 200);
         await p.waitForFunction(() => document.querySelector('.pe-history')?.textContent.includes('2025四川省考行测纸质卷'));
         await fits(p);
+
+        // 修改历史卷时禁用当前方案的计时，并保留手工修订的用时。
+        await p.locator('[data-pe-edit]').first().click();
+        assert(await p.locator('[data-pe-step="timer"]').isDisabled());
+        await p.locator(`[data-pe-min="${readingIdx}"]`).fill('18.75');
+        await p.locator('[data-pe-step="score"]').click();
+        assert.equal(await p.locator(`[data-pe-min="${readingIdx}"]`).inputValue(), '18.75');
+        await p.locator('#peCancelEdit').click();
 
         // 3) 校验已计入「考情」与「战绩」，但不污染「复盘」下拉框
         await p.locator('[data-cs-close]').click();
@@ -150,7 +200,7 @@ async function fits(p) {
 
       assert.deepEqual(errors, []);
       await p.close();
-      console.log(size + '：自考无数字钟表/空格打点/预设算分/考情战绩联动/板块用时求和通过');
+      console.log(size + '：自考挂钟/空格打点/预设算分/考情战绩联动/板块用时求和通过');
     }
   } catch (e) {
     if (active && !active.isClosed()) {

@@ -42,6 +42,13 @@ class PaperExamAndBoardTimeTest(unittest.TestCase):
         self.assertEqual(by_id["guokao_130"]["full_score"], 100.0)
         self.assertEqual(by_id["sc_gz_100"]["total_questions"], 100)
         self.assertEqual(by_id["sc_gz_100"]["full_score"], 100.0)
+        self.assertEqual(by_id["liankao_100"]["total_questions"], 100)
+        self.assertEqual(by_id["liankao_100"]["full_score"], 100.0)
+        for pid, counts in (("guokao_130", [15, 15]), ("sc_gz_100", [15, 15]), ("liankao_100", [12, 13])):
+            verbal = [s for s in by_id[pid]["sections"] if s["module"] == "言语理解"]
+            self.assertEqual([s["name"] for s in verbal], ["逻辑填空", "片段阅读"])
+            self.assertEqual([s["total"] for s in verbal], counts)
+            self.assertEqual([s["target_minutes"] for s in verbal], counts)
         self.assertFalse(v["show_digital"])
 
         # 调整做题顺序（如先做资料分析）
@@ -72,10 +79,37 @@ class PaperExamAndBoardTimeTest(unittest.TestCase):
         self.assertTrue(custom_id.startswith("custom_"))
         p_gz = next(p for p in v3["presets"] if p["id"] == custom_id)
         self.assertEqual(p_gz["full_score"], 150.0)
+        self.assertEqual(p_gz["sections"][0]["name"], "言语理解")
 
         # 删除自定义预设
         v4 = paper_exam.save_prefs(self.g, {"action": "delete_preset", "preset_id": custom_id})
         self.assertFalse(any(p["id"] == custom_id for p in v4["presets"]))
+
+    def test_old_builtin_order_and_saved_customizations(self):
+        old = paper_exam._rows_to_sections(paper_exam._GUOKAO_ROWS)
+        verbal = old.pop(2)
+        old.insert(0, verbal)
+        overrides = self.g.state.setdefault("paper_exam_prefs", {}).setdefault("preset_overrides", {})
+        overrides["guokao_130"] = {"sections": old}
+        self.assertEqual([s["name"] for s in paper_exam.view(self.g)["presets"][0]["sections"][:3]],
+                         ["逻辑填空", "片段阅读", "政治理论"])
+        self.assertEqual(old[0]["name"], "言语理解")
+        old[0]["points"] = "1.25"
+        self.assertEqual(paper_exam.view(self.g)["presets"][0]["sections"][0], old[0])
+
+    def test_rule_override_and_historical_sections(self):
+        self.g.rules.raw.update({"模考参考.题量.言语理解": 31, "模考参考.分值.言语理解": 1.25})
+        preset = paper_exam.view(self.g)["presets"][0]
+        verbal = [s for s in preset["sections"] if s["module"] == "言语理解"]
+        self.assertEqual([(s["total"], s["points"]) for s in verbal], [(15, "1.25"), (16, "1.25")])
+        old = {"name": "言语理解", "module": "言语理解", "total": 30, "points": "0.8",
+               "ok": 24, "wrong": 6, "seconds": 1200}
+        saved = paper_exam.save_exam(self.g, {"name": "旧卷", "sections": [old],
+                                              "preset_id": "retired", "preset_name": "旧方案"})
+        edited = paper_exam.save_exam(self.g, {"season": saved["season"], "name": "旧卷订正", "sections": [old]})
+        record = edited["paper_exam"]["records"][0]
+        self.assertEqual((record["preset_id"], record["preset_name"]), ("retired", "旧方案"))
+        self.assertEqual([(s["name"], s["seconds"]) for s in record["sections"]], [("言语理解", 1200)])
 
     def test_save_edit_delete_paper_exam_and_mock_integration(self):
         v = paper_exam.view(self.g)
@@ -86,7 +120,8 @@ class PaperExamAndBoardTimeTest(unittest.TestCase):
         answers = {
             "政治理论": (16, 4, 720),
             "常识判断": (10, 5, 480),
-            "言语理解": (24, 6, 1800),
+            "逻辑填空": (13, 2, 660),
+            "片段阅读": (11, 4, 1140),
             "图形推理": (8, 2, 540),
             "定义判断": (8, 2, 600),
             "类比推理": (4, 1, 240),
@@ -123,6 +158,9 @@ class PaperExamAndBoardTimeTest(unittest.TestCase):
         self.assertEqual(s_item["ok"], 101)
         self.assertEqual(s_item["total"], 130)
         self.assertEqual(s_item["minutes"], 120.0)
+        record = res["paper_exam"]["records"][0]
+        verbal = [s for s in record["sections"] if s["module"] == "言语理解"]
+        self.assertEqual([(s["score"], s["seconds"]) for s in verbal], [(10.4, 660), (8.8, 1140)])
         judge_mod = next(m for m in s_item["modules"] if m["name"] == "判断推理")
         self.assertEqual(judge_mod["score"], 22.8)
         self.assertEqual(judge_mod["minutes"], 35.0)

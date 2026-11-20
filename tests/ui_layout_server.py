@@ -143,6 +143,16 @@ def main():
             (d / '逻辑填空.md').write_text('# 001 · 自编填空\n\n## 原题\n\n自编文段____。\n\n- A. 词甲\n- B. 词乙　**← 答案**\n- C. 词丙\n- D. 词丁\n\n## 解析\n\n自编解析。\n', encoding='utf-8')
             # 定义判断：30 道自编题，用来检查长目录点下面的题不跳回顶部、题目字号按钮只放大题目。
             (d / '定义判断.md').write_text(''.join('## 错题%d：自编定义题第%d号（较长的标题用来换行检查）\n\n### 原题\n\n自编定义文段%d。\n\n- A. 甲\n- B. 乙\n- C. 丙\n- D. 丁\n\n### 答案\n\n正确答案：A；我的选择：B\n\n### 解析\n\n自编解析%d。\n\n' % (i, i, i, i) for i in range(1, 31)), encoding='utf-8')
+        if '--siguo-sync-fixture' in sys.argv:
+            # 模拟放进行测库根目录的 gk-skill（含带配图的数量关系错题与词录汇总，不含真实题目）
+            import base64
+            gk = Path(vaults['行测']) / 'gk-skill'
+            (gk / '错题集/assets').mkdir(parents=True, exist_ok=True)
+            (gk / '笔记与题集/成语实词录').mkdir(parents=True, exist_ok=True)
+            png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+            (gk / '错题集/assets/math-01.png').write_bytes(png)
+            (gk / '错题集/数量关系.md').write_text('# 数量关系\n\n## 001 · 自编图形题\n\n### 原题\n\n如图 ![示意图](assets/math-01.png)\n\n求阴影面积：\n\n- A. 10\n- B. 20\n- C. 30\n- D. 40\n\n### 答案\n\n正确答案：B；我的选择：A\n\n### 解析\n\n按比例求解，如图 ![[math-01.png]]。\n', encoding='utf-8')
+            (gk / '笔记与题集/成语实词录/成语区别汇总.md').write_text('# 成语区别汇总\n\n## 1. 自编测试组\n\n**最深区别：测试维度。**\n\n| 成语 | 一句话区别 |\n|---|---|\n| 自编甲 | 偏静态 |\n| 自编乙 | 偏动态 |\n', encoding='utf-8')
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。
             from rpg import cards

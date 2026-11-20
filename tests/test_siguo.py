@@ -172,6 +172,78 @@ class SiguoTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             siguo.board(self.g, "资料分析")
 
+    def test_sync_from_vault_gk_skill_and_wordbook(self):
+        from rpg import vault as vault_mod
+        old_sdir, old_sfile = paths.SETTINGS_DIR, paths.SETTINGS_FILE
+        try:
+            paths.SETTINGS_DIR = Path(self.tmp.name) / ".settings"
+            paths.SETTINGS_FILE = paths.SETTINGS_DIR / "settings.json"
+
+            gk = self.p.vault / "gk-skill"
+            (gk / "错题集" / "assets").mkdir(parents=True)
+            (gk / "笔记与题集" / "成语实词录").mkdir(parents=True)
+            (gk / "skill" / "言语").mkdir(parents=True)
+
+            (gk / "错题集" / "中心理解.md").write_text(MULTI, encoding="utf-8")
+            (gk / "错题集" / "数量关系.md").write_text(
+                "# 数量关系\n\n## 001 · 图形题\n\n### 原题\n\n如图 ![配图](assets/q01.png)\n\n- A. 1\n- B. 2\n\n### 答案\n\n正确答案：A\n",
+                encoding="utf-8",
+            )
+            (gk / "错题集" / "assets" / "q01.png").write_bytes(b"\x89PNG\r\n\x1a\nfakepng")
+            (gk / "笔记与题集" / "成语实词录" / "成语区别汇总.md").write_text("# 成语\n\n## 1. 测试组\n", encoding="utf-8")
+            (gk / "笔记与题集" / "成语实词录" / "实词区别汇总.md").write_text("# 实词\n\n## 1. 测试组\n", encoding="utf-8")
+            (gk / "skill" / "言语" / "大宝-言语.md").write_text("# 心法不应同步\n", encoding="utf-8")
+
+            meta = siguo.boards(self.g)["sync"]
+            self.assertEqual(meta["mode"], "vault")
+            self.assertEqual(Path(meta["source"]).resolve(), gk.resolve())
+
+            r = siguo.sync_from_source(self.g)
+            sr = r["sync_result"]
+            self.assertEqual([x["name"] for x in sr["boards_updated"]], ["中心理解", "数量关系"])
+            self.assertEqual(sr["assets_updated"], 1)
+            self.assertEqual(set(sr["wordbook_updated"]), {"成语", "实词"})
+            self.assertTrue((self.p.train / "思过崖" / "assets" / "q01.png").is_file())
+            self.assertTrue((self.p.train / "成语实词录" / "成语区别汇总.md").is_file())
+            self.assertTrue((self.p.train / "成语实词录" / "实词区别汇总.md").is_file())
+            # 不同步心法
+            self.assertFalse((self.p.vault / "copilot" / "skills").exists())
+            self.assertFalse((self.p.train / "skill").exists())
+            # vault._vault_find 跳过库内 gk-skill，避免串台
+            self.assertIsNone(vault_mod._vault_find(self.p, "大宝-言语.md"))
+            # /vault-file 可安全读取同步后的思过崖配图
+            self.assertIsNotNone(vault_mod.safe_vault_file(self.p, "训练/思过崖/assets/q01.png"))
+
+            # 再次同步无变化
+            r2 = siguo.sync_from_source(self.g)
+            self.assertEqual(r2["sync_result"]["boards_updated"], [])
+            self.assertEqual(r2["sync_result"]["assets_updated"], 0)
+            self.assertEqual(r2["sync_result"]["wordbook_updated"], [])
+            self.assertIn("已是最新", r2["sync_result"]["summary"])
+        finally:
+            paths.SETTINGS_DIR, paths.SETTINGS_FILE = old_sdir, old_sfile
+
+    def test_sync_from_custom_external_dir_and_legacy_wordbook(self):
+        old_sdir, old_sfile = paths.SETTINGS_DIR, paths.SETTINGS_FILE
+        try:
+            paths.SETTINGS_DIR = Path(self.tmp.name) / ".settings2"
+            paths.SETTINGS_FILE = paths.SETTINGS_DIR / "settings.json"
+            with tempfile.TemporaryDirectory() as ext:
+                ext_p = Path(ext)
+                (ext_p / "错题集").mkdir()
+                (ext_p / "言语" / "成语实词录").mkdir(parents=True)
+                (ext_p / "错题集" / "逻辑填空.md").write_text(SINGLE, encoding="utf-8")
+                (ext_p / "言语" / "成语实词录" / "成语区别汇总.md").write_text("# 旧路径成语\n", encoding="utf-8")
+
+                paths.save_settings({"gk_skill_dir": str(ext_p)})
+                r = siguo.sync_from_source(self.g)
+                self.assertEqual(r["sync_result"]["mode"], "custom")
+                self.assertEqual([x["name"] for x in r["sync_result"]["boards_updated"]], ["逻辑填空"])
+                self.assertEqual(r["sync_result"]["wordbook_updated"], ["成语"])
+                self.assertEqual((self.p.train / "成语实词录" / "成语区别汇总.md").read_text(encoding="utf-8"), "# 旧路径成语\n")
+        finally:
+            paths.SETTINGS_DIR, paths.SETTINGS_FILE = old_sdir, old_sfile
+
 
 if __name__ == "__main__":
     unittest.main()

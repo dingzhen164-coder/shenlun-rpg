@@ -1,10 +1,9 @@
 """自考（纸质试卷计时 + 录分）：辅助线下纸质套卷模考。
 
-- 计时：预设做题顺序，无数字钟表（默认从 9:00 起走），按钮或空格键按顺序记录各板块实际用时；
+- 计时：预设做题顺序，指针挂钟（默认从 9:00 起走），按钮或空格键按顺序记录各板块实际用时；
 - 录分：按各板块对题数、错题数与预设每题分值（Decimal 精确求和；超百分制卷自动折合百分制计入大比走势）汇总；
 - 记入宗门大比：与普通模考一样进入考情与战绩（触发录分奖励、待领悟道与历练时长），不生成逐题复盘文件。
 """
-import copy
 import datetime as dt
 import time
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -85,6 +84,28 @@ def _builtin_presets(g):
         {"id": "sc_gz_100", "name": "川黔省考常见（100题·100分）", "builtin": True, "sections": _rows_to_sections(_SC_GZ_ROWS)},
         {"id": "liankao_100", "name": "省考联考通用（100题·100分）", "builtin": True, "sections": _rows_to_sections(_LIANKAO_ROWS)},
     ]
+
+
+def _split_verbal(sections):
+    """内置卷保留言语模块原题量、分值与目标用时；奇数时片段阅读多分一道题。"""
+    result = []
+    for s in sections:
+        if s["name"] != "言语理解" or s["total"] < 2:
+            result.append(s)
+            continue
+        count = s["total"] // 2
+        minutes = s["target_minutes"] // 2
+        result.extend([
+            dict(s, name="逻辑填空", total=count, target_minutes=minutes),
+            dict(s, name="片段阅读", total=s["total"] - count, target_minutes=s["target_minutes"] - minutes),
+        ])
+    return result
+
+
+def _same_sections_ignoring_order(saved, builtin):
+    def signature(s):
+        return (s["name"], s["module"], s["total"], Decimal(s["points"]), s["target_minutes"])
+    return sorted(map(signature, saved)) == sorted(map(signature, builtin))
 
 
 def _guard(g):
@@ -173,11 +194,15 @@ def presets_list(g):
     overrides = prefs.get("preset_overrides") or {}
     out = []
     for bp in _builtin_presets(g):
-        cur = copy.deepcopy(bp)
+        cur = dict(bp, sections=_split_verbal(bp["sections"]))
         ov = overrides.get(bp["id"])
         if isinstance(ov, dict) and ov.get("sections"):
             try:
-                cur["sections"] = _clean_preset_sections(ov["sections"])
+                saved = _clean_preset_sections(ov["sections"])
+                # 仅调整顺序的旧内置卷在原位置展开；用户改过结构或分值的方案照原样读取。
+                if not ov.get("layout_version") and _same_sections_ignoring_order(saved, bp["sections"]):
+                    saved = _split_verbal(saved)
+                cur["sections"] = saved
                 cur["overridden"] = True
             except PaperExamError:
                 cur["overridden"] = False
@@ -275,7 +300,7 @@ def save_prefs(g, body):
         secs = _clean_preset_sections(body.get("sections"))
         as_new = bool(body.get("as_new"))
         if not as_new and pid in builtin_ids:
-            prefs.setdefault("preset_overrides", {})[pid] = {"sections": secs}
+            prefs.setdefault("preset_overrides", {})[pid] = {"sections": secs, "layout_version": 2}
             prefs["active_preset"] = pid
         else:
             if not name:
@@ -309,7 +334,7 @@ def save_prefs(g, body):
         pid = str(body.get("preset_id") or prefs.get("active_preset") or "").strip()
         secs = _clean_preset_sections(body.get("sections"))
         if pid in builtin_ids:
-            prefs.setdefault("preset_overrides", {})[pid] = {"sections": secs}
+            prefs.setdefault("preset_overrides", {})[pid] = {"sections": secs, "layout_version": 2}
         else:
             for c in (prefs.get("custom_presets") or []):
                 if c.get("id") == pid:
@@ -352,8 +377,9 @@ def save_exam(g, body):
         raise PaperExamError(str(e))
 
     name = str(body.get("name") or "").strip()[:40] or ("纸质模考 · %s" % date)
-    preset_id = str(body.get("preset_id") or "").strip()
-    preset_name = str(body.get("preset_name") or "").strip()[:36]
+    preset = old_rec if editing else body
+    preset_id = str(preset.get("preset_id") or "").strip()
+    preset_name = str(preset.get("preset_name") or "").strip()[:36]
 
     raw_secs = body.get("sections")
     if not isinstance(raw_secs, list) or not raw_secs:
