@@ -31,7 +31,7 @@ class ReadingTests(unittest.TestCase):
 
     def test_only_exact_occurrence_is_highlighted_without_writing_source(self):
         with api.open_game(save=False) as g:
-            file=g.paths.train/'时政知识地图/内容.json';before=file.read_bytes()
+            file=g.paths.train/'万象峰/知识地图/内容.json';before=file.read_bytes()
         result=self.current()
         self.assertEqual(result['ranges'],[[8,11]])
         self.assertNotIn('items',result,'标红接口不生成消化挖空')
@@ -50,7 +50,7 @@ class ReadingTests(unittest.TestCase):
         body=self.anchor()
         with api.open_game() as g:
             src=politics.source(g.paths,dict(source='atlas',material='m1'))
-            file=g.paths.train/'词义批注'/(politics.identity(src)+'.json')
+            file=g.paths.train/'万象峰/词义批注'/(politics.identity(src)+'.json')
             note=dict(body,key='old',version=4,explanation={'meaning':'自编解释'})
             politics.atomic_json(file,{'old':note});old_file=file.read_bytes();old_xp=g.state['xp']
             politics.set_progress(g.paths,dict(field='status',id='m1',value='done'))
@@ -68,7 +68,7 @@ class ReadingTests(unittest.TestCase):
         with api.open_game(save=False) as g:
             src=politics.source(g.paths,dict(source='atlas',material='m1'))
             anchor=politics.validate_anchor(src,body);key=politics.digest(anchor)
-            file=g.paths.train/'词义批注'/(politics.identity(src)+'.json')
+            file=g.paths.train/'万象峰/词义批注'/(politics.identity(src)+'.json')
             note=dict(anchor,key=key,version=4,explanation={'meaning':'自编解释'})
             politics.atomic_json(file,{key:note})
             self.current(**body,enabled=False)

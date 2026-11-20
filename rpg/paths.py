@@ -66,15 +66,110 @@ def save_settings(data):
     os.replace(tmp, SETTINGS_FILE)
 
 
+WANXIANG_DIR = "万象峰"
+WANXIANG_SUBS = (
+    ("万象时政", "期刊"),
+    ("时政知识地图", "知识地图"),
+    ("时政消化", "消化"),
+    ("时政重点", "重点标红"),
+    ("词义批注", "词义批注"),
+    ("天机简报", "简报"),
+    ("时政回收", "回收站"),
+)
+_WANXIANG_LEGACY = {sub: old for old, sub in WANXIANG_SUBS}
+
+
+def _merge_move_dir(src: Path, dst: Path):
+    """将 src 内所有文件无损移入 dst（绝不覆盖目标已有文件），清空后删掉空的 src。"""
+    if not src.is_dir():
+        return
+    if not dst.exists():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(src, dst)
+            return
+        except OSError:
+            pass
+    import shutil
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in list(src.iterdir()):
+        target = dst / item.name
+        if item.is_dir():
+            _merge_move_dir(item, target)
+        elif not target.exists():
+            try:
+                os.replace(item, target)
+            except OSError:
+                shutil.copy2(item, target)
+                item.unlink()
+    try:
+        if not any(src.iterdir()):
+            src.rmdir()
+    except OSError:
+        pass
+
+
+def wanxiang_dir(paths, sub: str) -> Path:
+    """返回 训练/万象峰/<sub>；若对应的旧平铺目录仍存在则先自动无损迁入。"""
+    train = paths.train if hasattr(paths, "train") else Path(paths)
+    dst = train / WANXIANG_DIR / sub
+    old_name = _WANXIANG_LEGACY.get(sub)
+    if old_name:
+        old = train / old_name
+        if old.is_dir():
+            _merge_move_dir(old, dst)
+    return dst
+
+
+def migrate_xingce_dirs(paths):
+    """行测库整理迁移（幂等、无损、外部目录只读）：
+    1. 训练/ 内部 7 个时政目录收拢进 训练/万象峰/；
+    2. 外部 FB模考试卷复盘/ 下的季次复盘与原 PDF 只读复制到 训练/模考复盘/ 与 训练/模考试卷/（不改删外部原件）。"""
+    if not paths or not paths.train or not paths.vault:
+        return
+    import shutil
+    for old_name, sub in WANXIANG_SUBS:
+        old = paths.train / old_name
+        if old.is_dir():
+            _merge_move_dir(old, paths.train / WANXIANG_DIR / sub)
+    # 外部 FB模考试卷复盘 只读复制到 训练/（已有季次/文件跳过，不覆盖）
+    fb_seasons = paths.vault / SEASONS_REL
+    if fb_seasons.is_dir():
+        dst_reviews = paths.train / "模考复盘"
+        for d in fb_seasons.iterdir():
+            if d.is_dir() and re.fullmatch(r"第(\d+)季", d.name):
+                target = dst_reviews / d.name
+                if not target.exists():
+                    try:
+                        dst_reviews.mkdir(parents=True, exist_ok=True)
+                        shutil.copytree(d, target)
+                    except OSError:
+                        pass
+    fb_pdfs = paths.vault / "FB模考试卷复盘" / "模考试卷"
+    if fb_pdfs.is_dir():
+        dst_pdfs = paths.train / "模考试卷"
+        for f in fb_pdfs.iterdir():
+            if f.is_file() and f.suffix.lower() == ".pdf":
+                target = dst_pdfs / f.name
+                if not target.exists():
+                    try:
+                        dst_pdfs.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, target)
+                    except OSError:
+                        pass
+
+
 def looks_like_vault(p: Path, subject=None) -> bool:
-    """像不像这个科目的库。行测库有 FB模考试卷复盘；申论库有 copilot/skills 但没有 FB模考试卷复盘。
-    subject=None 时只要有 skills 或 模考复盘文件夹就算（用户自己选的路径用这个宽松判断）"""
-    has_season, has_skills = (p / SEASONS_REL).is_dir(), (p / SKILLS_REL).is_dir()
+    """像不像这个科目的库。行测库有 FB模考试卷复盘 或 训练/模考复盘 或 训练/思过崖；
+    申论库有 copilot/skills 但没有上述行测目录。subject=None 时宽松判断。"""
+    has_season = (p / SEASONS_REL).is_dir()
+    has_xingce = has_season or (p / TRAIN_REL / "模考复盘").is_dir() or (p / TRAIN_REL / "思过崖").is_dir()
+    has_skills = (p / SKILLS_REL).is_dir()
     if subject == "行测":
-        return has_season
+        return has_xingce
     if subject == "申论":
-        return has_skills and not has_season
-    return has_season or has_skills
+        return has_skills and not has_xingce
+    return has_xingce or has_skills
 
 
 def find_vault(subject=None):
@@ -257,6 +352,7 @@ class Paths:
             with open(dst, "w", encoding="utf-8", newline="\n") as fp:
                 fp.write(text)
         if not shen:
+            migrate_xingce_dirs(self)
             self._migrate_rules()
         if upgraded:
             UPGRADED.extend(upgraded)

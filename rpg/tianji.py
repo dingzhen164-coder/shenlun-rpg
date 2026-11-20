@@ -22,9 +22,10 @@ import re
 import shutil
 import time
 from pathlib import Path
+from . import paths as paths_mod
 from . import political_outline
 
-DIR = "天机简报"
+DIR = "万象峰/简报"
 KINDS = {"month": "月半时政", "topic": "专题时政"}
 CATEGORIES = ["两会·政府报告", "经济", "农业", "科技", "外交", "党建", "文化", "生态", "民生", "国防", "其他"]
 CAT_WORDS = [("两会·政府报告", ("两会", "政府工作报告")), ("农业", ("农业", "农村", "乡村", "一号文件", "粮食")),
@@ -43,7 +44,7 @@ class TianjiError(Exception):
 
 
 def folder(paths):
-    return paths.train / DIR
+    return paths_mod.wanxiang_dir(paths, "简报")
 
 
 def touch():

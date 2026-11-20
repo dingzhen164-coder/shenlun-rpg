@@ -44,8 +44,8 @@ class ManageTests(unittest.TestCase):
         self.assertTrue(list(recycle.rglob('*.json')),'删除前先备份导入数据')
         self.assertTrue(list(recycle.rglob('*.pdf')),'原PDF也在回收文件夹里')
         with api.open_game(save=False) as g:self.assertEqual(g.state['wanxiang_journal'],before,'学习进度保留')
-        self.assertFalse(list((train/'时政消化').glob('*.json')))
-        self.assertFalse(list((train/'时政消化/原文').glob('*.pdf')) if (train/'时政消化/原文').exists() else [])
+        self.assertFalse(list((train/'万象峰/消化').glob('*.json')))
+        self.assertFalse(list((train/'万象峰/消化/原文').glob('*.pdf')) if (train/'万象峰/消化/原文').exists() else [])
 
     def test_sprint_delete_removes_only_that_pdf_and_keeps_shared_original(self):
         self.upload('sprint-study',self.month,exam='2026-12-shengkao');self.upload('sprint-study',self.month,exam='2027-03-shengkao')
@@ -53,7 +53,7 @@ class ManageTests(unittest.TestCase):
         self.assertEqual(len(items),2,'两个考试各导入一次')
         first=sorted(self.ids())[0]
         with api.open_game(save=False) as g:
-            pdfs=list((g.paths.train/'时政知识地图/原文').glob('*.pdf'));self.assertEqual(len(pdfs),1)
+            pdfs=list((g.paths.train/'万象峰/知识地图/原文').glob('*.pdf'));self.assertEqual(len(pdfs),1)
         self.delete([first])
         self.assertEqual(len(self.ids()),1)
         self.assertTrue(pdfs[0].exists(),'另一个考试还在用这份原PDF：不能删')

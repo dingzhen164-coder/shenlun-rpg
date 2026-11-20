@@ -144,7 +144,7 @@ class AnswerImportTests(unittest.TestCase):
         from rpg import paths
         from tests.test_politics361 import atlas_data
         self.pp=paths.Paths(root,'行测');self.pp.ensure_train_dir()
-        politics.atomic_json(self.pp.train/'时政知识地图/内容.json',atlas_data())
+        politics.atomic_json(self.pp.train/'万象峰/知识地图/内容.json',atlas_data())
         rows=PAGE1+PAGE2
         with make([rows[:len(PAGE1)],PAGE2]) as doc:data=doc.tobytes()
         self.report=politics_import.import_pdf(self.pp,{'mode':'practice','name':'自编十套卷.pdf','data':base64.b64encode(data).decode()})

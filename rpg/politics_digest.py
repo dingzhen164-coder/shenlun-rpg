@@ -13,7 +13,7 @@ import re
 import unicodedata
 from pathlib import Path
 
-from . import politics
+from . import paths, politics
 
 BLANK = re.compile(r'(?:[_＿﹍﹎][ \t]*){2,}|（[ \u3000]*）|\([ \u3000]{2,}\)')
 NUMBER = re.compile(r'^\s*(\d+)[.．、]\s*')
@@ -274,7 +274,7 @@ def match_answers(template, sources):
 
 
 def _store(g, desc):
-    return g.paths.train/'时政消化'/(politics.digest(desc)+'.json')
+    return paths.wanxiang_dir(g.paths, '消化')/(politics.digest(desc)+'.json')
 
 
 def _pool(chosen,desc):
@@ -292,7 +292,7 @@ def _legacy(g,desc,chosen):
 
 
 def _fill_file(g,key):
-    return g.paths.train/'时政消化/补全'/(key+'.json')
+    return (paths.wanxiang_dir(g.paths, '消化')/'补全')/(key+'.json')
 
 
 def _literals(text,a,b,bold,whole):
@@ -317,7 +317,7 @@ def get(g, target):
     for owner,readings in descriptors:
         key=politics.digest(owner)
         saved=politics.read_json(_store(g,owner),{'documents':[]})
-        memory=politics.read_json(g.paths.train/'时政消化/进度'/(key+'.json'),{})
+        memory=politics.read_json((paths.wanxiang_dir(g.paths, '消化')/'进度')/(key+'.json'),{})
         fills=politics.read_json(_fill_file(g,key),{})
         for document in saved['documents']:
             documents.append(document['name'])
@@ -385,7 +385,7 @@ def _write_mark(g,item,value):
         if value is None:memory.pop(item['legacy'],None)
         else:memory[item['legacy']]=1 if value=='remember' else 0
     else:
-        file=g.paths.train/'时政消化/进度'/(politics.digest(owner)+'.json')
+        file=(paths.wanxiang_dir(g.paths, '消化')/'进度')/(politics.digest(owner)+'.json')
         memory=politics.read_json(file,{})
         if value is None:memory.pop(item['id'],None)
         else:memory[item['id']]=value
@@ -466,7 +466,7 @@ def _row_ids(key,doc_hash,i,row,pool):
 
 def _carry_marks(g,key,doc_hash,old_rows,new_rows,pool):
     """新规则重新识别同一份PDF：段落文字相同（或新段落是旧段落去掉标题等多余前缀后的一部分）且空数相同的，核对记号随之迁移。"""
-    file=g.paths.train/'时政消化/进度'/(key+'.json')
+    file=(paths.wanxiang_dir(g.paths, '消化')/'进度')/(key+'.json')
     memory=politics.read_json(file,{})
     fill_file=_fill_file(g,key);fills=politics.read_json(fill_file,{})
     if not memory and not fills:return 0
@@ -552,7 +552,7 @@ def import_pdf(g, body):
                     added+=1
                     if (explicit[k] if k<len(explicit) else None) or answers[k]:ready+=1
                     else:pending+=1
-        original=g.paths.train/'时政消化/原文'/(ident+'.pdf')
+        original=(paths.wanxiang_dir(g.paths, '消化')/'原文')/(ident+'.pdf')
         if not original.exists():
             original.parent.mkdir(parents=True,exist_ok=True);original.write_bytes(content)
     return dict(channel='digest',duplicate=not added and bool(existing),title=name,blanks=added,ready=ready,pending=pending,

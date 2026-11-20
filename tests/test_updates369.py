@@ -95,7 +95,7 @@ class Annotation369Tests(unittest.TestCase):
         anchor = politics.validate_anchor(self.src, self.body)
         key = politics.digest(anchor)
         old = dict(anchor, key=key, version=2, explanation=dict(self.answer, role='旧语境', example='旧例子', plain='旧摘要'))
-        file = self.pp.train/'词义批注'/(politics.identity(self.src)+'.json')
+        file = self.pp.train/'万象峰/词义批注'/(politics.identity(self.src)+'.json')
         politics.atomic_json(file, {key: old})
         with patch('rpg.politics.ai.available', return_value=True), patch('rpg.politics.ai.chat', return_value='bad'):
             self.assertEqual(politics.explain(self.pp, self.src, self.body)['note'], old)
@@ -164,7 +164,7 @@ class LayoutSearchTests(unittest.TestCase):
                 p.insert_text((60, 80+index*20), text)
             content = doc.tobytes()
             ident = hashlib.sha256(content).hexdigest()
-            folder = pp.train/'时政知识地图/原文'
+            folder = pp.train/'万象峰/知识地图/原文'
             folder.mkdir(parents=True)
             file = folder/(ident+'.pdf')
             file.write_bytes(content)

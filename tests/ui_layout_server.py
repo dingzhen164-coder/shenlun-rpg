@@ -45,14 +45,14 @@ def main():
                 for i in range(30):
                     extra = copy.deepcopy(data['materials'][0]); extra.update(id='mx%d' % i, title='自编长目录资料第%d份' % (i + 1), chapter=i % 4, questions=[])
                     data['materials'].append(extra)
-            politics.atomic_json(pp.train / '时政知识地图/内容.json', data)
+            politics.atomic_json(pp.train / '万象峰/知识地图/内容.json', data)
             news = {'id': '2026-10-上', 'kind': 'month', 'title': '自编十月上时政', 'label': '自编时政', 'year': 2026,
                     'month': 10, 'half': '上', 'category': '其他', 'overview': '自编理解练习', 'groups': [],
                     'news': [{'no': 1, 'stars': 1, 'tag': '农业', 'title': '自编政策材料', 'group': '',
                               'paras': [data['materials'][0]['original']], 'qs': []}],
                     'cloze': [{'no': 1, 'title': '自编政策材料', 'news': 0,
                                'parts': [{'t': '在'}, {'a': '主产区'}, {'t': '布局产能。'}]}], 'questions': []}
-            politics.atomic_json(pp.train / '天机简报/月半时政/2026-10-上.json', news)
+            politics.atomic_json(pp.train / '万象峰/简报/月半时政/2026-10-上.json', news)
             settings = paths.load_settings()
             settings['api_key'] = 'fake-key-for-local-test-only'
             paths.save_settings(settings)
@@ -66,7 +66,7 @@ def main():
             topic = dict(news, id='old-topic', kind='topic', title='自编两会专题', category='两会·政府报告',
                          news=[{'no':i+1, 'title':'习近平强调，到2035年建成健康中国是我们作出的一项战略决策',
                                 'group':'两会讲话', 'paras':['建设健康中国，自编原文第%d段。'%i], 'qs':[]} for i in range(3)], cloze=[])
-            politics.atomic_json(pp.train / '天机简报/专题时政/old-topic.json', topic)
+            politics.atomic_json(pp.train / '万象峰/简报/专题时政/old-topic.json', topic)
             from tests.test_tianji import make_pdf
             make_pdf(pp.train/'自编补充.pdf', [[(1,'一、自编经济会议'),(1,'在主产区布局产能，支持主产区发展产业。'),
                      (1,'配套练习'),(1,'1.（多选）自编政策对象包括哪些？'),(1,'A.主产区'),(1,'B.生产区'),
@@ -85,12 +85,12 @@ def main():
                     if i==2:    # 带两级标题且整段（含标题）都标红的讲义：检查标题不加红、正文标红保持
                         text='二、自编标题\n（一）自编小标题\n'+m['original'];m.update(original=text,originalEmphasis=[[0,len(''.join(text.split()))]])
                     data['materials'].append(m)
-                politics.atomic_json(pp.train/'时政知识地图/内容.json',data)
+                politics.atomic_json(pp.train/'万象峰/知识地图/内容.json',data)
                 make_pdf(pp.train/'自编完整清单.pdf',[[(1,'自编消化清单'),(1,'一、自编小标题'),(1,'1.在________布局产能。'),(1,'自编的普通句子，没有空也要原样保留。'),(1,'2.自编未知政策提出________要求。'),(1,'3.自编另一条未知政策补充________内容。')]])      # 3.7.6：整份保留与待补全的界面检查
                 make_pdf(pp.train/'自编消化清单.pdf',[[(1,'自编消化清单'),(1,'1.在________布局产能。'),(1,'2.自编未知政策提出________要求。')]])
                 news['questions']=[{'key':0,'no':1,'kind':'单选','stem':'自编题面应该连续显示，不应在半句\n中换行。'*5,'stmts':[],'opts':{'A':'自编甲方选项\n的续行','B':'自编乙方','C':'自编丙方','D':'自编丁方'},'answer':'A','analysis':'自编说明','news':0}]
                 news['news'][0]['qs']=[0]
-                politics.atomic_json(pp.train/'天机简报/月半时政/2026-10-上.json',news)
+                politics.atomic_json(pp.train/'万象峰/简报/月半时政/2026-10-上.json',news)
                 with api.open_game() as g:
                     folder=characters.install(g)
                     (folder/'规则.md').write_text('- 空场概率：0\n- 同场人数：2\n- 相遇间隔分钟：30\n',encoding='utf8')
@@ -151,7 +151,19 @@ def main():
             (gk / '笔记与题集/成语实词录').mkdir(parents=True, exist_ok=True)
             png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
             (gk / '错题集/assets/math-01.png').write_bytes(png)
-            (gk / '错题集/数量关系.md').write_text('# 数量关系\n\n## 001 · 自编图形题\n\n### 原题\n\n如图 ![示意图](assets/math-01.png)\n\n求阴影面积：\n\n- A. 10\n- B. 20\n- C. 30\n- D. 40\n\n### 答案\n\n正确答案：B；我的选择：A\n\n### 解析\n\n按比例求解，如图 ![[math-01.png]]。\n', encoding='utf-8')
+            (gk / '错题集/数量关系.md').write_text(
+                '# 数量关系\n\n'
+                '## 001 · 自编图形题，求 $a^2$ 的值\n\n### 原题\n\n如图 ![示意图](assets/math-01.png)\n\n求阴影面积比例：\n\n'
+                '- A. $\\frac{3}{2}$\n- B. $\\frac{4}{3}$\n- C. $\\frac{1}{2}$\n- D. $\\frac{2}{3}$\n\n'
+                '### 答案\n\n正确答案：B；我的选择：A\n\n### 解析\n\n按比例求解 $\\sqrt{4}=2$，如图 ![[math-01.png]]。\n\n'
+                '## 002 · 长选项自动单行验证\n\n### 原题\n\n以下哪项如果为真，最能削弱上述观点？\n\n'
+                '- A. 怀旧情绪多源于对过往美好时光的追忆，这种情绪能缓解个体焦虑并提升日常环保意愿\n'
+                '- B. 易怀旧的人群普遍热爱自然、关注生态，他们长期坚持低碳出行和垃圾分类等环保行为\n'
+                '- C. 当下社会环保理念不断普及，越来越多的民众开始主动关注生态环境并积极参与各类实践\n'
+                '- D. 怀旧情绪能唤起人们对自然生态的美好回忆，增强环保意识并从情感层面推动低碳出行\n\n'
+                '### 答案\n\n正确答案：B；我的选择：A\n\n### 解析\n\n因果倒置。\n',
+                encoding='utf-8',
+            )
             (gk / '笔记与题集/成语实词录/成语区别汇总.md').write_text('# 成语区别汇总\n\n## 1. 自编测试组\n\n**最深区别：测试维度。**\n\n| 成语 | 一句话区别 |\n|---|---|\n| 自编甲 | 偏静态 |\n| 自编乙 | 偏动态 |\n', encoding='utf-8')
         if '--journey-fixture' in sys.argv:
             # 第二批交互用自编卡片，不连接AI、不读取真实题库。

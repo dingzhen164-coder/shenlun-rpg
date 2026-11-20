@@ -80,17 +80,18 @@ def exam_id(value=None):
 
 def exam_folder(pp, exam=None):
     exam = exam_id(exam)
-    return pp.train / '时政知识地图' if exam == DEFAULT_EXAM else pp.train / '时政知识地图/考试' / exam
+    base = paths.wanxiang_dir(pp, '知识地图')
+    return base if exam == DEFAULT_EXAM else base / '考试' / exam
 
 
 def _base_atlas(pp):
-    file = pp.train / '时政知识地图/内容.json'
+    file = paths.wanxiang_dir(pp, '知识地图') / '内容.json'
     if not file.exists():
         file = paths.RES_DIR / 'rpg/data/political_atlas.json'
     data = read_json(file, None)
     if not isinstance(data, dict) or any(not isinstance(data.get(k), list) for k in
                                          ('categories', 'themes', 'materials', 'questions', 'chapters')):
-        raise PoliticsError('缺少时政知识地图资料，请使用完整安装包，或在训练/时政知识地图/内容.json放入资料')
+        raise PoliticsError('缺少时政知识地图资料，请使用完整安装包，或在训练/万象峰/知识地图/内容.json放入资料')
     return data
 
 
@@ -240,7 +241,7 @@ def identity(src):
 
 
 def list_notes(pp, src):
-    return read_json(pp.train / '词义批注' / (identity(src) + '.json'), {})
+    return read_json(paths.wanxiang_dir(pp, '词义批注') / (identity(src) + '.json'), {})
 
 
 def validate_anchor(src, body):
@@ -291,7 +292,7 @@ def explain(pp, src, body):
         with _LOCK:
             notes = list_notes(pp, src)
             notes[key] = note
-            atomic_json(pp.train / '词义批注' / (identity(src) + '.json'), notes)
+            atomic_json(paths.wanxiang_dir(pp, '词义批注') / (identity(src) + '.json'), notes)
         return {'note': note, 'cached': False}
 
 

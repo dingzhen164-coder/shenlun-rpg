@@ -1,4 +1,12 @@
-## 开发中（未发布，沿用 4.2.0）：思过崖 + 词录手动同步与配图显示（2026-11-19）
+## 开发中（未发布，沿用 4.3.0）：思过崖公式/选项自适应单行、万象峰目录 7 合 1 与行测库识别放宽（2026-11-20）
+
+- **思过崖选项自适应排版（`web/siguo.js`、`web/siguo.css`）**：`layoutOpts()` 在渲染、窗口缩放及 `--chat-fs` 字号变化时，先以 4 列单行测量（`.is-measure`）检查各选项 `scrollWidth > clientWidth + 1`；4 列单行可放下时保持横排，任意选项会换行则自动切为单列（`.is-stack`）每项单独一行。
+- **数学公式渲染升级（`web/mdlite.js`、`web/siguo.js`、`web/siguo.css`）**：`MDLITE.mathHtml()` 支持平衡花括号 `\frac/\dfrac/\tfrac` 上下分数（`.md-frac`）、`\sqrt{}` 根号（`.md-sqrt`）、`^`/`_` 上下标及几何符号，并导出 `MDLITE.inline()`；思过崖题干、选项、解析、左侧列表标题与大标题均支持公式渲染。
+- **行测 7 个时政目录 7 合 1 收拢与 `FB模考试卷复盘` 只读合并（`rpg/paths.py`、`rpg/wanxiang_journal.py`、`rpg/politics*.py`、`rpg/tianji.py`）**：
+  - `paths.wanxiang_dir(paths, sub)` 与 `paths.migrate_xingce_dirs(paths)` 自动把原平铺的 `万象时政 / 时政知识地图 / 时政消化 / 时政重点 / 词义批注 / 天机简报 / 时政回收` 无损迁入 `训练/万象峰/{期刊,知识地图,消化,重点标红,词义批注,简报,回收站}`；`wanxiang_journal.load()` 兼容旧 `训练/万象时政/` PDF 路径前缀。
+  - `paths.looks_like_vault(p, "行测")` 放宽至同时认 `FB模考试卷复盘/板块复盘`、`训练/模考复盘` 或 `训练/思过崖`；`migrate_xingce_dirs()` 将外部 `FB模考试卷复盘/` 下的季次复盘与 PDF 只读复制到 `训练/模考复盘/` 与 `训练/模考试卷/`（不改删外部原件）。
+
+## 4.3.0（已发布）：思过崖 + 词录手动同步与配图显示（2026-11-19）
 
 - **思过崖手动同步（`rpg/siguo.py`、`rpg/api.py`、`web/siguo.js`、`web/siguo.css`、`web/app.js`）**：
   - 同步源解析 `siguo.resolve_sync_source(paths)`：优先读本机设置 `gk_skill_dir`（可在设置页「本机设置」选填），留空时自动发现 `<行测库>/gk-skill/`（同时把 `gk-skill` 加入 `rpg/vault.py` 的 `_SKIP_DIRS` 避免心法查找串台）。
