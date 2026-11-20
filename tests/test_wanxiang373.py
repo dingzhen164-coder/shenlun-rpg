@@ -88,11 +88,10 @@ class ReadingTests(unittest.TestCase):
         with api.open_game(save=False) as g:
             self.assertEqual(politics.atlas(g.paths)['practice_question_ids'],[])
             politics.set_progress(g.paths,dict(field='attempts',id=1,value={'choice':'A'}))
-        self.upload('sprint-quiz',self.month)
+        self.upload('sprint-study',self.month)
         with api.open_game(save=False) as g:
             data=politics.atlas(g.paths)
-            self.assertTrue(data['practice_question_ids'])
-            self.assertNotIn(1,data['practice_question_ids'])
+            self.assertEqual(data['practice_question_ids'],[])
             self.assertTrue(any(q['id']==1 for q in data['questions']))
             self.assertEqual(politics.progress(g.paths)['attempts']['1']['choice'],'A')
 

@@ -82,7 +82,7 @@ class ImportTest(unittest.TestCase):
         qs, errors = bank.read(self.p, "资料分析")
         self.assertEqual(errors, [])
         self.assertEqual([q["answer"] for q in qs], ["B", "A"])
-        self.assertTrue(qs[0]["stem"].startswith("（粉笔第36季模考）\n![[训练/题库/图片/资料分析/粉笔36季-M111-112.png]]"))
+        self.assertTrue(qs[0]["stem"].startswith("（粉笔第36季模考）\n![[训练/藏经阁/题库/图片/资料分析/粉笔36季-M111-112.png]]"))
         self.assertNotIn("我的笔记", qs[0]["stem"])                          # 复盘笔记不进题干
         self.assertEqual(qs[0]["analysis"], "")                              # 解析待补
         r = importer.commit(self.p, {"kind": "season", "season": 36})

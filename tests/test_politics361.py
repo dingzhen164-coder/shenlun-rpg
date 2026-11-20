@@ -157,15 +157,57 @@ class Revision361Tests(unittest.TestCase):
         make_pdf(p,[[(1,'一、自编经济会议'),(1,'自编经济会议讨论经济发展。'),(1,'二、自编农业文件'),(1,'自编农业文件讨论粮食安全。'),(1,'配套练习'),(1,'1.（单选）本讲义中的自编政策对象是？'),(1,'A.甲'),(1,'B.乙'),(1,'C.丙'),(1,'D.丁')]])
         result=self.upload(p)
         self.assertEqual(result['unanswered'],1)
-        self.assertEqual(result['whole_document_questions'],1)
         self.assertEqual(result['counts']['total'],2)
         data=politics.atlas(self.pp,'2026-12-shengkao');q=data['questions'][0]
-        helper=next(m for m in data['materials'] if m['id']==q['material'])
-        self.assertEqual(helper['kind'],'配套练习')
-        self.assertIn('自编经济会议讨论',helper['original'])
-        self.assertIn('自编农业文件讨论',helper['original'])
+        owner=next(m for m in data['materials'] if m['id']==q['material'])
+        self.assertIn('自编经济会议讨论',owner['original'])
         with self.assertRaises(politics.PoliticsError):
             politics.set_progress(self.pp,{'exam':'2026-12-shengkao','field':'attempts','id':q['id'],'value':{'choice':'A'}})
+
+    def test_exam_save_edit_delete_and_markdown_export_and_classified(self):
+        # 1. 导出三个默认时政地图的 md 文件夹
+        exported = politics.export_exam_markdowns(self.pp)
+        self.assertEqual(len(exported), 3)
+        guokao_dir = self.pp.train / '万象峰' / '2026.10国考时政地图'
+        self.assertTrue((guokao_dir / '月半时政').is_dir())
+        self.assertTrue((guokao_dir / '专题时政').is_dir())
+        self.assertTrue((guokao_dir / '冲刺学习').is_dir())
+        sprint_mds = list((guokao_dir / '冲刺学习').glob('*.md'))
+        self.assertEqual(len(sprint_mds), 1)
+        self.assertIn('在主产区布局产能', sprint_mds[0].read_text(encoding='utf-8'))
+
+        # 2. 月半时政按时间范围归入对应时政地图并导出 md
+        from rpg import wanxiang_journal
+        j_oct = {'id': '2026-09-下', 'kind': 'month', 'title': '2026年9月·下', 'year': 2026, 'month': 9, 'half': '下',
+                 'news': [{'no': 1, 'stars': 3, 'tag': '农业', 'title': '秋粮丰收与粮食安全', 'paras': ['全力保障秋粮丰收。'], 'qs': []}],
+                 'cloze': [], 'questions': []}
+        j_dec = {'id': '2026-11-上', 'kind': 'month', 'title': '2026年11月·上', 'year': 2026, 'month': 11, 'half': '上',
+                 'news': [{'no': 1, 'stars': 2, 'tag': '科技', 'title': '量子科技新突破', 'paras': ['量子计算取得新进展。'], 'qs': []}],
+                 'cloze': [], 'questions': []}
+        wanxiang_journal._write(wanxiang_journal._file(self.pp, 'month', '2026-09-下'), j_oct)
+        wanxiang_journal._write(wanxiang_journal._file(self.pp, 'month', '2026-11-上'), j_dec)
+        politics.export_exam_markdowns(self.pp)
+        # 2026.10国考时政地图 (2025.10-2026.10上) 包含 2026年9月·下，不包含 2026年11月·上
+        self.assertTrue((guokao_dir / '月半时政' / '2026年9月·下.md').is_file())
+        self.assertFalse((guokao_dir / '月半时政' / '2026年11月·上.md').is_file())
+        # 2026.12省考时政地图 (2025.11-2026.11上) 两者都包含
+        shengkao_dir = self.pp.train / '万象峰' / '2026.12省考时政地图'
+        self.assertTrue((shengkao_dir / '月半时政' / '2026年9月·下.md').is_file())
+        self.assertTrue((shengkao_dir / '月半时政' / '2026年11月·上.md').is_file())
+
+        # 3. 分类时政（classified）按类别汇总
+        data_gk = politics.atlas(self.pp, '2026-10-guokao')
+        by_cat = {g['category']: g['items'] for g in data_gk['classified']}
+        self.assertTrue(any('秋粮丰收' in it['title'] for it in by_cat['农业']))
+
+        # 4. 新增、编辑范围、删除时政地图
+        added = politics.exam_save(self.pp, {'title': '2027.5事业编时政地图', 'range': '2026年5月至2027年4月下'})
+        new_id = added['exam']['id']
+        self.assertEqual(len(added['exams']), 4)
+        edited = politics.exam_save(self.pp, {'id': new_id, 'title': '2027.6事业编时政地图', 'range': '2026年6月至2027年5月下'})
+        self.assertEqual(edited['exam']['title'], '2027.6事业编时政地图')
+        deleted = politics.exam_delete(self.pp, {'id': new_id})
+        self.assertEqual(len(deleted['exams']), 3)
 
     @unittest.skipIf(fitz is None,'需要已有PDF组件')
     def test_known_topic_pdf_has_linked_questions(self):

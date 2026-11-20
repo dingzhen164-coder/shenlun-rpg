@@ -11,7 +11,7 @@ async function fit(f,selector){const data=await f.locator(selector).evaluate(el=
   page=await browser.newPage({viewport:{width,height},hasTouch:true,reducedMotion:'reduce'});page.setDefaultTimeout(12000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(t=>{document.documentElement.dataset.theme=t;STUDY_REGIONS.select('chang');return go('train');},theme);
   await page.locator('[data-wx-branch=politics]').click();await page.locator('[data-wx-exam]').first().click();let f=page.frameLocator('.wx-atlas-frame');
-  await f.locator('.wxj-cover').first().waitFor();assert.deepEqual(await f.locator('#nav button').allTextContents(),['月半时政','专题时政','冲刺学习','冲刺刷题']);assert.equal(await f.locator('input[type=file],[data-import]').count(),0);
+  await f.locator('.wxj-cover').first().waitFor();assert.deepEqual(await f.locator('#nav button').allTextContents(),['月半时政','专题时政','冲刺学习','分类时政','易错题']);assert.equal(await f.locator('input[type=file],[data-import]').count(),0);
   await f.locator('[data-open="month|2026-10-上"]').click();await f.locator('.wxj-news-body').waitFor();await fit(f,'.wxj-news-body');assert.equal(await f.locator('.atlas-toolbar').isVisible(),false,'期刊正文不叠加两层导航刘海');
   // 慢速阅读保存恰好在按下空位后返回：不能重绘消化页，吞掉这次点击。
   let releaseRead,readHeld;
@@ -31,11 +31,11 @@ async function fit(f,selector){const data=await f.locator(selector).evaluate(el=
   await f.locator('#wxjBack').click();await f.locator('#nav [data-go=sprint]').click();assert.equal(await f.locator('.sprint-group').count(),4);assert.deepEqual(await f.locator('.sprint-group summary').evaluateAll(es=>es.map(e=>e.childNodes[0].textContent)),['重大会议','讲话','指导','文件']);
   await f.locator('[data-material=m1]').click();await f.locator('.original').waitFor();assert.deepEqual(await f.locator('.tabs button').allTextContents(),['研读','消化','精卷']);await fit(f,'.original');
   await f.locator('[data-tab=understand]').click();await f.locator('.sprint-empty-digest').waitFor();assert.equal(await f.locator('[data-digest-blank]').count(),0,'没有清单时不把红字变成空位');
-  await f.locator('.atlas-reading-tools [data-go=sprint]').click();await f.locator('#nav [data-go=practice]').click();await f.locator('.sprint-practice-empty').waitFor();assert.equal(await f.locator('.tabs').count(),0,'冲刺刷题不套研读三栏');
+  await f.locator('.atlas-reading-tools [data-go=sprint]').click();await f.locator('#nav [data-go=category_all]').click();await f.locator('.sprint-index').waitFor();await f.locator('#nav [data-go=wrong]').click();await f.locator('.sg-room').waitFor();
   const old=await page.evaluate(()=>api('/api/tianji/get',{kind:'month',id:'2026-10-上'}));assert.deepEqual(old.progress.read,[],'新阅读不回写旧天机台');assert.deepEqual(old.progress.cloze,{});
-  await f.locator('#atlasBack').click();await page.locator('.wx-import>summary').click();assert.deepEqual(await page.locator('select[name=channel] option').evaluateAll(es=>es.map(e=>e.value)),['month','topic','sprint-study','sprint-quiz','digest']);
+  await f.locator('#atlasBack').click();await page.locator('.wx-import[data-politics-import],details.wx-import:not(.wx-exam-manage)').first().locator('>summary').click();assert.deepEqual(await page.locator('select[name=channel] option').evaluateAll(es=>es.map(e=>e.value)),['month','topic','sprint-study','digest']);
   await page.locator('[name=channel]').selectOption('month');assert.equal(await page.locator('[data-import-exam]').isVisible(),false);await page.locator('[name=channel]').selectOption('sprint-study');assert(await page.locator('[data-import-exam]').isVisible());
   if(size==='desktop'&&theme==='light'){await page.locator('[name=exam]').selectOption('2026-12-shengkao');await page.locator('[name=pdf]').setInputFiles(train+'/自编补充.pdf');await page.locator('[data-politics-import] [type=submit]').click();await page.locator('[data-import-result]').filter({hasText:'已加入 1 份材料、1 道题'}).waitFor();}
-  assert.deepEqual(errors,[]);await page.close();console.log(size+'/'+theme+'：四栏目、独立期刊/消化进度、四类冲刺目录、统一导入及正文占比通过');
+  assert.deepEqual(errors,[]);await page.close();console.log(size+'/'+theme+'：五栏目、独立期刊/消化进度、四类冲刺目录、统一导入及正文占比通过');
  }
 }catch(e){if(page&&!page.isClosed())await page.screenshot({path:'ui-artifacts/wanxiang372/failure.png'}).catch(()=>{});throw e;}finally{await browser?.close();srv.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

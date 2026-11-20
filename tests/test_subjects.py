@@ -97,10 +97,11 @@ class SubjectTest(unittest.TestCase):
         self.assertFalse((self.sl / "训练/台词库·玄幻.md").exists())
         px = paths.Paths(self.xc, "行测")
         px.ensure_train_dir()
-        self.assertTrue((self.xc / "训练/题库").is_dir())
-        self.assertFalse((self.xc / "训练/采分点").exists())
-        self.assertIn("渡劫分数线", (self.xc / "训练/规则.md").read_text(encoding="utf-8"))
-        self.assertTrue((self.xc / "训练/台词库·玄幻.md").exists())
+        self.assertTrue((px.train / "题库").is_dir())
+        self.assertTrue((self.xc / "训练/藏经阁/题库").is_dir())
+        self.assertFalse((px.train / "采分点").exists())
+        self.assertIn("渡劫分数线", px.rules.read_text(encoding="utf-8"))
+        self.assertTrue((px.train / "台词库·玄幻.md").exists())
         self.assertEqual(px.ensure_train_dir(), [])         # 各自的文件版本互不干扰，第二次不升级
         self.assertEqual(ps.ensure_train_dir(), [])
 
@@ -134,7 +135,7 @@ class SubjectTest(unittest.TestCase):
             st = store.Store(ps).load(dt.date(2026, 10, 1))
             self.assertEqual(st["xp"], 500 if keep else 0, sub)
             self.assertEqual(st["theme"], "修仙" if sub == "行测" else "官场")
-            self.assertEqual((vault / "训练/存档/存档-旧版.json").exists(), not keep)
+            self.assertEqual((ps.save_dir / "存档-旧版.json").exists(), not keep)
 
     def test_saves_are_separate(self):
         paths.save_settings({"vaults": {"行测": str(self.xc), "申论": str(self.sl)}})

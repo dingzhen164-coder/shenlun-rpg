@@ -129,14 +129,14 @@
   function detach(){generation++;CUR=null;ROOT=null;document.body.classList.remove('journal-reading','wxj-toc-open');window.WORD_NOTES?.close();}
 
   // ---------------------------------------------------------------- 一期
-  async function open(kind, id, mode) {
+  async function open(kind, id, mode, newsIndex) {
     try {
       const seq=++generation,root=ROOT;
       const r = await api("/api/wanxiang/journal/get", { kind, id });
       if(seq!==generation||!root?.isConnected)return;
       CUR = Object.assign({ kind, id }, r);
       MODE = mode || "read";
-      NEWS = 0; REDO = new Set(); DRAFT={};TOC_OPEN=false;act();
+      NEWS = typeof newsIndex === "number" ? newsIndex : 0; REDO = new Set(); DRAFT={};TOC_OPEN=false;act();
       renderIssue();
       window.scrollTo(0, 0);
     } catch (e) { showError(e); }

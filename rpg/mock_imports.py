@@ -199,8 +199,9 @@ def restore(paths,body):
         try:
             for i,entry in enumerate(meta['entries']):
                 relative=Path(entry['path'])
-                bank_file=len(relative.parts)==2 and relative.parts[0]=='题库' and '真题' in relative.name
-                pending=len(relative.parts)==3 and relative.parts[:2]==('题库',importer.FIX_DIR)
+                rparts = relative.parts[1:] if len(relative.parts)>=3 and relative.parts[:2]==('藏经阁','题库') else relative.parts
+                bank_file=len(rparts)==2 and rparts[0]=='题库' and '真题' in relative.name
+                pending=len(rparts)==3 and rparts[:2]==('题库',importer.FIX_DIR)
                 if not (bank_file or pending) or relative.suffix!='.md':raise ValueError('文件类型无效')
                 f=_safe(paths,relative);original=_safe(paths,folder.relative_to(paths.train)/('%d.before'%i)).read_bytes()
                 if _hash(original)!=entry['before']:raise ValueError('回收副本校验失败')

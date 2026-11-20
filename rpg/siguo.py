@@ -91,7 +91,106 @@ def _answer(lines):
     return pick(right), pick(mine)
 
 
-def _question(title, chunks):
+SHULIANG_18_LECTURES = {
+    1: '第01课-方程思维',
+    2: '第02课-和差倍比',
+    3: '第03课-经济利润',
+    4: '第04课-工程问题',
+    5: '第05课-行程问题（一）',
+    6: '第06课-行程问题（二）',
+    7: '第07课-溶液问题',
+    8: '第08课-最值问题',
+    9: '第09课-排列组合（一）',
+    10: '第10课-排列组合（二）',
+    11: '第11课-排列组合（三）',
+    12: '第12课-概率问题',
+    13: '第13课-周期问题',
+    14: '第14课-平面几何（一）',
+    15: '第15课-平面几何（二）面积问题',
+    16: '第16课-立体几何',
+    17: '第17课-特殊题型',
+    18: '第18课-其它题型',
+}
+_COURSE_LINE_RE = re.compile(r'\*\*所属课程\*\*\s*[：:]\s*([^\n]+)')
+_LECTURE_NUM_RE = re.compile(r'第\s*0?(\d{1,2})\s*[课讲]')
+
+
+def _extract_group(title: str, chunks, index_groups: dict) -> str:
+    for _name, lines in chunks:
+        for ln in lines:
+            m = _COURSE_LINE_RE.search(ln)
+            if m:
+                val = m.group(1).strip()
+                nm = _LECTURE_NUM_RE.search(val)
+                if nm and int(nm.group(1)) in SHULIANG_18_LECTURES and '-' not in val:
+                    return SHULIANG_18_LECTURES[int(nm.group(1))]
+                return val
+    ident_m = re.match(r'^(\d{1,4})\s*[·.．、]', title.strip())
+    if ident_m and ident_m.group(1) in index_groups:
+        return index_groups[ident_m.group(1)]
+    nm = _LECTURE_NUM_RE.search(title)
+    if nm and int(nm.group(1)) in SHULIANG_18_LECTURES:
+        return SHULIANG_18_LECTURES[int(nm.group(1))]
+    return ''
+
+
+def is_shuliang_wrong_or_slow(block: str) -> bool:
+    """判断数量关系 18 课汇总文档中的单题块是否属于错题或慢题（无 18 课『所属方法与来源』标记的普通错题一律保留）。"""
+    lines = block.strip().splitlines()
+    if not lines:
+        return False
+    title = lines[0]
+    if '已做对' in title:
+        return False
+    ans = re.search(r'正确答案\s*[：:]\s*\**([A-D])\**(?:[；;\s]*我的选择\s*[：:]\s*\**([A-D]|—)\**)?', block)
+    right = ans.group(1) if ans else ''
+    mine = (ans.group(2) or '') if ans else ''
+    if mine in ('A', 'B', 'C', 'D') and right in ('A', 'B', 'C', 'D') and mine != right:
+        return True
+    res_m = re.search(r'-\s*\*\*结果\*\*\s*[：:]\s*(.+)', block)
+    res = res_m.group(1).strip() if res_m else ''
+    if any(k in res or k in title for k in ('做错', '没做出来', '不会', '算错', '慢', '猜对', '蒙对', '猜的', '与讲义答案')):
+        return True
+    if '**卡点**' in block:
+        return True
+    if '### 所属方法与来源' not in block:
+        return True
+    return False
+
+
+def prune_shuliang_doc(text: str) -> str:
+    """清理数量关系错题集中的非错题与非慢题，并同步更新顶部题目索引表。若无需清理则原样返回。"""
+    if not text or ('### 所属方法与来源' not in text and '练习，已做对' not in text):
+        return text
+    norm = text.replace('\r\n', '\n')
+    parts = re.split(r'(?=^## \d{3} · )', norm, flags=re.M)
+    if len(parts) <= 1:
+        return text
+    head = parts[0]
+    blocks = parts[1:]
+    kept = []
+    kept_ids = set()
+    for b in blocks:
+        if is_shuliang_wrong_or_slow(b):
+            kept.append(b.rstrip() + '\n\n')
+            m = re.match(r'^## (\d{3}) · ', b.strip())
+            if m:
+                kept_ids.add(m.group(1))
+    if len(kept) == len(blocks):
+        return text
+    # 同步过滤顶部 ## 题目索引 表格行并更新总题数
+    new_head_lines = []
+    for ln in head.splitlines():
+        row_m = re.match(r'^\|\s*(\d{3})\s*\|', ln.strip())
+        if row_m and row_m.group(1) not in kept_ids:
+            continue
+        ln = re.sub(r'（共\s*\d+\s*题）', '（仅收录错题与慢题，共 %d 题）' % len(kept), ln)
+        new_head_lines.append(ln)
+    new_head = '\n'.join(new_head_lines).rstrip() + '\n\n'
+    return new_head + ''.join(kept)
+
+
+def _question(title, chunks, index_groups=None):
     """chunks = [(小节名, [行])] → 题；没有选项返回 None"""
     stem_lines, options, right, mine, rest = [], {}, '', '', []
     for name, lines in chunks:
@@ -117,8 +216,9 @@ def _question(title, chunks):
     stem = '\n'.join(stem_lines).strip()
     if not stem or len(options) < 2:
         return None
+    group = _extract_group(title, chunks, index_groups or {})
     key = hashlib.sha1(('%s\n%s' % (re.sub(r'\s+', '', stem), '|'.join('%s%s' % kv for kv in sorted(options.items())))).encode('utf-8')).hexdigest()[:16]
-    return {'key': key, 'title': title, 'stem': stem, 'options': options, 'answer': right, 'mine': mine, 'sections': rest}
+    return {'key': key, 'title': title, 'group': group, 'stem': stem, 'options': options, 'answer': right, 'mine': mine, 'sections': rest}
 
 
 def parse(text):
@@ -127,8 +227,15 @@ def parse(text):
     h1 = next((l[2:].strip() for l in lines if l.startswith('# ')), '')
     top = _sections(lines, 2)
     problems = []
+    index_groups = {}
+    for name, body in top[1:]:
+        if '题目索引' in name or '目录' in name:
+            for ln in body:
+                m = re.match(r'^\|\s*(\d{1,4})\s*\|\s*([^|]+?)\s*\|', ln.strip())
+                if m and '第' in m.group(2):
+                    index_groups[m.group(1).strip()] = m.group(2).strip()
     if any(STEM.match(name) for name, _ in top):          # 旧写法：一个文件一道题（## 原题 / ## 解析）
-        q = _question(h1 or '这道题', top)
+        q = _question(h1 or '这道题', top, index_groups)
         qs = [q] if q else []
         if not q:
             problems.append('「原题」里没读到题干和 A–D 选项')
@@ -137,7 +244,7 @@ def parse(text):
         for name, body in top[1:]:
             if SKIP_Q.search(name):
                 continue
-            q = _question(name, _sections(body, 3))
+            q = _question(name, _sections(body, 3), index_groups)
             if q:
                 qs.append(q)
             elif any(l.strip() for l in body):
@@ -216,10 +323,34 @@ def ensure_template(paths):
         pass
 
 
+def _atomic_write_text(f: Path, text: str) -> bool:
+    data = text.encode('utf-8')
+    if f.is_file():
+        try:
+            if f.read_bytes() == data:
+                return False
+        except OSError:
+            pass
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f.name + '.tmp')
+    tmp.write_bytes(data)
+    os.replace(tmp, f)
+    return True
+
+
 def _doc(paths, name):
     f = folder(paths) / (name + '.md')
     try:
-        return f, f.read_text(encoding='utf-8-sig')
+        text = f.read_text(encoding='utf-8-sig')
+        if name == '数量关系':
+            cleaned = prune_shuliang_doc(text)
+            if cleaned != text:
+                try:
+                    _atomic_write_text(f, cleaned)
+                except OSError:
+                    pass
+                text = cleaned
+        return f, text
     except FileNotFoundError:
         return f, None
 
@@ -292,7 +423,7 @@ def _find_wordbook_file(root: Path, filename: str):
 
 
 def sync_from_source(g, source_dir=None):
-    """手动把本地 gk-skill 的错题集（7 板块 + assets 配图）与词录汇总同步进 训练/（不同步心法）。"""
+    """手动把本地 gk-skill 的错题集（7 板块 + 政治理论易错题 + assets 配图）与词录汇总同步进 训练/（不同步心法）。"""
     if not g.paths.train:
         raise ValueError('请先指定行测库')
     if source_dir and str(source_dir).strip():
@@ -330,12 +461,53 @@ def sync_from_source(g, source_dir=None):
                 continue
             dst_f = dst_siguo / (name + '.md')
             before = len(parse(dst_f.read_text(encoding='utf-8-sig'))['questions']) if dst_f.is_file() else 0
-            changed = _atomic_copy(src_f, dst_f)
+            raw_text = src_f.read_text(encoding='utf-8-sig')
+            if name == '数量关系':
+                cleaned = prune_shuliang_doc(raw_text)
+                if cleaned != raw_text:
+                    try:
+                        _atomic_write_text(src_f, cleaned)
+                    except OSError:
+                        pass
+                changed = _atomic_write_text(dst_f, cleaned)
+            else:
+                changed = _atomic_copy(src_f, dst_f)
             after = len(parse(dst_f.read_text(encoding='utf-8-sig'))['questions'])
             if changed:
                 boards_updated.append({'name': name, 'before': before, 'after': after})
             else:
                 boards_unchanged.append(name)
+
+    # 政治理论易错题（不在思过崖 7 石碑显示，同步到 训练/万象峰/易错题.md 供时政地图『易错题』栏展示）
+    politics_wrong_updated = False
+    for cand_name in ('政治理论.md', '易错题.md'):
+        src_pw = cuoti_dir / cand_name
+        if src_pw.is_file():
+            dst_pw = politics_wrong_file(g.paths)
+            try:
+                if src_pw.resolve() != dst_pw.resolve() and _atomic_copy(src_pw, dst_pw):
+                    politics_wrong_updated = True
+            except OSError:
+                pass
+            break
+
+    # 将万象峰时政地图导出的 md 文档同步一份到 gk-skill/时政地图/ 下，并写入本地 Agent 规则说明，方便本地 agent 检索
+    try:
+        from . import politics
+        exported_dirs = politics.export_exam_markdowns(g.paths)
+        if src_root.is_dir() and (src_root / '错题集').is_dir():
+            dst_maps = src_root / '时政地图'
+            for ed in exported_dirs:
+                for md_file in ed.rglob('*.md'):
+                    rel_md = md_file.relative_to(ed.parent)
+                    _atomic_copy(md_file, dst_maps / rel_md)
+        agent_tpl = paths_mod.RES_DIR / 'defaults' / 'gk-skill-AGENTS.md'
+        if agent_tpl.is_file():
+            _atomic_copy(agent_tpl, g.paths.train / '规则与设定' / 'AGENTS.md')
+            if src_root.is_dir() and (src_root / '错题集').is_dir():
+                _atomic_copy(agent_tpl, src_root / 'GK_AGENT_RULES.md')
+    except Exception:
+        pass
 
     assets_updated, assets_unchanged = 0, 0
     src_assets = cuoti_dir / ASSETS_DIR
@@ -370,12 +542,14 @@ def sync_from_source(g, source_dir=None):
         else:
             wb_unchanged.append(kind)
 
-    if not boards_updated and not boards_unchanged and not assets_updated and not assets_unchanged and not wb_updated and not wb_unchanged:
+    if not boards_updated and not boards_unchanged and not assets_updated and not assets_unchanged and not wb_updated and not wb_unchanged and not politics_wrong_updated:
         raise ValueError('这个目录里没有找到思过崖 7 板块错题文档或词录汇总：%s' % src_root)
 
     parts = []
     if boards_updated:
         parts.append('错题集更新 %s' % '、'.join('%s(%d题)' % (x['name'], x['after']) for x in boards_updated))
+    if politics_wrong_updated:
+        parts.append('政治理论易错题')
     if assets_updated:
         parts.append('配图 %d 张' % assets_updated)
     if wb_updated:
@@ -389,6 +563,7 @@ def sync_from_source(g, source_dir=None):
         'boards_updated': boards_updated,
         'boards_unchanged': boards_unchanged,
         'boards_missing': boards_missing,
+        'politics_wrong_updated': politics_wrong_updated,
         'assets_updated': assets_updated,
         'assets_unchanged': assets_unchanged,
         'wordbook_updated': wb_updated,
@@ -431,7 +606,8 @@ def board(g, name):
                 'template': '训练/%s/%s' % (FOLDER, TEMPLATE), 'questions': [], 'problems': []}
     d = parse(text)
     rec = _rec(g)
-    qs = [{'key': q['key'], 'title': q['title'], 'stem': q['stem'], 'options': q['options'], 'has_answer': bool(q['answer']),
+    qs = [{'key': q['key'], 'title': q['title'], 'group': q.get('group', ''), 'stem': q['stem'],
+           'options': q['options'], 'has_answer': bool(q['answer']),
            'record': rec.get('%s|%s' % (name, q['key']))} for q in d['questions']]
     return {'name': name, 'board': eng, 'exists': True, 'file': '训练/%s/%s.md' % (FOLDER, name), 'questions': qs,
             'problems': d['problems']}
@@ -460,5 +636,74 @@ def answer(g, name, key, choice):
         base = g.rules.xp('思过崖答对')
         if base:
             events = g._award(base, 'siguo', eng, item=key, ok=True, note='思过崖 · %s 重做答对' % name, bonus=False)
+    return {'ok': ok if q['answer'] else None, 'answer': q['answer'], 'mine': q['mine'], 'choice': choice,
+            'sections': q['sections'], 'record': r, 'events': events}
+
+
+def politics_wrong_file(paths, exam_title: str = '') -> Path:
+    """政治理论易错题文档路径：优先读当前时政地图文件夹下的 易错题.md，否则读 训练/万象峰/易错题.md（并自动从 gk-skill/错题集/政治理论.md 首次同步）。"""
+    raw_train = paths.train._raw() if hasattr(paths.train, '_raw') else Path(paths.train)
+    wx_root = raw_train / '万象峰'
+    wx_root.mkdir(parents=True, exist_ok=True)
+    shared = wx_root / '易错题.md'
+    if not shared.is_file():
+        info = resolve_sync_source(paths)
+        if info['source']:
+            cuoti = (info['source'] / '错题集') if (info['source'] / '错题集').is_dir() else info['source']
+            for cand in ('政治理论.md', '易错题.md'):
+                if (cuoti / cand).is_file():
+                    try:
+                        _atomic_copy(cuoti / cand, shared)
+                    except OSError:
+                        pass
+                    break
+    if exam_title:
+        per_exam = wx_root / exam_title / '易错题.md'
+        if per_exam.is_file():
+            return per_exam
+    return shared
+
+
+def politics_wrong_board(g, exam_title: str = ''):
+    """时政地图『易错题』栏（思过崖同款格式与重做记录，不在思过崖七碑显示）。"""
+    touch()
+    f = politics_wrong_file(g.paths, exam_title)
+    rel = f.relative_to(g.paths.vault).as_posix() if g.paths.vault and f.exists() else '训练/万象峰/易错题.md'
+    if not f.is_file():
+        return {'name': '政治理论', 'board': '政治理论', 'exists': False, 'file': rel,
+                'template': '训练/%s/%s' % (FOLDER, TEMPLATE), 'questions': [], 'problems': []}
+    text = f.read_text(encoding='utf-8-sig')
+    d = parse(text)
+    rec = _rec(g)
+    qs = [{'key': q['key'], 'title': q['title'], 'group': q.get('group', ''), 'stem': q['stem'],
+           'options': q['options'], 'has_answer': bool(q['answer']),
+           'record': rec.get('政治理论|%s' % q['key'])} for q in d['questions']]
+    return {'name': '政治理论', 'board': '政治理论', 'exists': True, 'file': rel, 'questions': qs,
+            'problems': d['problems']}
+
+
+def politics_wrong_answer(g, key, choice, exam_title: str = ''):
+    """时政地图『易错题』重做一题。"""
+    choice = str(choice or '').strip().upper()
+    if choice not in 'ABCD' or len(choice) != 1:
+        raise ValueError('选一个 A–D')
+    f = politics_wrong_file(g.paths, exam_title)
+    text = f.read_text(encoding='utf-8-sig') if f.is_file() else ''
+    q = next((x for x in parse(text)['questions'] if x['key'] == key), None)
+    if not q:
+        raise ValueError('这道题在文档里找不到了（可能刚改过），请刷新重试')
+    touch()
+    ok = bool(q['answer']) and choice == q['answer']
+    r = _rec(g).setdefault('政治理论|%s' % key, {'tries': 0, 'ok': 0})
+    if 'reward_date' not in r and r.get('last') == 'ok':
+        r['reward_date'] = r.get('date')
+    first_today = r.get('reward_date') != g.t
+    r.update(tries=r.get('tries', 0) + 1, ok=r.get('ok', 0) + ok, last='ok' if ok else 'bad', date=g.t, pick=choice)
+    events = []
+    if ok and first_today:
+        r['reward_date'] = g.t
+        base = g.rules.xp('思过崖答对')
+        if base:
+            events = g._award(base, 'siguo', '政治理论', item=key, ok=True, note='政治理论 · 易错题重做答对', bonus=False)
     return {'ok': ok if q['answer'] else None, 'answer': q['answer'], 'mine': q['mine'], 'choice': choice,
             'sections': q['sections'], 'record': r, 'events': events}

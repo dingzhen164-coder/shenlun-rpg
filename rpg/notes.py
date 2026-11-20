@@ -370,6 +370,10 @@ def resolve_images(paths, text, base=None):
 
 def read_md(paths, rel):
     p = (paths.vault / str(rel or "")).resolve()
+    if not p.is_file() and getattr(paths, "train", None) is not None:
+        s = str(rel or "").replace("\\", "/").lstrip("/")
+        if s.startswith("训练/") and ".." not in Path(s).parts:
+            p = (paths.train / s[len("训练/"):]).resolve()
     try:
         p.relative_to(paths.vault.resolve())
     except ValueError:
@@ -397,6 +401,10 @@ def pdf_file(paths, rel):
     """库里的一个 .pdf（不许跑出库、不进隐藏文件夹）"""
     try:
         p = (paths.vault / str(rel or "")).resolve()
+        if not p.is_file() and getattr(paths, "train", None) is not None:
+            s = str(rel or "").replace("\\", "/").lstrip("/")
+            if s.startswith("训练/") and ".." not in Path(s).parts:
+                p = (paths.train / s[len("训练/"):]).resolve()
         parts = p.relative_to(paths.vault.resolve()).parts
     except (ValueError, OSError):
         return None

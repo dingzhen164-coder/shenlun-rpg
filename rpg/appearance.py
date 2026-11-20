@@ -30,7 +30,7 @@ def _files(paths, parts, exts):
     d = folder(paths, parts)
     if not d.is_dir():
         return []
-    return [p.relative_to(paths.vault).as_posix() for p in sorted(d.iterdir())
+    return ["训练/" + "/".join(parts) + "/" + p.name for p in sorted(d.iterdir())
             if p.is_file() and p.suffix.lower() in exts and not p.name.startswith(".")]
 
 

@@ -78,11 +78,38 @@
     layoutOpts();
   }
 
+  function qBtnHtml(q) {
+    const r = q.record, st = !r ? "new" : r.last === "ok" ? "ok" : "bad";
+    return `<button type="button" class="sg-q ${q.key === CUR ? "on" : ""}" data-sgq="${esc(q.key)}" aria-current="${q.key === CUR}">
+      <i class="sg-dot ${st}" aria-hidden="true"></i><span>${mdInline(q.title)}</span><small>${st === "new" ? "未重做" : st === "ok" ? "上次对" : "上次错"}</small></button>`;
+  }
+
+  function hasGroups() {
+    return !!(BOARD && BOARD.name === "数量关系" && BOARD.questions.some((q) => q.group));
+  }
+
   function listHtml() {
-    return BOARD.questions.map((q) => {
-      const r = q.record, st = !r ? "new" : r.last === "ok" ? "ok" : "bad";
-      return `<button type="button" class="sg-q ${q.key === CUR ? "on" : ""}" data-sgq="${esc(q.key)}" aria-current="${q.key === CUR}">
-        <i class="sg-dot ${st}" aria-hidden="true"></i><span>${mdInline(q.title)}</span><small>${st === "new" ? "未重做" : st === "ok" ? "上次对" : "上次错"}</small></button>`;
+    if (!hasGroups()) return BOARD.questions.map(qBtnHtml).join("");
+    const groups = [], byName = new Map();
+    for (const q of BOARD.questions) {
+      const gname = q.group || "未分讲";
+      if (!byName.has(gname)) {
+        const g = { name: gname, items: [] };
+        byName.set(gname, g);
+        groups.push(g);
+      }
+      byName.get(gname).items.push(q);
+    }
+    const rawClosed = pos()["closed_" + BOARD.name];
+    const closed = new Set(Array.isArray(rawClosed) ? rawClosed : []);
+    const curQ = BOARD.questions.find((q) => q.key === CUR);
+    if (curQ) closed.delete(curQ.group || "未分讲");
+    return groups.map((g) => {
+      const open = !closed.has(g.name);
+      const done = g.items.filter((q) => q.record).length;
+      return `<details class="sg-group" data-sggroup="${esc(g.name)}" ${open ? "open" : ""}>
+        <summary class="sg-group-sum"><span>${esc(g.name)}</span><small>${done ? `${done}/` : ""}${g.items.length}题</small></summary>
+        <div class="sg-group-body">${g.items.map(qBtnHtml).join("")}</div></details>`;
     }).join("");
   }
 
@@ -113,7 +140,7 @@
         ${b.problems.length ? `<div class="sg-warn">${b.problems.map((p) => `<div>${esc(p)}</div>`).join("")}</div>` : ""}</div></div>`;
     }
     const warn = b.problems.length ? `<div class="sg-warn" role="alert"><b>文档里有几处没读懂：</b>${b.problems.map((p) => `<div>${esc(p)}</div>`).join("")}</div>` : "";
-    return `<div class="sg-room sg-paper">${head}${warn}<div class="sg-body"><nav class="sg-list" aria-label="题目">${listHtml()}</nav>
+    return `<div class="sg-room sg-paper">${head}${warn}<div class="sg-body"><nav class="sg-list ${hasGroups() ? "has-groups" : ""}" aria-label="题目">${listHtml()}</nav>
       <div class="sg-main">${questionHtml()}</div></div></div>`;
   }
 
@@ -179,6 +206,11 @@
     root.querySelectorAll("[data-sgboard]").forEach((b) => (b.onclick = () => openBoard(b.dataset.sgboard).catch(showError)));
     root.querySelectorAll("[data-sgsync]").forEach((b) => (b.onclick = () => runSync()));
     root.querySelector("[data-sgback]")?.addEventListener("click", () => close());
+    root.querySelectorAll("details.sg-group").forEach((d) => d.addEventListener("toggle", () => {
+      if (!BOARD) return;
+      const closed = [...root.querySelectorAll("details.sg-group:not([open])")].map((x) => x.dataset.sggroup);
+      savePos({ ["closed_" + BOARD.name]: closed });
+    }));
     root.querySelectorAll("[data-sgq]").forEach((b) => (b.onclick = () => {
       ++answerRequest; CUR = b.dataset.sgq; RESULT = null; touch(); savePos({ [BOARD.name]: CUR }); paint({ reveal: true });
       root.querySelector(".sg-main")?.scrollTo?.({ top: 0 });

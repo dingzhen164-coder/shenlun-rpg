@@ -107,7 +107,7 @@ def main():
             import base64
             png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
             for s2, place in (('行测', '洞府'), ('申论', '办公室')):
-                d = Path(vaults[s2]) / '训练/外观/美术'
+                d = paths.Paths(Path(vaults[s2]), s2).train / '外观/美术'
                 (d / '首页全景').mkdir(parents=True, exist_ok=True); (d / '子地图背景').mkdir(parents=True, exist_ok=True)
                 (d / '首页全景' / '白天.png').write_bytes(png)
                 (d / '子地图背景' / (place + '.png')).write_bytes(png)
@@ -123,7 +123,7 @@ def main():
             import base64
             from rpg import art as _art
             png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
-            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            d = paths.Paths(Path(vaults['行测']), '行测').train / '外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
             for _f, name, rel, *_r in _art.slots('行测'):
                 if rel in ('beauty/page/train.webp', 'beauty/page/train-day.webp', 'beauty/page/train-night.webp'):
                     (d / (name + '.png')).write_bytes(png)
@@ -132,7 +132,7 @@ def main():
             from PIL import Image
             from rpg import art as _art
             im = Image.open(Path(__file__).resolve().parent.parent / 'web/assets/sect/xc-sect-day.webp').convert('RGB')
-            d = Path(vaults['行测']) / '训练/外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
+            d = paths.Paths(Path(vaults['行测']), '行测').train / '外观/美术/子地图背景'; d.mkdir(parents=True, exist_ok=True)
             for _f, name, *_r in _art.slots('行测'):
                 if _f == '子地图背景' and not name.endswith(('-白天', '-夜晚')) and '-' not in name:
                     im.save(d / (name + '.png'))
@@ -231,6 +231,10 @@ def main():
                         {'data': {'text': '自编示例，逐步整理知识脉络。'}, 'children': []}]})
                 mindmap.create(g.paths, board, board, {'root': root, 'layout': 'logicalStructure'})
                 cards.add(g,dict(deck=board,type='问答',front='自编记忆卡：说明一个方法的条件。',back='核对条件，再解释边界。'))
+                if g.subject == '行测':
+                    legacy_mm = g.paths.vault / '训练/灵脉图'
+                    if not legacy_mm.exists():
+                        os.symlink(g.paths.train / '灵脉图', legacy_mm)
                 print('UI-READER ' + __import__('json').dumps(dict(vault=str(g.paths.vault),board=board),ensure_ascii=False),flush=True)
         if '--image-clean-fixture' in sys.argv:
             from image_fixture311 import install

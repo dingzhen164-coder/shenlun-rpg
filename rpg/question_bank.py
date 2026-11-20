@@ -62,20 +62,36 @@ def _workbook_parts(paper):
 
 
 def _workbook_board(q, fallback, path):
-    from .importer import ALIAS, BOARDS, TOPICS
-    topic = re.split(r'[-－—（(/·：:]', q['topic'], 1)[0].strip()
-    for hint in (topic, q.get('module', '')):
+    from .importer import ALIAS, BOARDS, TOPICS, guess_board
+    raw_topic = (q.get('topic') or '').strip()
+    topic = re.split(r'[-－—（(/·：:]', raw_topic, 1)[0].strip()
+    for hint in (topic, raw_topic, q.get('module', '')):
         if hint in BOARDS or hint in ALIAS:
             return ALIAS.get(hint, hint)
-    matches = [b for b, names in TOPICS.items() if topic in names.split('、')]
+    matches = [b for b, names in TOPICS.items() if topic and topic in names.split('、')]
     if len(matches) == 1:
         return matches[0]
     if fallback:
         return fallback
+    joined = ' '.join([raw_topic, q.get('module', ''), path.stem, *q.get('papers', [])])
     for name in BOARDS:
-        if name in path.stem or any(name in paper for paper in q['papers']):
+        if name in path.stem or any(name in paper for paper in q['papers']) or name in raw_topic:
             return name
-    return ''
+    for kw, target in (
+        ('选词', '逻辑填空'), ('填空', '逻辑填空'), ('片段', '片段阅读'), ('中心理解', '片段阅读'),
+        ('图推', '图形推理'), ('图形', '图形推理'), ('定义', '定义判断'), ('类比', '类比推理'),
+        ('资料', '资料分析'), ('数量', '数量关系'), ('政治', '政治理论'), ('时政', '政治理论'), ('常识', '常识判断'),
+    ):
+        if kw in joined:
+            return target
+    guessed = guess_board('', q.get('stem', ''), q.get('options', {}))
+    if guessed in BOARDS:
+        return guessed
+    if '逻辑' in joined or '判断' in joined:
+        return '论证逻辑'
+    if '言语' in joined:
+        return '片段阅读'
+    return topic or path.stem or '题本'
 
 
 _CACHE = {}   # 文档路径 → (修改时间, 大小, 解析结果)
@@ -209,25 +225,26 @@ def _parse(path, board):
         analysis = fields.get('解析', '').strip()
         if TODO_RE.match(analysis):
             analysis = ''
-        if not fields.get('题干') or not fields.get('知识点'):
+        papers = [x.strip() for x in fields.get('试卷', '').splitlines() if x.strip()]
+        is_wb = any(_workbook_parts(p) for p in papers)
+        topic_val = fields.get('知识点', '').strip() or ('题本练习' if is_wb else '')
+        if not fields.get('题干') or not topic_val:
             errors.append('题目 %s：知识点、题干不能为空' % ident)
         if set(options) != set('ABCD') or not all(options.values()) or (not todo and answer not in options):
             errors.append('题目 %s：需要 A/B/C/D 四个选项和单个正确答案字母（不知道答案就写“（待补）”）' % ident)
         questions.append({'key': board + '::' + ident, 'id': ident, 'board': board,
-                          'topic': fields.get('知识点', ''), 'stem': fields.get('题干', ''),
+                          'topic': topic_val, 'stem': fields.get('题干', ''),
                           'options': options, 'answer': '' if todo else answer, 'analysis': analysis,
                           'source': str(path.name), 'source_title': fields.get('来源', '').strip(), 'pending': todo, 'module': fields.get('模块', ''),
                           # 同一道题可能出现在几张卷子里（联考各省卷共用题），试卷、题号一行一个、一一对应
-                          'papers': [x.strip() for x in fields.get('试卷', '').splitlines() if x.strip()],
+                          'papers': papers,
                           'nums': [int(x) for x in fields.get('题号', '').split() if x.isdigit()]})
         questions[-1]['paper'] = (questions[-1]['papers'] or [''])[0]
         questions[-1]['source_accuracy'] = vault.parse_accuracy(fields.get('原题正确率'))
         q = questions[-1]
-        if any(_workbook_parts(p) for p in q['papers']):
+        if is_wb:
             actual = _workbook_board(q, board, path)
-            if not actual:
-                errors.append('题目 %s：无法识别板块，请在知识点前注明板块，如“片段阅读-中心理解”' % ident)
-            q['board'] = actual or '未识别板块'
+            q['board'] = actual or '题本'
             q['key'] = (board or q['board']) + '::' + ident
     for line in text.splitlines():
         if re.match(r'^##\s+题目(?:\s|$)', line) and not re.match(r'^##\s+题目\s+\S', line):

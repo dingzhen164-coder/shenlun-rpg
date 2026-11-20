@@ -4,9 +4,10 @@
 (function () {
   "use strict";
   var BASE = "assets/beauty/audio/", KEY = "beauty-audio-v1";
-  var S = { sfx: true, bgm: true, vs: 0.6, vb: 0.35, src: "builtin" };
+  var S = { sfx: true, bgm: true, vs: 0.6, vb: 0.35, src: "mine" };
   try { var o = JSON.parse(localStorage.getItem(KEY) || "{}"); for (var k in o) if (k in S) S[k] = o[k]; } catch (e) { /* 读不到就用默认 */ }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 存不了只管这次 */ } }
+  S.src = "mine";
+  function save() { S.src = "mine"; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 存不了只管这次 */ } }
 
   var missing = {}, cache = {}, unlocked = false, last = {};
   function sfx(name, vol) {
@@ -19,26 +20,14 @@
     } catch (e) { /* 静音 */ }
   }
 
-  // ---- 背景音乐：当前曲目 + 淡入淡出
-  var cur = null, curName = "", want = "", override = "", timer = 0;
-  function targetVol() { return S.bgm && S.src === "builtin" ? S.vb * (want === "study" ? 0.6 : 1) : 0; }
+  // ---- 背景音乐：仅使用“我的音乐”（由 AMB.bgm 播放），不再播放内置场景音乐
+  var cur = null, want = "", override = "", timer = 0;
   function ramp(a, to, ms, done) {
     var from = AudioBus.getVolume(a), t0 = Date.now(); clearInterval(a._r);
     a._r = setInterval(function () {
       var k = Math.min(1, (Date.now() - t0) / ms); AudioBus.volume(a, Math.max(0, Math.min(1, from + (to - from) * k)));
       if (k >= 1) { clearInterval(a._r); if (done) done(); }
     }, 50);
-  }
-  function setBgm(name) {
-    if (name === curName) { if (cur) ramp(cur, targetVol(), 400); return; }
-    var old = cur; curName = name;
-    if (old) { if (S.src !== "builtin") { clearInterval(old._r); old.pause(); } else ramp(old, 0, 1200, function () { old.pause(); }); }
-    cur = null;
-    if (!name || missing["bgm/" + name]) return;
-    var a = new Audio(BASE + "bgm/" + name + ".ogg"); a.loop = true; AudioBus.volume(a, 0);
-    a.addEventListener("error", function () { missing["bgm/" + name] = 1; if (cur === a) cur = null; });
-    cur = a;
-    if (unlocked && S.bgm) a.play().then(function () { ramp(a, targetVol(), 1500); }).catch(function () {});
   }
   function context() {
     if (override) return override;
@@ -62,7 +51,7 @@
     amb = a;
     if (unlocked && S.sfx) a.play().then(function () { ramp(a, ambVol(), 1500); }).catch(function () {});
   }
-  function refresh() { want = context(); setBgm(S.src === "builtin" ? want : ""); setAmb(S.sfx ? (AMB_OF[want] || "") : ""); }
+  function refresh() { want = context(); setAmb(S.sfx ? (AMB_OF[want] || "") : ""); }
   function soon() { clearTimeout(timer); timer = setTimeout(refresh, 500); }
 
   function unlock() {
@@ -117,17 +106,16 @@
     });
   }
 
-  // ---- 与设置页“背景音乐”合并的控制接口（ambience.js 的设置卡调用）。来源：内置场景音乐 / 我的音乐（库里 训练/外观/音乐/，由 AMB.bgm 播放）
+  // ---- 与设置页“背景音乐”合并的控制接口（ambience.js 的设置卡调用）。只保留“我的音乐”（库里 训练/外观/音乐/，由 AMB.bgm 播放）
   var mineOn = function () { return !!(window.AMB && AMB.bgm && AMB.bgm.on); };
   function syncMine() {
     if (!window.AMB || !AMB.bgm) return;
-    var should = S.bgm && S.src === "mine" && unlocked;
+    var should = S.bgm && unlocked;
     if (should && !document.hidden) { if (!mineOn()) AMB.bgm.start(); else AMB.bgm.resume(); }
     else if (!should && mineOn()) AMB.bgm.stop();
   }
   function apply() {
     refresh();
-    if (cur) { if (S.bgm && S.src === "builtin" && unlocked) cur.play().catch(function () {}); ramp(cur, targetVol(), 300); if (!(S.bgm && S.src === "builtin")) setTimeout(function () { if (cur && !(S.bgm && S.src === "builtin")) cur.pause(); }, 350); }
     syncMine();
   }
   function paintBtn() { var b = document.querySelector(".beauty-audio-btn"); if (b) { b.textContent = (S.sfx || S.bgm) ? "🔊" : "🔇"; if (window.BeautyIcons) BeautyIcons.scan(b.parentNode); } }
@@ -135,8 +123,8 @@
     sync: apply,
     sfx: sfx, bgm: function (n) { override = n || ""; refresh(); },
     settings: S,
-    set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; save(); apply(); paintBtn(); },
-    setBgmVolume: function (v) { S.vb = v; save(); if (cur) { clearInterval(cur._r); AudioBus.volume(cur, targetVol()); } },
+    set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; S.src = "mine"; save(); apply(); paintBtn(); },
+    setBgmVolume: function (v) { S.vb = v; save(); },
     setSfxVolume: function (v) { S.vs = v; save(); if (amb) { clearInterval(amb._r); AudioBus.volume(amb, ambVol()); } sfx("click"); }
   };
   // 右下角只留一个“全部静音/恢复”小按钮（详细设置在 设置 → 外观与音乐）
@@ -151,6 +139,6 @@
     paintBtn();
   }
   window.BeautyAudio = API;
-  function init() { ui(); watch(); wrapCeremony(); if (S.src === "mine") setTimeout(syncMine, 600); }
+  function init() { ui(); watch(); wrapCeremony(); setTimeout(syncMine, 600); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();

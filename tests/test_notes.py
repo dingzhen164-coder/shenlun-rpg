@@ -58,7 +58,7 @@ class NotesTest(unittest.TestCase):
         self.assertTrue(chat.call_args.kwargs["vision"])
         content = chat.call_args.args[0][0]["content"]
         self.assertEqual(content[1]["type"], "image_url")
-        self.assertEqual(r["path"], "训练/手札/片段阅读.md")
+        self.assertEqual(r["path"], "训练/试炼与大比/手札/片段阅读.md")
         text = (self.paths.vault / r["path"]).read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# 主旨题\n\n> 灵台手札 · 师傅编纂（识图模型（vl-test））"))
         self.assertIn("- **但是** 后面是重点", text)

@@ -41,7 +41,7 @@ def _journals(g):
 
 def _sprint(g):
     rows = []
-    for exam in politics.EXAMS:
+    for exam in politics.exams_list(g.paths):
         file = politics.exam_folder(g.paths, exam['id']) / '补充.json'
         extra = politics.read_json(file, None)
         if not isinstance(extra, dict):
@@ -81,7 +81,7 @@ def _digest(g):
                  hash=h, files=r['files']) for h, r in docs.items()]
 
 
-TITLES = {'month': '月半时政', 'topic': '专题时政', 'sprint': '冲刺学习 / 冲刺刷题', 'digest': '消化清单'}
+TITLES = {'month': '月半时政', 'topic': '专题时政', 'sprint': '冲刺学习', 'digest': '消化清单'}
 
 
 def _all(g):
@@ -115,7 +115,7 @@ def _backup(g, stamp, *files):
 def _referenced(g, rel):
     """其他导入数据是否还引用这份原PDF（相对资料库的路径）。"""
     rel = str(rel)
-    for exam in politics.EXAMS:
+    for exam in politics.exams_list(g.paths):
         text = (politics.exam_folder(g.paths, exam['id']) / '补充.json')
         if text.is_file() and rel in text.read_text(encoding='utf-8'):
             return True

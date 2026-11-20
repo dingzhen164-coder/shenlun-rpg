@@ -157,3 +157,25 @@ class WorkbooksTest(unittest.TestCase):
         self.assertTrue(bank.state(self.g)['records']['片段阅读::A02']['wrong'])
         self.assertEqual([q['id'] for q in bank.begin(self.g, slot, 'new')['questions']], ['A02', 'A01'])
         self.assertEqual(self.doc.read_text(encoding='utf-8'), self.raw)
+
+    def test_workbook_without_subdivided_board_practices_by_period_and_set(self):
+        judge_doc = self.folder / '海海刷-判断推理.md'
+        p1 = '【四海】26下-海海刷1期-判断推理题本·逻辑刷题1'
+        p2 = '【四海】26下-海海刷1期-判断推理题本·判断套题1'
+        judge_doc.write_text(
+            question('海海刷1期-判断-逻辑刷题1-01', '逻辑判断', p1, 1)
+            + question('海海刷1期-判断-判断套题1-26', '判断推理', p2, 26)
+            + question('海海刷1期-判断-判断套题1-27', '', p2, 27),
+            encoding='utf-8',
+        )
+        books = {b['name']: b for b in bank.summary(self.g)['workbooks']}
+        self.assertIn('【四海】海海刷 · 判断推理题本', books)
+        sets = {s['name']: s for s in books['【四海】海海刷 · 判断推理题本']['periods'][0]['sets']}
+        self.assertEqual(sets['逻辑刷题1']['errors'], [])
+        self.assertEqual(sets['判断套题1']['errors'], [])
+        self.assertEqual(sets['逻辑刷题1']['total'], 1)
+        self.assertEqual(sets['判断套题1']['total'], 2)
+        run1 = bank.begin(self.g, sets['逻辑刷题1']['slot'], 'new')
+        self.assertEqual([q['id'] for q in run1['questions']], ['海海刷1期-判断-逻辑刷题1-01'])
+        run2 = bank.begin(self.g, sets['判断套题1']['slot'], 'new')
+        self.assertEqual([q['id'] for q in run2['questions']], ['海海刷1期-判断-判断套题1-26', '海海刷1期-判断-判断套题1-27'])

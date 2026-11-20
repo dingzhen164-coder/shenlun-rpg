@@ -415,7 +415,7 @@ def _candidates(g):
     """所有可作为出处的资料：[(资料身份, 文本列表, 同一份讲义PDF的摘要)]；练习占位材料不算。"""
     from . import wanxiang_journal as journal
     out=[]
-    for exam in politics.EXAMS:
+    for exam in politics.exams_list(g.paths):
         for m in politics.atlas(g.paths,exam['id'])['materials']:
             if m.get('practice_only'):continue
             stem=Path(m.get('pdf','')).stem

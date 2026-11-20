@@ -1200,7 +1200,7 @@ def bank_add(body):
 def _save_info(subject):
     """某科目的库里有没有存档：{"has": 是否有存档, "date": 存档最后修改日期}，设置页用它提示“读到的是不是老数据”"""
     v = find_vault(subject)
-    f = v / "训练" / "存档" / "存档.json" if v else None
+    f = Paths(v, subject).save_file if v else None
     if not f or not f.is_file():
         return {"has": False, "date": ""}
     return {"has": True, "date": dt.date.fromtimestamp(f.stat().st_mtime).isoformat()}
@@ -1476,6 +1476,10 @@ def _music_file(paths, rel):
     if not paths.vault or not rel:
         return None
     p = (paths.vault / rel).resolve()
+    if not p.is_file() and getattr(paths, "train", None) is not None:
+        s = str(rel).replace("\\", "/").lstrip("/")
+        if s.startswith("训练/") and ".." not in s.split("/"):
+            p = (paths.train / s[len("训练/"):]).resolve()
     root = appearance.folder(paths, appearance.MUSIC_DIR).resolve()
     if root not in p.parents or not p.is_file() or p.suffix.lower() not in appearance.AUDIO_EXT:
         return None
