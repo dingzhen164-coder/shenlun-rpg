@@ -58,7 +58,10 @@ def attach(g, response, sessions):
     s = sessions.get(response.get('session'), {})
     if s.get('type') in ('chat', 'skeleton'):
         return response
-    p = profile(g, session_board(g, s))
+    return style(response, profile(g, session_board(g, s)))
+
+
+def style(response, p):
     if not p:
         return response
     brief = {k:p[k] for k in ('id', 'name', 'role', 'avatar')}

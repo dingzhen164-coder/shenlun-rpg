@@ -1,4 +1,4 @@
-/* 纸质自考（无数字钟表计时 + 预设分值录分）：嵌入宗门大比「自考」卷宗面板 */
+/* 纸质自考（指针挂钟计时 + 预设分值录分）：嵌入宗门大比「自考」卷宗面板 */
 .pe-card{min-width:0}
 .pe-head-bar{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-sp-12);flex-wrap:wrap;margin-bottom:var(--ds-sp-14);padding-bottom:var(--ds-sp-12);border-bottom:1px solid var(--ds-line)}
 .pe-steps{display:inline-flex;gap:var(--ds-sp-8);flex-wrap:wrap}
@@ -7,19 +7,20 @@
 .pe-preset-bar{display:flex;align-items:center;gap:var(--ds-sp-8);flex-wrap:wrap;min-width:0}
 .pe-preset-bar select{width:auto;max-width:100%;min-width:0}
 
-.pe-timer-grid{display:grid;grid-template-columns:minmax(240px,310px) minmax(0,1fr);gap:var(--ds-sp-20);align-items:start;min-width:0}
+.pe-timer-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(292px,34%);gap:var(--ds-sp-20);align-items:start;min-width:0}
 .pe-clock-box{display:flex;flex-direction:column;align-items:center;gap:var(--ds-sp-12);padding:var(--ds-sp-16);border:1px solid var(--line);border-radius:var(--ds-r-8);background:color-mix(in srgb,var(--panel) 84%,transparent);min-width:0}
-.pe-clock{width:min(236px,100%);height:auto;aspect-ratio:1/1;display:block;overflow:visible}
-.pe-clock-face{fill:color-mix(in srgb,var(--panel2) 90%,var(--bg));stroke:var(--gold);stroke-width:2.5}
-.pe-clock-inner{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:2 4}
-.pe-tick-min{stroke:var(--muted);stroke-width:1;opacity:.45;stroke-linecap:round}
-.pe-tick-hr{stroke:var(--ink);stroke-width:2.2;opacity:.82;stroke-linecap:round}
-.pe-tick-cardinal{stroke:var(--gold);stroke-width:3.2;stroke-linecap:round}
-.pe-hand-hour{stroke:var(--ink);stroke-width:4.6;stroke-linecap:round}
-.pe-hand-min{stroke:var(--ink);stroke-width:3;stroke-linecap:round}
-.pe-hand-sec{stroke:var(--accent);stroke-width:1.6;stroke-linecap:round}
-.pe-clock-pin{fill:var(--gold);stroke:var(--panel);stroke-width:1.5}
+.pe-clock{width:min(100%,clamp(340px,54vh,540px));height:auto;aspect-ratio:1;display:block;filter:drop-shadow(0 3px 3px rgba(0,0,0,.20))}
+.pe-clock-face{fill:#fff;stroke:#242426;stroke-width:8}
+.pe-clock-inner{fill:none;stroke:#b7b7b7;stroke-width:1.2}
+.pe-tick-min{stroke:#343436;stroke-width:1}
+.pe-tick-hr{stroke:#171719;stroke-width:2.6}
+.pe-clock-numbers{fill:#171719;font:600 20px Arial,sans-serif;font-variant-numeric:lining-nums}
+.pe-hand-hour{stroke:#19191b;stroke-width:6.5;stroke-linecap:round}
+.pe-hand-min{stroke:#19191b;stroke-width:4;stroke-linecap:round}
+.pe-hand-sec{stroke:#b62b28;stroke-width:1.3;stroke-linecap:round}
+.pe-clock-pin{fill:#b62b28;stroke:#242426;stroke-width:1.5}
 
+.pe-clock-controls{display:flex;flex-direction:column;align-items:center;gap:var(--ds-sp-12);width:100%;min-width:0}
 .pe-clock-meta{display:flex;align-items:center;justify-content:center;gap:var(--ds-sp-8);flex-wrap:wrap;width:100%;text-align:center}
 .pe-digital{font-variant-numeric:tabular-nums;font-weight:700;font-size:var(--ds-fs-18);color:var(--gold);letter-spacing:.04em}
 .pe-cur-banner{width:100%;padding:8px 10px;border-radius:var(--ds-r-6);background:color-mix(in srgb,var(--accent) 10%,transparent);text-align:center;font-size:var(--ds-fs-13);overflow-wrap:anywhere}
@@ -36,7 +37,7 @@
 .pe-q-item.is-done{opacity:.88;border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .pe-q-idx{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700;text-align:center}
 .pe-q-main{min-width:0;cursor:pointer}
-.pe-q-main b{display:inline-block;margin-right:6px}
+.pe-q-main b{display:block;overflow-wrap:anywhere}
 .pe-q-time{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;color:var(--gold)}
 .pe-q-move{display:inline-flex;gap:4px}
 .pe-q-move button{padding:2px 8px;min-height:30px;font-size:var(--ds-fs-12)}
@@ -68,12 +69,22 @@
 .pe-history{margin-top:var(--ds-sp-16)}
 .pe-hist-row{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-sp-8);flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 
-@container(max-width:780px){
+/* 横屏把按键放到钟面旁边；长队列可单独滚动到最后一个板块。 */
+@media(min-width:651px){
+  .pe-queue-list{max-height:clamp(260px,calc(100vh - 355px),740px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+}
+@media(min-width:1000px){
+  .pe-clock-box{display:grid;grid-template-columns:minmax(0,1fr) minmax(168px,30%);align-items:center}
+  .pe-clock{justify-self:center}
+  .pe-clock-subbtns button:last-child{flex-basis:100%}
+}
+@container(max-width:650px){
   .pe-timer-grid{grid-template-columns:minmax(0,1fr)}
-  .pe-clock{width:min(210px,62vw)}
+}
+@media(max-width:650px){
+  .pe-timer-grid{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:860px){
-  .pe-timer-grid{grid-template-columns:minmax(0,1fr)}
   .pe-s-head{display:none}
   .pe-s-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .pe-s-name{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}

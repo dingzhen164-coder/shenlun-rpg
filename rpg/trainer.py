@@ -51,12 +51,14 @@ def study_board(g, sid):
     if not s:
         return LAST_BOARD.get(sid or "", "")
     b = s.get("board") or (s.get("task") or {}).get("board") or ""
-    if b.startswith(question_bank.POINT_PREFIX):
-        b = b[len(question_bank.POINT_PREFIX):].split(":", 1)[0]
-    elif b.startswith(question_bank.SET_PREFIX):
+    if s["type"] in ("bank", "bank_review"):
         run = question_bank.state(g)["runs"].get(b) or {}
         qs = run.get("questions") or []
-        b = qs[min(run.get("pos", 0), len(qs) - 1)]["board"] if qs else ""
+        if qs:
+            pos = run.get("rpos", 0) if run.get("phase") == "review" else run.get("pos", 0)
+            b = question_bank.snapshot_board(qs[min(pos, len(qs) - 1)])
+        elif b.startswith((question_bank.POINT_PREFIX, question_bank.BLOCK_PAPER_PREFIX)):
+            b = b.split(":", 2)[1]
     b = b if b in g.all_boards() else ""
     if len(LAST_BOARD) > 300:
         LAST_BOARD.clear()
@@ -339,13 +341,36 @@ def start(g, task):
     return r
 
 
-def reply(g, sid, text):
+def _stale_page(g, sid, origin):
+    if origin is None:
+        return None
+    s = get(sid)
+    if s['type'] not in ('bank', 'bank_review', 'mock_review'):
+        raise TrainError('当前会话没有逐题导航')
+    run = g.state.get('bank', {}).get('runs', {}).get(s.get('board'))
+    if origin == _page_origin(s, run) and (s['type'] == 'mock_review' or s.get('token') == run['token']):
+        return None
+    if s['type'] == 'mock_review':
+        current = _mreview_show(g, s)
+    else:
+        current = _bank_lost(g, s)
+    current['rejoined'] = True
+    return _teacher_response(g, peak_tutors.attach(g, current, ALL))
+
+
+def reply(g, sid, text, origin=None):
+    stale = _stale_page(g, sid, origin)
+    if stale:
+        return stale
     r = _teacher_response(g, peak_tutors.attach(g, _reply(g, sid, text), ALL))
     _log(g, sid, (text or "").strip(), r)
     return r
 
 
-def action(g, sid, act):
+def action(g, sid, act, origin=None):
+    stale = _stale_page(g, sid, origin)
+    if stale:
+        return stale
     if str(act).startswith("skill_teacher:"):
         s = ALL.get(sid)
         if not s or g.subject != "行测":
@@ -372,8 +397,9 @@ def action(g, sid, act):
     return r
 
 
-def _selected_teacher(g, s, board):
-    rows = skillbook.teachers(g.paths, board) if g.subject == "行测" else []
+def _selected_teacher(g, s, board, rows=None):
+    if rows is None:
+        rows = skillbook.teachers(g.paths, board) if g.subject == "行测" else []
     selected = s.get("skill_teachers", {}).get(board)
     if selected and not any(r['name'] == selected for r in rows):
         raise TrainError("所选老师的心法已不存在，请重新进入复盘选择老师；未自动改用其他老师")
@@ -405,7 +431,10 @@ def _teacher_response(g, response):
         return response
     board = peak_tutors.session_board(g, s)
     rows = skillbook.teachers(g.paths, board)
-    selected = _selected_teacher(g, s, board)
+    return _style_teacher(response, board, rows, _selected_teacher(g, s, board, rows))
+
+
+def _style_teacher(response, board, rows, selected):
     response["skill_teachers"] = {"board": board, "selected": selected, "options": [{k: r[k] for k in ("name", "avatar")} for r in rows]}
     for msg in response.get('messages', []):
         if msg.get('skill_mentor'):
@@ -1256,6 +1285,8 @@ def _bank_lost(g, s):
         if run.get('exam') and run['phase'] == 'review':
             r = _review_show(g, s, run, extra=note)        # 复盘：提示放在本题下面
         else:
+            if run.get('exam'):
+                _tick(run)
             r = _bank_show(g, s, run)
             r['messages'] = note + r['messages']
         r['rejoined'] = True
@@ -1263,6 +1294,58 @@ def _bank_lost(g, s):
     r = _resp(s, [_msg('sys', BANK_GONE)], finished=True)
     r['gone'] = BANK_GONE
     return r
+
+
+def _page_origin(s, run):
+    """页面身份含组凭据、阶段和位置，同一题号的答题页和复盘页也要区分。"""
+    if s['type'] == 'mock_review':
+        return [s['source'], 'review', s['rpos']]
+    if s['type'] in ('bank', 'bank_review') and run and run.get('exam'):
+        return [run['token'], run['phase'], run.get('rpos', 0) if run['phase'] == 'review' else run['pos']]
+    return None
+
+
+def navigation(g, sid, pages=False):
+    """一次进入一组时准备可显示的题页。翻题只回传服务器确认的位置、选项和用时。"""
+    s = get(sid)
+    run = g.state.get('bank', {}).get('runs', {}).get(s.get('board'))
+    origin = _page_origin(s, run)
+    if origin is None:
+        return None
+    nav = {'origin': origin}
+    mock = s['type'] == 'mock_review'
+    review = origin[1] == 'review'
+    qs = s['qs'] if mock else run['questions']
+    if mock:
+        done = set(g.state.get('mocks', {}).get(str(s['season']), {}).get('reviewed', {}).get(s['source'], []))
+        nav['seen'] = [i for i, q in enumerate(qs) if q['num'] in done]
+    elif not review:
+        nav.update(picks=dict(run.get('picks', {})), times=dict(run.get('times', {})))
+    if not pages:
+        return nav
+    if mock:
+        nav['wrong'] = [i for i, q in enumerate(qs) if q['icon'] != '✅']
+    elif review:
+        nav['wrong'] = [i for i, result in enumerate(run['results']) if not result['ok']]
+    nav['pages'] = []
+    profiles = {}
+    for i, q in enumerate(qs):
+        if mock:
+            msgs, inp = _mreview_page(g, s, i)
+            board = peak_tutors.session_board(g, s)
+        else:
+            msgs, inp = _review_page(g, run, i) if review else _exam_page(g, run, i)
+            board = q['board']
+        if board not in profiles:
+            rows = skillbook.teachers(g.paths, board) if review and not mock else []
+            selected = _selected_teacher(g, s, board, rows) if review and not mock else None
+            profiles[board] = (peak_tutors.profile(g, board), rows, selected)
+        mentor, rows, selected = profiles[board]
+        page = peak_tutors.style({'messages': msgs, 'input': inp}, mentor)
+        if review and not mock:
+            _style_teacher(page, board, rows, selected)
+        nav['pages'].append(page)
+    return nav
 
 
 def _exam_stale(run, act):
@@ -1417,14 +1500,20 @@ def _say(g, scene, **vals):
 
 
 def _exam_show(g, s, run, events=None, extra=None):
-    qs = run['questions']
     if run['phase'] == 'review':
         return _review_show(g, s, run, events, extra)
-    picks = run.setdefault('picks', {})
     pos = run['pos']
-    q = qs[pos]
     run['shown'] = None if run.get('resting') else [pos, time.time()]
-    left = [str(i + 1) for i in range(len(qs)) if str(i) not in picks]
+    msgs, inp = _exam_page(g, run, pos)
+    r = _bank_resp(g, s, run, msgs + (extra or []), events, inp)
+    r['replace'] = True
+    return r
+
+
+def _exam_page(g, run, pos):
+    qs, picks = run['questions'], run.get('picks', {})
+    q = qs[pos]
+    remaining = len(qs) - len(picks)
     msg = '%s · 第 %s/%s 题' % (question_bank.label(run['board']), pos + 1, len(qs))
     blocks, mat = _bank_q(g, q)
     mine = picks.get(str(pos))
@@ -1433,12 +1522,9 @@ def _exam_show(g, s, run, events=None, extra=None):
         btns.append(('exam_prev', '← 上一题'))
     if pos + 1 < len(qs):
         btns.append(('exam_next', '下一题 →'))
-    btns.append(('exam_submit', '交卷' if not left else '交卷（还有 %d 题没选）' % len(left)))
+    btns.append(('exam_submit', '交卷' if not remaining else '交卷（还有 %d 题没选）' % remaining))
     btns.append(('bank_pause', g.T('bank_pause')))
-    msgs = [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id'])] + (extra or [])   # 2026-11-04 用户要求：做题界面不再显示答题卡
-    r = _bank_resp(g, s, run, msgs, events, _buttons(*btns))
-    r['replace'] = True
-    return r
+    return [_msg('sys', msg, blocks, pin=True, material=mat, qkey='bank:' + q['id'])], _buttons(*btns)
 
 
 def _exam_action(g, s, run, act):
@@ -1495,8 +1581,16 @@ def _rank_scene(group):
 
 def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=False):
     question_bank.archive(g, run)
-    qs, res, group = run['questions'], run['results'], run['settled']
-    i = run.setdefault('rpos', 0)
+    msgs, inp = _review_page(g, run, run.get('rpos', 0), head)
+    rr = _bank_resp(g, s, run, msgs + (extra or []), events, _remember(s, inp))
+    rr['replace'] = True
+    if scroll_bottom:
+        rr['scroll'] = 'bottom'
+    return rr
+
+
+def _review_page(g, run, i, head=False):
+    qs, res = run['questions'], run['results']
     q, r = qs[i], res[i]
     msgs = []
     qb, mat = _bank_q(g, q)
@@ -1523,7 +1617,6 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
         if h.get('teacher'):
             msg['skill_mentor'] = _teacher_brief(h['teacher'], q['board'])
         msgs.append(msg)
-    msgs += extra or []
     wrong_after = [k for k in range(i + 1, len(qs)) if not res[k]['ok']]
     btns = [('exam_explain:%s' % i, '🧙 师傅解惑' if str(i) not in run.get('explain', {}) else '🧙 再问师傅')]
     if i > 0:
@@ -1536,11 +1629,7 @@ def _review_show(g, s, run, events=None, extra=None, head=False, scroll_bottom=F
     btns.append(('bank_pause', '暂时离开（保存进度）'))
     inp = {'mode': 'text', 'placeholder': '对这道题还有疑问？直接问师傅（Ctrl+Enter 发送）；「🧙 师傅解惑」按功法 skill 把整题讲透',
            'buttons': [{'id': k, 'label': v} for k, v in btns]}
-    rr = _bank_resp(g, s, run, msgs, events, _remember(s, inp))
-    rr['replace'] = True
-    if scroll_bottom:
-        rr['scroll'] = 'bottom'
-    return rr
+    return msgs, inp
 
 
 def _review_action(g, s, run, act):
@@ -1802,6 +1891,19 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
     done = mock_reviewed(g, s["season"]).setdefault(s["source"], [])
     if q["num"] not in done:
         done.append(q["num"])
+    msgs, inp = _mreview_page(g, s, i, head)
+    r = _resp(s, msgs + (extra or []), events, input=_remember(s, inp))
+    c = _mreview_counts(qs)
+    r["battle"] = {"label": "大比复盘 · %s · %s" % (_sname(g, s["season"]), s["source"]), "total": len(qs), "position": i + 1,
+                   "ok": c["✅"], "wrong": c["❌"], "blank": c["⚪"], "reviewed": len(done), "phase": "review"}
+    r["replace"] = True
+    if scroll_bottom:
+        r["scroll"] = "bottom"
+    return r
+
+
+def _mreview_page(g, s, i, head=False):
+    qs, q = s["qs"], s["qs"][i]
     msgs = []
     msgs.append(_msg("sys", "复盘 第 %d/%d 题 · %s第 %s 题 · %s · %s" % (
         i + 1, len(qs), _sname(g, s["season"]) if re.fullmatch(r"第\d+季", _sname(g, s["season"])) else _sname(g, s["season"]) + " · ", q["num"], s["source"], MOCK_ICON.get(q["icon"], q["icon"])),
@@ -1819,7 +1921,6 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
         line = _say(g, "试炼·复盘错题", 你的答案=q["mine"] or "没做", 正确答案=q["correct"])
         if line:
             msgs.append(_msg("npc", line))
-    msgs += extra or []
     btns = []          # 2026-11 用户定：模考复盘不要师傅讲解，只看题、答案和复盘解析
     if i > 0:
         btns.append(("mr_prev", "← 上一题"))
@@ -1833,14 +1934,7 @@ def _mreview_show(g, s, events=None, extra=None, head=False, scroll_bottom=False
     btns.append(("mr_pause", "暂时离开（保存进度）"))
     btns.append(("mr_close", "结束复盘"))
     inp = {"mode": "buttons", "buttons": [{"id": a, "label": b} for a, b in btns]}
-    r = _resp(s, msgs, events, input=_remember(s, inp))
-    c = _mreview_counts(qs)
-    r["battle"] = {"label": "大比复盘 · %s · %s" % (_sname(g, s["season"]), s["source"]), "total": len(qs), "position": i + 1,
-                   "ok": c["✅"], "wrong": c["❌"], "blank": c["⚪"], "reviewed": len(done), "phase": "review"}
-    r["replace"] = True
-    if scroll_bottom:
-        r["scroll"] = "bottom"
-    return r
+    return msgs, inp
 
 
 def _mreview_pq(s, q):

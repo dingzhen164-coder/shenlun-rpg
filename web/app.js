@@ -494,9 +494,57 @@ function bindPinReset() {   // 双击分隔条：恢复默认高度
     try { localStorage.removeItem("xrpg-pin-h"); } catch (err) { /* 只管这一次 */ }
   }));
 }
+// 在题目正文里识别单指横滑。纵向滚动、横向表格、选区、长按及画笔由原控件处理。
+function bindQuestionSwipe(area, turn) {
+  if (!area) return;
+  if (area.scrollWidth <= area.clientWidth + 1) area.style.touchAction = 'pan-y pinch-zoom';
+  let start = null;
+  function readingGesture(target) {
+    if (window.DRAW?.state.on || window.getSelection()?.isCollapsed === false) return false;
+    if (target.closest('button,a,input,textarea,select,label,summary,canvas,[contenteditable="true"]')) return false;
+    for (let el = target; el; el = el.parentElement) {
+      if (el.scrollWidth > el.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return false;
+      if (el === area) break;
+    }
+    return true;
+  }
+  area.addEventListener('touchstart', event => {
+    const t = event.touches[0];
+    start = event.touches.length === 1 && t.touchType !== 'stylus' && readingGesture(event.target)
+      ? {id:t.identifier, x:t.clientX, y:t.clientY, at:performance.now()} : null;
+  }, {passive:true});
+  area.addEventListener('touchmove', event => {
+    if (!start) return;
+    const t = event.touches[0];
+    const dy = Math.abs(t.clientY - start.y);
+    if (event.touches.length !== 1 || (dy > 12 && dy > Math.abs(t.clientX - start.x))) start = null;
+  }, {passive:true});
+  area.addEventListener('touchcancel', () => { start = null; }, {passive:true});
+  area.addEventListener('touchend', event => {
+    const origin = start;
+    start = null;
+    const t = event.changedTouches[0];
+    if (!origin || !t || t.identifier !== origin.id || event.touches.length ||
+        performance.now() - origin.at > 650 || !readingGesture(event.target)) return;
+    const dx = t.clientX - origin.x, dy = t.clientY - origin.y;
+    if (Math.abs(dx) < 56 || Math.abs(dx) < 1.6 * Math.abs(dy)) return;
+    if (turn(dx < 0) && event.cancelable) event.preventDefault();
+  }, {passive:false});
+}
 function bindPins() {
   layoutOpts();
   bindPinDrag();
+  const chat = document.querySelector('.train .chat');
+  const composer = chat?.querySelector('.composer');
+  if (composer?.querySelector('[data-act="exam_next"],[data-act="exam_prev"],[data-act="exam_rnext"],[data-act="exam_rprev"],[data-act="mr_next"],[data-act="mr_prev"]')) {
+    bindQuestionSwipe(chat.querySelector('.q-pin .pin-body'), forward => {
+      const actions = forward ? ['exam_next','exam_rnext','mr_next'] : ['exam_prev','exam_rprev','mr_prev'];
+      const button = composer.querySelector(actions.map(id => '[data-act="' + id + '"]').join(','));
+      if (!button || button.disabled || T.busy) return false;
+      button.click();
+      return true;
+    });
+  }
   if (window.DRAW) DRAW.refresh();
   document.querySelectorAll(".mat-pane img:not(.inline-img), .q-pin img:not(.inline-img)").forEach((im) => (im.onclick = () => zoomImg(im.src)));
   document.querySelectorAll(".mat-btn").forEach((b) => (b.onclick = (e) => {
@@ -1061,19 +1109,49 @@ function mountGuide() {
   });
 }
 
+// 翻题立即使用本组已准备好的显示内容。所有实际操作仍依点击顺序交给服务器确认、保存。
+let questionDeck = null, trainWrites = Promise.resolve(), trainGeneration = 0, savingTurns = 0;
+const questionDrafts = new Map();
+function queueTrainWrite(write) {
+  savingTurns++;
+  const result = trainWrites.then(write);
+  trainWrites = result.catch(() => {}).finally(() => { savingTurns--; });
+  return result;
+}
+window.addEventListener('beforeunload', e => {
+  if (savingTurns) { e.preventDefault(); e.returnValue = ''; }
+});
 async function startTask(body) {
+  const generation = ++trainGeneration;
+  questionDeck = null;
+  questionDrafts.clear();
   window.XC_GUIDE?.close();
   SESSION_SNAP = window.SETTLE ? SETTLE.snap() : null;
   if (body.task?.type) T_TYPE = body.task.type;
   Object.assign(T, { session: null, title: "准备中…", mentor: null, skillTeachers:null, msgs: [], input: { mode: "none" }, busy: true, finished: false, battle: null });
   TRAIN_ROUTE = ["bank", "bank_review"].includes(body.task?.type) ? "bank" : "train";
   await go(TRAIN_ROUTE);
-  try { applyResp(await api("/api/session/start", body)); }
-  catch (e) { T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); T.finished = true; }
+  await trainWrites;
+  if (generation !== trainGeneration) return;
+  try {
+    const r = await api("/api/session/start", {...body, navigation:"pages"});
+    if (generation !== trainGeneration) return;
+    applyResp(r);
+  }
+  catch (e) { if (generation !== trainGeneration) return; T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); T.finished = true; }
   renderTrain();
 }
 let ASK_OPEN = false;     // 复盘时“师傅求助”打字框开着没有（换题就收起，追问中保持打开）
-function applyResp(r) {
+function applyResp(r, preview = false) {
+  if (!preview) {
+    const nav = r.navigation;
+    if (nav?.pages) {
+      questionDeck = {...nav, picks:{...nav.picks}, times:{...nav.times}, seen:new Set(nav.seen),
+        confirmed:r, version:0, since:Date.now(), invalid:false};
+    } else {
+      questionDeck = null;
+    }
+  }
   if (r.gone) { SESSION_SNAP = null; return dropSession(r.gone); }   // 这组已在另一台设备结束：提示一次，回试炼塔主页
   T.skillTeachers=r.skill_teachers||null;
   T.mentor = r.mentor || null;
@@ -1142,7 +1220,15 @@ async function renderTrain() {
   const box = $("#msgs"); if (box) box.scrollTop = T.top ? 0 : box.scrollHeight;
   startTimer();
   mountExamRest();
-  const ta = $("#answer"); if (ta) ta.focus();
+  const ta = $("#answer");
+  if (ta) {
+    if (questionDeck) {
+      const key = window.DRAW_KEY();
+      ta.value = questionDrafts.get(key) || '';
+      ta.oninput = () => questionDrafts.set(key, ta.value);
+    }
+    ta.focus();
+  }
 }
 function bindTrain() {
   fitChat();
@@ -1168,28 +1254,132 @@ function bindTrain() {
   const bmr = $("#backMockReview"); if (bmr) bmr.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); window.CONTEST?.openReview?.(); go("contest"); };
   const bsh = $("#backSectHome"); if (bsh) bsh.onclick = () => { Object.assign(T, { session: null, msgs: [], battle: null }); go("home"); };
 }
-async function submitText() {
-  const text = $("#answer").value.trim();
-  if (!text) return;
-  T.msgs.push({ who: "me", text }); T.busy = true; renderTrain();
-  try { applyResp(await api("/api/session/reply", { session: T.session, text })); }
-  catch (e) { if (sessionLost(e)) return; T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
+function pageOrigin() {
+  return questionDeck && [...questionDeck.origin.slice(0, 2), T.battle.position - 1];
+}
+function projectedPage(deck, action) {
+  const from = T.battle.position - 1, last = deck.pages.length - 1;
+  const pick = /^exam_pick:(\d+):([A-D])$/.exec(action);
+  let to;
+  if (pick && Number(pick[1]) === from) {
+    deck.picks[from] = pick[2];
+    to = Math.min(last, from + 1);
+  } else if (['exam_prev', 'exam_rprev', 'mr_prev'].includes(action)) to = from - 1;
+  else if (['exam_next', 'exam_rnext', 'mr_next'].includes(action)) to = from + 1;
+  else if (['exam_rwrong', 'mr_wrong'].includes(action)) to = deck.wrong.find(i => i > from);
+  else return null;
+  const page = deck.pages[to];
+  if (!page) return null;
+  const battle = {...T.battle, position:to + 1};
+  let input = page.input;
+  if (battle.timer) {
+    const elapsed = Math.min(600, Math.max(0, (Date.now() - deck.since) / 1000));
+    deck.times[from] = (deck.times[from] || 0) + elapsed;
+    deck.since = Date.now();
+    battle.timer = {paused:false, question:deck.times[to] || 0,
+      total:Object.values(deck.times).reduce((sum,t) => sum+t, 0)};
+    battle.answered = Object.keys(deck.picks).length;
+    const remaining = battle.total - battle.answered;
+    input = {...input, buttons:input.buttons.map(b => {
+      if (b.id.startsWith('exam_pick:')) {
+        const letter = b.id.slice(-1);
+        return {...b, label:(deck.picks[to] === letter ? '✓ ' : '') + letter};
+      }
+      if (b.id === 'exam_submit') return {...b, label:remaining ? `交卷（还有 ${remaining} 题没选）` : '交卷'};
+      return b;
+    })};
+  } else if (battle.reviewed != null && !deck.seen.has(to)) {
+    deck.seen.add(to);
+    battle.reviewed++;
+  }
+  return {...page, session:T.session, title:T.title, type:T_TYPE, replace:true, finished:false, input, battle};
+}
+function navigateQuestion(act) {
+  const deck = questionDeck, origin = pageOrigin();
+  const next = projectedPage(deck, act);
+  if (!next) return null;
+  const version = ++deck.version, sid = T.session;
+  applyResp(next, true);
   renderTrain();
+  return queueTrainWrite(async () => {
+    if (deck.invalid) return;
+    try {
+      const r = await api('/api/session/action', {session:sid, action:act, origin, navigation:'position'});
+      if (r.rejoined || r.gone) {
+        deck.invalid = true;
+        if (questionDeck === deck && sid === T.session) { applyResp(r); renderTrain(); }
+        return;
+      }
+      // 每个回包只确认自己的写入。用户可能已经翻过几题，不能重画旧页面或合上正在看的解析。
+      deck.confirmed = {...r, navigation:{...r.navigation, pages:deck.pages, wrong:deck.wrong}};
+      if (questionDeck !== deck || sid !== T.session) return;
+      handleEvents(r.events);
+      if (version === deck.version && !T.busy) {
+        deck.picks = {...r.navigation.picks};
+        deck.times = {...r.navigation.times};
+        deck.seen = new Set(r.navigation.seen);
+        deck.since = Date.now();
+        T.battle = r.battle;
+        startTimer();
+      }
+    } catch (e) {
+      deck.invalid = true;
+      if (questionDeck !== deck || T.session !== sid || sessionLost(e)) return;
+      // 未确认之后的操作均取消。恢复已确认页面，若服务器已收到而回包丢失，下次操作会核对源页。
+      applyResp({...deck.confirmed, events:[]});
+      T.msgs.push({who:'sys', text:'⚠ 翻题保存未确认，请核对当前位置后重试。' + e.message});
+      renderTrain();
+    }
+  });
+}
+async function submitText() {
+  const text = $("#answer")?.value.trim();
+  if (!text || T.busy) return;
+  if (questionDeck) questionDrafts.set(window.DRAW_KEY(), text);
+  T.msgs.push({who:"me", text});
+  return sendTrainRequest('/api/session/reply', {text});
 }
 async function doAction(act) {
-  T.busy = true; renderTrain();
-  try { applyResp(await api("/api/session/action", { session: T.session, action: act })); }
-  catch (e) { if (sessionLost(e)) return; T.busy = false; T.msgs.push({ who: "sys", text: "⚠ " + e.message }); }
+  if (!T.session || T.busy || T.finished) return;
+  if (questionDeck && !T.battle.timer?.paused && T.input.buttons.some(b => b.id === act)) {
+    const save = navigateQuestion(act);
+    if (save) return save;
+  }
+  return sendTrainRequest('/api/session/action', {action:act});
+}
+function sendTrainRequest(path, values) {
+  const sid = T.session, deck = questionDeck, origin = pageOrigin(), draftKey = window.DRAW_KEY();
+  T.busy = true;
+  if (deck) deck.ending = ['exam_close', 'mr_close', 'mr_pause', 'bank_pause'].includes(values.action);
   renderTrain();
+  return queueTrainWrite(async () => {
+    if (deck?.invalid) return;
+    try {
+      const r = await api(path, {session:sid, ...values, origin, navigation:'pages'});
+      if (T.session !== sid) return;
+      if (values.text && !r.rejoined) questionDrafts.delete(draftKey);
+      if (values.text && r.rejoined) r.messages.push({who:'sys', text:'此追问尚未发送，回到原题可继续编辑。'});
+      applyResp(r);
+    } catch (e) {
+      if (T.session !== sid || sessionLost(e)) return;
+      if (deck) deck.ending = false;
+      T.busy = false;
+      T.msgs.push({who:'sys', text:'⚠ ' + e.message});
+    }
+    renderTrain();
+  });
 }
 // 试炼塔复盘（2026-11-11）：题都答完、在复盘时离开页面 = 结束复盘（成绩早已记好，复盘内容存进练习记录），
 // 回来再点试炼塔/五峰看到的是主页，不再停在这组的复盘页。还在答题时离开照旧保留，回来接着答。
 function leaveBankReview() {
   if (!T.session || T.finished || !["bank", "bank_review"].includes(T_TYPE)) return;
   if (!(T.input?.buttons || []).some((b) => b.id === "exam_close")) return;
-  const sid = T.session;
+  const sid = T.session, deck = questionDeck, origin = pageOrigin();
+  questionDeck = null;
   Object.assign(T, { session: null, msgs: [], battle: null, busy: false, finished: false, input: { mode: "none" } });
-  api("/api/session/action", { session: sid, action: "exam_close" }).then(() => refresh()).catch(() => {});
+  if (!deck?.ending) queueTrainWrite(async () => {
+    if (!deck?.invalid) await api("/api/session/action", {session:sid, action:"exam_close", origin});
+  }).then(() => refresh()).catch(showError);
 }
 // 这一页的会话已失效（另一台设备结束了这组 / 程序重启过）：只提示一次，回到当前板块主页，不再每点一次报一次错
 function sessionLost(e) {
@@ -1198,6 +1388,7 @@ function sessionLost(e) {
   return true;
 }
 function dropSession(text) {
+  questionDeck = null;
   Object.assign(T, { session: null, msgs: [], battle: null, busy: false, finished: false, input: { mode: "none" } });
   toast(esc(text));
   refresh().finally(() => { if (VIEW === TRAIN_ROUTE) renderTrain(); });

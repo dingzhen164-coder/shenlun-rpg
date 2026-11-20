@@ -35,6 +35,27 @@ def install(g):
         data['records'][q['key']] = {'question': q, 'history': [{'date': g.t, 'ok': True, 'answer': 'A', 'mode': 'new'}], 'wrong': False, 'streak': 1}
     run.update(phase='review', results=[{'date': g.t, 'ok': True, 'first': True, 'answer': 'A', 'mode': 'new'} for _ in run['questions']], exam=True, picks={str(i): 'A' for i in range(len(run['questions']))})
     bank.finish(g, run, keep=True)
+    if '--workbook-fixture' in sys.argv:
+        # 三份自编题本/期，同名套次分属不同老师或期；每套各有两块的题。
+        entries = [('青禾', 1, 16), ('青禾', 2, 2), ('秋水', 1, 1)]
+        for num, board in enumerate(names, start=1):
+            rows = []
+            for teacher, term, size in entries:
+                for n in range(1, size + 1):
+                    paper = '【%s】26下-自编%d期-言语理解题本·选词刷题%d' % (teacher, term, n)
+                    answer = '（待补）' if teacher == '秋水' or (term == 2 and n == 1 and num == 2) else 'A'
+                    rows.append(
+                        '## 题目 %s-%d\n### 知识点\n自编方法1\n### 试卷\n%s\n'
+                        '### 题号\n%d\n### 题干\n自编题本练习第%d题。\n'
+                        '### 选项\nA. 甲\nB. 乙\nC. 丙\nD. 丁\n### 答案\n%s\n'
+                        % (paper, num, paper, num, num, answer))
+            (g.paths.train/'题库'/(board+'真题-自编题本.md')).write_text('\n'.join(rows), encoding='utf-8')
+        # 错误套另放文件，练习应在选套时告知哪处要修。
+        board = bank.boards(g)[2]
+        bad = ('## 题目 自编缺选项\n### 知识点\n自编\n### 题干\n自编题干\n'
+               '### 选项\nA. 甲\nB. 乙\nC. 丙\n### 答案\nA\n'
+               '### 试卷\n【秋水】26下-自编2期-言语理解题本·缺选项套\n')
+        (g.paths.train/'题库'/(board+'真题-自编缺选项.md')).write_text(bad, encoding='utf-8')
     return names
 
 

@@ -290,6 +290,12 @@
   r.root=runShell(r);document.body.appendChild(r.root);run=r;
   r.root.addEventListener('cancel',e=>{if(e.target!==r.root)return;e.preventDefault();if(window.DRAW&&(DRAW.state.on||performance.now()-(DRAW.state.closedAt||-1e9)<400))return DRAW.state.on&&DRAW.close();if(r.paused)return;if(r.root._erDone)return r.root._erDone();if(!r.root.querySelector('[data-er-sheet]').hidden)openSheet(r,false);else leave(r);});
   r.root.addEventListener('click',e=>onClick(r,e));
+  bindQuestionSwipe(r.root.querySelector('[data-er-body]'), forward => {
+   const button = r.root.querySelector(forward ? '[data-er-next]' : '[data-er-prev]');
+   if (r.paused || r.transitioning || r.finished || button.disabled || !r.root.querySelector('[data-er-sheet]').hidden) return false;
+   button.click();
+   return true;
+  });
   r.root.addEventListener('change',e=>{if(e.target.matches?.('[data-er-auto]'))setAutoNext(e.target.checked);});
   window.READING_TOOLS?.bind(r.root);
   r.root.showModal();renderQuestion(r);tick(r);showRest(r);

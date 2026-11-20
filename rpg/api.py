@@ -302,20 +302,27 @@ def realm_break(body):
         return {"events": tutor.enrich(g, ev), "realm": g.realm_info()}
 
 
+def _session_response(g, body, response):
+    if body.get("navigation") and response.get("battle") and not response.get("finished"):
+        response["navigation"] = trainer.navigation(g, response["session"],
+            pages=body["navigation"] == "pages" or response.get("rejoined"))
+    return _with_housekeeping(g, response)
+
+
 def session_start(body):
     with open_game() as g:
         task = _find_task(g, body["task_id"]) if body.get("task_id") else dict(body["task"], id=None)
-        return _with_housekeeping(g, trainer.start(g, task))
+        return _session_response(g, body, trainer.start(g, task))
 
 
 def session_reply(body):
     with open_game() as g:
-        return _with_housekeeping(g, trainer.reply(g, body["session"], body.get("text", "")))
+        return _session_response(g, body, trainer.reply(g, body["session"], body.get("text", ""), body.get("origin")))
 
 
 def session_action(body):
     with open_game() as g:
-        return _with_housekeeping(g, trainer.action(g, body["session"], body.get("action", "")))
+        return _session_response(g, body, trainer.action(g, body["session"], body.get("action", ""), body.get("origin")))
 
 
 def bank_view(body):

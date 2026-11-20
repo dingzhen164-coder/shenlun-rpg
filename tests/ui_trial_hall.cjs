@@ -1,6 +1,6 @@
 /* 双模式试炼真实HTTP回归：假HOME、自编题，不连接AI；电脑/平板明暗，无手机。 */
 const {chromium}=require('playwright'),{spawn}=require('node:child_process'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const service=spawn(process.env.PYTHON||'python3',['tests/ui_trial_server.py'],{env:process.env});
+const service=spawn(process.env.PYTHON||'python3',['tests/ui_trial_server.py','--workbook-fixture'],{env:process.env});
 let logs='',browser,active;service.stderr.on('data',x=>logs+=x);
 const ready=new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()=>reject(Error(logs||'试炼服务未启动')),20000);service.stdout.on('data',x=>{text+=x;const m=text.match(/UI-READY (http:\/\/\S+)/);if(m){clearTimeout(timer);resolve(m[1]);}});service.on('exit',c=>{clearTimeout(timer);reject(Error('试炼服务退出 '+c+' '+logs));});});
 const out=path.resolve('ui-artifacts/trial-hall');
@@ -28,10 +28,53 @@ async function pause(page){
 }
 async function enter(page,mode){if(await page.locator('.th-dialog[open]').count())await page.locator('[data-th-close]').click();await page.locator('[data-th-enter='+mode+']').click();assert.equal(await page.locator('[data-th-tab],.th-tabs').count(),0);}
 async function choose(page,selector,index){await page.locator(selector).selectOption(String(index));}
+async function practiceWorkbook(page,label){
+  await page.locator('.bankOrder').selectOption('workbook');
+  assert.equal(await page.locator('[data-th-board],[data-th-topic],#bankCount').count(),0);
+  const workbook=page.locator('[data-th-workbook]'),period=page.locator('[data-th-period]');
+  const rows=page.locator('[data-th-workbook-set]');
+  await workbook.selectOption(await workbook.locator('option').filter({hasText:'秋水'}).getAttribute('value'));
+  await period.selectOption({label:'26下-自编1期'});assert.equal(await rows.count(),1);
+  assert.match(await rows.first().textContent(),/2 题待补答案/);assert(await page.locator('.th-start').isDisabled());
+  await period.selectOption({label:'26下-自编2期'});
+  assert.match(await rows.first().textContent(),/资料错误/);assert(await page.locator('.th-start').isDisabled());
+  await workbook.selectOption(await workbook.locator('option').filter({hasText:'青禾'}).getAttribute('value'));
+  await period.selectOption({label:'26下-自编2期'});assert.equal(await rows.count(),2);
+  await rows.first().click();assert.match(await page.locator('.th-action-note').textContent(),/可练 1 道，1 道待补答案/);
+  assert(await page.locator('.th-start').isEnabled());
+  await period.selectOption({label:'26下-自编1期'});
+  assert.deepEqual(await rows.locator('b').allTextContents(),Array.from({length:16},(_,i)=>'选词刷题'+(i+1)));
+  // 每种屏幕练不同的一套，以便在同一个临时库里验证独立结算。
+  const index={desktop:0,tablet:13,'tablet-landscape':11}[label],chosen=rows.nth(index);
+  await chosen.click();await fits(page);
+  await page.reload();await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));
+  await page.locator('[data-th-enter=blocks]').click();
+  assert.equal(await page.locator('.bankOrder').inputValue(),'workbook');
+  assert.equal(await period.locator('option:checked').textContent(),'26下-自编1期');
+  assert.equal(await chosen.getAttribute('aria-pressed'),'true');
+  await page.locator('.th-start').click();await page.locator('[data-act="exam_pick:0:A"]').click();
+  await page.locator('[data-act="exam_pick:1:A"]').waitFor();
+  assert.equal(await page.evaluate(()=>T.battle.total),2,'跨板块的两题同时开练');
+  await pause(page);
+  assert.match(await chosen.textContent(),/进行中 · 已答 1 题/);
+  await page.locator('.bankOrder').selectOption('paper');await page.locator('[data-th-board]').waitFor();
+  await page.locator('.bankOrder').selectOption('workbook');
+  assert.equal(await chosen.getAttribute('aria-pressed'),'true');
+  await page.locator('.th-start').click();await page.locator('[data-act="exam_pick:1:B"]').click();
+  await page.locator('[data-act="exam_submit"]').click();await page.locator('[data-act="exam_close"]').waitFor();
+  assert.equal(await page.evaluate(()=>T.battle.total),2);
+  await page.locator('[data-act="exam_close"]').click();await page.waitForFunction(()=>!T.busy&&T.finished);
+  await page.locator('.st-btn').click();await page.locator('#backHome').click();
+  await page.locator('[data-th-enter=blocks]').click();
+  assert.match(await chosen.textContent(),/已交卷/);
+  assert.equal(await rows.nth(index+1).getAttribute('aria-pressed'),'true','交卷后默认下一套');
+  await chosen.click();assert.match(await page.locator('.th-start').textContent(),/再练本套/);
+  await period.selectOption({label:'26下-自编2期'});assert.equal(await rows.filter({hasText:'已交卷'}).count(),0);
+}
 (async()=>{try{
  const base=await ready;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
  for(const [label,viewport]of [['desktop',{width:1280,height:860}],['tablet',{width:800,height:1280}],['tablet-landscape',{width:1280,height:800}]]){
-  const page=await browser.newPage({viewport,deviceScaleFactor:2});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage({viewport,deviceScaleFactor:2,hasTouch:label!=='desktop'});active=page;page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>!!window.DASH_REF?.());await page.evaluate(()=>go('bank'));await page.locator('.trial-hall').waitFor();
   const painted=await page.locator('.th-panorama').count(),left=(await page.locator('[data-th-enter=exam]').count())?'exam':'sets';   // 行测左门是整卷模考（见 ui_exam_room.cjs），法考等仍是套卷练习
   await page.locator(painted?'.th-panorama':'.th-tower-art').evaluate(img=>img.decode());
@@ -80,10 +123,16 @@ async function choose(page,selector,index){await page.locator(selector).selectOp
   if(painted&&await page.locator('.bankOrder option[value=paper]').count()){
   await page.locator('.bankOrder').selectOption('paper');
   const source=await page.locator('[data-th-block-paper]').first().locator('b').textContent();await page.locator('[data-th-block-paper]').first().click();
-  assert((await page.locator('.th-paper-source').textContent()).includes(source));assert.equal(await page.locator('#bankCount,[data-th-topic]').count(),0);await fits(page);
+  assert.equal(await page.locator('#th-pane-blocks .th-selection').count(),0,'来源摘要已移除');
+  assert(await page.locator('#th-pane-blocks').evaluate(p=>{
+    const list=p.querySelector('.th-choice-list'),bottom=p.getBoundingClientRect().bottom-parseFloat(getComputedStyle(p).paddingBottom);
+    return Math.abs(list.getBoundingClientRect().bottom-bottom)<2 && p.querySelector('.th-filters').nextElementSibling.classList.contains('th-list-head');
+  }),'来源列表紧接筛选，填满剩余空间');
+  assert((await page.locator('.th-actions').textContent()).includes(source));assert.equal(await page.locator('#bankCount,[data-th-topic]').count(),0);await fits(page);
   const expected=Number((await page.locator('[data-th-block-paper][aria-pressed=true] .th-choice-progress').textContent()).match(/\d+/)[0]);
   await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),expected);assert((await page.locator('#view').textContent()).includes('来源：'+source));await pause(page);
   assert.equal(await page.locator('.bankOrder').inputValue(),'paper');await page.locator('.th-start').click();await page.waitForFunction(()=>!!T.battle&&!T.busy);assert.equal(await page.evaluate(()=>T.battle.total),expected);await pause(page);
+  if(left==='exam')await practiceWorkbook(page,label);
   await page.locator('.bankOrder').selectOption('seq');await page.locator('#bankCount').waitFor();await page.waitForFunction(()=>document.querySelector('.th-save-status')?.textContent.includes('已保存'));
   }
   await enter(page,'blocks');await choose(page,'[data-th-topic]',0);
