@@ -53,12 +53,14 @@ html.wx-motion-paused .wx-atlas-instrument g{animation-play-state:paused}
 .wx-manage-actions button{min-height:44px}
 .wx-danger{border-color:var(--red);color:var(--red)}
 .wx-danger:disabled{opacity:.45}
+.wx-exam-manage{margin:var(--ds-sp-16) 0;padding:var(--ds-sp-16);border:1px solid var(--line);border-radius:var(--ds-r-12);background:var(--panel)}
+.wx-exam-manage>summary{cursor:pointer;color:var(--accent);font-weight:600}
 .wx-exam-manage-list{display:grid;gap:var(--ds-sp-8);margin:var(--ds-sp-12) 0}
 .wx-exam-manage-row{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-sp-12);padding:var(--ds-sp-8) var(--ds-sp-12);border:1px solid var(--line);border-radius:var(--ds-r-8);flex-wrap:wrap}
 .wx-exam-manage-info{display:grid;gap:var(--ds-sp-4);min-width:0}
 .wx-exam-manage-btns{display:flex;gap:var(--ds-sp-8);flex-wrap:wrap}
 .wx-exam-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--ds-sp-12);margin-top:var(--ds-sp-12);padding-top:var(--ds-sp-12);border-top:1px solid var(--line)}
-.wx-exam-form label{flex:1 1 220px}
+.wx-exam-form label{display:grid;gap:var(--ds-sp-4);font-size:var(--ds-fs-13);flex:1 1 220px}
 .wx-exam-form input[type=text]{width:100%;min-height:var(--ds-touch);padding:0 var(--ds-sp-12);border:1px solid var(--line);border-radius:var(--ds-r-6);background:var(--panel);color:var(--text)}
 .wx-exam-form-actions{display:flex;gap:var(--ds-sp-8);align-items:center}
 
