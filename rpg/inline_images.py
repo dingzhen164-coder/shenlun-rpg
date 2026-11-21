@@ -4,6 +4,7 @@
 import re
 import struct
 from functools import lru_cache
+from pathlib import Path
 
 
 @lru_cache(maxsize=512)
@@ -34,7 +35,12 @@ def _size(name,mtime,size):
 
 def small(paths,relative):
     try:
-        file=(paths.vault/relative).resolve();file.relative_to(paths.vault.resolve());st=file.stat()
+        file=(paths.vault/relative).resolve()
+        if not file.is_file() and getattr(paths,'train',None) is not None:
+            s=str(relative).replace('\\','/').lstrip('/')
+            if s.startswith('训练/') and '..' not in Path(s).parts:
+                file=(paths.train/s[len('训练/'):]).resolve()
+        file.relative_to(paths.vault.resolve());st=file.stat()
         size=_size(str(file),st.st_mtime_ns,st.st_size)
     except (OSError,ValueError,TypeError):return None
     return bool(0<size[0]<=420 and 0<size[1]<=96) if size else None
