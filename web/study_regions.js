@@ -71,12 +71,16 @@
   const icon=kind=>window.WANXIANG_ART?.icon(kind)||'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>';
   const backButton=label=>`<button class="ghost" data-wx-back>← ${label}</button>`;
   function wxHead(title,subtitle,back){return `<header class="wx-heading">${backButton(back)}<div><small>万象峰 · 研习之境</small><h2>${title}</h2><p>${subtitle}</p></div></header>`;}
+  const CN_INDEX=['壹','贰','叁','肆','伍','陆','柒','捌','玖','拾'];
+  let editingExam=null; // null | {id, title, range}
   async function changHtml(){
     if(!branch)return `<section class="wx-home">${wxHead('万象峰','观天下之势，识万物之理','主地图')}<div class="wx-gates"><button class="wx-gate wx-politics" data-wx-branch="politics"><span class="wx-art">${icon('politics')}</span><h3 class="wx-title">政治理论</h3><small class="wx-motto">明大势 · 理脉络</small><span class="wx-type-rule" aria-hidden="true"></span><p class="wx-detail">理论脉络 / 时政研读</p><span class="wx-entry-link">启卷研习 <svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6h25m-5-5 5 5-5 5"/></svg></span></button><button class="wx-gate wx-common" data-wx-branch="common"><span class="wx-art">${icon('common')}</span><h3 class="wx-title">常识判断</h3><small class="wx-motto">知万物 · 通古今</small><span class="wx-type-rule" aria-hidden="true"></span><p class="wx-detail">地理 / 文史 / 经济 / 科技</p><span class="wx-entry-link">启卷研习 <svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6h25m-5-5 5 5-5 5"/></svg></span></button></div></section>`;
     if(branch==='atlas')return `<section class="wx-atlas-shell"><iframe class="wx-atlas-frame" title="考试时政地图" src="political_atlas.html?exam=${encodeURIComponent(exam)}"></iframe></section>`;
     if(branch==='politics'){
       const [cards,catalog]=await Promise.all([CARDS.hubHtml({id:'chang-politics',label:'政治理论',deck:'政治理论'}),api('/api/politics/catalog')]);
-      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<div class="wx-exam-list">${catalog.exams.map((e,index)=>`<button class="wx-atlas-entry" data-wx-branch="atlas" data-wx-exam="${e.id}" aria-label="${esc(e.title)}"><span class="wx-exam-art">${window.WANXIANG_ART?.atlasIcon(index)||icon("politics")}</span><div class="wx-exam-copy"><span class="wx-exam-kicker">备考时政 · ${["壹","贰","叁"][index]}</span><b>${esc(e.title)}</b><small>时政范围：${esc(e.range)}</small><span class="wx-source-counts">${Object.entries(e.counts.kinds).map(([k,v])=>`${k} ${v}`).join(' · ')}<br>共 ${e.counts.total} 项</span></div><span class="wx-exam-enter" aria-hidden="true">启卷<svg viewBox="0 0 40 12"><path d="M1 6h36m-6-5 6 5-6 5"/></svg></span></button>`).join('')}</div>${POLITICS_IMPORT.html(catalog.exams,exam)}${cards}`;
+      if(!catalog.exams.some(e=>e.id===exam)&&catalog.exams.length)exam=catalog.exams[0].id;
+      const manageBar=`<details class="wx-exam-manage" ${editingExam?'open':''}><summary>管理时政地图（新增 / 编辑时政范围 / 删除）</summary><p class="small muted">每个时政地图有明确的时政时间范围，月半时政与专题时政会根据时间自动归入对应地图，并在本地 <code>训练/万象峰/&lt;时政地图名&gt;/</code> 下导出 Markdown 文档供检索。</p><div class="wx-exam-manage-list">${catalog.exams.map(e=>`<div class="wx-exam-manage-row" data-exam-row="${esc(e.id)}"><div class="wx-exam-manage-info"><b>${esc(e.title)}</b><small class="muted">时政范围：${esc(e.range)}</small></div><div class="wx-exam-manage-btns"><button type="button" class="ghost small" data-wx-exam-edit="${esc(e.id)}" data-title="${esc(e.title)}" data-range="${esc(e.range)}">✎ 编辑范围</button>${catalog.exams.length>1?`<button type="button" class="ghost small" data-wx-exam-del="${esc(e.id)}" data-title="${esc(e.title)}">🗑 删除</button>`:''}</div></div>`).join('')}</div><form class="wx-exam-form" data-wx-exam-form><input type="hidden" name="id" value="${esc(editingExam?.id||'')}"><label>地图名称<input type="text" name="title" required maxlength="60" placeholder="如：2027.3省考时政地图" value="${esc(editingExam?.title||'')}"></label><label>时政时间范围<input type="text" name="range" required maxlength="80" placeholder="如：2026年1月至2027年2月上" value="${esc(editingExam?.range||'')}"></label><div class="wx-exam-form-actions"><button type="submit" class="btn">${editingExam?.id?'保存修改':'+ 新增时政地图'}</button>${editingExam?`<button type="button" class="ghost" data-wx-exam-cancel>取消编辑</button>`:''}</div></form></details>`;
+      return `${wxHead('政治理论','明大势 · 理脉络','万象峰')}<div class="wx-exam-list">${catalog.exams.map((e,index)=>`<button class="wx-atlas-entry" data-wx-branch="atlas" data-wx-exam="${esc(e.id)}" aria-label="${esc(e.title)}"><span class="wx-exam-art">${window.WANXIANG_ART?.atlasIcon(index)||icon("politics")}</span><div class="wx-exam-copy"><span class="wx-exam-kicker">备考时政 · ${CN_INDEX[index]||index+1}</span><b>${esc(e.title)}</b><small>时政范围：${esc(e.range)}</small><span class="wx-source-counts">${Object.entries(e.counts.kinds).map(([k,v])=>`${k} ${v}`).join(' · ')}<br>共 ${e.counts.total} 项</span></div><span class="wx-exam-enter" aria-hidden="true">启卷<svg viewBox="0 0 40 12"><path d="M1 6h36m-6-5 6 5-6 5"/></svg></span></button>`).join('')}</div>${manageBar}${POLITICS_IMPORT.html(catalog.exams,exam)}${cards}`;
     }
     if(category){
       const item=common.find(c=>c.id===category),label=item?.name||'其他玉简';
@@ -94,6 +98,18 @@
     window.POLITICS_IMPORT?.bind(root,target=>{exam=target;return renderTrain();});
     root.querySelectorAll('[data-wx-branch]').forEach(b=>b.onclick=async()=>{branch=b.dataset.wxBranch;if(b.dataset.wxExam)exam=b.dataset.wxExam;category='';await renderTrain();window.STUDY_HUD?.refresh();});
     root.querySelectorAll('[data-wx-category]').forEach(b=>b.onclick=async()=>{category=b.dataset.wxCategory;await renderTrain();window.STUDY_HUD?.refresh();});
+    root.querySelectorAll('[data-wx-exam-edit]').forEach(b=>b.onclick=async()=>{editingExam={id:b.dataset.wxExamEdit,title:b.dataset.title,range:b.dataset.range};await renderTrain();});
+    const cancelEdit=root.querySelector('[data-wx-exam-cancel]');if(cancelEdit)cancelEdit.onclick=async()=>{editingExam=null;await renderTrain();};
+    root.querySelectorAll('[data-wx-exam-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm(`确定删除「${b.dataset.title}」吗？\n删除后该地图的补充资料与导出文档会备份到「训练/万象峰/回收站」。`))return;
+      try{await api('/api/politics/exam_delete',{id:b.dataset.wxExamDel});editingExam=null;toast('已删除时政地图');await renderTrain();}catch(e){showError(e);}
+    });
+    const examForm=root.querySelector('[data-wx-exam-form]');
+    if(examForm)examForm.onsubmit=async e=>{
+      e.preventDefault();
+      const id=examForm.elements.id.value.trim(),title=examForm.elements.title.value.trim(),range=examForm.elements.range.value.trim();
+      try{const r=await api('/api/politics/exam_save',{id,title,range});exam=r.exam.id;editingExam=null;toast(id?'时政地图已更新':'已新增时政地图');await renderTrain();}catch(err){showError(err);}
+    };
     const wb=root.querySelector('[data-wx-back]');if(wb)wb.onclick=back;
     root.querySelectorAll('[data-region-image]').forEach(img=>img.addEventListener('error',()=>{
       img.outerHTML=`<span class="study-region-symbol" aria-hidden="true">${office()?'▤':'♜'}</span>`;

@@ -518,6 +518,10 @@ def safe_vault_file(paths, rel):
     if not paths.vault or not rel:
         return None
     p = (paths.vault / rel).resolve()
+    if not p.is_file() and getattr(paths, "train", None) is not None:
+        s = str(rel).replace("\\", "/").lstrip("/")
+        if s.startswith("训练/") and ".." not in Path(s).parts:
+            p = (paths.train / s[len("训练/"):]).resolve()
     try:
         p.relative_to(paths.vault.resolve())
     except ValueError:

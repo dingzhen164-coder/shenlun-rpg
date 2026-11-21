@@ -151,7 +151,7 @@ class FlowTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def state(self):
-        return json.loads((self.vault / "训练/存档/存档.json").read_text(encoding="utf-8"))
+        return json.loads(paths.Paths(self.vault).save_file.read_text(encoding="utf-8"))
 
     def run_task(self, task, answer="否定论点 拆桥 先找论点和论据 搭桥"):
         r = api.session_start({"task": dict(task, fresh=True)})
@@ -186,7 +186,7 @@ class FlowTest(unittest.TestCase):
              "target": "36|论证逻辑|2", "minutes": 5, "done": True, "ok": True, "optional": False},
             {"id": "wrong:36|论证逻辑|3", "type": "wrong", "board": "论证逻辑", "title": "斩心魔 · 第36季论证逻辑第3题",
              "target": "36|论证逻辑|3", "minutes": 5, "done": False, "ok": None, "optional": False}]
-        (self.vault / "训练/存档/存档.json").write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
+        paths.Paths(self.vault).save_file.write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
         d = api.dashboard({})
         wrongs = [t for t in d["plan"]["tasks"] if t["type"] == "wrong"]
         self.assertEqual(len(wrongs), 1)
@@ -202,7 +202,7 @@ class FlowTest(unittest.TestCase):
         # 生成功法 → 定稿
         r = api.session_start({"task": {"type": "skeleton", "board": "论证逻辑", "target": "论证逻辑", "title": "功法"}})
         r = api.session_action({"session": r["session"], "action": "gen"})
-        self.assertIn("草稿", (self.vault / "训练/骨架/论证逻辑.md").read_text(encoding="utf-8"))
+        self.assertIn("草稿", (paths.Paths(self.vault).train / "骨架/论证逻辑.md").read_text(encoding="utf-8"))
         r = api.session_action({"session": r["session"], "action": "final"})
         self.assertTrue(r["finished"])
         board = [b for b in api.skeletons({})["boards"] if b["board"] == "论证逻辑"][0]
@@ -223,8 +223,8 @@ class FlowTest(unittest.TestCase):
         r = api.session_action({"session": r["session"], "action": "discuss_end"})
         self.assertTrue(r["finished"])
         self.assertEqual(self.state()["items"].get(iid, {}).get("level", 0), 0)
-        # 修炼记录：这次传授写进 训练/修炼记录/论证逻辑/<大项>.md；下次再点，往期对话折叠在最上面
-        logs = list((self.vault / "训练/修炼记录/论证逻辑").glob("*.md"))
+        # 修炼记录：这次传授写进 训练/(系统/历史备份/)修炼记录/论证逻辑/<大项>.md；下次再点，往期对话折叠在最上面
+        logs = list((paths.Paths(self.vault).train / "修炼记录/论证逻辑").glob("*.md"))
         self.assertEqual(len(logs), 1)
         log = logs[0].read_text(encoding="utf-8")
         self.assertIn("· 传授 <!-- sid:", log)
@@ -326,7 +326,7 @@ class FlowTest(unittest.TestCase):
         r = api.practice({"board": "资料分析", "source": "粉笔980 P12", "total": "10", "correct": "8", "minutes": "20",
                           "note": "增长率估算又慢了，下次先截位"})
         self.assertTrue(r["events"])
-        logs = list((self.vault / "训练/演武录").glob("*.md"))
+        logs = list((paths.Paths(self.vault).train / "演武录").glob("*.md"))
         self.assertEqual(len(logs), 1)
         text = logs[0].read_text(encoding="utf-8")
         self.assertIn("资料分析 · 粉笔980 P12 · 8/10（80%） · 20 分钟", text)
@@ -426,7 +426,7 @@ class FlowTest(unittest.TestCase):
         (old / "2026-09.md").write_text("# 旧日志\n", encoding="utf-8")
         api.practice({"board": "论证逻辑", "total": "5", "correct": "5", "minutes": "10"})
         self.assertFalse(old.exists())
-        self.assertTrue((self.vault / "训练/演武录/2026-09.md").exists())
+        self.assertTrue((paths.Paths(self.vault).train / "演武录/2026-09.md").exists())
         xp0 = self.state()["xp"]
         api.selfstudy_add({"board": "论证逻辑", "minutes": 40, "topic": "削弱题口诀", "note": "他因还不熟"})
         api.selfstudy_add({"minutes": 20})
@@ -439,7 +439,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(bt["论证逻辑"]["review"], 40)
         self.assertEqual(d["boardtime"]["today"]["loose"], 0)          # 不分模块的 20 分钟静修不再被分摊
         self.assertGreater(self.state()["xp"], xp0)
-        text = next((self.vault / "训练/静修录").glob("*.md")).read_text(encoding="utf-8")
+        text = next((paths.Paths(self.vault).train / "静修录").glob("*.md")).read_text(encoding="utf-8")
         self.assertIn("论证逻辑 · 削弱题口诀 · 40 分钟", text)
         self.assertIn("他因还不熟", text)
         api.selfstudy_delete({"id": d["selfstudy"][1]["id"]})
@@ -731,7 +731,7 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(it["examples"], ["自行编情境"])
 
     def test_unverified_draft_cannot_finalize(self):
-        bone = self.vault / "训练/骨架/论证逻辑.md"
+        bone = paths.Paths(self.vault).train / "骨架/论证逻辑.md"
         bone.parent.mkdir(parents=True, exist_ok=True)
         bone.write_text("---\n状态: 草稿\n---\n## 方法\n> 待核对：补充章节定义\n- 【术语】建立联系", encoding="utf-8")
         r = api.session_start({"task": {"type": "skeleton", "board": "论证逻辑", "title": "审核"}})
@@ -743,7 +743,7 @@ class FlowTest(unittest.TestCase):
         from rpg import skeleton
         source = ROOT / "defaults/骨架/论证逻辑.md"
         body = source.read_text(encoding="utf-8")
-        bone = self.vault / "训练/骨架/论证逻辑.md"
+        bone = paths.Paths(self.vault).train / "骨架/论证逻辑.md"
         bone.parent.mkdir(parents=True, exist_ok=True)
         bone.write_text(body, encoding="utf-8")
         parsed = skeleton.parse(body, "论证逻辑")
@@ -774,11 +774,12 @@ class MigrationTest(unittest.TestCase):
             (v / "训练").mkdir()
             (v / "训练/角色设定.md").write_text("- 配置版本: 2\n- 导师名: 艾琳学姐\n", encoding="utf-8")  # 第二版的文件
             (v / "训练/规则.md").write_text((ROOT / "defaults/规则.md").read_text(encoding="utf-8"), encoding="utf-8")
-            up = paths.Paths(v).ensure_train_dir()
+            p = paths.Paths(v)
+            up = p.ensure_train_dir()
             self.assertEqual(up, ["角色设定.md"])  # 台词库不存在 → 直接新建，不算升级
-            self.assertIn("劭神韵", (v / "训练/角色设定.md").read_text(encoding="utf-8"))
-            self.assertIn("艾琳学姐", (v / "训练/角色设定.旧版.md").read_text(encoding="utf-8"))
-            self.assertTrue((v / "训练/台词库·玄幻.md").exists())
+            self.assertIn("劭神韵", (p.train / "角色设定.md").read_text(encoding="utf-8"))
+            self.assertIn("艾琳学姐", (p.train / "角色设定.旧版.md").read_text(encoding="utf-8"))
+            self.assertTrue((p.train / "台词库·玄幻.md").exists())
             self.assertEqual(paths.Paths(v).ensure_train_dir(), [])
         finally:
             paths.UPGRADED.clear()
@@ -791,13 +792,13 @@ class MigrationTest(unittest.TestCase):
             (v / "copilot/skills").mkdir(parents=True)
             p = paths.Paths(v)
             p.ensure_train_dir()
-            f = v / "训练/骨架/图形推理.md"
+            f = p.skeletons / "图形推理.md"
             self.assertTrue(f.exists())                              # 程序自带的图推 24 诀复制进来了（草稿）
             f.write_text(f.read_text(encoding="utf-8").replace("状态: 草稿", "状态: 已定稿"), encoding="utf-8")
             p.ensure_train_dir()
             self.assertIn("已定稿", f.read_text(encoding="utf-8"))   # 已有的不覆盖
             from rpg import config, store
-            rules = config.Rules((v / "训练/规则.md").read_text(encoding="utf-8"))
+            rules = config.Rules(p.rules.read_text(encoding="utf-8"))
             g = engine.Game(p, rules, config.Persona(), config.Lines(), store.new_state(dt.date(2026, 10, 1)))
             self.assertTrue(g.available("图形推理"))                  # 有功法文件就算正式板块，不需要 skill
             self.assertIn("图形推理", rules.batches[3])
@@ -814,13 +815,14 @@ class MigrationTest(unittest.TestCase):
         try:
             v = tmp / "行测"
             (v / "copilot/skills").mkdir(parents=True)
-            sk = v / "训练/骨架"
-            sk.mkdir(parents=True)
-            (sk / "资料分析.md").write_text("---\n板块: 资料分析\n状态: 草稿\n来源skill: xingce-ziliao\n---\n## 旧\n- 【思路】x\n",
+            sk_old = v / "训练/骨架"
+            sk_old.mkdir(parents=True)
+            (sk_old / "资料分析.md").write_text("---\n板块: 资料分析\n状态: 草稿\n来源skill: xingce-ziliao\n---\n## 旧\n- 【思路】x\n",
                                           encoding="utf-8")
             p = paths.Paths(v)
             p.ensure_train_dir()
-            self.assertIn("xingce-ziliao", (sk / "资料分析.md").read_text(encoding="utf-8"))  # 已有的（skill 生成的）不覆盖
+            sk = p.skeletons
+            self.assertIn("xingce-ziliao", (sk / "资料分析.md").read_text(encoding="utf-8"))  # 已有的（skill 生成的）迁入新位置且不覆盖
             side = sk / "资料分析.程序自带版.md"
             self.assertTrue(side.exists())                           # 程序自带版放在旁边供替换
             (sk / "资料分析.md").unlink()
@@ -852,8 +854,8 @@ class MigrationTest(unittest.TestCase):
             (v / "copilot/skills").mkdir(parents=True)
             p = paths.Paths(v)
             p.ensure_train_dir()
-            (v / "训练/存档/存档.json").write_text(json.dumps({"version": 1, "created": "2026-09-29", "xp": 500, "gates": [30]}),
-                                                  encoding="utf-8")
+            p.save_file.write_text(json.dumps({"version": 1, "created": "2026-09-29", "xp": 500, "gates": [30]}),
+                                   encoding="utf-8")
             st = store.Store(p).load(dt.date(2026, 10, 1))
             self.assertEqual(st["gates"], [])
             self.assertEqual(st["xp"], 500)

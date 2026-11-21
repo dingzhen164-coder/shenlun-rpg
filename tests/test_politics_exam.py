@@ -132,7 +132,7 @@ class ExamTests(unittest.TestCase):
         papers,questions,_=self.parse([rows],'无标题.pdf');self.assertEqual(len(papers),2);self.assertEqual([q['paper'] for q in questions],[0,0,0,0,1,1])
 
 
-@unittest.skipIf(fitz is None,'缺PDF组件')
+@unittest.skip('4.4.0 已取消冲刺刷题一栏及 practice_only 套卷')
 class AnswerImportTests(unittest.TestCase):
     """导入的套卷原PDF没有答案时，另给答案文字/答案页PDF补上；按套卷内题号对应，只改这一套。"""
     def setUp(self):

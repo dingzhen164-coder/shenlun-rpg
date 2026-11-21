@@ -1,3 +1,21 @@
+## 开发中（未发布，4.4.0 批次）：行测 `训练/` 六大类重排、按题本训练免细分板块、思过崖数量关系清洗与十八讲折叠目录、万象峰时政地图五栏与 `.md` 导出、BGM 仅留我的音乐（2026-11-20）
+
+- **行测 `训练/` 目录按「地点 + 系统底座」六大类重排（`rpg/paths.py`、`rpg/vault.py`、`rpg/api.py`、`rpg/notes.py`、`rpg/appearance.py`）**：
+  - `XINGCE_6_TOP_DIRS`：`思过崖/`、`万象峰/`、`藏经阁/`、`试炼与大比/`、`规则与设定/`、`系统/`。
+  - `XingceTrainPath`（行测科目下 `Paths.train` 的透明路径子类）通过 `XINGCE_6_MAP` 把旧逻辑相对路径（如 `paths.train / "题库"`、`paths.train / "存档"`、`paths.train / "规则.md"`）自动映射到六大类实际路径，并在 `migrate_xingce_dirs()` 中将磁盘上已有的散落旧目录/文件无损合并迁入六大类。
+- **「按题本训练」取消强制分板块校验（`rpg/question_bank.py`）**：
+  - `_workbook_board()` 对含有 `### 题本` 或具有 `题本 · 期 · 套` 结构的题目，不再强制要求 `### 知识点` 命中 12 个细分板块（按题本大类自动兜底板块供修为统计，知识点留空时回填题本名），消除 `资料错误 · 无法识别板块`，直接按 **老师题本 → 期数 → 套数** 顺序练习。
+- **思过崖「数量关系」仅留错题/慢题 + 十八讲可展开目录（`rpg/siguo.py`、`web/siguo.js`、`web/siguo.css`）**：
+  - `SHULIANG_18_LECTURES`（第01课-方程思维 ～ 第18课-趣味杂题）、`is_shuliang_wrong_or_slow(q)`、`prune_shuliang_doc(text)`：自动筛除正常做对且无慢题/卡点标记的常规训练题或未作答讲义例题，只保留错题、慢题、不会/未做出、蒙对/猜对的题目，并同步重建顶部索引表；`_doc(paths, '数量关系')` 与 `sync_from_source(g)` 自动清洗。
+  - 思过崖左侧目录在 `数量关系` 板块下按 `q.group`（十八讲课程目录）渲染为 `<details class="sg-group">` 可展开/折叠分组，展开状态持久化在 `localStorage["sg-pos-v1"].closed_数量关系`。
+- **万象峰时政地图管理、导出 `.md`、取消「冲刺刷题」栏、新增「分类时政」与「易错题」栏（`rpg/politics.py`、`rpg/wanxiang_journal.py`、`rpg/siguo.py`、`web/study_regions.js`、`web/politics_import.js`、`web/political_atlas.html`、`web/atlas.js`）**：
+  - **时政地图管理**：`训练/万象峰/知识地图/考试地图.json` 保存时政地图列表（默认三张：`2026.10国考时政地图`、`2026.12省考时政地图`、`2027.3省考时政地图`）；接口 `POST /api/politics/exam_save`（新增或修改名称与时政时间范围）、`POST /api/politics/exam_delete`（删除并备份到 `万象峰/回收站`）；`journal_in_exam()` 按时间范围自动将月半时政与专题时政归入对应时政地图。
+  - **按时政地图导出 `.md` 文档**：`export_exam_markdowns(pp)` 自动将每个时政地图下的 `月半时政`、`专题时政`、`冲刺学习` 导出为 `训练/万象峰/<时政地图名>/{月半时政,专题时政,冲刺学习}/*.md`，并在 `siguo.sync_from_source` 时镜像到 `gk-skill/时政地图/<时政地图名>/` 及写入 `defaults/gk-skill-AGENTS.md` 规则文件。
+  - **取消「冲刺刷题」栏**：从 `web/political_atlas.html`、`web/atlas.js`、`web/politics_import.js` 移除「冲刺刷题」栏与 `sprint-quiz` 导入通道，并在 `politics.atlas()` 中通过 `_clean_practice_only()` 自动清理旧 `practice_only` 套卷与题目。
+  - **新增「分类时政」栏（`category_all`）**：在「冲刺学习」后、「易错题」前增加「分类时政」，通过 `classified_items()` 将当前时政地图下的月半时政、专题时政、冲刺学习按类别（两会·政府报告、经济、农业、科技、外交、党建、文化、生态、民生、国防、其他）汇总学习，并支持一键跳回对应期刊或冲刺材料。
+  - **新增「易错题」栏（`wrong`）**：政治理论建立独立错题集 `训练/万象峰/易错题.md`（从 `gk-skill/错题集/政治理论.md` 同步，不在思过崖 7 石碑显示），通过 `/api/politics/wrong` 与 `/api/politics/wrong/answer` 在时政地图顶栏第 5 栏按思过崖卡片模板展示与重做。
+- **背景音乐移除内置场景音乐，只保留我的音乐（`web/beauty_audio.js`、`web/ambience.js`）**：删掉内置场景音乐加载与曲目下拉框，固定使用用户放入 `训练/系统/外观/音乐/` 的“我的音乐”（保留答题音效与环境白噪音）。
+
 ## 开发中（未发布，沿用 4.3.0）：思过崖公式/选项自适应单行、万象峰目录 7 合 1 与行测库识别放宽（2026-11-20）
 
 - **思过崖选项自适应排版（`web/siguo.js`、`web/siguo.css`）**：`layoutOpts()` 在渲染、窗口缩放及 `--chat-fs` 字号变化时，先以 4 列单行测量（`.is-measure`）检查各选项 `scrollWidth > clientWidth + 1`；4 列单行可放下时保持横排，任意选项会换行则自动切为单列（`.is-stack`）每项单独一行。

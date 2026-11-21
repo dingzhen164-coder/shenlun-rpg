@@ -76,7 +76,7 @@ class JournalTests(unittest.TestCase):
         self.assertGreater(study['added'],0)
         again=self.upload('sprint-study',self.month,exam='2026-12-shengkao')
         self.assertTrue(again['duplicate'])
-        quiz=self.upload('sprint-quiz',self.topic,exam='2027-03-shengkao')
+        quiz=self.upload('sprint-study',self.topic,exam='2027-03-shengkao')
         self.assertGreater(quiz['questions'],0)
         with api.open_game(save=False) as g:
             first=politics.atlas(g.paths,'2026-12-shengkao')
@@ -94,17 +94,16 @@ class JournalTests(unittest.TestCase):
             self.assertNotIn('digest',politics.progress(g.paths,'2027-03-shengkao'))
             with self.assertRaises(politics.PoliticsError):politics.set_progress(g.paths,dict(field='digest',id='fake',value='remember'))
 
-    def test_question_only_papers_have_distinct_sources_and_no_learning_entries(self):
-        for i in (1,2):
-            file=self.vault/('自编纯题卷%s.pdf'%i)
-            fixtures.make_pdf(file,[[(1,'1.（单选）自编判断题%s：'%i),(1,'A.甲'),(1,'B.乙'),(1,'C.丙'),(1,'D.丁'),(1,'1.【答案】A。解析：自编说明。')]])
-            result=self.upload('sprint-quiz',file,exam='2027-03-shengkao')
-            self.assertEqual(result['questions'],1)
+    def test_practice_only_materials_and_questions_are_cleaned(self):
         with api.open_game(save=False) as g:
-            data=politics.atlas(g.paths,'2027-03-shengkao')
-            self.assertEqual(len(data['materials']),2)
-            self.assertTrue(all(m['practice_only'] for m in data['materials']))
-            self.assertEqual(len({q['material'] for q in data['questions']}),2)
+            extra_f = politics.exam_folder(g.paths, '2027-03-shengkao') / '补充.json'
+            politics.atomic_json(extra_f, {
+                'materials': [{'id': 'p1', 'title': '旧冲刺刷题卷', 'original': '', 'practice_only': True, 'tags': ['imported'], 'questions': [99]}],
+                'questions': [{'id': 99, 'material': 'p1', 'text': '旧题', 'answer': 'A', 'tags': ['imported']}],
+            })
+            data = politics.atlas(g.paths, '2027-03-shengkao')
+            self.assertEqual(data['materials'], [])
+            self.assertEqual(data['questions'], [])
 
     def test_multi_answer_and_reward_ledger_survives_reset(self):
         result=self.upload('month',self.month)

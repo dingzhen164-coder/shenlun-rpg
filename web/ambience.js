@@ -83,10 +83,10 @@ const AMB = (() => {
       if (!bag.length) bag = list.map((_, i) => i).filter((i) => i !== idx).sort(() => Math.random() - 0.5);
       return bag.shift();
     }
-    function start() {
+    function start(silent) {
       if (on) return;
       const cur = DATA?.current || {}, music = DATA?.music || [];
-      if (!music.length) { status('音乐库为空，请先放入音乐文件，再刷新本页。'); return; }
+      if (!music.length) { if (!silent) status('音乐库为空，请先放入音乐文件，再刷新本页。'); return; }
       vol = cur.volume ?? 0.35;
       list = music; bag = [];
       idx = cur.shuffle ? Math.floor(Math.random() * music.length) : Math.max(0, music.indexOf(cur.track));
@@ -130,21 +130,18 @@ const AMB = (() => {
       </div>`;
   }
 
-  // 背景音乐与声音（3.2.x：内置场景音乐、我的音乐、音效合在一起）
+  // 背景音乐与声音（只保留“我的音乐”与音效，去掉内置场景音乐）
   function musicHtml(c, esc2) {
     const st = window.BeautyAudio?.settings || { sfx: false, bgm: BGM.on, vs: 0.6, src: "mine" }, has = DATA.music.length > 0;
-    const src = st.src === "mine" ? "mine" : "builtin";
     return `<label class="small muted">背景音乐与音效</label>
-      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baBgm" ${st.bgm ? "checked" : ""} style="width:auto"> 背景音乐</label>
-        <label style="flex:2;min-width:200px">来源 <select id="baSrc"><option value="builtin" ${!window.BeautyAudio ? "disabled" : ""} ${src === "builtin" ? "selected" : ""}>内置场景音乐（随地图、洞府、答题自动切换）</option>
-          <option value="mine" ${src === "mine" ? "selected" : ""} ${has ? "" : "disabled"}>我的音乐${has ? "" : "（库里还没有）"}</option></select></label>
+      <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baBgm" ${st.bgm ? "checked" : ""} style="width:auto"> 背景音乐（我的音乐）</label>
         <label style="flex:1;min-width:160px">音乐音量 <input type="range" id="ambVol" min="0" max="1" step="0.05" value="${c.volume}"></label></div>
-      <div class="row" id="ambMine" style="${src === "mine" ? "" : "display:none"}">${has ? `<label style="flex:2">曲目 <select id="ambTrack">
+      <div class="row" id="ambMine">${has ? `<label style="flex:2">曲目 <select id="ambTrack">
           ${DATA.music.map((p) => `<option value="${esc2(p)}" ${c.track === p ? "selected" : ""}>${esc2(p.split("/").pop())}（顺序循环时从这首开始）</option>`).join("")}</select></label>
-        <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : ""}</div>
+        <label style="flex:1">播放顺序 <select id="ambShuffle"><option value="0" ${c.shuffle ? "" : "selected"}>顺序循环</option><option value="1" ${c.shuffle ? "selected" : ""}>随机播放</option></select></label>` : `<span class="small muted">我的音乐（库里还没有，放进 ${esc2(DATA.folders.music)} 后刷新本页）</span>`}</div>
       <div class="row" style="align-items:center;gap:14px;flex-wrap:wrap"><label style="flex:none"><input type="checkbox" id="baSfx" ${st.sfx ? "checked" : ""} style="width:auto"> 音效与环境声（点击、答题、翻页、鸟虫流水等）</label>
         <label style="flex:1;min-width:160px">音效音量 <input type="range" id="baSfxVol" min="0" max="1" step="0.05" value="${st.vs}"></label></div>
-      <p id="ambMusicStatus" class="small muted" role="status"></p><p class="small muted">第一次点一下页面后才会发声。内置音乐和音效在 <b>web/assets/beauty/audio/</b>，“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
+      <p id="ambMusicStatus" class="small muted" role="status"></p><p class="small muted">第一次点一下页面后才会发声。“我的音乐”放进 <b>${esc2(DATA.folders.music)}</b>（mp3 / ogg / m4a / wav），刷新本页后在上面选。右下角喇叭可一键静音。</p>`;
   }
 
   function bindSettings(onErr) {
@@ -159,9 +156,7 @@ const AMB = (() => {
     const BA = window.BeautyAudio, vol = document.getElementById("ambVol");
     vol.oninput = () => { BGM.setVolume(Number(vol.value)); BA?.setBgmVolume(Number(vol.value)); };
     vol.onchange = () => guard(save({ volume: Number(vol.value) }));
-    const mine = document.getElementById("ambMine");
-    document.getElementById("baBgm").onchange = (e) => BA ? BA.set({ bgm: e.target.checked }) : e.target.checked ? BGM.start() : BGM.stop();
-    document.getElementById("baSrc").onchange = (e) => { if (mine) mine.style.display = e.target.value === "mine" ? "" : "none"; BA?.set({ src: e.target.value }); };
+    document.getElementById("baBgm").onchange = (e) => BA ? BA.set({ src: "mine", bgm: e.target.checked }) : e.target.checked ? BGM.start() : BGM.stop();
     document.getElementById("baSfx").onchange = (e) => BA?.set({ sfx: e.target.checked });
     document.getElementById("baSfxVol").oninput = (e) => BA?.setSfxVolume(Number(e.target.value));
     const tr = document.getElementById("ambTrack");

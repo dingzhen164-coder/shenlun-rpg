@@ -320,7 +320,7 @@ def _import_file(paths, body):
     if blocked or result['missing']: raise importer.ImportError_('题目结构或图片不完整，请补齐HTML与_files资源后重新检查；未写入题库')
     # 先生成全部输出，再按原模块原子写文件；只补缺图，不覆盖任何已有美术。
     for rel, data in result['images'].items():
-        file = paths.vault/rel
+        file = (paths.train / rel[len('训练/'):]) if rel.startswith('训练/') else (paths.vault / rel)
         file.parent.mkdir(parents=True,exist_ok=True)
         if not file.exists():
             fd, temporary = tempfile.mkstemp(prefix='.html-image-',dir=str(file.parent))

@@ -6,7 +6,7 @@
  const key='interface-transparency-v1',fallback=68;
  const blocked='.train,.tj-q,.yj-stage:not(.ln-stage),.exam-room,.er-run,.er-stage,.er-dialog,.ex-paper,.sl-writing,.nt-book,.nt-pages,.draw-wrap,.wn-pop,.msgs,.question,.wxj-q';
  const paper='.original,.sprint-document-body,.sprint-digest,.wxj-news,.wxj-digest-paper,.tj-news,.tj-cloze,.tj-cl,.an-conv,.ctable,table,.mods,.skb-read,.skb-preview,.skb-editor,.ln-canvas,.ln-document,.ln-reading-body,.yj-slip,.id-detail,.id-content,.chart,.mk-table,.tbl,.roots,.conds,.narrative-paper,.xc-guide-paper,.warn,.error,.nt-reader,.ar-body,.ar-text,.md';
- const shells='.fx-panel,.fx-frame,.card,.stat,.study-hud-player,.study-hud-world,.subpage-place,.subpage-tools,.lib-head,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.th-dialog,.cs-dialog,.task-board';
+ const shells='.fx-panel,.fx-frame,.card,.stat,.study-hud-player,.study-hud-world,.subpage-place,.subpage-tools,.lib-head,.fx-settings-group,.fx-settings-section,.study-region-heading,.ln-hall,.yj-hub,.skb-banner,.skb-side,.id-sidebar,.nt-side,.tj-head,.tj-toc,.wxj-toc,.sprint-index,.wx-heading,.wx-import,.wx-exam-manage,.th-dialog,.cs-dialog,.task-board';
  const value=v=>{const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.min(90,Math.round(n))):fallback;};
  function read(){try{const v=localStorage.getItem(key);return v===null?fallback:value(v);}catch(_){return fallback;}}
  function apply(v=read()){

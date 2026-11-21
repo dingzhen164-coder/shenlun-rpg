@@ -165,7 +165,10 @@ class ExamRoomTest(unittest.TestCase):
             exam_room.import_answers(self.g, {'season': self.n, 'text': '没有答案'})
 
     def test_answers_from_pdf_text_layer(self):
-        import pymupdf
+        try:
+            import pymupdf
+        except ImportError:
+            self.skipTest('需要 pymupdf')
         self.install(unknown={1, 2, 3})
         doc = pymupdf.open(); page = doc.new_page()
         page.insert_text((72, 72), '1.%s 2.%s 3.%s' % (key_of(1), key_of(2), key_of(3)))
@@ -224,6 +227,8 @@ class ExamRoomTest(unittest.TestCase):
         import re
         from rpg import exam_scan
         from tests import test_exam_scan as ts
+        if ts.fitz is None:
+            self.skipTest('需要 pymupdf')
         pdf = self.root / 'scan.pdf'
         ts.make_pdf(pdf, ts.PAGES + ts.PAGES_C)
         pages = ts.PAGES + ts.PAGES_C
@@ -267,7 +272,8 @@ class ExamRoomTest(unittest.TestCase):
             order.append('scan')
             blank_paper(paths_.train / ('模考复盘/第%d季' % number))
             return {'found': 130, 'total': 130, 'missing': [], 'modules': {}, 'split_log': '按版面拆分'}
-        with patch.object(exam_room.importer, 'split_script', return_value=Path('x.py')), patch.object(exam_room, '_has_text_layer', return_value=True), \
+        with patch.object(exam_room.importer, 'has_pymupdf', return_value=True), \
+                patch.object(exam_room.importer, 'split_script', return_value=Path('x.py')), patch.object(exam_room, '_has_text_layer', return_value=True), \
                 patch.object(exam_room.importer, 'split_pdf', side_effect=old), patch.object(exam_scan, 'split', side_effect=new):
             r = exam_room.import_paper(self.g, {'name': NAME, 'data': base64.b64encode(b'%PDF-1.4 fake').decode()})
         self.assertEqual(order, ['old', 'scan'])

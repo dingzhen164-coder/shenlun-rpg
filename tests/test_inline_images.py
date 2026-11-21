@@ -43,3 +43,8 @@ class InlineImagesTest(unittest.TestCase):
     def test_multiple_inline_images_keep_text_and_paragraphs(self):
         rel=self.rel('小公式.png');text='甲![[%s]]乙![[%s]]丙\n\nA. ![[%s]]\nB. 乙'%(rel,rel,rel)
         result=vault.text_blocks(self.p,None,text);self.assertEqual(len(result),1);self.assertEqual(result[0]['v'].count('![['),3);self.assertIn('\n\nA.',result[0]['v']);self.assertIn('\nB.',result[0]['v'])
+    def test_legacy_train_path_resolves_formula(self):
+        rel='训练/题库/图片/题目图/小公式.png'
+        self.assertTrue(inline_images.small(self.p,rel))
+        result=trainer._bank_blocks(self.g,next(iter(self.g.boards)),'总量为\n![[%s]]\n倍'%rel)
+        self.assertEqual([b['t'] for b in result],['text']);self.assertIn('总量为![[%s]]倍'%rel,result[0]['v'])

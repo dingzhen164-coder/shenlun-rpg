@@ -83,7 +83,7 @@ class CardsTest(unittest.TestCase):
 
     def test_markdown_round_trip_and_obsidian_edits(self):
         r = self.add("隔年增长率怎么算？", "r = r1 + r2 + r1×r2", tags="增长 公式")
-        f = self.vault / "训练/卡片/资料分析.md"
+        f = self.p.train / "卡片/资料分析.md"
         text = f.read_text(encoding="utf-8")
         self.assertIn("## 玉简 %s\n简匣: 资料分析::速算\n类型: 问答\n标签: 增长 公式\n### 正\n隔年增长率怎么算？" % r["id"], text)
         # 在 Obsidian 里手写一枚没编号的：读到时补上编号，写回文件
@@ -100,7 +100,7 @@ class CardsTest(unittest.TestCase):
         self.assertEqual(self.g.state["cards"]["sched"][key]["st"], 2)
         # 换到别的顶层简匣 = 换文件
         cards.move(self.g, [r["id"]], "数量关系::工程")
-        self.assertIn(r["id"], (self.vault / "训练/卡片/数量关系.md").read_text(encoding="utf-8"))
+        self.assertIn(r["id"], (self.p.train / "卡片/数量关系.md").read_text(encoding="utf-8"))
         self.assertNotIn(r["id"], f.read_text(encoding="utf-8"))
 
     def test_fsrs_learning_steps_and_intervals(self):
@@ -268,7 +268,7 @@ class CardGenTest(CardsApiTest):
     def test_pdf_is_refused(self):
         """2026-11：师傅制卡不再直接读 PDF，要先整理成 Markdown"""
         with self.assertRaises(Exception) as ctx:
-            api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": self._pdf()})
+            api.cardgen_load({"kind": "file", "name": "花生资料分析.pdf", "data": "data:application/pdf;base64,JVBERi0xLjQ="})
         self.assertIn("Markdown", str(ctx.exception))
 
     def test_markdown_sections(self):
@@ -313,7 +313,7 @@ class CardsMoreTest(CardsApiTest):
         self.assertNotIn("卡片内容如果有错", system)
         self.assertIn("#### ", r["saved"])
         self.assertIn("＃＃＃ 小标题", r["saved"])                       # 回复里的标题降级，不打乱玉简格式
-        text = (self.vault / "训练/卡片/政治理论.md").read_text(encoding="utf-8")
+        text = (paths.Paths(self.vault).train / "卡片/政治理论.md").read_text(encoding="utf-8")
         self.assertIn("### 师傅讲讲\n#### ", text)
         cards._CACHE["key"] = None
         self.assertIn("口诀：同异种交", api.cards_next({"deck": ""})["card"]["ai"])
@@ -341,7 +341,7 @@ class CardsMoreTest(CardsApiTest):
         self.assertEqual([m["name"] for m in api.mm_list({})["boards"][-1]["maps"]], ["资料分析", "速算"])
         e = api.mm_export({"board": "资料分析", "name": "资料分析", "ext": "md",
                            "data": "data:text/markdown;base64," + __import__("base64").b64encode("# 资料分析".encode()).decode()})
-        self.assertEqual(e["path"], "训练/灵脉图/导出/资料分析.md")
+        self.assertEqual(e["path"], "训练/藏经阁/灵脉图/导出/资料分析.md")
         self.assertIn("&t=", e["url"])
         with self.assertRaises(api.ApiError):
             api.mm_export({"board": "资料分析", "name": "x", "ext": "exe", "data": "data:,1"})

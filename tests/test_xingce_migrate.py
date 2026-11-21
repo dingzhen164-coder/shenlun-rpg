@@ -55,10 +55,24 @@ class XingceMigrateTest(unittest.TestCase):
             (train / "时政回收").mkdir(parents=True)
             (train / "时政回收/rec.txt").write_text("rec", encoding="utf-8")
 
+            # 构造其余 4 大类的旧平铺目录与文件
+            (train / "题库").mkdir(parents=True)
+            (train / "题库/言语真题.md").write_text("# 言语\n", encoding="utf-8")
+            (train / "卡片").mkdir(parents=True)
+            (train / "卡片/资料分析.md").write_text("# 资料\n", encoding="utf-8")
+            (train / "试炼记录").mkdir(parents=True)
+            (train / "试炼记录/2026-11.md").write_text("# 试炼\n", encoding="utf-8")
+            (train / "规则.md").write_text("- 每日目标分钟: 300\n- 配置版本: 3\n", encoding="utf-8")
+            (train / "师尊.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            (train / "存档").mkdir(parents=True)
+            (train / "存档/存档.json").write_text('{"xp":88}', encoding="utf-8")
+            (train / "词录备份").mkdir(parents=True)
+            (train / "词录备份/bak.md").write_text("bak", encoding="utf-8")
+
             p = paths.Paths(v, "行测")
             p.ensure_train_dir()
 
-            # 7 个旧目录均已收拢进 训练/万象峰/
+            # 7 个旧时政目录均已收拢进 训练/万象峰/
             for old_name, sub in paths.WANXIANG_SUBS:
                 self.assertFalse((train / old_name).exists(), f"旧目录 {old_name} 应已迁出")
                 self.assertTrue((train / "万象峰" / sub).is_dir(), f"新目录 万象峰/{sub} 应存在")
@@ -67,13 +81,22 @@ class XingceMigrateTest(unittest.TestCase):
             self.assertEqual((train / "万象峰/重点标红/h.json").read_text(encoding="utf-8"), '{"added":[]}')
             self.assertEqual((train / "万象峰/词义批注/n.json").read_text(encoding="utf-8"), '{"k":{}}')
 
+            # 其余 4 大类（藏经阁、试炼与大比、规则与设定、系统）均已收拢到位
+            self.assertTrue((train / "藏经阁/题库/言语真题.md").is_file())
+            self.assertTrue((train / "藏经阁/卡片/资料分析.md").is_file())
+            self.assertTrue((train / "试炼与大比/试炼记录/2026-11.md").is_file())
+            self.assertTrue((train / "规则与设定/规则.md").is_file())
+            self.assertTrue((train / "规则与设定/师尊.png").is_file())
+            self.assertEqual((train / "系统/存档/存档.json").read_text(encoding="utf-8"), '{"xp":88}')
+            self.assertTrue((train / "系统/历史备份/词录备份/bak.md").is_file())
+
             # 旧期刊 JSON 里的 pdf 相对路径加载时自动映射到新位置
             loaded = wanxiang_journal.load(p, "month", "2026-10-上")
             self.assertEqual(loaded["pdf"], "训练/万象峰/期刊/原文/月半时政-2026-10-上.pdf")
 
-            # FB模考试卷复盘 只读复制到 训练/，外部原目录完好不动
-            self.assertTrue((train / "模考复盘/第33季/01-言语.md").is_file())
-            self.assertTrue((train / "模考试卷/第33季.pdf").is_file())
+            # FB模考试卷复盘 只读复制到 训练/试炼与大比/，外部原目录完好不动
+            self.assertTrue((train / "试炼与大比/模考复盘/第33季/01-言语.md").is_file())
+            self.assertTrue((train / "试炼与大比/模考试卷/第33季.pdf").is_file())
             self.assertTrue((v / "FB模考试卷复盘/板块复盘/第33季/01-言语.md").is_file())
 
             # 删除外部 FB模考试卷复盘 后，仍能正确识别为行测库，不误判为申论库

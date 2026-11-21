@@ -437,14 +437,19 @@ def _write(f, data):
             os.unlink(tmp)
 
 
-def save_import(paths, pdf_path, name=""):
+def save_import(paths, pdf_path, name="", exam=None):
     """解析 + 存进库（同一期再导入就覆盖内容，学习进度不动）。返回 {kind, id, title, …计数}"""
     data = parse_pdf(pdf_path)
     data["imported"] = dt.date.today().isoformat()
+    if exam:
+        data["exam"] = str(exam)
     f = _file(paths, data["kind"], data["id"])
     if f.exists() and data["kind"] == "topic":      # 再导入时保留自己改过的分类
         try:
-            data["category"] = json.loads(f.read_text(encoding="utf-8")).get("category") or data["category"]
+            old = json.loads(f.read_text(encoding="utf-8"))
+            data["category"] = old.get("category") or data["category"]
+            if not exam and old.get("exam"):
+                data["exam"] = old["exam"]
         except ValueError:
             pass
     src = folder(paths) / "原文" / ("%s-%s.pdf" % (KINDS[data["kind"]], data["id"]))
@@ -453,6 +458,11 @@ def save_import(paths, pdf_path, name=""):
         shutil.copyfile(str(pdf_path), str(src))
     data["pdf"] = src.relative_to(paths.vault).as_posix()
     _write(f, data)
+    try:
+        from . import politics
+        politics.export_exam_markdowns(paths)
+    except Exception:
+        pass
     blanks = sum(1 for c in data["cloze"] for p in c["parts"] if "a" in p)
     found = sum(1 for c in data["cloze"] for p in c["parts"] if p.get("a"))
     return {"kind": data["kind"], "id": data["id"], "title": data["title"], "news": len(data["news"]),
@@ -516,7 +526,9 @@ def summary(data, pr):
             "frac": round(sum(parts) / 3, 3), "last": pr.get("last", "")}
 
 
-def listing(g):
+def listing(g, exam=None):
+    from . import politics
+    meta = politics.exam_meta(g.paths, exam) if exam else None
     out = {"month": [], "topic": []}
     root = folder(g.paths)
     for kind in KINDS:
@@ -525,6 +537,8 @@ def listing(g):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
             except (OSError, ValueError):
+                continue
+            if meta and not politics.journal_in_exam(data, meta):
                 continue
             item = {k: data.get(k) for k in ("id", "kind", "title", "label", "year", "month", "half", "category", "overview", "pdf")}
             item["id"] = f.stem
@@ -613,6 +627,11 @@ def set_meta(g, kind, iid, body):
             raise JournalError("没有这个分类")
         data["category"] = body["category"]
     _write(_file(g.paths, kind, iid), data)
+    try:
+        from . import politics
+        politics.export_exam_markdowns(g.paths)
+    except Exception:
+        pass
     return {"ok": True}
 
 
@@ -621,6 +640,11 @@ def delete(g, kind, iid):
     if f.is_file():
         f.unlink()
     g.state.setdefault("wanxiang_journal", {}).pop(kind + ":" + iid, None)
+    try:
+        from . import politics
+        politics.export_exam_markdowns(g.paths)
+    except Exception:
+        pass
     return {"ok": True}
 
 
@@ -771,11 +795,11 @@ def register(api):
 
     def import_pdf(g, body):
         channel = body.get('channel', 'sprint-study')
-        if channel not in ('month', 'topic', 'sprint-study', 'sprint-quiz', 'digest'):
+        if channel not in ('month', 'topic', 'sprint-study', 'digest'):
             raise JournalError('请选择正确的导入栏目')
         if channel=='digest':return politics_digest.import_pdf(g,body)
         if channel.startswith('sprint-'):
-            return dict(politics_import.import_pdf(g.paths, dict(body, mode='practice' if channel=='sprint-quiz' else 'study')), channel=channel)
+            return dict(politics_import.import_pdf(g.paths, dict(body, mode='study')), channel=channel)
         raw = str(body.get('data') or '').split(',', 1)[-1]
         if len(raw) > 56*1024*1024:
             raise JournalError('PDF过大，请拆成40MB以内后导入')
@@ -791,7 +815,7 @@ def register(api):
             parsed = parse_pdf(pdf)
             if parsed['kind'] != channel:
                 raise JournalError('识别为%s，请选择对应导入栏目；本次未写入' % KINDS[parsed['kind']])
-            return dict(save_import(g.paths, pdf), channel=channel)
+            return dict(save_import(g.paths, pdf, exam=body.get('exam')), channel=channel)
 
     def ask(body):
         with api.open_game(save=False) as g:
@@ -812,7 +836,7 @@ def register(api):
             return {'reply': reply, 'saved': save_ask(g, b['kind'], b['id'], b.get('news', 0), b.get('question', ''), reply)}
         return run(save, body)
 
-    api.ROUTES[('GET', '/api/wanxiang/journal')] = lambda b: run(lambda g, b: listing(g), b)
+    api.ROUTES[('GET', '/api/wanxiang/journal')] = lambda b: run(lambda g, b: listing(g, b.get('exam')), b)
     api.ROUTES[('POST', '/api/wanxiang/journal')] = api.ROUTES[('GET', '/api/wanxiang/journal')]
     def pdf(g, b):
         from urllib.parse import quote

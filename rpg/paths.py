@@ -77,10 +77,50 @@ WANXIANG_SUBS = (
     ("时政回收", "回收站"),
 )
 _WANXIANG_LEGACY = {sub: old for old, sub in WANXIANG_SUBS}
+_WANXIANG_OLD_TO_SUB = {old: (WANXIANG_DIR, sub) for old, sub in WANXIANG_SUBS}
+
+# 行测 训练/ 六大顶层分类（思过崖、万象峰、藏经阁、试炼与大比、规则与设定、系统）
+XINGCE_6_TOP_DIRS = ("思过崖", "万象峰", "藏经阁", "试炼与大比", "规则与设定", "系统")
+XINGCE_6_MAP = {
+    # 藏经阁/
+    "题库": ("藏经阁", "题库"),
+    "技能": ("藏经阁", "技能"),
+    "成语实词录": ("藏经阁", "成语实词录"),
+    "灵脉图": ("藏经阁", "灵脉图"),
+    "骨架": ("藏经阁", "骨架"),
+    "卡片": ("藏经阁", "卡片"),
+    # 试炼与大比/
+    "模考试卷": ("试炼与大比", "模考试卷"),
+    "模考复盘": ("试炼与大比", "模考复盘"),
+    "试炼记录": ("试炼与大比", "试炼记录"),
+    "演武录": ("试炼与大比", "演武录"),
+    "静修录": ("试炼与大比", "静修录"),
+    "手札": ("试炼与大比", "手札"),
+    # 规则与设定/
+    "规则.md": ("规则与设定", "规则.md"),
+    "规则.旧版.md": ("规则与设定", "规则.旧版.md"),
+    "角色设定.md": ("规则与设定", "角色设定.md"),
+    "角色设定.旧版.md": ("规则与设定", "角色设定.旧版.md"),
+    "台词库.md": ("规则与设定", "台词库.md"),
+    "台词库.旧版.md": ("规则与设定", "台词库.旧版.md"),
+    "台词库·玄幻.md": ("规则与设定", "台词库·玄幻.md"),
+    "台词库·玄幻.旧版.md": ("规则与设定", "台词库·玄幻.旧版.md"),
+    "语录.md": ("规则与设定", "语录.md"),
+    # 系统/
+    "存档": ("系统", "存档"),
+    "外观": ("系统", "外观"),
+    "人物": ("系统", "人物"),
+    "词录备份": ("系统", "历史备份", "词录备份"),
+    "导入回收": ("系统", "历史备份", "导入回收"),
+    "更新备份": ("系统", "历史备份", "更新备份"),
+    "清除": ("系统", "历史备份", "清除"),
+    "修炼记录": ("系统", "历史备份", "修炼记录"),
+}
+_AVATAR_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
 
-def _merge_move_dir(src: Path, dst: Path):
-    """将 src 内所有文件无损移入 dst（绝不覆盖目标已有文件），清空后删掉空的 src。"""
+def _merge_move_dir(src: Path, dst: Path, prefer_newer: bool = False):
+    """将 src 内所有文件无损移入 dst（默认绝不覆盖目标已有文件；prefer_newer=True 时若旧路径文件更新则迁入），清空后删掉空的 src。"""
     if not src.is_dir():
         return
     if not dst.exists():
@@ -95,13 +135,25 @@ def _merge_move_dir(src: Path, dst: Path):
     for item in list(src.iterdir()):
         target = dst / item.name
         if item.is_dir():
-            _merge_move_dir(item, target)
-        elif not target.exists():
-            try:
-                os.replace(item, target)
-            except OSError:
-                shutil.copy2(item, target)
-                item.unlink()
+            _merge_move_dir(item, target, prefer_newer=prefer_newer)
+        else:
+            should_move = not target.exists()
+            if not should_move and prefer_newer:
+                try:
+                    should_move = item.stat().st_mtime_ns >= target.stat().st_mtime_ns
+                except OSError:
+                    should_move = False
+            if should_move:
+                try:
+                    os.replace(item, target)
+                except OSError:
+                    shutil.copy2(item, target)
+                    item.unlink()
+            elif prefer_newer:
+                try:
+                    item.unlink()
+                except OSError:
+                    pass
     try:
         if not any(src.iterdir()):
             src.rmdir()
@@ -109,13 +161,98 @@ def _merge_move_dir(src: Path, dst: Path):
         pass
 
 
+def _move_legacy_file(src: Path, dst: Path, prefer_newer: bool = False):
+    if not src.is_file():
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    should_move = not dst.exists()
+    if not should_move and prefer_newer:
+        try:
+            should_move = src.stat().st_mtime_ns >= dst.stat().st_mtime_ns
+        except OSError:
+            should_move = False
+    if should_move:
+        try:
+            os.replace(src, dst)
+        except OSError:
+            import shutil
+            shutil.copy2(src, dst)
+            src.unlink()
+    elif prefer_newer:
+        try:
+            src.unlink()
+        except OSError:
+            pass
+
+
+class XingceTrainPath(type(Path())):
+    """行测库 训练/ 路径代理：对 `paths.train / '题库'` 等旧平铺写法自动映射到 6 大分类目录，并在旧目录/文件出现时无损归并。"""
+
+    def _raw(self) -> Path:
+        return Path(os.fspath(self))
+
+    def _map_parts(self, rel_parts):
+        if not rel_parts:
+            return ()
+        head = rel_parts[0]
+        mapped = XINGCE_6_MAP.get(head) or _WANXIANG_OLD_TO_SUB.get(head)
+        if not mapped and len(rel_parts) == 1 and Path(head).suffix.lower() in _AVATAR_EXTS:
+            mapped = ("规则与设定", head)
+        if mapped:
+            raw = self._raw()
+            old = raw / head
+            target_head = raw.joinpath(*mapped)
+            if old.exists() and not old.is_symlink():
+                if old.is_dir():
+                    _merge_move_dir(old, target_head, prefer_newer=True)
+                elif old.is_file():
+                    _move_legacy_file(old, target_head, prefer_newer=True)
+            return tuple(mapped) + tuple(rel_parts[1:])
+        return tuple(rel_parts)
+
+    def __truediv__(self, key):
+        raw = self._raw()
+        p = Path(key)
+        if p.is_absolute():
+            return p
+        return raw.joinpath(*self._map_parts(p.parts))
+
+    def joinpath(self, *args):
+        raw = self._raw()
+        if not args:
+            return raw
+        combined = Path(*args)
+        if combined.is_absolute():
+            return combined
+        return raw.joinpath(*self._map_parts(combined.parts))
+
+    def _map_pattern(self, pattern: str) -> str:
+        s = str(pattern or "").replace("\\", "/")
+        parts = [p for p in s.split("/") if p and p != "."]
+        if not parts:
+            return pattern
+        head = parts[0]
+        if any(c in head for c in "*?["):
+            return pattern
+        mapped = self._map_parts(parts)
+        return "/".join(mapped)
+
+    def glob(self, pattern: str):
+        return self._raw().glob(self._map_pattern(pattern))
+
+    def rglob(self, pattern: str):
+        return self._raw().rglob(self._map_pattern(pattern))
+
+
+
 def wanxiang_dir(paths, sub: str) -> Path:
     """返回 训练/万象峰/<sub>；若对应的旧平铺目录仍存在则先自动无损迁入。"""
     train = paths.train if hasattr(paths, "train") else Path(paths)
-    dst = train / WANXIANG_DIR / sub
+    raw = train._raw() if isinstance(train, XingceTrainPath) else Path(train)
+    dst = raw / WANXIANG_DIR / sub
     old_name = _WANXIANG_LEGACY.get(sub)
     if old_name:
-        old = train / old_name
+        old = raw / old_name
         if old.is_dir():
             _merge_move_dir(old, dst)
     return dst
@@ -123,16 +260,30 @@ def wanxiang_dir(paths, sub: str) -> Path:
 
 def migrate_xingce_dirs(paths):
     """行测库整理迁移（幂等、无损、外部目录只读）：
-    1. 训练/ 内部 7 个时政目录收拢进 训练/万象峰/；
-    2. 外部 FB模考试卷复盘/ 下的季次复盘与原 PDF 只读复制到 训练/模考复盘/ 与 训练/模考试卷/（不改删外部原件）。"""
+    1. 训练/ 内部按“地点 + 系统底座”收拢进 6 大分类目录（思过崖、万象峰、藏经阁、试炼与大比、规则与设定、系统）；
+    2. 外部 FB模考试卷复盘/ 下的季次复盘与原 PDF 只读复制到 训练/试炼与大比/模考复盘/ 与 模考试卷/（不改删外部原件）。"""
     if not paths or not paths.train or not paths.vault:
         return
     import shutil
+    raw_train = paths.train._raw() if isinstance(paths.train, XingceTrainPath) else Path(paths.train)
     for old_name, sub in WANXIANG_SUBS:
-        old = paths.train / old_name
+        old = raw_train / old_name
         if old.is_dir():
-            _merge_move_dir(old, paths.train / WANXIANG_DIR / sub)
-    # 外部 FB模考试卷复盘 只读复制到 训练/（已有季次/文件跳过，不覆盖）
+            _merge_move_dir(old, raw_train / WANXIANG_DIR / sub)
+    for old_name, mapped in XINGCE_6_MAP.items():
+        old = raw_train / old_name
+        if not old.exists() or old.is_symlink():
+            continue
+        dst = raw_train.joinpath(*mapped)
+        if old.is_dir():
+            _merge_move_dir(old, dst)
+        elif old.is_file():
+            _move_legacy_file(old, dst)
+    if raw_train.is_dir():
+        for item in list(raw_train.iterdir()):
+            if item.is_file() and item.suffix.lower() in _AVATAR_EXTS:
+                _move_legacy_file(item, raw_train / "规则与设定" / item.name)
+    # 外部 FB模考试卷复盘 只读复制到 训练/试炼与大比/（已有季次/文件跳过，不覆盖）
     fb_seasons = paths.vault / SEASONS_REL
     if fb_seasons.is_dir():
         dst_reviews = paths.train / "模考复盘"
@@ -160,10 +311,17 @@ def migrate_xingce_dirs(paths):
 
 
 def looks_like_vault(p: Path, subject=None) -> bool:
-    """像不像这个科目的库。行测库有 FB模考试卷复盘 或 训练/模考复盘 或 训练/思过崖；
+    """像不像这个科目的库。行测库有 FB模考试卷复盘 或 训练/(试炼与大比/)模考复盘 或 训练/思过崖 或 训练/藏经阁；
     申论库有 copilot/skills 但没有上述行测目录。subject=None 时宽松判断。"""
     has_season = (p / SEASONS_REL).is_dir()
-    has_xingce = has_season or (p / TRAIN_REL / "模考复盘").is_dir() or (p / TRAIN_REL / "思过崖").is_dir()
+    has_xingce = (
+        has_season
+        or (p / TRAIN_REL / "模考复盘").is_dir()
+        or (p / TRAIN_REL / "试炼与大比" / "模考复盘").is_dir()
+        or (p / TRAIN_REL / "思过崖").is_dir()
+        or (p / TRAIN_REL / "藏经阁").is_dir()
+        or (p / TRAIN_REL / "万象峰").is_dir()
+    )
     has_skills = (p / SKILLS_REL).is_dir()
     if subject == "行测":
         return has_xingce
@@ -240,7 +398,8 @@ class Paths:
         self.vault = vault
         self.skills = vault / SKILLS_REL if vault else None
         self.seasons = vault / SEASONS_REL if vault else None
-        self.train = vault / TRAIN_REL if vault else None
+        raw_train = vault / TRAIN_REL if vault else None
+        self.train = XingceTrainPath(raw_train) if (raw_train and self.subject == "行测") else raw_train
         self.skeletons = self.train / "骨架" if vault else None
         self.save_dir = self.train / "存档" if vault else None
         self.save_file = self.save_dir / "存档.json" if vault else None
@@ -302,7 +461,12 @@ class Paths:
         if not self.vault:
             return []
         shen = self.subject == "申论"
+        if not shen:
+            migrate_xingce_dirs(self)
         dirs = [self.train, self.skeletons, self.save_dir, self.train / "外观" / "背景", self.train / "外观" / "音乐", self.train / "外观" / "五脉"]
+        if not shen:
+            raw_train = self.train._raw() if isinstance(self.train, XingceTrainPath) else Path(self.train)
+            dirs += [raw_train / d for d in XINGCE_6_TOP_DIRS]
         if shen:
             dirs += [self.rubrics, self.materials, self.reviews]
         for d in dirs:

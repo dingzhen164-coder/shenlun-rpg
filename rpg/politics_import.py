@@ -205,7 +205,7 @@ def _generic(doc, name):
 
 
 def import_pdf(pp, body):
-    exam = politics.exam_id(body.get('exam'))
+    exam = politics.exam_id(body.get('exam'), pp)
     raw = str(body.get('data') or '').split(',', 1)[-1]
     if len(raw) > 56*1024*1024:
         raise politics.PoliticsError('PDF过大，请拆成40MB以内的文件后导入')
@@ -234,40 +234,21 @@ def import_pdf(pp, body):
                 raise politics.PoliticsError('请先解密PDF后再导入')
             if not any(p.get_text().strip() for p in doc):
                 raise politics.PoliticsError('这份PDF没有可提取文字，请先做文字识别（OCR）再导入')
-            exam_report = None
-            if body.get('mode') == 'practice':
-                # 冲刺刷题：按套卷→题号→选项切分；识别不到题再退回通用解析。
-                papers, parsed, exam_report = politics_exam.parse(doc, str(body.get('name') or '冲刺刷题.pdf'))
-                if parsed:
-                    units = [{'title': x['title'], 'original': '', 'practice_only': True} for x in papers]
-                    questions = [{'text': q['text'], 'answer': q['answer'], 'analysis': q['analysis'], 'owner': q['paper'], 'no': q['no'],
-                                  'paper': papers[q['paper']]['title'], 'flags': q.get('flags', [])} for q in parsed]
-                else:
-                    exam_report = None
-            if exam_report is None:
-                try:
-                    units, questions = _known(path)
-                except wanxiang_journal.JournalError:
-                    units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
+            try:
+                units, questions = _known(path)
+            except wanxiang_journal.JournalError:
+                units, questions = _generic(doc, str(body.get('name') or '时政资料.pdf'))
             _layout_text(doc, questions)
     except (RuntimeError, ValueError) as error:
         if isinstance(error, politics.PoliticsError):
             raise
         raise politics.PoliticsError('PDF无法读取，请确认文件完整且未加密')
-    if not units and questions and body.get('mode') == 'practice':
-        units = [{'title': Path(str(body.get('name') or '冲刺刷题')).stem, 'original': '', 'practice_only': True}]
-        for q in questions:
-            q['owner'] = 0
     if not units:
         raise politics.PoliticsError('没有找到讲义正文，未加入地图；请导入包含正文的资料')
     if any(q['owner'] is None for q in questions):
-        helper = len(units)
-        units.append({'title': Path(str(body.get('name') or '导入讲义')).stem+' · 配套练习',
-                      'original': '\n\n'.join(u['title']+'\n'+u['original'] for u in units),
-                      'source_title': '', 'practice_only': True})
         for q in questions:
             if q['owner'] is None:
-                q['owner'] = helper
+                q['owner'] = 0
     with politics._LOCK:
         data = politics.atlas(pp, exam)
         file = politics.exam_folder(pp, exam) / '补充.json'
@@ -277,12 +258,11 @@ def import_pdf(pp, body):
         known = {politics.digest(re.sub(r'\s+', '', m['original'])): m for m in data['materials'] if not m.get('practice_only')}
         ids, added = {}, 0
         for i,u in enumerate(units):
-            key = (politics.digest(['practice', file_hash, u['title']]) if u.get('practice_only')
-                   else politics.digest(re.sub(r'\s+', '', u['original'])))
+            key = politics.digest(re.sub(r'\s+', '', u['original']))
             if key in known:
                 ids[i] = known[key]
                 continue
-            kind = '配套练习' if u.get('practice_only') else genre(u.get('source_title') or u['title'], body.get('kind'))
+            kind = genre(u.get('source_title') or u['title'], body.get('kind'))
             chapter = politics.SOURCE_KINDS.index(kind) if kind in politics.SOURCE_KINDS else 3
             text = u['original']
             route = 'imported'
@@ -291,7 +271,7 @@ def import_pdf(pp, body):
                  'chapter': chapter, 'kind': kind, 'event_key': u.get('event_key') or u['title'], 'tags': [route],
                  'why': '研读原文，理解政策表述', 'how': [], 'trap': '', 'questions': [],
                  'understanding': {'context': '这份材料来自你导入的PDF，可直接研读原文并选词解释批注。', 'actions': [], 'distinctions': [], 'recall': []},
-                 'pdf': path.relative_to(pp.vault).as_posix(), 'practice_only': bool(u.get('practice_only')), 'cloze': u.get('cloze', [])}
+                 'pdf': path.relative_to(pp.vault).as_posix(), 'practice_only': False, 'cloze': u.get('cloze', [])}
             extra['materials'].append(m)
             known[key] = m
             ids[i] = m
@@ -317,7 +297,12 @@ def import_pdf(pp, body):
             seen.add(signature)
         extra.setdefault('imports', []).append(file_hash)
         politics.atomic_json(file, extra)
+        try:
+            politics.export_exam_markdowns(pp)
+        except Exception:
+            pass
         combined = politics.atlas(pp, exam)
         return {'added': added, 'questions': added_q, 'duplicate': False, 'counts': politics.source_counts(combined),
-                'unanswered': sum(not q['answer'] for q in questions), 'whole_document_questions': sum(units[q['owner']].get('practice_only', False) for q in questions),
-                'exam': exam_report}
+                'unanswered': sum(not q['answer'] for q in questions), 'whole_document_questions': 0,
+                'exam': None}
+

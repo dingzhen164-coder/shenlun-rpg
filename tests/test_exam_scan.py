@@ -242,7 +242,10 @@ class BlankAndGapTest(unittest.TestCase):
     """2026-10-30：填空题转文字时补回横线 ＿＿＿＿，选项里被连成一串的词按空隙补回空格；字下面的下划线不算横线"""
 
     def page(self):
-        import pymupdf as fitz
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            self.skipTest("需要 pymupdf")
         doc = fitz.open()
         page = doc.new_page(width=595, height=842)
 
@@ -278,7 +281,10 @@ class BlankAndGapTest(unittest.TestCase):
         self.assertGreaterEqual(changed, 2)
 
     def test_plain_lines_are_untouched(self):
-        import pymupdf as fitz
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            self.skipTest("需要 pymupdf")
         from rpg import exam_scan
         doc = fitz.open()
         page = doc.new_page(width=595, height=842)

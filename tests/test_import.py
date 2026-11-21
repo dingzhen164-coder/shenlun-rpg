@@ -82,7 +82,7 @@ class ImportTest(unittest.TestCase):
         qs, errors = bank.read(self.p, "资料分析")
         self.assertEqual(errors, [])
         self.assertEqual([q["answer"] for q in qs], ["B", "A"])
-        self.assertTrue(qs[0]["stem"].startswith("（粉笔第36季模考）\n![[训练/题库/图片/资料分析/粉笔36季-M111-112.png]]"))
+        self.assertTrue(qs[0]["stem"].startswith("（粉笔第36季模考）\n![[训练/藏经阁/题库/图片/资料分析/粉笔36季-M111-112.png]]"))
         self.assertNotIn("我的笔记", qs[0]["stem"])                          # 复盘笔记不进题干
         self.assertEqual(qs[0]["analysis"], "")                              # 解析待补
         r = importer.commit(self.p, {"kind": "season", "season": 36})
@@ -131,7 +131,8 @@ class ImportTest(unittest.TestCase):
         f = importer.save_pdf(self.p, {"name": "../模考.pdf", "data": data, "season": 37})["file"]
         self.assertEqual(f, "第37季-模考.pdf")                                         # 不能写到别的目录
         self.assertEqual(importer.status(self.p)["pdfs"][0], {"file": f, "season": 37, "split": False})
-        r = importer.split_pdf(self.p, {"file": f})
+        with patch.object(importer, "has_pymupdf", return_value=True):
+            r = importer.split_pdf(self.p, {"file": f})
         self.assertEqual(r["ready"], 1)
         self.assertEqual(bank.read(self.p, "常识判断")[0][0]["id"], "粉笔37季-021")
         self.assertTrue(importer.status(self.p)["pdfs"][0]["split"])

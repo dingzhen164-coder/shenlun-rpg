@@ -143,7 +143,7 @@ class TianjiTest(unittest.TestCase):
         self.assertEqual((st["read"], st["seen"], st["forgot"], st["done"]), (1, 2, 1, 1))
         self.assertEqual(api.tj_cards(k)["added"], 1)
         self.assertEqual(api.tj_cards(k)["added"], 0)       # 不重复做
-        md = (self.vault / "训练/卡片").glob("*.md")
+        md = (paths.Paths(self.vault).train / "卡片").glob("*.md")
         self.assertTrue(any("{{c1::北部湾}}" in f.read_text(encoding="utf-8") for f in md))
         hb = api.heartbeat({"seconds": 60, "tianji": "read"})
         self.assertTrue(hb["studying"])

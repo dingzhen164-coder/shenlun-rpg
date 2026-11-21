@@ -38,7 +38,20 @@
 | 大作文写作支架（立意拆解、提纲点评） | `rpg/shenlun_essay.py` |
 | 申论作答计时活动记录 / 接口 | `rpg/shenlun.py` / `rpg/api.py` 里的 `/api/shenlun/*` |
 | 题库、试炼塔、成语录、模考（行测） | `rpg/question_bank.py`、`rpg/importer.py`、`rpg/idioms.py`、`rpg/mock.py` |
+| 行测 `训练/` 六大类目录映射与自动迁移 | `rpg/paths.py`（`XINGCE_6_TOP_DIRS`、`XINGCE_6_MAP`、`XingceTrainPath`、`migrate_xingce_dirs`）；本地 Agent 与 `gk-skill` 规则说明在 `defaults/gk-skill-AGENTS.md` |
+| 思过崖（数量关系只收错题/慢题、十八讲可展开目录）与政治理论易错题集 | `rpg/siguo.py`（`SHULIANG_18_LECTURES`、`prune_shuliang_doc`、`politics_wrong_*`）、`web/siguo.js` |
+| 万象峰时政地图（新增/编辑时政范围/删除、导出 `.md`、五栏含分类时政与易错题） | `rpg/politics.py`（`exams_list`、`exam_save`、`exam_delete`、`export_exam_markdowns`、`classified_items`）、`web/study_regions.js`、`web/atlas.js` |
 | 页面、样式（设计令牌在 `style.css` 顶部；`body.xiuxian / xuanhuan / guantu` 三套配色） | `web/app.js`、`web/shenlun.js`、`web/style.css` |
 | 测试（每个测试文件顶部 `setUpModule` 指定本文件跑在哪个科目）；假 AI | `tests/`；`tests/fake_grade_ai.py` |
 
+## 行测本地 Agent 与 `gk-skill` 协同规则（用户2026-11-20约定，详见 `defaults/gk-skill-AGENTS.md`）
+
+1. **行测 `训练/` 六大类目录**：`思过崖/`、`万象峰/`、`藏经阁/`、`试炼与大比/`、`规则与设定/`、`系统/`（由 `rpg/paths.py` 的 `XingceTrainPath` 与 `migrate_xingce_dirs` 自动映射与无损迁移）。
+2. **数量关系分流（十八讲 vs 思过崖错题集）**：正常数量关系训练题按题型归入「数量关系十八讲」对应 `.md` 文档；**只有错题和慢题（含不会/蒙对/有思维卡点）**才计入 `错题集/数量关系.md`（思过崖），且必须注明 `所属课程：第XX课-XXX`，在思过崖左侧按十八讲目录可展开显示。
+3. **万象峰时政地图与政治理论双重检索**：
+   - 每个时政地图有明确的时政时间范围（可在政治理论页新增、编辑范围、删除）；月半时政与专题时政按时间归入对应地图，并在 `训练/万象峰/<时政地图名>/{月半时政,专题时政,冲刺学习}/*.md`（同步镜像至 `gk-skill/时政地图/`）自动保存为 Markdown 文档。
+   - 用户发政治理论题目时，Agent 必须**同时检索小黑政治理论 skill 与对应时政地图下的 `.md` 时政内容，并明确注明出自哪个具体文件**。
+   - 政治理论错题记入独立的政治理论易错题集（`gk-skill/错题集/政治理论.md` → 同步至 `训练/万象峰/易错题.md`），**不在思过崖 7 石碑显示**，而是在时政地图顶栏五栏（`月半时政 · 专题时政 · 冲刺学习 · 分类时政 · 易错题`）的「易错题」栏按思过崖模板展示。
+
 **多个AI并行开发与统一发布（用户2026-10-25约定）：推送开发分支≠发布；推送前先合并远端开发分支、不 force；版本号与更新记录只在发布时改一次；创建 validate 分支前必须先运行 `python3 tools/release_precheck.py --tests`，有“失败”项不得发布。详见 CLAUDE.md「多个AI并行开发与统一发布」。**
+
