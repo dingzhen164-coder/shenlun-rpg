@@ -83,10 +83,10 @@ const AMB = (() => {
       if (!bag.length) bag = list.map((_, i) => i).filter((i) => i !== idx).sort(() => Math.random() - 0.5);
       return bag.shift();
     }
-    function start() {
+    function start(silent) {
       if (on) return;
       const cur = DATA?.current || {}, music = DATA?.music || [];
-      if (!music.length) { status('音乐库为空，请先放入音乐文件，再刷新本页。'); return; }
+      if (!music.length) { if (!silent) status('音乐库为空，请先放入音乐文件，再刷新本页。'); return; }
       vol = cur.volume ?? 0.35;
       list = music; bag = [];
       idx = cur.shuffle ? Math.floor(Math.random() * music.length) : Math.max(0, music.indexOf(cur.track));

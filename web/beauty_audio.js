@@ -56,7 +56,7 @@
 
   function unlock() {
     AudioBus.resume(); if (unlocked) return; unlocked = true;
-    apply();
+    apply(true);
   }
 
   // ---- 事件：点击、悬停、弹窗、答对答错、奖励
@@ -90,7 +90,7 @@
   }
   document.addEventListener("beauty:view", function () { sfx("page", 0.7); });
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { if (cur) cur.pause(); if (amb) amb.pause(); window.AMB?.bgm.pauseHidden(); } else { syncMine(); if (cur && unlocked && S.bgm && S.src === "builtin") cur.play().catch(function () {}); if (amb && unlocked && S.sfx) amb.play().catch(function () {}); }
+    if (document.hidden) { if (cur) cur.pause(); if (amb) amb.pause(); window.AMB?.bgm.pauseHidden(); } else { syncMine(true); if (cur && unlocked && S.bgm && S.src === "builtin") cur.play().catch(function () {}); if (amb && unlocked && S.sfx) amb.play().catch(function () {}); }
   });
 
   // 仪式：升级/破境时放对应音效，并短暂切到仪式曲
@@ -108,22 +108,22 @@
 
   // ---- 与设置页“背景音乐”合并的控制接口（ambience.js 的设置卡调用）。只保留“我的音乐”（库里 训练/外观/音乐/，由 AMB.bgm 播放）
   var mineOn = function () { return !!(window.AMB && AMB.bgm && AMB.bgm.on); };
-  function syncMine() {
+  function syncMine(silent) {
     if (!window.AMB || !AMB.bgm) return;
     var should = S.bgm && unlocked;
-    if (should && !document.hidden) { if (!mineOn()) AMB.bgm.start(); else AMB.bgm.resume(); }
+    if (should && !document.hidden) { if (!mineOn()) AMB.bgm.start(silent); else AMB.bgm.resume(); }
     else if (!should && mineOn()) AMB.bgm.stop();
   }
-  function apply() {
+  function apply(silent) {
     refresh();
-    syncMine();
+    syncMine(silent);
   }
   function paintBtn() { var b = document.querySelector(".beauty-audio-btn"); if (b) { b.textContent = (S.sfx || S.bgm) ? "🔊" : "🔇"; if (window.BeautyIcons) BeautyIcons.scan(b.parentNode); } }
   var API = {
     sync: apply,
     sfx: sfx, bgm: function (n) { override = n || ""; refresh(); },
     settings: S,
-    set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; S.src = "mine"; save(); apply(); paintBtn(); },
+    set: function (patch) { for (var k in patch) if (k in S) S[k] = patch[k]; S.src = "mine"; save(); apply(false); paintBtn(); },
     setBgmVolume: function (v) { S.vb = v; save(); },
     setSfxVolume: function (v) { S.vs = v; save(); if (amb) { clearInterval(amb._r); AudioBus.volume(amb, ambVol()); } sfx("click"); }
   };
@@ -139,6 +139,6 @@
     paintBtn();
   }
   window.BeautyAudio = API;
-  function init() { ui(); watch(); wrapCeremony(); setTimeout(syncMine, 600); }
+  function init() { ui(); watch(); wrapCeremony(); setTimeout(function () { syncMine(true); }, 600); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
