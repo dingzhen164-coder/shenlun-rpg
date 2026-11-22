@@ -69,12 +69,12 @@
 
 ## 四、整场模考批量错题复盘规则（`mock-review` skill，只复盘错题）
 
-用户说「复盘第 XX 季模考」或「复盘最新一次模考」时，**不要要求用户一道题一道题粘贴**，直接按 `gk-skill/skills/mock-review/SKILL.md` 执行批量复盘：
+用户说「复盘第 XX 季模考」或「复盘最新一次模考」时，**不要要求用户一道题一道题粘贴**，直接按 `gk-skill/skill/mock-review/SKILL.md` 执行批量复盘：
 
 1. **只复盘错题（❌ / ⚪ 未答），不筛慢题**，自动兼容：
    - **粉笔 HTML/ZIP 导入**：`训练/试炼与大比/模考复盘/第XX季/`（及旧版 `训练/模考复盘/第XX季/`）
    - **PDF 拆分导入**：`FB模考试卷复盘/第XX季/`
-2. **先用脚本抽题分包**：运行 `gk-skill/skills/mock-review/scripts/extract_mock_wrongs.py --vault "<行测库>" --season <季数> --out-dir /tmp/mock-review-<季数>`，自动按模块生成错题包并解析本地原图路径（图推/资料直接读图）。
+2. **先用脚本抽题分包**：运行 `gk-skill/skill/mock-review/scripts/extract_mock_wrongs.py --vault "<行测库>" --season <季数> --out-dir /tmp/mock-review-<季数>`，自动按模块生成错题包并解析本地原图路径（图推/资料直接读图）。
 3. **分板块分批 / 并行精讲**：按「政治理论 / 常识判断 / 言语理解 / 数量关系 / 判断推理 / 资料分析」分批（优先并发子 Agent），各自调用对应老师 skill；政治理论必须双检索并写明出处文件。
 4. **自动回填 + 去重分流写回**：
    - 所有错题精讲回填至本季 `模考复盘/第XX季/` 对应题目的 `> **🧙 师傅解惑**` 区块（不覆盖用户原笔记）；
