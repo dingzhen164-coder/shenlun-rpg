@@ -13,8 +13,12 @@
   python3 extract_mock_wrongs.py --vault /path/to/行测库 --latest
   python3 extract_mock_wrongs.py --vault /path/to/行测库 --season 39 --out-dir /tmp/mock39
   python3 extract_mock_wrongs.py --vault /path/to/行测库 --season 39 --format json
+  # 将精讲解析回填到宗门大比复盘文档（软件「宗门大比 → 复盘解析」立即显示）
+  python3 extract_mock_wrongs.py --write-note /path/to/01-政治理论.md --num 2 --note-file /tmp/q2.md
+  python3 extract_mock_wrongs.py --write-batch /tmp/notes.json
 """
 import argparse
+import datetime as dt
 import json
 import re
 import sys
@@ -25,6 +29,9 @@ MAT_RE = re.compile(r'^##\s*材料（第(\d+)[-–—~](\d+)题）')
 ANS_RE = re.compile(r'正确答案[：:]\s*\**([A-D?]+)\**.*?我的答案[：:]\s*\**([A-D?—\-]*)\**')
 IMG_WIKI_RE = re.compile(r'!\[\[([^\]]+)\]\]')
 IMG_MD_RE = re.compile(r'!\[[^\]]*\]\(([^)]+)\)')
+NOTE_HEAD = '> [!note] 复盘'
+TUTOR_HEAD = '> **🧙 师傅解惑**'
+TUTOR_END = '> <!-- /师傅解惑 -->'
 
 # 思过崖 7 板块精确映射（模考板块名 -> 错题集文档名）
 SIGUO_MAP = {
@@ -340,15 +347,73 @@ def render_summary_md(data):
     return '\n'.join(lines) + '\n'
 
 
+def write_tutor_note(file_path, num, text, date_str=None):
+    """按「公考模拟器」vault.save_tutor_note 的精确格式写回 > [!note] 复盘 区块，
+    宗门大比复盘界面的「复盘解析」会立即读取并展示；同一题重复写入自动替换旧块，不破坏原解析和用户笔记。"""
+    f = Path(file_path).expanduser().resolve()
+    if not f.is_file():
+        raise SystemExit(f'错误：复盘文件不存在：{f}')
+    date_str = date_str or dt.date.today().isoformat()
+    lines = f.read_text(encoding='utf-8-sig', errors='ignore').split('\n')
+    start = next((i for i, ln in enumerate(lines)
+                  if HEAD_RE.match(ln) and int(HEAD_RE.match(ln).group(1)) == int(num)), None)
+    if start is None:
+        raise SystemExit(f'错误：在 {f.name} 中未找到第 {num} 题（### {num}. ❌/⚪）')
+    end = next((i for i in range(start + 1, len(lines))
+                if lines[i].strip() == '---' or HEAD_RE.match(lines[i]) or MAT_RE.match(lines[i])), len(lines))
+    body_lines = [('> ' + ln) if ln.strip() else '>' for ln in str(text).strip().split('\n')]
+    block = [f'{TUTOR_HEAD}（{date_str}）'] + body_lines + [TUTOR_END]
+    seg = lines[start:end]
+    old = next((i for i, ln in enumerate(seg) if ln.startswith(TUTOR_HEAD)), None)
+    if old is not None:
+        close = next((i for i in range(old, len(seg)) if seg[i].strip() == TUTOR_END), len(seg) - 1)
+        seg[old:close + 1] = block
+    else:
+        note = next((i for i, ln in enumerate(seg) if ln.startswith(NOTE_HEAD)), None)
+        if note is None:
+            while seg and not seg[-1].strip():
+                seg.pop()
+            seg += ['', NOTE_HEAD] + block + ['']
+        else:
+            k = note + 1
+            while k < len(seg) and seg[k].startswith('>'):
+                k += 1
+            seg[k:k] = ['>'] + block
+    lines[start:end] = seg
+    with f.open('w', encoding='utf-8', newline='\n') as fp:
+        fp.write('\n'.join(lines))
+    return f
+
+
 def main():
-    ap = argparse.ArgumentParser(description='提取行测整场模考的全部错题（兼容 HTML/ZIP 与 PDF 拆分导入）')
+    ap = argparse.ArgumentParser(description='提取行测整场模考的全部错题，或将精讲解析回填至宗门大比复盘文档')
     ap.add_argument('--vault', help='Obsidian 行测库根目录（默认自动向上探测）')
     ap.add_argument('--season', type=int, help='指定季数，例如 39')
     ap.add_argument('--latest', action='store_true', help='自动提取最新一季模考')
     ap.add_argument('--list', action='store_true', help='列出库中所有可用模考季数')
     ap.add_argument('--format', choices=('md', 'json'), default='md', help='标准输出格式')
     ap.add_argument('--out-dir', help='按模块拆分成多个复盘包写入该目录（适合多子 Agent 并行复盘）')
+    ap.add_argument('--write-note', help='将单题解析回填至指定模考复盘 .md 文件（宗门大比复盘界面立即显示）')
+    ap.add_argument('--num', type=int, help='配合 --write-note 使用：题号')
+    ap.add_argument('--note-file', help='配合 --write-note 使用：解析内容文本文件路径（省略则从 stdin 读取）')
+    ap.add_argument('--write-batch', help='批量回填 JSON 文件，格式为 [{"file": "...", "num": 2, "note": "..."}, ...]')
+    ap.add_argument('--date', help='可选，回填日期 YYYY-MM-DD（默认今天）')
     args = ap.parse_args()
+
+    if args.write_batch:
+        items = json.loads(Path(args.write_batch).read_text(encoding='utf-8-sig'))
+        for item in items:
+            write_tutor_note(item['file'], item['num'], item['note'], args.date)
+        print(f'已批量回填 {len(items)} 道题解析至宗门大比复盘文档（软件「复盘解析」刷新即见）。')
+        return
+
+    if args.write_note:
+        if args.num is None:
+            raise SystemExit('错误：使用 --write-note 时必须指定 --num <题号>')
+        note_text = Path(args.note_file).read_text(encoding='utf-8-sig') if args.note_file else sys.stdin.read()
+        f = write_tutor_note(args.write_note, args.num, note_text, args.date)
+        print(f'已回填第 {args.num} 题解析至：{f}')
+        return
 
     vault = detect_vault(args.vault)
     seasons = discover_seasons(vault)

@@ -20,10 +20,10 @@ description: 整场行测模考批量错题复盘工作流。当用户说“复�
 
 ```bash
 # 查看可用季数
-python3 scripts/extract_mock_wrongs.py --vault "<行测库路径>" --list
+python3 gk-skill/skill/mock-review/scripts/extract_mock_wrongs.py --vault "<行测库路径>" --list
 
 # 提取指定季数（或用 --latest 提取最新一季）并按板块拆成独立复盘包
-python3 scripts/extract_mock_wrongs.py --vault "<行测库路径>" --season <季数> --out-dir /tmp/mock-review-<季数>
+python3 gk-skill/skill/mock-review/scripts/extract_mock_wrongs.py --vault "<行测库路径>" --season <季数> --out-dir /tmp/mock-review-<季数>
 ```
 
 脚本会生成：
@@ -61,8 +61,14 @@ python3 scripts/extract_mock_wrongs.py --vault "<行测库路径>" --season <季
 
 完成解析后，按以下规则落地写回：
 
-### 1. 回填本季模考复盘原文件（所有板块通用）
-- 在 `模考复盘/第XX季/[0-9][0-9]-<板块>.md` 对应错题的 `> [!note] 复盘` 下方，追加或更新 `> **🧙 师傅解惑**` ～ `> <!-- /师傅解惑 -->` 区块（不覆盖用户自己写过的笔记，也不改动原题干、答案与粉笔原解析）。
+### 1. 回填本季模考复盘原文件（所有板块必做，确保「宗门大比」复盘界面直接显示解析）
+- **公考模拟器的「宗门大比 → 复盘 → 复盘解析」直接读取本季 `模考复盘/第XX季/[0-9][0-9]-<板块>.md`（或 `FB模考试卷复盘/第XX季/...`）中每题的 `> [!note] 复盘` 区块**。
+- 为保证格式 100% 被软件识别且不破坏粉笔原解析与用户原笔记，**必须使用脚本批量回填**（不要手工正则乱改 `>` 引用）：
+  ```bash
+  # 将本批次全部错题的解析整理为 JSON：[{"file": "<原复盘文件>", "num": <题号>, "note": "<精讲解析+错因+一句话教训>"}, ...]
+  python3 gk-skill/skill/mock-review/scripts/extract_mock_wrongs.py --write-batch /tmp/mock-review-<季数>/notes-<批次>.json
+  ```
+- 脚本会自动把解析按 `> **🧙 师傅解惑**（YYYY-MM-DD）` ～ `> <!-- /师傅解惑 -->` 写进对应题目的 `> [!note] 复盘` 中（若 PDF 拆分题原无 `> [!note] 复盘` 会自动补建；重复跑同题会自动替换旧块不堆叠）。写完后在软件里打开/刷新「宗门大比 → 复盘」，「复盘解析」里就能直接看到完整精讲。
 
 ### 2. 分流写入错题集（写入前先检查是否已存在同题号/同题干，避免重复）
 - **政治理论错题** → 写入 `gk-skill/错题集/政治理论.md`（同步后在万象峰「易错题」栏显示，**严禁写入思过崖**），采用思过崖标准模板，并在 `### 题源与归属` 写明 `粉笔第XX季模考 第N题` 与**具体出处文件**。
